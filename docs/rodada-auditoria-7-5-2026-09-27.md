@@ -50,12 +50,28 @@ valores de cada linha e o total não mudaram.
 Evidência visual: capturas em 1280 px (claro e escuro) e 375 px, e PDF A4 sem
 gráficos de fundo, na prévia simulada (`PLAYWRIGHT_MOCK_SUPABASE`).
 
+## DOCX só do cliente (decisão do dono, 27/09)
+
+"O documento que vai para o cliente não traz a margem de lucro; a margem fica
+registrada no app." O DOCX da proposta (`exportOrcamentoFinalDocx`) tinha
+"Resumo econômico (interno)", "Parâmetros econômicos" e a fórmula do gross-up.
+Agora ele segue a folha impressa: proponente, cliente, datas legíveis (antes
+saíam como `2026-06-21T08:00:00Z`), objeto, serviços e valores, condições,
+aceite e rodapé com "Página X de Y". O aviso interno de regra econômica
+anterior não vai mais ao cliente (nem ao papel).
+
+- Arquivos: `proposta-<número>.docx` (cliente) e `orcamento-interno-<número>.xlsx`
+  (planilha interna, sem mudança de conteúdo); botões "Proposta (DOCX)" e
+  "Planilha interna (XLSX)".
+- A margem continua no modo interno da proposta e na etapa final do orçamento.
+- Teste: `final-exporters.test.ts` abre o DOCX e confere que não há margem,
+  parâmetros, custo técnico nem gross-up.
+
 ## Pendências e decisões do dono
 
-- **DOCX "Proposta comercial" leva dados internos**: o arquivo inclui "Resumo
-  econômico (interno)" e "Parâmetros econômicos" (subtotal técnico, lucro e
-  impostos). Se ele vai para o cliente, expõe a margem. Decidir: DOCX só do
-  cliente, ou dois arquivos (cliente e interno).
+- O DOCX do editor de custos do projeto ("Orçamento de projeto — ATGC Genética
+  Ambiental") é documento de trabalho e inclui o total de parâmetros; o título
+  diz ATGC mesmo em orçamento GIA. Não mudou nesta rodada.
 - A aprovação pública não pôde ser exercitada na prévia simulada: a página lê
   com a chave de serviço, que a simulação não emula.
 - PR #47 (senha individual) mexe em `usuarios.ts`: quem entrar por último sobe

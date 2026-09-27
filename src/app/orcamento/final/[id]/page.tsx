@@ -348,8 +348,9 @@ export default async function OrcamentoFinalPage({
               </HelpTip>
             }
           >
+            {/* aviso para a equipe: não vai ao papel nem ao DOCX */}
             {dadosExport.avisoLegado && (
-              <p className="mb-3 text-xs text-muted-foreground">{dadosExport.avisoLegado}</p>
+              <p className="no-print mb-3 text-xs text-muted-foreground">{dadosExport.avisoLegado}</p>
             )}
             {/* No celular o componente vai acima da descrição: a tabela cabe sem rolar. */}
             <table className="w-full text-left text-sm">

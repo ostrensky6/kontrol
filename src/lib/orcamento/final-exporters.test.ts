@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { formatCurrency } from "@/lib/formatters";
 import { exportOrcamentoFinalDocx, exportOrcamentoFinalXlsx } from "./final-exporters";
 import { montarPropostaFinalExport } from "./proposta-final-export";
 
@@ -46,7 +48,8 @@ describe("exportOrcamentoFinalXlsx (reconciliado)", () => {
   it("gera workbook com composição comercial reconciliada ao total final", async () => {
     await exportOrcamentoFinalXlsx(dados);
     expect(saveAsMock).toHaveBeenCalledTimes(1);
-    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-final-OF-2026-0001-v1.xlsx");
+    // planilha é interna (custo técnico e parâmetros): o nome diz isso
+    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-interno-OF-2026-0001-v1.xlsx");
 
     const blob = saveAsMock.mock.calls[0][0] as Blob;
     const wb = new ExcelJS.Workbook();
@@ -73,14 +76,62 @@ describe("exportOrcamentoFinalXlsx (reconciliado)", () => {
   });
 });
 
-describe("exportOrcamentoFinalDocx (reconciliado)", () => {
+/** Texto corrido do DOCX gerado (corpo e rodapé), sem as tags do Word. */
+async function textoDoDocx(blob: Blob) {
+  const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+  const partes = Object.keys(zip.files).filter((nome) => /^word\/(document|footer\d*)\.xml$/.test(nome));
+  const xml = await Promise.all(partes.map((nome) => zip.file(nome)!.async("string")));
+  return xml.join(" ").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+}
+
+describe("exportOrcamentoFinalDocx (documento do cliente)", () => {
   beforeEach(() => saveAsMock.mockClear());
 
-  it("gera DOCX nomeado pelo numero da versao final", async () => {
+  it("gera DOCX nomeado como proposta pelo numero da versao final", async () => {
     await exportOrcamentoFinalDocx(dados);
     expect(saveAsMock).toHaveBeenCalledTimes(1);
-    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-final-OF-2026-0001-v1.docx");
+    expect(saveAsMock.mock.calls[0][1]).toBe("proposta-OF-2026-0001-v1.docx");
     expect((saveAsMock.mock.calls[0][0] as Blob).size).toBeGreaterThan(1000);
+  });
+
+  it("traz só o que o cliente vê: sem margem, parâmetros nem custo técnico", async () => {
+    await exportOrcamentoFinalDocx(montarPropostaFinalExport({
+      ...propostaBase,
+      snapshot: { ...propostaBase.snapshot, consolidado: { ...propostaBase.snapshot.consolidado, economia: undefined } },
+    }));
+    const texto = await textoDoDocx(saveAsMock.mock.calls[0][0] as Blob);
+
+    for (const interno of [
+      "Resumo econômico",
+      "Parâmetros econômicos",
+      "Subtotal técnico",
+      "Soma dos parâmetros",
+      "Impostos",
+      "gross-up",
+      "total_final",
+      "Participação",
+      "custo técnico",
+      "custo unit",
+      "fator",
+      "regra econômica anterior",
+    ]) {
+      expect(texto.toLowerCase(), `não pode conter "${interno}"`).not.toContain(interno.toLowerCase());
+    }
+  });
+
+  it("mostra proposta, cliente, serviços, total e condições com datas legíveis", async () => {
+    await exportOrcamentoFinalDocx(dados);
+    const texto = await textoDoDocx(saveAsMock.mock.calls[0][0] as Blob);
+
+    expect(texto).toContain("Proposta comercial");
+    expect(texto).toContain("OF-2026-0001-v1");
+    expect(texto).toContain("Cliente Final");
+    expect(texto).toContain("Serviços e valores");
+    expect(texto).toContain(formatCurrency(350).replace(/\s+/g, " "));
+    expect(texto).toContain("Condições comerciais");
+    expect(texto).toContain("21/06/2026");
+    expect(texto).toContain("20/07/2026");
+    expect(texto).not.toContain("2026-06-21T");
   });
 
   it("gera XLSX GIA com criador e instituição GIA", async () => {
