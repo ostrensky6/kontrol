@@ -11,6 +11,7 @@ import {
   selectedPermissionsFromForm,
   type PapelUsuario,
 } from "@/lib/auth/permissions";
+import type { Database } from "@/lib/supabase/database.types";
 import type { FormState } from "./cadastros";
 
 const PAPEIS_VALIDOS = PAPEIS.map((papel) => papel.value);
@@ -74,6 +75,40 @@ async function permissoesDoUsuario(papel: string, formData?: FormData) {
 // ban "permanente" para suspensão; o GoTrue aceita uma duração em horas.
 const BAN_SUSPENSO = "876000h"; // ~100 anos
 
+type PerfilUpdate = Database["public"]["Tables"]["perfis"]["Update"];
+
+/**
+ * Ajusta o perfil que o trigger criou para a conta nova. Se o ajuste falhar
+ * (ou o perfil não existir), a conta é desfeita para não sobrar um acesso com
+ * o papel padrão; se nem isso der certo, ela fica suspensa e a mensagem diz
+ * o que fazer. Devolve null quando está tudo certo.
+ */
+async function ajustarPerfilDaContaNova(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+  email: string,
+  dados: PerfilUpdate,
+): Promise<FormState | null> {
+  const supabase = await createClient();
+  const { data, error } = await supabase.from("perfis").update(dados).eq("id", userId).select("id");
+  if (!error && (data?.length ?? 0) > 0) return null;
+
+  const { error: desfazerError } = await admin.auth.admin.deleteUser(userId);
+  if (!desfazerError) {
+    return {
+      ok: false,
+      message: `Não foi possível ajustar o perfil de ${email}; a conta não foi criada. Tente novamente.`,
+    };
+  }
+  const { error: suspenderError } = await admin.auth.admin.updateUserById(userId, { ban_duration: BAN_SUSPENSO });
+  return {
+    ok: false,
+    message: suspenderError
+      ? `A conta ${email} foi criada, mas o perfil não foi ajustado e a conta não pôde ser desfeita nem suspensa. Exclua ${email} em Usuários antes de cadastrar de novo.`
+      : `A conta ${email} foi criada, mas o perfil não foi ajustado; ela ficou suspensa. Exclua ${email} em Usuários e cadastre de novo.`,
+  };
+}
+
 /**
  * Cadastra um usuário diretamente. Cria a conta no Auth com senha
  * provisória e marca senha_provisoria=true; o trigger cria o perfil e o
@@ -110,17 +145,14 @@ export async function criarUsuario(_prev: FormState, formData: FormData): Promis
     }
 
     // o trigger criou o perfil; ajusta nome/papel (e garante a flag)
-    const supabase = await createClient();
-    await supabase
-      .from("perfis")
-      .update({
-        nome: nome || null,
-        papel,
-        permissoes,
-        senha_provisoria: true,
-        suspenso: false,
-      })
-      .eq("id", data.user.id);
+    const falhaPerfil = await ajustarPerfilDaContaNova(admin, data.user.id, email, {
+      nome: nome || null,
+      papel,
+      permissoes,
+      senha_provisoria: true,
+      suspenso: false,
+    });
+    if (falhaPerfil) return falhaPerfil;
 
     revalidatePath("/usuarios");
     return {
@@ -150,11 +182,11 @@ export async function editarUsuario(_prev: FormState, formData: FormData): Promi
       .from("perfis")
       .update({ nome: nome || null, papel, permissoes: await permissoesDoUsuario(papel, formData) })
       .eq("id", id);
+    // perfil recusado: o Auth fica como estava
+    if (error) return { ok: false, message: error.message };
 
     // mantém o nome também no Auth (user_metadata)
     const { error: authError } = await admin.auth.admin.updateUserById(id, { user_metadata: { nome } });
-
-    if (error) return { ok: false, message: error.message };
     if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
     revalidatePath("/usuarios");
     return { ok: true, message: "Usuário atualizado." };
@@ -300,19 +332,17 @@ export async function criarUsuarioPreAprovado(_prev: FormState, formData: FormDa
       };
     }
 
-    await supabase
-      .from("perfis")
-      .update({
-        nome: nome || null,
-        papel,
-        permissoes:
-          papel === "admin"
-            ? {}
-            : soExcecoes(normalizePermissions(papel, pre.permissoes ?? {}), await categoriaEfetiva(papel)),
-        senha_provisoria: true,
-        suspenso: false,
-      })
-      .eq("id", data.user.id);
+    const falhaPerfil = await ajustarPerfilDaContaNova(admin, data.user.id, email, {
+      nome: nome || null,
+      papel,
+      permissoes:
+        papel === "admin"
+          ? {}
+          : soExcecoes(normalizePermissions(papel, pre.permissoes ?? {}), await categoriaEfetiva(papel)),
+      senha_provisoria: true,
+      suspenso: false,
+    });
+    if (falhaPerfil) return falhaPerfil;
 
     revalidatePath("/usuarios");
     return {
@@ -324,28 +354,50 @@ export async function criarUsuarioPreAprovado(_prev: FormState, formData: FormDa
   }
 }
 
-/** Suspende (bloqueia login) ou reativa um usuário. */
-export async function alternarSuspensao(formData: FormData) {
+/**
+ * Suspende (bloqueia login) ou reativa um usuário. O bloqueio no Auth e a
+ * marca no perfil andam juntos: se o perfil falhar, o Auth volta ao que era.
+ */
+export async function alternarSuspensao(formData: FormData): Promise<FormState> {
   try {
-    if (!(await temPapel("admin"))) return;
+    if (!(await temPapel("admin"))) return { ok: false, message: "Sem permissão para suspender usuários." };
     const id = String(formData.get("id") ?? "");
     const suspender = String(formData.get("suspender") ?? "") === "1";
-    if (!id) return;
+    if (!id) return { ok: false, message: "Usuário inválido." };
 
     // um admin não pode suspender a si mesmo (evita travar o próprio acesso)
     const eu = await usuarioAtual();
-    if (suspender && eu?.id === id) return;
+    if (suspender && eu?.id === id) {
+      return { ok: false, message: "Você não pode suspender o seu próprio usuário." };
+    }
 
-    const { error: authError } = await createAdminClient().auth.admin.updateUserById(id, {
+    const admin = createAdminClient();
+    const { error: authError } = await admin.auth.admin.updateUserById(id, {
       ban_duration: suspender ? BAN_SUSPENSO : "none",
     });
-    if (authError) return;
+    if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
 
     const supabase = await createClient();
-    await supabase.from("perfis").update({ suspenso: suspender }).eq("id", id);
+    const { data, error } = await supabase
+      .from("perfis")
+      .update({ suspenso: suspender })
+      .eq("id", id)
+      .select("id");
+    if (error || (data?.length ?? 0) === 0) {
+      const { error: desfazerError } = await admin.auth.admin.updateUserById(id, {
+        ban_duration: suspender ? "none" : BAN_SUSPENSO,
+      });
+      return {
+        ok: false,
+        message: desfazerError
+          ? "O perfil não foi atualizado e o login ficou diferente do perfil. Tente de novo antes de qualquer outra alteração."
+          : `Não foi possível ${suspender ? "suspender" : "reativar"} o usuário; nada foi alterado. Tente novamente.`,
+      };
+    }
     revalidatePath("/usuarios");
-  } catch {
-    return;
+    return { ok: true, message: suspender ? "Usuário suspenso." : "Usuário reativado." };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
   }
 }
 
@@ -392,7 +444,9 @@ export async function removerAssinaturaUsuario(_prev: FormState, formData: FormD
 
   const supabase = await createClient();
   if (path) {
-    await supabase.storage.from(BUCKET_ASSINATURAS).remove([path]);
+    // arquivo que ficou no Storage = assinatura ainda disponível; não limpa o cadastro
+    const { error: removeError } = await supabase.storage.from(BUCKET_ASSINATURAS).remove([path]);
+    if (removeError) return { ok: false, message: "Não foi possível apagar o arquivo da assinatura. Tente novamente." };
   }
   const { error } = await supabase
     .from("perfis")

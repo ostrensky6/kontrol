@@ -1111,15 +1111,28 @@ export async function removerAnexoProjeto(formData: FormData) {
   if (!id || !anexoId) return;
 
   const supabase = await createClient();
-  const { data: anexo } = await supabase
+  const { data: anexo, error: anexoError } = await supabase
     .from("orcamento_projeto_anexos")
     .select("path")
     .eq("id", anexoId)
+    .eq("orcamento_projeto_id", id)
     .single();
-  if (anexo?.path) {
-    await supabase.storage.from(BUCKET_ANEXOS).remove([anexo.path]);
+  if (anexoError || !anexo) throw new Error("Anexo não encontrado neste orçamento.");
+
+  // Arquivo primeiro: se o registro falhar depois, remover de novo conclui
+  // (o Storage não reclama de arquivo que já não existe).
+  if (anexo.path) {
+    const { error: arquivoError } = await supabase.storage.from(BUCKET_ANEXOS).remove([anexo.path]);
+    if (arquivoError) throw new Error("Não foi possível apagar o arquivo do anexo. Nada foi removido; tente novamente.");
   }
-  await supabase.from("orcamento_projeto_anexos").delete().eq("id", anexoId);
+  const { data: removidos, error } = await supabase
+    .from("orcamento_projeto_anexos")
+    .delete()
+    .eq("id", anexoId)
+    .select("id");
+  if (error || (removidos?.length ?? 0) === 0) {
+    throw new Error("O arquivo foi apagado, mas o anexo continua na lista. Remova de novo para concluir.");
+  }
   revalidarEtapaProjeto(demandaDe(await carregarProjeto(supabase, id), formData));
 }
 
@@ -1141,7 +1154,17 @@ export async function excluirOrcamentoProjeto(formData: FormData) {
     );
   }
 
-  await supabase.from("orcamento_projetos").delete().eq("id", id);
+  // RLS que recusa apaga zero linhas sem erro: só confirma o que o banco devolveu
+  const { data: removidos, error } = await supabase.from("orcamento_projetos").delete().eq("id", id).select("id");
+  if (error || (removidos?.length ?? 0) === 0) {
+    redirect(
+      comParametro(
+        caminhoEtapa(demandaId),
+        "erro_exclusao",
+        "Não foi possível excluir o orçamento de projeto. Nada foi apagado; tente novamente.",
+      ),
+    );
+  }
   revalidarEtapaProjeto(demandaId);
   redirect(caminhoEtapa(demandaId));
 }

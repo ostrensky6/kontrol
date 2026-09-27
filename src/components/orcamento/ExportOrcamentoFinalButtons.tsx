@@ -37,22 +37,20 @@ export function ExportOrcamentoFinalButtons({ dados }: Props) {
       <Button
         type="button"
         variant="outline"
-        size="sm"
         disabled={carregando !== null}
         onClick={() => exportar("xlsx")}
       >
         <FileSpreadsheet aria-hidden />
-        {carregando === "xlsx" ? "Gerando..." : "XLSX"}
+        {carregando === "xlsx" ? "Gerando…" : "Planilha (XLSX)"}
       </Button>
       <Button
         type="button"
         variant="outline"
-        size="sm"
         disabled={carregando !== null}
         onClick={() => exportar("docx")}
       >
         <FileText aria-hidden />
-        {carregando === "docx" ? "Gerando..." : "DOCX"}
+        {carregando === "docx" ? "Gerando…" : "Documento (DOCX)"}
       </Button>
     </div>
   );

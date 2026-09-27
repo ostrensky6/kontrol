@@ -339,7 +339,8 @@ html:not(.dark) .text-brand-500 {
   footer:not(.proposal-footer),
   button,
   a.no-print,
-  .no-print {
+  .no-print,
+  .skip-link {
     display: none !important;
   }
   .print-area {
@@ -360,6 +361,57 @@ html:not(.dark) .text-brand-500 {
   blockquote,
   .page-break-inside-avoid {
     page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+
+/* Proposta do cliente (orcamento/final/[id]): é uma folha. Fica clara nos dois
+   temas, para a tela mostrar o que o papel e o PDF vão mostrar. */
+.folha-documento {
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --card: #ffffff;
+  --card-foreground: #0f172a;
+  --muted: #f1f5f9;
+  --muted-foreground: #475569;
+  --border: #e2e8f0;
+  color-scheme: light;
+  background: var(--card);
+  color: var(--foreground);
+}
+
+@page proposta {
+  size: A4;
+  margin: 15mm 15mm 18mm;
+  @bottom-right {
+    content: "Página " counter(page) " de " counter(pages);
+    font-size: 8pt;
+    color: #475569;
+  }
+}
+
+@media print {
+  /* A página nomeada vai no body: só na folha, forçaria quebra antes e depois
+     dela (e uma página em branco no fim). */
+  body:has(.folha-documento) {
+    page: proposta;
+  }
+  .folha-documento {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Tabela de serviços longa pode seguir para a página seguinte; a linha não. */
+  .folha-documento table {
+    break-inside: auto;
+  }
+  .folha-documento thead {
+    display: table-header-group;
+  }
+  .folha-documento section:not(.permite-quebra),
+  .folha-documento .manter-junto {
     break-inside: avoid;
   }
 }

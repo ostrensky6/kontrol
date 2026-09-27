@@ -65,7 +65,12 @@ describe("excluirUsuario", () => {
     maybeSingle.mockResolvedValue({ data: null, error: null });
     upsert.mockResolvedValue({ error: null });
     update.mockReturnValue({ eq });
-    eq.mockResolvedValue({ error: null });
+    // update(...).eq(...) é aguardado direto ou seguido de select("id") (conta nova, suspensão)
+    eq.mockImplementation(() =>
+      Object.assign(Promise.resolve({ error: null }), {
+        select: vi.fn(async () => ({ data: [{ id: "usuario-criado" }], error: null })),
+      }),
+    );
   });
 
   it("mantem o hard delete para um usuario sem vinculos", async () => {

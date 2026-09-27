@@ -97,10 +97,11 @@ async function atualizarOperacionalLaboratorio(
     statusDocumento: statusDocumento ?? orc?.status,
     quantidadeItens: itens?.length ?? 0,
   });
-  await supabase.from("orcamentos").update({
+  const { error } = await supabase.from("orcamentos").update({
     status_operacional: status,
     status_operacional_atualizado_em: new Date().toISOString(),
   }).eq("id", id);
+  return { error };
 }
 
 /** Salva o cabeçalho (cliente/projeto + dados) de um orçamento sem proposta.
@@ -175,7 +176,7 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
   }
 
   const supabase = await createClient();
-  const [{ data: anterior }, { data: itens }] = await Promise.all([
+  const [{ data: anterior, error: anteriorError }, { data: itens, error: itensError }] = await Promise.all([
     supabase
       .from("orcamentos")
       .select("status")
@@ -186,14 +187,19 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
       .select("id")
       .eq("orcamento_id", id),
   ]);
+  if (anteriorError || !anterior) {
+    return falha("Não foi possível carregar o orçamento para revisão. Tente novamente.");
+  }
+  if (itensError) return falha("Não foi possível conferir as análises do orçamento. Tente novamente.");
   if ((itens ?? []).length === 0) {
     return falha("Adicione ao menos uma análise antes de revisar os custos laboratoriais.");
   }
 
   // Transição primeiro: se o banco recusar, nada foi gravado e o módulo não
-  // fica "revisado" com o documento ainda em rascunho.
-  const statusFinal = anterior?.status === "rascunho" ? novoStatus : anterior?.status ?? novoStatus;
-  if (anterior?.status === "rascunho") {
+  // fica "revisado" com o documento ainda em rascunho. Se a gravação seguinte
+  // falhar, repetir a revisão pula a transição (já feita) e completa o resto.
+  const statusFinal = anterior.status === "rascunho" ? novoStatus : anterior.status ?? novoStatus;
+  if (anterior.status === "rascunho") {
     const { error: transicaoError } = await supabase.rpc("transicionar_orcamento", {
       p_orcamento_id: id,
       p_status_destino: novoStatus,
@@ -201,16 +207,19 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
     });
     if (transicaoError) return falha(mensagemDoBanco(transicaoError));
   }
+  // responsável e andamento na mesma linha, numa única gravação
   const { error } = await supabase
     .from("orcamentos")
     .update({
       responsavel,
-      status_operacional: "revisado",
+      status_operacional: statusOperacionalLaboratorio({
+        statusDocumento: statusFinal,
+        quantidadeItens: itens?.length ?? 0,
+      }),
       status_operacional_atualizado_em: new Date().toISOString(),
     })
     .eq("id", id);
   if (error) return falha(mensagemDoBanco(error));
-  await atualizarOperacionalLaboratorio(supabase, id, statusFinal);
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
   return sucesso("Custos revisados. A proposta já pode ser emitida.");
@@ -529,18 +538,26 @@ export async function cancelarOrcamento(_estado: EstadoAcao, formData: FormData)
     .eq("id", id)
     .single();
   if (!atual) return falha("Orçamento não encontrado.");
-  if (atual.status === "cancelado") return sucesso("O orçamento já estava cancelado.");
 
-  const { error } = await supabase.rpc("transicionar_orcamento", {
-    p_orcamento_id: id,
-    p_status_destino: "cancelado",
-    p_observacao: motivo,
-  });
-  if (error) return falha(mensagemDoBanco(error));
-  await atualizarOperacionalLaboratorio(supabase, id, "cancelado");
+  const jaCancelado = atual.status === "cancelado";
+  if (!jaCancelado) {
+    const { error } = await supabase.rpc("transicionar_orcamento", {
+      p_orcamento_id: id,
+      p_status_destino: "cancelado",
+      p_observacao: motivo,
+    });
+    if (error) return falha(mensagemDoBanco(error));
+  }
+  // Repetir o cancelamento acerta o andamento que tenha ficado para trás.
+  const { error: andamentoError } = await atualizarOperacionalLaboratorio(supabase, id, "cancelado");
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
-  return sucesso("Orçamento cancelado. O histórico foi preservado.");
+  if (andamentoError) {
+    return falha(
+      "O orçamento foi cancelado, mas o andamento do módulo não foi atualizado. Use “Concluir cancelamento” para corrigir.",
+    );
+  }
+  return sucesso(jaCancelado ? "O orçamento já estava cancelado." : "Orçamento cancelado. O histórico foi preservado.");
 }
 
 export async function salvarParametrosEconomicos(
