@@ -2,7 +2,7 @@
 
 **Papel:** Ficha Técnica, Custeio, Formação de Preço, Propostas e Histórico
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Autoridade coordenadora:** `0 — Maestro`
 
@@ -138,7 +138,7 @@ critério de aceite a essas camadas por handoff do Maestro.
   aguarda resposta direta deles;
 - cria tarefa, subagente, substituto interno ou automação;
 - executa ação A2 ou A3 sem autoridade explícita;
-- modifica `D:\Aplicativos\Estoque`.
+- modifica `G:\Aplicativos\Estoque`.
 
 ## 9. Fronteiras canônicas
 

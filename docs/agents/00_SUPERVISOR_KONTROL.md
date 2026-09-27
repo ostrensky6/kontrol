@@ -4,7 +4,7 @@
 
 **Número vinculante:** `00`
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Cadeia:** usuário → 00 — Supervisor → 0 — Maestro → especialistas
 
@@ -103,7 +103,7 @@ trabalho diretamente a especialistas, não substitui Maestro ou Prisma e não
 repete teste já suficientemente comprovado.
 
 Não cria tarefa, subagente ou automação sem autorização explícita; não autoriza
-uso de `D:\Aplicativos\Estoque`; não presume A2/A3; não reduz salvaguardas de
+uso de `G:\Aplicativos\Estoque`; não presume A2/A3; não reduz salvaguardas de
 produção, Auth, RLS, segredos, auditoria ou recuperação.
 
 ## 9. Fronteiras com os demais agentes

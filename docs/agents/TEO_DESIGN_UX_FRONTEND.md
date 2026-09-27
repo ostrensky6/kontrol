@@ -6,7 +6,7 @@
 
 **ID congelado:** `019fe0e1-af9f-7f71-af7f-88557d2137a0`
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Autoridade coordenadora:** `0 — Maestro`
 
@@ -129,7 +129,7 @@ Téo não pode:
 - esconder ausência, divergência, erro ou bloqueio com tratamento apenas visual;
 - reduzir a migração de `orcamento-projetos` a recriação de telas;
 - expor dado real ou segredo em captura, fixture ou relatório;
-- sobrescrever mudança preexistente ou escrever em `D:\Aplicativos\Estoque`;
+- sobrescrever mudança preexistente ou escrever em `G:\Aplicativos\Estoque`;
 - criar tarefa, subagente, agente substituto ou automação;
 - elevar autoridade ou trocar modelo/intensidade silenciosamente.
 
