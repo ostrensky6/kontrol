@@ -65,6 +65,9 @@ jobs:
       - name: Validar entrada direta, reposição com prazo total, compra atrasada e margem do plano
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/entrada_reposicao_compra_0130.sql
 
+      - name: Validar claims vazios depois do commit e preservar autorização
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/claims_vazio_0131.sql
+
   check:
     runs-on: ubuntu-latest
     steps:
