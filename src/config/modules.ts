@@ -141,7 +141,7 @@ export const APP_MODULES: AppModule[] = [
       {
         href: "/estoque/controle",
         label: "Controle de Estoque",
-        desc: "saldos, validades, alertas e quarentena",
+        desc: "saldos, validades, alertas e reposição",
         icon: "SlidersHorizontal",
         shortcut: "C",
       },

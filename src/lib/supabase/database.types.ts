@@ -2617,6 +2617,7 @@ export type Database = {
       }
       pedidos_compra: {
         Row: {
+          compra_origem_id: number | null
           aprovador: string | null
           criado_em: string
           data_aprovacao: string | null
@@ -2631,6 +2632,7 @@ export type Database = {
           status: string
         }
         Insert: {
+          compra_origem_id?: number | null
           aprovador?: string | null
           criado_em?: string
           data_aprovacao?: string | null
@@ -2645,6 +2647,7 @@ export type Database = {
           status?: string
         }
         Update: {
+          compra_origem_id?: number | null
           aprovador?: string | null
           criado_em?: string
           data_aprovacao?: string | null
@@ -2785,6 +2788,9 @@ export type Database = {
       }
       pedidos_compra_itens: {
         Row: {
+          compra_pendencia_id: number | null
+          destino_pendencia: string | null
+          quantidade_nao_atendida: number | null
           custo_unitario_estimado: number | null
           divergencia_recebimento: string | null
           id: number
@@ -2798,6 +2804,9 @@ export type Database = {
           quantidade_em: string
         }
         Insert: {
+          compra_pendencia_id?: number | null
+          destino_pendencia?: string | null
+          quantidade_nao_atendida?: number | null
           custo_unitario_estimado?: number | null
           divergencia_recebimento?: string | null
           id?: never
@@ -2811,6 +2820,9 @@ export type Database = {
           quantidade_em?: string | null
         }
         Update: {
+          compra_pendencia_id?: number | null
+          destino_pendencia?: string | null
+          quantidade_nao_atendida?: number | null
           custo_unitario_estimado?: number | null
           divergencia_recebimento?: string | null
           id?: never
@@ -4091,6 +4103,17 @@ export type Database = {
       }
     }
     Views: {
+      v_compras_prazo: {
+        Row: {
+          insumo_id: number | null
+          item_id: number | null
+          pedido_id: number | null
+          prevista: string | null
+          qtd_restante: number | null
+          status: string | null
+        }
+        Relationships: []
+      }
       v_alertas_estoque: {
         Row: {
           especificacao: string | null
@@ -4327,6 +4350,8 @@ export type Database = {
       }
       v_margem_real_planejamento: {
         Row: {
+          receita_origem: string | null
+          versao_numero: string | null
           custo_orcado: number | null
           custo_real_insumos: number | null
           margem_prevista: number | null
@@ -4453,6 +4478,10 @@ export type Database = {
       }
       v_previsao_suprimentos: {
         Row: {
+          compra_atrasada_desde: string | null
+          prazo_fornecedor_dias: number | null
+          prazo_tramitacao_dias: number | null
+          qtd_compra_atrasada: number | null
           categoria_compra: string | null
           consumo_janela: number | null
           consumo_medio_diario: number | null
@@ -4487,6 +4516,10 @@ export type Database = {
       }
     }
     Functions: {
+      encerrar_compra_com_pendencia: {
+        Args: { p_destino: string; p_motivo: string; p_pedido_id: number }
+        Returns: Json
+      }
       aceitar_lote: {
         Args: { p_criterio?: string; p_lote_id: number; p_responsavel?: string }
         Returns: undefined

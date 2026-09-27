@@ -1,5 +1,7 @@
 # Auditoria completa do Kontrol: processos, cadastros, papéis e interface. 26/09/2026, segunda onda
 
+> **Atualização de 27/09:** a entrada no estoque passou a ser direta, sem quarentena nem aceite por segunda pessoa (decisão do dono). D1 e D4 foram resolvidas, e a reposição, o destino do que faltou e a margem do plano mudaram. Veja [rodada-aperfeicoamento-2026-09-27.md](rodada-aperfeicoamento-2026-09-27.md); onde este relatório fala em quarentena e aceite, vale a regra nova.
+
 Base: `main` 1.1.3 (commit `da9231c`), com as migrations 0001–0124 aplicadas. Esta auditoria complementa [auditoria-processos-2026-09-26.md](auditoria-processos-2026-09-26.md), que teve as ondas 1 a 3 publicadas na versão 1.1.1. Os itens antigos são citados pelo ID original (EST-n, ORC-n, PER-n, CAD-n, UI-n) e os novos recebem sufixo 2 (EST2-n, ORC2-n, PER2-n, CAD2-n, UI2-n).
 
 ## 0. Método e grau de evidência

@@ -76,7 +76,7 @@ begin
   v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 2, current_date + 300, 'TS-0123-F1', null);
   select * into l from public.lotes_estoque where id = v_lote;
   if l.modelo_quantidade <> 'EMBALAGEM_FECHADA' or l.quantidade_atual <> 2 or l.conteudo_embalagem_snapshot <> 100
-     or l.custo_unitario <> 500 or l.status <> 'quarentena' then
+     or l.custo_unitario <> 500 or l.status <> 'aceito' then
     raise exception '0123: lote recebido deveria ser 2 frascos de 100 mL a 500 (obtido % % % %)',
       l.modelo_quantidade, l.quantidade_atual, l.conteudo_embalagem_snapshot, l.custo_unitario;
   end if;

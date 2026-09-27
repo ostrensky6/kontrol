@@ -85,8 +85,8 @@ export function AjusteInventarioButton({
                 </p>
                 <p>
                   {embalagemFechada
-                    ? "O lote entra liberado para uso, contado em embalagens fechadas."
-                    : "O lote entra em quarentena e só fica disponível depois de aceito."}
+                    ? "O lote entra disponível para uso, contado em frascos fechados."
+                    : "O lote entra disponível para uso assim que a entrada é registrada."}
                 </p>
                 <HelpExample>
                   Doação de 2 kits → quantidade 2, motivo “doação” e o número do lote impresso no kit.
@@ -107,10 +107,7 @@ export function AjusteInventarioButton({
                   aria-live="polite"
                   className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"
                 >
-                  <p>{state.message ?? "Entrada registrada em quarentena."}</p>
-                  {!embalagemFechada && (
-                    <p className="mt-1 text-xs">Falta aceitar o lote para liberar o uso.</p>
-                  )}
+                  <p>{state.message ?? "Entrada registrada: o lote já está disponível."}</p>
                 </div>
                 <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
                   <button

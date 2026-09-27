@@ -24,7 +24,7 @@ export const dynamic = "force-dynamic";
 
 const LOTE_STATUS: Record<string, string> = {
   quarentena: "Quarentena",
-  aceito: "Aceito",
+  aceito: "Disponível",
   em_uso: "Em uso",
   bloqueado: "Bloqueado",
   consumido: "Consumido",
@@ -64,7 +64,7 @@ const ALERTA_META: Record<string, { label: string; cls: string }> = {
   vencimento: { label: "Vence em breve", cls: "bg-warning-soft text-warning-strong" },
   vencido: { label: "Vencido", cls: "bg-danger-soft text-danger-strong" },
   sem_validade: { label: "Sem validade", cls: "bg-danger-soft text-danger-strong" },
-  quarentena: { label: "Quarentena", cls: "bg-info-soft text-info-strong" },
+  compra_atrasada: { label: "Compra atrasada", cls: "bg-danger-soft text-danger-strong" },
 };
 
 export default async function EstoquePage({
@@ -120,7 +120,7 @@ export default async function EstoquePage({
     vencimento: al.filter((a) => a.tipo === "vencimento"),
     vencido: al.filter((a) => a.tipo === "vencido"),
     sem_validade: al.filter((a) => a.tipo === "sem_validade"),
-    quarentena: al.filter((a) => a.tipo === "quarentena"),
+    compra_atrasada: al.filter((a) => a.tipo === "compra_atrasada"),
   };
   const previsaoMap = new Map((previsao ?? []).map((p) => [p.insumo_id, p]));
   const custosDivergentes = ((custos ?? []) as CustoEstoque[])
@@ -144,7 +144,9 @@ export default async function EstoquePage({
     const disponivel = Number(s.disponivel ?? 0);
     const emMaos = Number(s.em_maos ?? 0);
     const pontoSugerido = Number(prev?.ponto_reposicao_sugerido ?? pontoReposicao);
-    const repor = pontoReposicao > 0 && disponivel <= pontoReposicao;
+    // Uma regra só (0130): "Repor" quando a previsão sugere comprar, isto é, o
+    // disponível mais o que está a caminho não cobre o prazo total da compra.
+    const repor = Number(prev?.qtd_sugerida_compra ?? 0) > 0;
     const semEstoque = emMaos <= 0;
     const status = repor ? "repor" : semEstoque ? "sem_estoque" : "ok";
     return {
@@ -155,7 +157,6 @@ export default async function EstoquePage({
       unidadeFisica: s.unidade ?? "",
       embalagemFechada: s.modelo_quantidade === "EMBALAGEM_FECHADA",
       emMaos,
-      emQuarentena: Number(s.em_quarentena ?? 0),
       reservado: Number(s.reservado ?? 0),
       disponivel,
       pontoReposicao,
@@ -226,11 +227,11 @@ export default async function EstoquePage({
           <HelpTip title="Alertas do estoque">
             <HelpLegend
               items={[
-                { tom: "atencao", rotulo: "Repor", texto: "o disponível chegou ao ponto de reposição" },
+                { tom: "atencao", rotulo: "Repor", texto: "é hora de pedir: o disponível mais o que já está a caminho não cobre as saídas previstas durante o prazo da compra (tramitação na universidade + entrega), mais o estoque de segurança" },
+                { tom: "critico", rotulo: "Compra atrasada", texto: "o estoque já está no ponto e a compra que viria passou da data prevista: cobre o fornecedor ou encerre a compra e dê outro destino ao que falta" },
                 { tom: "atencao", rotulo: "Vence em breve", texto: "lote perto do fim da validade" },
                 { tom: "critico", rotulo: "Vencido", texto: "só pode sair com o motivo Vencimento; a reserva do lote é liberada" },
                 { tom: "critico", rotulo: "Sem validade", texto: "lote de insumo crítico sem data de validade" },
-                { tom: "info", rotulo: "Quarentena", texto: "lote recebido, aguardando aceite" },
               ]}
             />
             <p>
@@ -240,7 +241,7 @@ export default async function EstoquePage({
           </HelpTip>
         </div>
         <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {(["reposicao", "vencimento", "vencido", "sem_validade", "quarentena"] as const).map((t) => (
+          {(["reposicao", "compra_atrasada", "vencimento", "vencido", "sem_validade"] as const).map((t) => (
             <div
               key={t}
               className="rounded-xl border border-border bg-card p-4 shadow-sm"
@@ -255,7 +256,9 @@ export default async function EstoquePage({
                 {porTipo[t].slice(0, 4).map((a, i) => (
                   <li key={i} className="truncate" title={a.especificacao ?? ""}>
                     {a.especificacao}
-                    {a.validade ? ` · ${t === "vencido" ? "venceu" : "vence"} ${formatDate(a.validade)}` : ""}
+                    {a.validade
+                      ? ` · ${t === "compra_atrasada" ? "chegaria em" : t === "vencido" ? "venceu" : "vence"} ${formatDate(a.validade)}`
+                      : ""}
                     {a.lote_id ? (
                       <>
                         {" · "}
@@ -334,8 +337,7 @@ export default async function EstoquePage({
           <HelpTip title="Estados do lote">
             <HelpLegend
               items={[
-                { tom: "atencao", rotulo: "Quarentena", texto: "recebido, aguardando aceite; ainda não pode ser usado" },
-                { tom: "info", rotulo: "Aceito", texto: "liberado para uso" },
+                { tom: "info", rotulo: "Disponível", texto: "pode ser reservado e retirado" },
                 { tom: "info", rotulo: "Em uso", texto: "embalagem aberta; vale a validade após abertura" },
                 { tom: "critico", rotulo: "Bloqueado", texto: "retido (recall, não conformidade); não sai para uso" },
               ]}

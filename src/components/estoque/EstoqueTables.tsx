@@ -22,7 +22,6 @@ export type SaldoRow = {
   /** insumo contado em frascos: a entrada avulsa é em frascos inteiros */
   embalagemFechada?: boolean;
   emMaos: number;
-  emQuarentena: number;
   reservado: number;
   disponivel: number;
   pontoReposicao: number;
@@ -96,13 +95,6 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
     cell: ({ row }) => fmt(row.original.emMaos),
   },
   {
-    accessorKey: "emQuarentena",
-    header: "Quarentena",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => (row.original.emQuarentena > 0 ? fmt(row.original.emQuarentena) : "—"),
-  },
-  {
     accessorKey: "reservado",
     header: "Reservado",
     sortingFn: numericSort,
@@ -125,7 +117,7 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
   },
   {
     accessorKey: "consumoMedioDiario",
-    header: "Cons./dia",
+    header: "Saídas/dia",
     sortingFn: numericSort,
     meta: { align: "right" },
     cell: ({ row }) => (row.original.consumoMedioDiario > 0 ? fmt(row.original.consumoMedioDiario) : "—"),
@@ -282,13 +274,14 @@ export function SaldoTable({
             Insumo contado em frascos mostra o saldo em <b>frascos</b> (ex.: frasco(s) de 100 mL).
           </p>
           <p>
-            <b>Em mãos</b> soma os lotes liberados; a quarentena fica à parte. <b>Disponível</b> é o
+            <b>Em mãos</b> soma os lotes guardados. <b>Disponível</b> é o
             que sobra depois das reservas dos planos, sem contar vencidos.
           </p>
           <p>
-            Cobertura é quantos dias o disponível dura no consumo médio dos últimos {janelaDias} dias.
-            Quando o disponível chega ao <b>ponto de reposição</b>, o insumo vira Repor; o ponto sugerido
-            soma o consumo durante o prazo de entrega e a margem de segurança.
+            <b>Saídas/dia</b> é a média do que saiu do almoxarifado para o laboratório nos últimos {janelaDias} dias. Cobertura é quantos dias o disponível dura nesse ritmo.
+            O <b>ponto sugerido</b> é o maior entre o ponto cadastrado e as saídas previstas durante o prazo
+            da compra (tramitação na universidade + entrega do fornecedor), mais o estoque de segurança.
+            O insumo vira <b>Repor</b> quando o disponível mais o que já está a caminho fica abaixo dele.
           </p>
           <HelpExample>
             10 em mãos, 4 reservados → 6 disponíveis. Consumo de 0,5/dia → cobertura de 12 dias.
@@ -339,8 +332,7 @@ export function LotesTable({
           columnId: "statusLabel",
           label: "Estado",
           options: [
-            { value: "Quarentena", label: "Quarentena" },
-            { value: "Aceito", label: "Aceito" },
+            { value: "Disponível", label: "Disponível" },
             { value: "Em uso", label: "Em uso" },
             { value: "Bloqueado", label: "Bloqueado" },
           ],

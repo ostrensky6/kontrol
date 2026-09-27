@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("ciclo de estoque: receber lote, aceitar, ajustar consumo e bloquear", async ({ page }) => {
+test("ciclo de estoque: receber lote (entra disponível), ajustar consumo e bloquear", async ({ page }) => {
   const loteCodigo = `LOTE-E2E-${Date.now()}`;
 
   await page.goto("/estoque");
@@ -16,14 +16,9 @@ test("ciclo de estoque: receber lote, aceitar, ajustar consumo e bloquear", asyn
 
   const row = page.getByRole("row").filter({ has: page.getByRole("cell", { name: loteCodigo }) });
   await expect(row).toBeVisible();
-  await expect(row.getByText("Quarentena")).toBeVisible();
-
-  await row.getByRole("button", { name: "Aceitar" }).click();
-  await expect(page.getByRole("heading", { name: "Aceitar lote" })).toBeVisible();
-  await page.locator('input').last().fill("Coordenador E2E");
-  await page.locator("textarea").fill("Conferencia E2E");
-  await page.getByRole("button", { name: "Aceitar" }).last().click();
-  await expect(row.getByText("Aceito")).toBeVisible();
+  // 0130: sem quarentena nem aceite; o lote já entra disponível.
+  await expect(row.getByText("Disponível")).toBeVisible();
+  await expect(row.getByRole("button", { name: "Aceitar" })).toHaveCount(0);
 
   await row.getByRole("button", { name: "Baixa" }).click();
   const baixa = page.getByRole("dialog");

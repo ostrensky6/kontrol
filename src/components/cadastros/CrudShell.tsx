@@ -931,7 +931,7 @@ function CadastroDrawer({
 
 const ROTULO_STATUS_LOTE: Record<string, string> = {
   quarentena: "Quarentena",
-  aceito: "Aceito",
+  aceito: "Disponível",
   em_uso: "Em uso",
   bloqueado: "Bloqueado",
 };

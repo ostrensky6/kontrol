@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { criarPedido } from "@/lib/actions/compras";
 import { ComprasTable, type CompraRow } from "@/components/compras/ComprasTable";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
+import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
@@ -45,8 +46,8 @@ export default async function ComprasPage() {
     };
   });
 
-  // Sugestões de compra: a mesma fórmula da previsão de suprimentos (consumo no
-  // prazo de entrega + segurança − disponível − já pedido), na unidade do saldo
+  // Sugestões de compra: a mesma fórmula da previsão de suprimentos (saídas no
+  // prazo total da compra + segurança − disponível − a caminho), na unidade do saldo
   // (frascos para insumo contado em frascos). EST-7.
   const unidadeSaldo = new Map((saldo ?? []).map((s) => [s.insumo_id, s.unidade_saldo ?? s.unidade ?? ""]));
   const sugestoes = (previsao ?? [])
@@ -69,8 +70,9 @@ export default async function ComprasPage() {
           <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
           <HelpTip title="Compras">
             <p>
-              Cada compra segue os status abaixo. O material recebido entra em <b>quarentena</b> até
-              alguém conferir e aceitar o lote.
+              Cada compra segue os status abaixo. Quem registra a chegada cadastra o lote e ele já fica
+              <b>disponível no estoque</b>. Compra que nasceu de pedido interno só é aprovada depois que o
+              pedido chega a “Aprovado para compra”.
             </p>
             <HelpLegend
               items={[
@@ -93,9 +95,10 @@ export default async function ComprasPage() {
                   <h2 className="text-sm font-semibold text-warning-strong">Sugestões de reposição ({sugestoes.length})</h2>
                   <HelpTip title="Sugestões de reposição">
                     <p>
-                      Itens que chegaram ao ponto de reposição. A <b>quantidade sugerida</b> cobre o
-                      consumo durante o prazo de entrega mais a margem de segurança, descontando o saldo e o que já
-                      está pedido.
+                      A <b>quantidade sugerida</b> cobre as saídas previstas durante o prazo total da compra
+                      (tramitação na universidade + entrega do fornecedor) mais o estoque de segurança,
+                      descontando o disponível e o que já está a caminho. Compra atrasada continua contando como a
+                      caminho: cobre o fornecedor em vez de pedir de novo.
                     </p>
                     <HelpExample>“disp. 2 · pedir ~10”: restam 2 e convém pedir cerca de 10.</HelpExample>
                   </HelpTip>
@@ -103,6 +106,7 @@ export default async function ComprasPage() {
               </div>
               <GerarPedidoReposicaoButton />
             </div>
+            <PrazoReposicao className="mt-1" />
             <ul className="mt-2 space-y-1 text-xs text-warning-strong">
               {sugestoesRender.slice(0, 8).map((s, i) => (
                 <li key={i} className="flex justify-between gap-4">

@@ -149,7 +149,7 @@ export default async function RecebimentoPage() {
               <HelpTip title="Recebimento">
                 <p>
                   Tudo o que está para chegar, de pedidos internos e de compras. Cada entrega vira um{" "}
-                  <b>lote em quarentena</b>; o que faltar continua na fila até chegar tudo.
+                  <b>lote já disponível no estoque</b>; o que faltar continua na fila até chegar tudo.
                 </p>
                 <p>
                   Quem registra a chegada não aceita o próprio lote: o aceite fica com outra pessoa.

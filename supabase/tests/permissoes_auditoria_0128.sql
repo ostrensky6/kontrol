@@ -367,11 +367,12 @@ declare
 begin
   insert into public.lotes_estoque (insumo_id, codigo_lote, quantidade_inicial, quantidade_atual, status)
   values (v_insumo, 'TS-0128-Q', 1, 1, 'quarentena') returning id into v_lote;
-  if not exists (
+  -- 0130: sem quarentena; o lote entra disponível e não pede aceite a ninguém.
+  if (select status from public.lotes_estoque where id = v_lote) <> 'aceito' or exists (
     select 1 from public.notificacoes
     where entidade_tipo = 'lote' and entidade_id = v_lote and permissao_destino = 'estoque.lote.aceitar'
   ) then
-    raise exception '0128: lote em quarentena sem aviso';
+    raise exception '0128/0130: lote deveria entrar disponivel, sem aviso de aceite';
   end if;
 
   insert into public.pedidos_compra (status, projeto) values ('solicitado', 'TS-0128') returning id into v_compra;
@@ -390,13 +391,17 @@ begin
     raise exception '0128: compra aprovada sem aviso a quem recebe';
   end if;
 
+  -- Destinatários pela permissão: aviso de compra solicitada vai a quem aprova
+  -- compras (coordenador), não ao técnico nem a quem está suspenso.
   if not exists (
     select 1 from public.destinatarios_notificacao(
-      (select id from public.notificacoes where entidade_tipo = 'lote' and entidade_id = v_lote)
+      (select id from public.notificacoes where entidade_tipo = 'pedido_compra' and entidade_id = v_compra
+         and permissao_destino = 'compras.aprovar')
     ) e where e = 'ts-0128-coordenador@example.invalid'
   ) or exists (
     select 1 from public.destinatarios_notificacao(
-      (select id from public.notificacoes where entidade_tipo = 'lote' and entidade_id = v_lote)
+      (select id from public.notificacoes where entidade_tipo = 'pedido_compra' and entidade_id = v_compra
+         and permissao_destino = 'compras.aprovar')
     ) e where e in ('ts-0128-tecnico@example.invalid', 'ts-0128-admin_suspenso@example.invalid')
   ) then
     raise exception '0128: destinatarios do e-mail nao seguem a permissao';

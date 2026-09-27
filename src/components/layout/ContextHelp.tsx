@@ -62,7 +62,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       checks: [
         "+ Entrada registra um lote recebido, com o número do lote do fabricante e a validade.",
         "Dar baixa retira material com motivo (consumo, perda ou quebra, vencimento). Sai pelo lote que vence antes.",
-        "Lote novo entra em quarentena: aceite-o antes de usar.",
+        "Quem registra a chegada cadastra o lote e ele já fica disponível. A entrega ao laboratório é a baixa.",
         "Planilha de insumos baixa a lista completa (também em Cadastros → Insumos → Planilha).",
       ],
     },
@@ -75,7 +75,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       checks: [
         "Faltas de estoque viram pedido interno, que segue para aprovação e compra.",
         "Receba os itens pelo próprio pedido de compra.",
-        "Após o recebimento, aceite o lote que entrou em quarentena.",
+        "Ao registrar a chegada, o lote já fica disponível no estoque; compra de pedido interno só é aprovada depois de “Aprovado para compra”.",
       ],
     },
   },

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
@@ -352,8 +353,6 @@ export default async function SuprimentosPage() {
   const enviadosInstituicao = pedidos.filter((p) => p.status === "encaminhado_instituicao" || ["fundacao", "universidade"].includes(p.modalidade_compra ?? ""));
   const compraDireta = pedidos.filter((p) => ["compra_fechada", "aguardando_pagamento_nf"].includes(p.status) || p.modalidade_compra === "compra_direta");
   const comprasAtrasadas = compras.filter((c) => isAtrasada(c.data_prevista_entrega, c.status));
-
-  const lotesQuarentena = lotes.filter((l) => l.status === "quarentena");
   const lotesVencidos = lotes.filter((l) => {
     const v = validadeEfetiva(l);
     return v != null && v < hoje;
@@ -385,7 +384,7 @@ export default async function SuprimentosPage() {
     ["Pedidos laboratório/campo", "#pedidos"],
     ["Compras", "#compras"],
     ["Recebimentos", "#recebimentos"],
-    ["Quarentena", "#quarentena"],
+    ["Validade", "#validade"],
     ["Equipamentos", "#equipamentos"],
     ["Notificações", "#notificacoes"],
     ["Rastreabilidade", "#rastreabilidade"],
@@ -401,7 +400,7 @@ export default async function SuprimentosPage() {
               <HelpTip title="Suprimentos">
                 <p>
                   Painel de todo o ciclo do material: <b>reservas</b> dos planos, pedidos e compras em
-                  andamento, o que está chegando e os lotes em quarentena.
+                  andamento, o que está chegando e os lotes perto de vencer.
                 </p>
                 <p>Clique em um indicador para ir direto à seção correspondente.</p>
               </HelpTip>
@@ -450,8 +449,7 @@ export default async function SuprimentosPage() {
             <Kpi label="Compra direta" value={compraDireta.length} detail="fornecedor/pagamento/NF em andamento" href="#pedidos" tone="blue" />
             <Kpi label="Compras atrasadas" value={comprasAtrasadas.length} detail="previsão de entrega vencida" href="#compras" tone={comprasAtrasadas.length ? "red" : "green"} />
             <Kpi label="Aguardando recebimento" value={recebimentos.length} detail="itens internos ainda não recebidos" href="#recebimentos" tone={recebimentos.length ? "amber" : "green"} />
-            <Kpi label="Lotes em quarentena" value={lotesQuarentena.length} detail="aguardando liberação" href="#quarentena" tone={lotesQuarentena.length ? "amber" : "green"} />
-            <Kpi label="Vencendo/vencidos" value={lotesVencendo.length + lotesVencidos.length} detail="janela de 30 dias ou já vencidos" href="#quarentena" tone={lotesVencidos.length ? "red" : lotesVencendo.length ? "amber" : "green"} />
+            <Kpi label="Vencendo/vencidos" value={lotesVencendo.length + lotesVencidos.length} detail="janela de 30 dias ou já vencidos" href="#validade" tone={lotesVencidos.length ? "red" : lotesVencendo.length ? "amber" : "green"} />
             <Kpi label="Equipamentos críticos" value={equipamentosIndisponiveis.length + equipamentosReservados.length} detail="indisponíveis, reservados ou em manutenção" href="#equipamentos" tone={equipamentosIndisponiveis.length ? "red" : equipamentosReservados.length ? "blue" : "green"} />
             <Kpi label="Notificações" value={notificacoes.length} detail="pendências não lidas" href="#notificacoes" tone={notificacoes.length ? "amber" : "green"} />
           </div>
@@ -596,6 +594,7 @@ export default async function SuprimentosPage() {
             </div>
             <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
               <h3 className="text-sm font-semibold">Sugestões de reposição</h3>
+              <PrazoReposicao className="mt-1" />
               <div className="mt-3 space-y-2 text-sm">
                 {reposicaoAgora.slice(0, 8).map((item) => (
                   <div key={item.insumo_id} className="flex justify-between gap-3 border-b border-border/60 pb-2 last:border-b-0">
@@ -642,8 +641,8 @@ export default async function SuprimentosPage() {
           ) : <Empty>Nenhum item aguardando recebimento.</Empty>}
         </Section>
 
-        <Section id="quarentena" title="Quarentena e liberação" action={<Link href="/estoque" className="text-sm font-medium text-primary hover:underline">Abrir estoque</Link>}>
-          {lotesQuarentena.length || lotesVencendo.length || lotesVencidos.length ? (
+        <Section id="validade" title="Validade dos lotes" action={<Link href="/estoque" className="text-sm font-medium text-primary hover:underline">Abrir estoque</Link>}>
+          {lotesVencendo.length || lotesVencidos.length ? (
             <TableShell>
               <table className="w-full text-sm">
                 <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
@@ -657,13 +656,13 @@ export default async function SuprimentosPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/70">
-                  {[...lotesVencidos, ...lotesQuarentena, ...lotesVencendo].filter((lote, index, arr) => arr.findIndex((item) => item.id === lote.id) === index).slice(0, 14).map((lote) => {
+                  {[...lotesVencidos, ...lotesVencendo].filter((lote, index, arr) => arr.findIndex((item) => item.id === lote.id) === index).slice(0, 14).map((lote) => {
                     const validade = validadeEfetiva(lote);
                     return (
                       <tr key={lote.id}>
                         <td className={`${td} font-mono text-xs`}><Link href={`/estoque/lotes/${lote.id}`} className="text-primary hover:underline">{lote.codigo_lote ?? `#${lote.id}`}</Link></td>
                         <td className={td}>{lote.insumos?.especificacao ?? "—"}</td>
-                        <td className={td}><Pill tone={lote.status === "quarentena" ? "amber" : validade && validade < hoje ? "red" : "blue"}>{rotulo(lote.status)}</Pill></td>
+                        <td className={td}><Pill tone={validade && validade < hoje ? "red" : "blue"}>{rotulo(lote.status)}</Pill></td>
                         <td className={td}>{formatDate(validade)}</td>
                         <td className={td}>{fmt(lote.quantidade_atual)} {lote.insumos?.unidade ?? ""}</td>
                         <td className={`${td} text-right`}><Link href={`/estoque/lotes/${lote.id}`} className="font-medium text-primary hover:underline">Ver lote</Link></td>
@@ -673,7 +672,7 @@ export default async function SuprimentosPage() {
                 </tbody>
               </table>
             </TableShell>
-          ) : <Empty>Nenhum lote em quarentena, vencido ou vencendo nos próximos 30 dias.</Empty>}
+          ) : <Empty>Nenhum lote vencido ou vencendo nos próximos 30 dias.</Empty>}
         </Section>
 
         <Section id="equipamentos" title="Equipamentos" action={<Link href="/estoque/equipamentos" className="text-sm font-medium text-primary hover:underline">Abrir equipamentos</Link>}>

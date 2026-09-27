@@ -136,3 +136,18 @@ export function pedidoInternoStatus(status: string | null | undefined) {
 export function pedidoInternoNumero(id: number) {
   return `Nº ${String(id).padStart(4, "0")}`;
 }
+
+/**
+ * Pedido interno que ainda segura a compra formal ligada a ele (0130, D1): a
+ * compra só é aprovada ou enviada depois que todo pedido interno de origem
+ * (não cancelado) chega a "Aprovado para compra". Devolve o primeiro que
+ * bloqueia, ou null quando a compra pode seguir.
+ */
+export function pedidoQueSeguraCompra(
+  pedidos: { id: number; status: string | null }[],
+): { id: number; rotulo: string } | null {
+  const bloqueio = pedidos
+    .filter((p) => p.status !== "cancelado" && !podeMarcarRecebida(p.status ?? ""))
+    .sort((a, b) => a.id - b.id)[0];
+  return bloqueio ? { id: bloqueio.id, rotulo: pedidoInternoStatus(bloqueio.status).label } : null;
+}

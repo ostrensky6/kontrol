@@ -418,26 +418,36 @@ export default async function PlanoDetalhe({
                   <h2 className="text-sm font-semibold">Margem prevista × realizada</h2>
                   <HelpTip title="Margem realizada (parcial)">
                     <p>
-                      O realizado considera só os <b>insumos baixados</b> neste plano. Mão de obra,
-                      equipamentos e overhead ainda não são apontados por execução.
+                      A <b>receita</b> é o que o cliente paga pela parte laboratorial da proposta aprovada
+                      (já com impostos, taxas e lucro), e não o preço de tabela das análises.
                     </p>
-                    <HelpFormula>margem parcial = receita orçada − insumos baixados</HelpFormula>
+                    <p>
+                      O realizado considera só os <b>insumos entregues ao laboratório</b> para este plano. Mão de
+                      obra, equipamentos e overhead ainda não são apontados por execução.
+                    </p>
+                    <HelpFormula>margem parcial = receita da proposta − insumos entregues</HelpFormula>
                     <HelpExample>Receita de R$ 10.000 e R$ 2.500 em insumos baixados → margem parcial de R$ 7.500 (75%).</HelpExample>
                   </HelpTip>
                 </div>
               </div>
-              <Link href={`/orcamento/${margemReal.orcamento_id}`} className="text-xs font-medium text-primary hover:underline">
-                Abrir orçamento de origem
-              </Link>
+              {margemReal.orcamento_id != null && (
+                <Link href={`/orcamento/${margemReal.orcamento_id}`} className="text-xs font-medium text-primary hover:underline">
+                  Abrir orçamento de origem
+                </Link>
+              )}
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              <IndicadorMargem titulo="Receita orçada" valor={Number(margemReal.receita_orcada ?? 0)} />
+              <IndicadorMargem
+                titulo="Receita da proposta"
+                valor={Number(margemReal.receita_orcada ?? 0)}
+                detalhe={margemReal.receita_origem === "proposta" ? `parte laboratorial de ${margemReal.versao_numero ?? "proposta"}` : "plano sem proposta emitida"}
+              />
               <IndicadorMargem titulo="Custo técnico orçado" valor={Number(margemReal.custo_orcado ?? 0)} />
-              <IndicadorMargem titulo="Insumos baixados (real)" valor={Number(margemReal.custo_real_insumos ?? 0)} />
+              <IndicadorMargem titulo="Insumos entregues (real)" valor={Number(margemReal.custo_real_insumos ?? 0)} />
               <IndicadorMargem
                 titulo="Margem real parcial"
                 valor={Number(margemReal.margem_real_parcial ?? 0)}
-                detalhe={margemReal.margem_real_parcial_percentual == null ? "sem receita orçada" : `${Number(margemReal.margem_real_parcial_percentual).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita`}
+                detalhe={margemReal.margem_real_parcial_percentual == null ? "sem receita da proposta" : `${Number(margemReal.margem_real_parcial_percentual).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita`}
                 destaque
               />
             </div>

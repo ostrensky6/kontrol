@@ -17,6 +17,7 @@ import { listarEventos } from "@/lib/actions/eventos";
 import { Timeline } from "@/components/common/Timeline";
 import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl } from "@/lib/formatters";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
+import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,12 @@ const STATUS: Record<string, string> = {
   em_transito: "Em trânsito",
   recebido: "Recebido",
   cancelado: "Cancelado",
+};
+
+const DESTINO_PENDENCIA: Record<string, string> = {
+  nova_compra: "nova compra",
+  desistencia: "desistência",
+  atendido_outra_forma: "atendido de outra forma",
 };
 
 type PedidoCompraItemRow = {
@@ -40,6 +47,9 @@ type PedidoCompraItemRow = {
   insumo_id: number | null;
   quantidade_em: string | null;
   conteudo_embalagem: number | null;
+  quantidade_nao_atendida: number | null;
+  destino_pendencia: string | null;
+  compra_pendencia_id: number | null;
   insumos: { especificacao: string | null; unidade: string | null } | null;
   pedidos_internos_itens?: { pedido_interno_id: number | null; fornecedor_sugerido: string | null } | null;
   pedidos_compra_item_recebimentos?: CompraItemRecebimento[] | null;
@@ -80,7 +90,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   const semFornecedor = pedido.status === "solicitado" && pedido.fornecedor_id == null;
   const [{ data: itens }, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
     (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
-      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)")
+      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)")
       .eq("pedido_id", pedidoId)
       .order("id"),
     supabase.from("insumos").select("id, especificacao").order("especificacao"),
@@ -94,8 +104,35 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
       : Promise.resolve({ data: [] as { id: number; nome: string; ativo: boolean }[] }),
   ]);
 
+  // D1 (0130): compra que nasceu de pedido interno só é aprovada/enviada depois
+  // que o pedido chega a "Aprovado para compra". O banco garante; aqui só
+  // explicamos em vez de mostrar um botão que seria recusado.
+  const idsInternosDosItens = [
+    ...new Set(
+      (itens ?? [])
+        .map((it) => it.pedidos_internos_itens?.pedido_interno_id)
+        .filter((v): v is number => v != null),
+    ),
+  ];
+  const { data: internosDaCompra } = await supabase
+    .from("pedidos_internos")
+    .select("id, status")
+    .or(
+      idsInternosDosItens.length > 0
+        ? `pedido_compra_id.eq.${pedidoId},id.in.(${idsInternosDosItens.join(",")})`
+        : `pedido_compra_id.eq.${pedidoId}`,
+    );
+  const pedidoInternoPendente = pedidoQueSeguraCompra(
+    ((internosDaCompra ?? []) as { id: number; status: string | null }[]),
+  );
+
   const eventos = await listarEventos("pedido_compra", pedidoId);
   const editavel = pedido.status === "solicitado" && podeSolicitar;
+  const hoje = new Date().toISOString().slice(0, 10);
+  const atrasada =
+    ["aprovado", "enviado", "em_transito"].includes(pedido.status) &&
+    pedido.data_prevista_entrega != null &&
+    pedido.data_prevista_entrega < hoje;
   const recebivel = ["aprovado", "enviado", "em_transito"].includes(pedido.status) && podeReceber;
   const forn = (pedido.fornecedores as { nome: string | null } | null)?.nome;
   const total = (itens ?? []).reduce(
@@ -136,7 +173,21 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
           Solicitante: {pedido.solicitante ?? "—"}
           {pedido.aprovador ? ` · Aprovado por ${pedido.aprovador}` : ""}
           {pedido.data_prevista_entrega ? ` · Previsão: ${formatDate(pedido.data_prevista_entrega)}` : ""}
+          {atrasada && (
+            <span className="ml-2 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-medium text-danger-strong">
+              Atrasada
+            </span>
+          )}
         </p>
+        {pedido.compra_origem_id != null && (
+          <p className="mt-1 text-sm text-muted-foreground">
+            Repõe o que faltou na{" "}
+            <Link href={`/compras/${pedido.compra_origem_id}`} className="text-primary hover:underline">
+              compra #{pedido.compra_origem_id}
+            </Link>
+            .
+          </p>
+        )}
 
         {semFornecedor && (
           <section
@@ -202,7 +253,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                       Recebido
                       <HelpTip title="Recebimento do item">
                         <p>
-                          O item pode chegar <b>em partes</b>. Cada entrega vira um lote em quarentena,
+                          O item pode chegar <b>em partes</b>. Cada entrega vira um lote já disponível no estoque,
                           listado aqui com número, validade e responsável.
                         </p>
                         <p>A compra só fica como Recebida quando todos os itens chegam.</p>
@@ -247,6 +298,18 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                             {it.divergencia_recebimento && (
                               <span className="text-[10px] text-warning-strong">
                                 {it.divergencia_recebimento}
+                              </span>
+                            )}
+                            {it.destino_pendencia && (
+                              <span className="text-[10px] text-muted-foreground">
+                                Faltou {rotuloQuantidadeItem(it, ins?.unidade, it.quantidade_nao_atendida)}:{" "}
+                                {it.destino_pendencia === "nova_compra" && it.compra_pendencia_id ? (
+                                  <Link href={`/compras/${it.compra_pendencia_id}`} className="text-primary hover:underline">
+                                    nova compra #{it.compra_pendencia_id}
+                                  </Link>
+                                ) : (
+                                  DESTINO_PENDENCIA[it.destino_pendencia] ?? it.destino_pendencia
+                                )}
                               </span>
                             )}
                             {recebimentos.length > 0 && (
@@ -360,6 +423,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
             temRecebimento={(itens ?? []).some(
               (item) => Number(item.quantidade_recebida ?? 0) > 0 || item.lote_id != null,
             )}
+            pedidoInternoPendente={pedidoInternoPendente}
           />
         </section>
 

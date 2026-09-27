@@ -147,16 +147,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Estoque",
     grupo: "Suprimentos",
     href: "/estoque",
-    resumo: "Saldos, lotes, validade, quarentena e reposição.",
+    resumo: "Saldos, lotes, validade e reposição.",
     intro:
-      "O Estoque controla os saldos de insumos por lote, com validade, rastreio e quarentena. É daqui que sai o consumo das análises e é aqui que você decide o que precisa ser reposto. O bom uso da quarentena e da regra FEFO evita usar lote errado e reduz perdas por vencimento.",
+      "O Estoque controla o material guardado no almoxarifado, por lote, com validade e rastreio. A entrega ao laboratório é a baixa definitiva: o Kontrol não acompanha o uso depois disso. As saídas alimentam a previsão de reposição, que avisa com antecedência considerando a demora das compras da universidade. A regra FEFO (o que vence primeiro sai primeiro) reduz perdas por vencimento.",
     secoes: [
       {
         titulo: "Para que serve",
         itens: [
           "Acompanhar saldos por insumo e por lote, com data de validade.",
-          "Controlar a quarentena: lotes recebidos só podem ser usados após liberação.",
-          "Apontar o que está abaixo do ponto de reposição e precisa de compra.",
+          "Registrar a chegada: quem recebe cadastra o lote e ele já fica disponível, sem etapa de aceite.",
+          "Apontar o que precisa ser comprado já, contando o prazo total da compra (tramitação na universidade + entrega) e o que está a caminho.",
         ],
       },
       {
@@ -164,7 +164,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Na linha do insumo, clique em '+ Entrada' e informe quantidade, validade e o número do lote do fabricante.",
           "O número do lote também pode ser informado no cadastro do insumo (Cadastros → Insumos → Lotes em estoque → '+ Entrada').",
-          "O lote entra em quarentena: aceite-o depois da conferência para liberar o uso.",
+          "O lote entra disponível na hora. Material com validade vencida não entra.",
         ],
       },
       {
@@ -188,13 +188,13 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Boas práticas",
         itens: [
-          "Não pule a quarentena: usar lote não conferido compromete a rastreabilidade.",
+          "Confira o material ao registrar a chegada: número do lote, validade e quantidade ficam no histórico.",
           "Fique atento aos itens vencendo — priorize o consumo deles (o que vence primeiro sai primeiro).",
           "Use o rastreio para saber em quais análises um lote foi utilizado.",
         ],
       },
     ],
-    termos: ["saldo", "lote", "validade", "quarentena", "fefo", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
+    termos: ["saldo", "lote", "validade", "fefo", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
   },
   {
     id: "planejamento",
@@ -285,14 +285,14 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/compras",
     resumo: "Solicitação, aprovação, envio e recebimento de pedidos.",
     intro:
-      "Compras cuida do ciclo formal de aquisição: da solicitação à entrada do material no estoque. Ele recebe pedidos vindos do módulo Pedido ou de reposição automática, organiza a aprovação e o envio ao fornecedor, e registra o recebimento — que alimenta a quarentena no Estoque.",
+      "Compras cuida do ciclo formal de aquisição: da solicitação à entrada do material no estoque. Ele recebe pedidos vindos do módulo Pedido ou de reposição automática, organiza a aprovação e o envio ao fornecedor, e registra o recebimento, que põe o material disponível no Estoque.",
     secoes: [
       {
         titulo: "Para que serve",
         itens: [
           "Conduzir o ciclo de compra: solicitação → aprovação → envio → recebimento.",
           "Centralizar pedidos formais, inclusive os gerados por reposição automática.",
-          "Registrar a entrada de itens, que segue para conferência no Estoque.",
+          "Registrar a entrada de itens, que já ficam disponíveis no Estoque.",
         ],
       },
       {
@@ -301,7 +301,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Revise as solicitações e os rascunhos automáticos de reposição.",
           "Aprove e envie o pedido ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
-          "Confira a quarentena após o recebimento antes de liberar o uso.",
+          "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
         ],
       },
       {

@@ -361,7 +361,7 @@ export default async function Home() {
   ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string }>;
   const passosEstoque = [
     verPlanejamento && { href: "/planejamento", titulo: "Planejamento", desc: "Calcule consumo por campanha e reserve material antes da execução." },
-    verEstoque && { href: "/estoque", titulo: "Estoque e lotes", desc: "Veja saldo, validade, quarentena, bloqueios e rastreabilidade." },
+    verEstoque && { href: "/estoque", titulo: "Estoque e lotes", desc: "Veja saldo, validade, bloqueios e rastreabilidade." },
     verCompras && { href: "/compras", titulo: "Compras", desc: "Transforme alertas em solicitação, aprovação, envio e recebimento." },
   ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string }>;
 
