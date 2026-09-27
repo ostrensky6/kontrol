@@ -4,7 +4,7 @@
 
 **Papel:** Arquitetura de Domínio Compartilhada, Contratos e Integração Lógica
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Autoridade coordenadora:** `0 — Maestro`
 

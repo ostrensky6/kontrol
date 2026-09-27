@@ -13,8 +13,14 @@ Atualizado e verificado em 2026-09-26.
 ## Pasta local
 
 - Pasta oficial: `G:\Aplicativos\Kontrol` (disco "SSD Novo").
-- `D:\Aplicativos` é uma junção do Windows que aponta para `G:\Aplicativos`;
-  `D:\Aplicativos\Kontrol` e `G:\Aplicativos\Kontrol` são a **mesma pasta**.
+- Use **sempre** o caminho `G:`. `D:\Aplicativos` é só uma junção do Windows que
+  aponta para `G:\Aplicativos` (não há cópia em D). Ela continua existindo porque
+  tarefas agendadas de **outros** projetos (Sanepar/Yvae, WaiOra, GIA, Piscis, ATGC)
+  ainda usam o caminho D; o Kontrol não depende mais dela.
+- Backup automático do banco: tarefa "Kontrol - Backup banco nuvem" (00:30 e 12:30),
+  roda `G:\Aplicativos\Kontrol\scripts\backup-database-cloud.ps1` e grava em
+  `D:\Dropbox\Aplicativos\Kontrol\BD` (o Dropbox fica de fato no disco D).
+  Caminho do projeto corrigido de D para G em 2026-09-27.
 - Worktrees de sessões do Claude ficam em `G:\Aplicativos\Kontrol\.claude\worktrees\...`.
 - A pasta antiga `Aplicativos\Estoque` está depreciada, não é repositório git e
   não deve receber commits novos.
