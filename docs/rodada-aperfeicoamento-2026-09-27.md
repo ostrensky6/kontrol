@@ -28,14 +28,14 @@ Origem: avaliação externa da [auditoria da segunda onda](auditoria-completa-20
 
 | # | Implementado | Teste automático | Testado na interface local | Publicado |
 |---|---|---|---|---|
-| 1 Entrada direta | sim | `entrada_reposicao_compra_0130.sql`; testes 0120, 0123, 0124, 0127 e 0128 atualizados | técnico registrou a chegada de 3 de 5 kits e o lote entrou disponível | não |
-| 2 Prazo total | sim | idem (80 dias = 60 + 20; sugestão 4 e 3) | tramitação de 60 dias gravada em Parâmetros; Compras passou a sugerir 5 frascos | não |
-| 3 Compra atrasada | sim | idem (alerta e aviso semanal sem repetir) | alerta em Estoque e no Controle de Estoque | não |
-| 4 D1 | sim | `estoque_ciclo_0127.sql`; `status.test.ts` | compra #113 bloqueada com explicação (admin) | não |
-| 5 Destino do que faltou | sim | 0120, 0127 e `compras.test.ts` | coordenação encerrou a #112 e a nova compra #114 foi criada e ligada | não |
-| 6 Margem | sim | idem (receita 2.000 de 2.500 − 500) | plano mostrou receita da proposta, 85% | não |
+| 1 Entrada direta | sim | `entrada_reposicao_compra_0130.sql`; testes 0120, 0123, 0124, 0127 e 0128 atualizados | técnico registrou a chegada de 3 de 5 kits e o lote entrou disponível | sim (27/09, 1.1.5) |
+| 2 Prazo total | sim | idem (80 dias = 60 + 20; sugestão 4 e 3) | tramitação de 60 dias gravada em Parâmetros; Compras passou a sugerir 5 frascos | sim (27/09, 1.1.5) |
+| 3 Compra atrasada | sim | idem (alerta e aviso semanal sem repetir) | alerta em Estoque e no Controle de Estoque | sim (27/09, 1.1.5) |
+| 4 D1 | sim | `estoque_ciclo_0127.sql`; `status.test.ts` | compra #113 bloqueada com explicação (admin) | sim (27/09, 1.1.5) |
+| 5 Destino do que faltou | sim | 0120, 0127 e `compras.test.ts` | coordenação encerrou a #112 e a nova compra #114 foi criada e ligada | sim (27/09, 1.1.5) |
+| 6 Margem | sim | idem (receita 2.000 de 2.500 − 500) | plano mostrou receita da proposta, 85% | sim (27/09, 1.1.5) |
 
-A interface foi percorrida com três papéis reais no banco local: administrador, **técnico** e **coordenação** (usuários de teste criados só no banco local). Todas as mudanças ainda precisam ser publicadas e conferidas em produção; a situação não se altera antes disso.
+A interface foi percorrida com três papéis reais no banco local: administrador, **técnico** e **coordenação** (usuários de teste criados só no banco local). Publicado em produção em 27/09 (migration 0130 aplicada e registrada; app 1.1.5, PR #44).
 
 ## 4. Ajustes na auditoria da segunda onda
 
