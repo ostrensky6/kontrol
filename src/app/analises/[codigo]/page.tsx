@@ -472,7 +472,7 @@ export default async function AnaliseDetalhe({
                 <th className={th}>Disponível</th>
                 <th className={th}>Ponto de reposição</th>
                 <th className={th}>Estoque de segurança</th>
-                <th className={th}>Lead time</th>
+                <th className={th}>Prazo do fornecedor</th>
                 <th className={th}>Status</th>
               </tr>
             </thead>

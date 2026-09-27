@@ -271,6 +271,45 @@ describe("recebimento de pedido formal de compra", () => {
     }));
   });
 
+  it("encerrarPedidoComPendencia exige destino e motivo antes de chamar o banco (0130)", async () => {
+    const { encerrarPedidoComPendencia } = await import("./compras");
+    const semDestino = new FormData();
+    semDestino.set("pedido_id", "20");
+    semDestino.set("motivo", "fornecedor sem estoque");
+    expect(await encerrarPedidoComPendencia({ ok: false }, semDestino)).toEqual({
+      ok: false,
+      message: "Escolha o destino do que faltou.",
+    });
+    const semMotivo = new FormData();
+    semMotivo.set("pedido_id", "20");
+    semMotivo.set("destino", "desistencia");
+    semMotivo.set("motivo", " x ");
+    expect((await encerrarPedidoComPendencia({ ok: false }, semMotivo)).ok).toBe(false);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("encerrarPedidoComPendencia com nova compra informa o número criado", async () => {
+    rpc.mockResolvedValue({ data: { pedido_compra_id: 20, destino: "nova_compra", nova_compra_id: 31 }, error: null });
+    const { encerrarPedidoComPendencia } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+    formData.set("destino", "nova_compra");
+    formData.set("motivo", "fornecedor entrega o resto no mês que vem");
+
+    const result = await encerrarPedidoComPendencia({ ok: false }, formData);
+
+    expect(rpc).toHaveBeenCalledWith("encerrar_compra_com_pendencia", {
+      p_pedido_id: 20,
+      p_destino: "nova_compra",
+      p_motivo: "fornecedor entrega o resto no mês que vem",
+    });
+    expect(result).toEqual({
+      ok: true,
+      message: "Compra encerrada. O que faltou virou a compra #31, que aguarda aprovação.",
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/compras/31");
+  });
+
   it("comprarFaltasDoPlano ajusta quantidade pela compra minima", async () => {
     const { computarDemandaPlano } = await import("@/lib/costing/demanda");
     vi.mocked(computarDemandaPlano).mockResolvedValue([

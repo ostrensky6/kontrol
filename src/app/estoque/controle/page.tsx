@@ -15,7 +15,7 @@ type LoteDbRow = LoteDbBaixa & {
 
 const LOTE_STATUS: Record<string, string> = {
   quarentena: "Quarentena",
-  aceito: "Aceito",
+  aceito: "Disponível",
   em_uso: "Em uso",
   bloqueado: "Bloqueado",
   consumido: "Consumido",
@@ -34,6 +34,7 @@ export default async function EstoqueControlePage() {
     { data: reservasRaw },
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
+    { data: previsaoRaw },
   ] = await Promise.all([
     supabase
       .from("notificacoes")
@@ -53,6 +54,7 @@ export default async function EstoqueControlePage() {
       .in("status", ["reservado", "parcial"]),
     supabase.from("pedidos_compra_item_recebimentos").select("lote_id"),
     supabase.from("pedidos_internos_item_recebimentos").select("lote_id"),
+    supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, ponto_reposicao_sugerido"),
   ]);
   const reservadoPorLote = somarReservasPorLote(reservasRaw ?? []);
   // estorno direto só quando é comprovado que o lote não veio de um pedido (mesma regra de /estoque)
@@ -71,7 +73,12 @@ export default async function EstoqueControlePage() {
   ]);
 
   const notificacoes = notificacoesRaw ?? [];
-  const saldo = saldoRaw ?? [];
+  // Uma regra de reposição só (0130): o painel usa a sugestão da previsão.
+  const previsaoPorInsumo = new Map((previsaoRaw ?? []).map((p) => [p.insumo_id, p]));
+  const saldo = (saldoRaw ?? []).map((s) => ({
+    ...s,
+    qtd_sugerida_compra: Number(previsaoPorInsumo.get(s.insumo_id)?.qtd_sugerida_compra ?? 0),
+  }));
   const alertas = alertasRaw ?? [];
   const dbLotes = (lotesRaw ?? []) as unknown as LoteDbRow[];
 
@@ -114,7 +121,7 @@ export default async function EstoqueControlePage() {
                   gráficos e filtre pelo tipo de alerta.
                 </p>
                 <p>
-                  As ações de cada lote (aceitar, dar baixa, bloquear, descartar) ficam registradas com
+                  As ações de cada lote (dar baixa, bloquear, descartar) ficam registradas com
                   quem fez e quando.
                 </p>
               </HelpTip>

@@ -7,7 +7,6 @@ export type PendenciaChave =
   | "pedidos_validacao"
   | "compras_aprovar"
   | "compras_receber"
-  | "lotes_quarentena"
   | "propostas_emitir"
   | "planos_rascunho";
 
@@ -43,12 +42,6 @@ const CATALOGO: Record<
     acao: "registrar a chegada dos itens",
     lista: "/recebimento",
     item: (id) => `/compras/${id}`,
-  },
-  lotes_quarentena: {
-    titulo: "Lotes em quarentena",
-    acao: "conferir e aceitar para uso",
-    lista: "/estoque/controle?status=quarentena",
-    item: (id) => `/estoque/lotes/${id}`,
   },
   propostas_emitir: {
     titulo: "Propostas prontas para emitir",

@@ -202,7 +202,7 @@ export function ScannerRecebimentoCompra({
                   A leitura do código só preenche ou confere os campos. O item é recebido quando você
                   clica em <b>Confirmar recebimento</b>.
                 </p>
-                <p>O lote entra em quarentena até ser aceito.</p>
+                <p>Ao confirmar, o lote já fica disponível no estoque.</p>
               </HelpTip>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">

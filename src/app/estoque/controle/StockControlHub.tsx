@@ -66,6 +66,8 @@ type EstoqueSaldo = {
   disponivel: number | null;
   ponto_reposicao: number | null;
   estoque_seguranca: number | null;
+  // 0130: quanto a previsão sugere pedir (saídas no prazo total − disponível − a caminho).
+  qtd_sugerida_compra?: number | null;
   categoria_compra: string | null;
 };
 
@@ -167,19 +169,19 @@ export function StockControlHub({
       const badges: { label: string; tone: AlertTone }[] = [];
 
       const disponivel = s.disponivel ?? 0;
-      const pontoReposicao = s.ponto_reposicao ?? 0;
-      const emQuarentena = s.em_quarentena ?? 0;
+      const temReposicao = (s.qtd_sugerida_compra ?? 0) > 0;
 
       const temVencido = itemAlerts.some((a) => a.tipo === "vencido");
       const temSemValidade = itemAlerts.some((a) => a.tipo === "sem_validade");
       const temVencendo = itemAlerts.some((a) => a.tipo === "vencimento");
+      const temCompraAtrasada = itemAlerts.some((a) => a.tipo === "compra_atrasada");
 
       if (temVencido) badges.push({ label: "Lote vencido", tone: "red" });
       if (temSemValidade) badges.push({ label: "Sem validade", tone: "red" });
       if (disponivel <= 0) badges.push({ label: "Sem estoque", tone: "red" });
-      if (disponivel <= pontoReposicao && pontoReposicao > 0) badges.push({ label: "Reposição", tone: "amber" });
+      if (temCompraAtrasada) badges.push({ label: "Compra atrasada", tone: "red" });
+      if (temReposicao) badges.push({ label: "Reposição", tone: "amber" });
       if (temVencendo) badges.push({ label: "Vence em breve", tone: "amber" });
-      if (emQuarentena > 0) badges.push({ label: "Quarentena", tone: "emerald" });
 
       if (temVencido) {
         status = "vencido";
@@ -193,7 +195,11 @@ export function StockControlHub({
         status = "sem_disponivel";
         statusLabel = "Sem Estoque";
         tone = "red";
-      } else if (disponivel <= pontoReposicao && pontoReposicao > 0) {
+      } else if (temCompraAtrasada) {
+        status = "compra_atrasada";
+        statusLabel = "Compra atrasada";
+        tone = "red";
+      } else if (temReposicao) {
         status = "reposicao";
         statusLabel = "Reposição";
         tone = "amber";
@@ -201,10 +207,6 @@ export function StockControlHub({
         status = "vencendo";
         statusLabel = "Vence em breve";
         tone = "amber";
-      } else if (emQuarentena > 0) {
-        status = "quarentena";
-        statusLabel = "Em Quarentena";
-        tone = "emerald";
       }
 
       return {
@@ -235,7 +237,7 @@ export function StockControlHub({
       if (selectedAlertType !== "todos") {
         if (selectedAlertType === "reposicao" && item.status !== "reposicao") return false;
         if (selectedAlertType === "vencido_vencendo" && item.status !== "vencido" && item.status !== "vencendo") return false;
-        if (selectedAlertType === "quarentena" && item.status !== "quarentena") return false;
+        if (selectedAlertType === "compra_atrasada" && item.status !== "compra_atrasada") return false;
         if (selectedAlertType === "sem_disponivel" && item.status !== "sem_disponivel") return false;
         if (selectedAlertType === "ok" && item.status !== "ok") return false;
       }
@@ -268,7 +270,6 @@ export function StockControlHub({
 
       // Filtro de situação física do lote
       if (selectedAlertType !== "todos") {
-        if (selectedAlertType === "quarentena" && lote.status !== "quarentena") return false;
         if (selectedAlertType === "vencido_vencendo" && !lote.vencido) return false;
       }
 
@@ -282,7 +283,7 @@ export function StockControlHub({
   const countRepor = items.filter((i) => i.status === "reposicao").length;
   const countVencidos = items.filter((i) => i.status === "vencido" || i.status === "sem_validade").length;
   const countVencendo = items.filter((i) => i.status === "vencendo").length;
-  const countQuarentena = items.filter((i) => i.status === "quarentena").length;
+  const countCompraAtrasada = items.filter((i) => i.status === "compra_atrasada").length;
   const countOk = items.filter((i) => i.status === "ok").length;
   const saudePct = totalInsumos > 0 ? Math.round((countOk / totalInsumos) * 100) : 0;
 
@@ -291,7 +292,7 @@ export function StockControlHub({
     { name: "Vencido/Sem Val.", value: countVencidos, color: "#f87171" },
     { name: "Reposição", value: countRepor, color: "#f59e0b" },
     { name: "Vencendo", value: countVencendo, color: "#fbbf24" },
-    { name: "Quarentena", value: countQuarentena, color: "#10b981" },
+    { name: "Compra atrasada", value: countCompraAtrasada, color: "#dc2626" },
     { name: "Estoque OK", value: countOk, color: "#3b82f6" },
   ].filter((d) => d.value > 0);
 
@@ -325,7 +326,7 @@ export function StockControlHub({
             </span>
           </div>
           <p className="mt-2 text-3xl font-bold tracking-tight text-warning-strong">{countRepor}</p>
-          <p className="mt-1 text-xs text-muted-foreground">abaixo do ponto</p>
+          <p className="mt-1 text-xs text-muted-foreground">precisam de compra</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -339,13 +340,13 @@ export function StockControlHub({
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-semibold uppercase text-muted-foreground">Quarentena</p>
-            <span className="rounded-md bg-success-soft p-1 text-success-strong">
+            <p className="text-xs font-semibold uppercase text-muted-foreground">Compra atrasada</p>
+            <span className="rounded-md bg-danger-soft p-1 text-danger-strong">
               <Boxes className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-success-strong">{countQuarentena}</p>
-          <p className="mt-1 text-xs text-muted-foreground">lotes aguardando aceite</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-danger-strong">{countCompraAtrasada}</p>
+          <p className="mt-1 text-xs text-muted-foreground">no ponto, com a compra atrasada</p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -354,7 +355,7 @@ export function StockControlHub({
               <HelpTip title="Saúde do estoque">
                 <p>
                   Percentual de insumos <b>sem nenhum alerta</b>. Cada insumo conta uma vez, na
-                  situação mais grave: vencido, sem estoque, repor, vence em breve ou quarentena.
+                  situação mais grave: vencido, sem estoque, compra atrasada, repor ou vence em breve.
                 </p>
                 <HelpExample>40 insumos, 30 sem alerta → saúde de 75%.</HelpExample>
               </HelpTip>
@@ -441,7 +442,7 @@ export function StockControlHub({
                   <option value="sem_disponivel">Sem Estoque</option>
                   <option value="reposicao">Abaixo do Ponto (Repor)</option>
                   <option value="vencido_vencendo">Vencido/Vencendo</option>
-                  <option value="quarentena">Em Quarentena</option>
+                  <option value="compra_atrasada">Compra atrasada</option>
                   <option value="ok" disabled={viewMode === "lote"}>Estoque OK</option>
                 </select>
               </div>
@@ -623,9 +624,9 @@ export function StockControlHub({
                             style={{ width: `${Math.min(100, pctMin)}%` }}
                           />
                         </div>
-                        {ponto > 0 && disponivel <= ponto && (
+                        {(item.qtd_sugerida_compra ?? 0) > 0 && (
                           <p className="mt-1.5 text-[11px] text-warning-strong font-medium flex items-center gap-1">
-                            <TrendingDown className="h-3 w-3" /> Reposição sugerida: {formatNumber(ponto - disponivel)} {item.unidade}
+                            <TrendingDown className="h-3 w-3" /> Reposição sugerida: {formatNumber(item.qtd_sugerida_compra ?? 0)} {item.unidade}
                           </p>
                         )}
                       </div>
@@ -705,7 +706,7 @@ export function StockControlHub({
                             especificacao={item.especificacao ?? undefined}
                             triggerClassName="inline-flex items-center gap-1 rounded-md border border-danger-strong/30 bg-card px-2.5 py-1.5 text-xs font-semibold text-danger-strong shadow-sm hover:bg-danger-soft"
                           />
-                          {ponto > 0 && disponivel <= ponto && (
+                          {(item.qtd_sugerida_compra ?? 0) > 0 && (
                             <GerarPedidoInsumoButton insumoId={item.insumo_id} />
                           )}
                         </div>
@@ -844,11 +845,11 @@ export function StockControlHub({
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-warning-strong mt-1.5 shrink-0" />
-                    <span><b>{countRepor} insumos abaixo do ponto de reposição</b>: podem faltar para os planos.</span>
+                    <span><b>{countRepor} insumos para repor</b>: o disponível mais o que está a caminho não cobre o prazo da compra.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-success-strong mt-1.5 shrink-0" />
-                    <span><b>{countQuarentena} insumos com lotes aguardando aceite</b>: libere em <i>Por Lote</i>.</span>
+                    <span className="h-1.5 w-1.5 rounded-full bg-danger-strong mt-1.5 shrink-0" />
+                    <span><b>{countCompraAtrasada} insumos no ponto com compra atrasada</b>: cobre o fornecedor ou encerre a compra.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-info-strong mt-1.5 shrink-0" />

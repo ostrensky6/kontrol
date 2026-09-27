@@ -459,7 +459,7 @@ export async function salvarRegistro(
   const payload = semIndefinidos(parsed.data);
 
   // Insumos: a quantidade (embalagens fechadas) é informada no próprio
-  // cadastro e entra direto (sem quarentena), atômico com a criação do
+  // cadastro e entra direto no estoque (sem quarentena desde a 0130), atômico com a criação do
   // insumo; ver public.criar_insumo_com_quantidade.
   if (slug === "insumos") {
     const quantidadeParsed = quantidadeInsumoSchema.safeParse(formData.get("quantidade"));

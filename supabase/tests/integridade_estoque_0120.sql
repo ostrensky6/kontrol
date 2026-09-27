@@ -38,7 +38,8 @@ begin
          'EMBALAGEM_FECHADA', 'mL', 100, 'µL', 1000
   from public.insumos where especificacao = 'TS-0120 Tampao 100 mL';
 
-  -- Etanol por volume: lotes A e B com 10 mL; Q em quarentena.
+  -- Etanol por volume: lotes A e B com 10 mL; Q tentou entrar em quarentena
+  -- (0130: entra disponível).
   insert into public.insumos (especificacao, unidade, fator_conversao, custo_unitario)
   values ('TS-0120 Etanol', 'mL', 1, 0.1);
   insert into public.lotes_estoque (insumo_id, codigo_lote, validade, quantidade_inicial, quantidade_atual, status)
@@ -167,14 +168,14 @@ begin
   if not (select reserva_desatualizada from public.planejamento where id = v_p) then
     raise exception '0120: plano deveria ficar com reserva desatualizada';
   end if;
-  if (select disponivel from public.v_estoque_saldo where insumo_id = v_ins) <> 10 then
-    raise exception '0120: disponivel deveria ser 10 (lote B livre)';
+  if (select disponivel from public.v_estoque_saldo where insumo_id = v_ins) <> 20 then
+    raise exception '0120: disponivel deveria ser 20 (lotes B e Q livres)';
   end if;
 
   perform public.bloquear_lote(v_q, 'suspeita');
   perform public.desbloquear_lote(v_q);
-  if (select status from public.lotes_estoque where id = v_q) <> 'quarentena' then
-    raise exception '0120: lote em quarentena desbloqueado deveria voltar a quarentena';
+  if (select status from public.lotes_estoque where id = v_q) <> 'aceito' then
+    raise exception '0120/0130: lote desbloqueado deveria voltar disponivel';
   end if;
 end $$;
 
@@ -207,6 +208,7 @@ declare
   v_p bigint := (select id from public.planejamento where nome = 'TS-0120 plano liberar');
   v_ped bigint := (select max(id) from public.pedidos_compra where solicitante = 'ts-0120');
   v_item bigint;
+  v_nova bigint;
 begin
   begin
     perform public.aplicar_ajuste_inventario_contagem(v_contagem);
@@ -234,17 +236,34 @@ begin
   exception when invalid_parameter_value then null;
   end;
   begin
-    perform public.transicionar_pedido_compra(v_ped, 'recebido', '  ', null);
+    perform public.encerrar_compra_com_pendencia(v_ped, 'nova_compra', '  ');
     raise exception '0120: encerramento sem motivo aceito';
   exception when invalid_parameter_value then null;
   end;
-  perform public.transicionar_pedido_compra(v_ped, 'recebido', 'fornecedor nao entrega o restante', null);
+  begin
+    perform public.encerrar_compra_com_pendencia(v_ped, null, 'fornecedor nao entrega o restante');
+    raise exception '0120/0130: encerramento sem destino aceito';
+  exception when invalid_parameter_value then null;
+  end;
+  -- 0130: compra direta (sem pedido interno); o que faltou vira nova compra
+  v_nova := (public.encerrar_compra_com_pendencia(v_ped, 'nova_compra', 'fornecedor nao entrega o restante')
+             ->> 'nova_compra_id')::bigint;
   if (select status from public.pedidos_compra where id = v_ped) <> 'recebido' then
     raise exception '0120: compra deveria ficar encerrada';
   end if;
   if (select divergencia_recebimento from public.pedidos_compra_itens where id = v_item) not like 'Encerrado com pendência: recebido 100 de 300%' then
     raise exception '0120: pendencia nao registrada no item';
   end if;
+  if v_nova is null
+     or (select status from public.pedidos_compra where id = v_nova) <> 'solicitado'
+     or (select compra_origem_id from public.pedidos_compra where id = v_nova) <> v_ped
+     or (select sum(quantidade) from public.pedidos_compra_itens where pedido_id = v_nova) <> 200
+     or (select compra_pendencia_id from public.pedidos_compra_itens where id = v_item) <> v_nova
+     or (select quantidade_nao_atendida from public.pedidos_compra_itens where id = v_item) <> 200 then
+    raise exception '0120/0130: o que faltou (200) deveria virar a compra #% ligada a #%', v_nova, v_ped;
+  end if;
+  -- compra sem pedido interno segue a regra própria: basta aprovar compras
+  perform public.transicionar_pedido_compra(v_nova, 'aprovado', null, null);
 
   -- J. Exclusao com historico recusada; sem historico, permitida
   begin

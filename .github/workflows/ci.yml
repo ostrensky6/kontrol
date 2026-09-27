@@ -62,6 +62,9 @@ jobs:
       - name: Validar versões da proposta, link público e plano da aprovada
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/orcamento_versoes_0126.sql
 
+      - name: Validar entrada direta, reposição com prazo total, compra atrasada e margem do plano
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/entrada_reposicao_compra_0130.sql
+
   check:
     runs-on: ubuntu-latest
     steps:

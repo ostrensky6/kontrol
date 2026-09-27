@@ -17,7 +17,7 @@ export const dynamic = "force-dynamic";
 
 const LOTE_STATUS: Record<string, { label: string; cls: string }> = {
   quarentena: { label: "Quarentena", cls: "bg-warning-soft text-warning-strong" },
-  aceito: { label: "Aceito", cls: "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" },
+  aceito: { label: "Disponível", cls: "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" },
   em_uso: { label: "Em uso", cls: "bg-info-soft text-info-strong" },
   consumido: { label: "Consumido", cls: "bg-muted text-muted-foreground" },
   bloqueado: { label: "Bloqueado", cls: "bg-danger-soft text-danger-strong" },

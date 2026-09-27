@@ -92,10 +92,13 @@ begin
   end;
 end $$;
 
+-- 0130: sem quarentena; o lote que tentou entrar em quarentena já está disponível.
 select set_config('request.jwt.claim.sub', md5('kontrol-0124-coordenador')::uuid::text, true);
 do $$
 begin
-  perform public.aceitar_lote((select id from public.lotes_estoque where codigo_lote = 'TS-0124-Q'), 'x', 'y');
+  if (select status from public.lotes_estoque where codigo_lote = 'TS-0124-Q') <> 'aceito' then
+    raise exception '0124/0130: lote deveria entrar disponivel, sem quarentena';
+  end if;
 end $$;
 
 reset role;

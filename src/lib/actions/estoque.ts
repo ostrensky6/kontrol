@@ -147,8 +147,8 @@ export async function entradaInventario(
   return {
     ok: true,
     message: emFrascos
-      ? `Entrada registrada: ${resultado?.quantidade ?? d.quantidade} frasco(s) em quarentena.`
-      : "Entrada de inventário registrada (lote em quarentena).",
+      ? `Entrada registrada: ${resultado?.quantidade ?? d.quantidade} frasco(s) disponíveis no estoque.`
+      : "Entrada registrada: o lote já está disponível no estoque.",
   };
 }
 

@@ -117,11 +117,10 @@ begin
      or (select conteudo_embalagem from public.pedidos_compra_item_recebimentos where lote_id = v_lote) <> 50 then
     raise exception '0127: volume informado na chegada deveria ir so para lote e livro';
   end if;
-  begin
-    perform public.aceitar_lote(v_lote, null, null);
-    raise exception '0127: tecnico sem a caixinha aceitou lote';
-  exception when insufficient_privilege then null;
-  end;
+  -- 0130: sem quarentena; quem registra a chegada deixa o lote disponível.
+  if (select status from public.lotes_estoque where id = v_lote) <> 'aceito' then
+    raise exception '0127/0130: lote recebido pelo tecnico deveria entrar disponivel';
+  end if;
 
   -- EST2-9: item recebido não muda nem sai; compra fora de solicitado também não
   begin
@@ -155,17 +154,22 @@ begin
 end $$;
 
 select pg_temp.como('coordenador');
+
+-- 0130: material vencido não entra no estoque (antes era barrado no aceite)
 do $$
 declare
-  v_lote bigint := current_setting('t0127.lote_tecnico')::bigint;
+  v_ped bigint := current_setting('t0127.ped')::bigint;
+  v_item bigint;
 begin
-  perform public.aceitar_lote(v_lote, null, null);
-  if (select status from public.lotes_estoque where id = v_lote) <> 'aceito' then
-    raise exception '0127: coordenador deveria aceitar o lote recebido pelo tecnico';
-  end if;
+  select id into v_item from public.pedidos_compra_itens where pedido_id = v_ped and quantidade = 3;
+  begin
+    perform public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date - 1, 'TS-0127-VENC', null);
+    raise exception '0127/0130: recebimento de lote vencido foi aceito';
+  exception when invalid_parameter_value then null;
+  end;
 end $$;
 
--- Quem recebeu não aceita o próprio lote (coordenador recebe e tenta aceitar)
+-- Coordenador registra a chegada do restante: também fica disponível direto
 do $$
 declare
   v_ped bigint := current_setting('t0127.ped')::bigint;
@@ -173,28 +177,12 @@ declare
   v_lote bigint;
 begin
   select id into v_item from public.pedidos_compra_itens where pedido_id = v_ped and quantidade = 3;
-  v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date - 1, 'TS-0127-C2', null);
-  begin
-    perform public.aceitar_lote(v_lote, null, null);
-    raise exception '0127: lote vencido foi aceito';
-  exception when invalid_parameter_value then null;
-  end;
-end $$;
-
--- Quem recebeu não aceita o próprio lote (lote válido recebido pelo coordenador)
-do $$
-declare
-  v_ped bigint := current_setting('t0127.ped')::bigint;
-  v_item bigint;
-  v_lote bigint;
-begin
+  v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date + 50, 'TS-0127-C2', null);
   select id into v_item from public.pedidos_compra_itens where pedido_id = v_ped and quantidade = 1;
   v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date + 100, 'TS-0127-C3', null);
-  begin
-    perform public.aceitar_lote(v_lote, null, null);
-    raise exception '0127: quem recebeu aceitou o proprio lote';
-  exception when insufficient_privilege then null;
-  end;
+  if (select status from public.lotes_estoque where id = v_lote) <> 'aceito' then
+    raise exception '0127/0130: lote recebido pelo coordenador deveria entrar disponivel';
+  end if;
 end $$;
 
 -- ---- EST-2: estorno de recebimento de compra formal ------------------------
@@ -321,16 +309,47 @@ begin
     raise exception '0127: pedido devolvido deveria retomar a compra #% com o item ajustado (obtido %)', v_compra, r;
   end if;
 
+  -- 0130 (D1): a compra não é aprovada enquanto o pedido interno não chega a
+  -- "Aprovado para compra".
+  begin
+    perform public.transicionar_pedido_compra(v_compra, 'aprovado', 'ok', null);
+    raise exception '0127/0130: compra aprovada com o pedido interno em formalizado';
+  exception when invalid_parameter_value then null;
+  end;
+  perform public.registrar_etapa_pedido_interno(v_pedido, 'analise_administrativa', 'analise', 'registrado', 'ok',
+    '{"fonte_recurso": "Projeto X", "rubrica": "Material", "conformidade_admin": "ok"}');
+  perform public.transicionar_pedido_interno(v_pedido, 'aprovado_compra', 'analise', 'aprovado', null);
+  perform public.transicionar_pedido_interno(v_pedido, 'orcamentos', 'cotacao', 'registrado', null);
+  perform public.transicionar_pedido_interno(v_pedido, 'orcamentos_recebidos', 'cotacao', 'registrado', null);
+  perform public.transicionar_pedido_interno(v_pedido, 'aguardando_aprovacao_final', 'cotacao', 'registrado', null);
+  begin
+    perform public.transicionar_pedido_compra(v_compra, 'aprovado', 'ok', null);
+    raise exception '0127/0130: compra aprovada antes da aprovacao final do pedido';
+  exception when invalid_parameter_value then null;
+  end;
+  perform public.transicionar_pedido_interno(v_pedido, 'aprovado_para_compra', 'aprovacao_final', 'aprovado', null);
+
   -- compra aprovada, recebe parte do item A e encerra com pendência
   perform public.transicionar_pedido_compra(v_compra, 'aprovado', 'ok', null);
   perform public.receber_item_pedido_compra(v_compra,
     (select id from public.pedidos_compra_itens where pedido_interno_item_id = v_item_a),
     gen_random_uuid(), 1, current_date + 300, 'TS-0127-PI', null);
-  perform public.transicionar_pedido_compra(v_compra, 'recebido', 'Fornecedor sem estoque', null);
+  -- 0130: encerrar exige destino; o caminho direto é recusado
+  begin
+    perform public.transicionar_pedido_compra(v_compra, 'recebido', 'Fornecedor sem estoque', null);
+    raise exception '0127/0130: compra encerrada sem destino para o que faltou';
+  exception when invalid_parameter_value then null;
+  end;
+  r := public.encerrar_compra_com_pendencia(v_compra, 'desistencia', 'Fornecedor sem estoque');
   if (select recebido_em from public.pedidos_internos_itens where id = v_item_b) is null
      or (select divergencia_recebimento from public.pedidos_internos_itens where id = v_item_a) not like '%encerrada com pendência%'
      or (select recebido_em from public.pedidos_internos where id = v_pedido) is null then
     raise exception '0127: pedido interno deveria concluir o recebimento com a pendencia registrada';
+  end if;
+  if (select quantidade_nao_atendida from public.pedidos_compra_itens where pedido_interno_item_id = v_item_a) <> 2
+     or (select destino_pendencia from public.pedidos_compra_itens where pedido_interno_item_id = v_item_b) <> 'desistencia'
+     or r->>'nova_compra_id' is not null then
+    raise exception '0127/0130: pendencia deveria ficar gravada com destino desistencia (obtido %)', r;
   end if;
 
   -- livro não some: pedido interno com recebimento não é excluído

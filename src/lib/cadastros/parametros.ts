@@ -32,7 +32,8 @@ export const ROTULOS_PARAMETROS: Record<string, string> = {
   horas_bancada_mes: "Horas de bancada por mês",
   janela_vencimento_dias: "Janela de alerta de vencimento (dias)",
   janela_dashboard_vencimento_dias: "Janela de vencimento na página inicial (dias)",
-  janela_consumo_previsao_dias: "Janela de consumo para previsão (dias)",
+  janela_consumo_previsao_dias: "Janela de saídas para previsão de reposição (dias)",
+  prazo_tramitacao_compra_dias: "Tramitação da compra na universidade (dias)",
 };
 
 export function rotuloParametro(chave: string) {

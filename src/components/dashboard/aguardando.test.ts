@@ -6,7 +6,9 @@ describe("montarPendencias", () => {
     const pendencias = montarPendencias([
       { chave: "pedidos_validacao", quantidade: 2, itens: [{ id: 7, rotulo: "#7 · Reagentes" }] },
       { chave: "compras_aprovar", quantidade: 0, itens: [] },
-      { chave: "lotes_quarentena", quantidade: "1", itens: [{ id: 3 }] },
+      { chave: "compras_receber", quantidade: "1", itens: [{ id: 3 }] },
+      // 0130: sem quarentena; a chave antiga não vira pendência
+      { chave: "lotes_quarentena", quantidade: 4, itens: [] },
     ]);
     expect(pendencias).toEqual([
       {
@@ -18,12 +20,12 @@ describe("montarPendencias", () => {
         itens: [{ id: 7, rotulo: "#7 · Reagentes", href: "/pedido/7" }],
       },
       {
-        chave: "lotes_quarentena",
-        titulo: "Lotes em quarentena",
-        acao: "conferir e aceitar para uso",
+        chave: "compras_receber",
+        titulo: "Compras para receber",
+        acao: "registrar a chegada dos itens",
         quantidade: 1,
-        href: "/estoque/controle?status=quarentena",
-        itens: [{ id: 3, rotulo: "#3", href: "/estoque/lotes/3" }],
+        href: "/recebimento",
+        itens: [{ id: 3, rotulo: "#3", href: "/compras/3" }],
       },
     ]);
   });

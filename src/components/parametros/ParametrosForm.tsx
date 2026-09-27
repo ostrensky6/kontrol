@@ -34,6 +34,8 @@ const ORDEM = [
   "horas_mes_tecnico",
   "horas_bancada_mes",
   "janela_vencimento_dias",
+  "prazo_tramitacao_compra_dias",
+  "janela_consumo_previsao_dias",
 ];
 
 const num = (v: number, casas = 2) =>

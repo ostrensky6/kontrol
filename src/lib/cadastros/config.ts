@@ -336,19 +336,19 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "number",
         min: 0,
         step: "1",
-        ajuda: "Prazo aceito no contrato. O cálculo da compra usa o **Lead time**.",
+        ajuda: "Prazo aceito no contrato. A previsão de reposição usa o **Prazo de entrega do fornecedor**.",
       },
 
-      { name: "ponto_reposicao", label: "Ponto de reposição", tipo: "number", min: 0, ajuda: "Quando o **disponível** chega a este número, o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Ponto de reposição 2: com 2 frascos ou menos, o sistema sugere comprar.", grupo: "Estoque e reposição" },
+      { name: "ponto_reposicao", label: "Ponto de reposição", tipo: "number", min: 0, ajuda: "Mínimo que você quer manter. Se o **disponível** mais o que já está a caminho ficar abaixo dele (ou abaixo das saídas previstas no prazo da compra), o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Ponto 5, disponível 2 e nada a caminho: o sistema sugere pedir 3.", grupo: "Estoque e reposição" },
       {
         name: "estoque_seguranca",
         label: "Estoque de segurança",
         tipo: "number",
         min: 0,
-        ajuda: "Em embalagens fechadas. Margem para imprevistos (atraso, consumo maior). Entra no **ponto sugerido** junto com o consumo durante o lead time.",
-        exemplo: "Consumo de 2/dia, lead time de 10 dias e segurança 5 → ponto sugerido 25.",
+        ajuda: "Em embalagens fechadas. Margem para imprevistos (atraso, consumo maior). Entra no **ponto sugerido** junto com as saídas previstas durante o prazo total da compra.",
+        exemplo: "Saem 0,1 frasco/dia, prazo total de 80 dias (60 de tramitação + 20 de entrega) e segurança 1 → ponto sugerido 9.",
       },
-      { name: "lead_time_dias", label: "Lead time (dias)", tipo: "number", min: 0, step: "1", ajuda: "Dias entre fazer o pedido e o insumo chegar. Usado para **antecipar a compra**; se ficar vazio, vale o prazo médio do fornecedor." },
+      { name: "lead_time_dias", label: "Prazo de entrega do fornecedor (dias)", tipo: "number", min: 0, step: "1", ajuda: "Dias entre o pedido chegar ao fornecedor e o material chegar ao almoxarifado. A previsão soma a **tramitação na universidade** (em Parâmetros) para **antecipar a compra**. Vazio ou zero: vale o prazo médio do fornecedor." },
 
       {
         name: "condicao_armazenamento",
@@ -513,7 +513,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { name: "endereco", label: "Endereço", tipo: "text", colSpan: 2, grupo: "Endereço" },
 
       { name: "catalogo_padrao", label: "Catálogo padrão", tipo: "text", grupo: "Compras e prazos", oculto: true },
-      { name: "prazo_medio_dias", label: "Prazo médio (dias)", tipo: "number", min: 0, ajuda: "Tempo usual entre o pedido e a entrega. Vale como **lead time** dos insumos deste fornecedor que não têm um próprio." },
+      { name: "prazo_medio_dias", label: "Prazo médio (dias)", tipo: "number", min: 0, ajuda: "Tempo usual entre o pedido e a entrega. Vale para os insumos deste fornecedor sem prazo próprio. A previsão soma a tramitação na universidade." },
       { name: "prazo_max_dias", label: "Prazo máximo (dias)", tipo: "number", min: 0, oculto: true },
 
       { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },

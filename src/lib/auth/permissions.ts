@@ -106,7 +106,7 @@ export const PERMISSOES: Array<{
   // ---- Suprimentos ----
   { key: "estoque.ver", modulo: "Suprimentos", label: "Acessar Estoque", descricao: "Ver saldos, lotes, inventário, etiquetas e equipamentos." },
   { key: "estoque.movimentar", modulo: "Suprimentos", label: "Dar baixa e registrar entradas", descricao: "Retirar material, abrir frascos, dar baixa e lançar entradas manuais." },
-  { key: "estoque.lote.aceitar", modulo: "Suprimentos", label: "Aceitar lotes", descricao: "Liberar lotes em quarentena para uso." },
+  { key: "estoque.lote.aceitar", modulo: "Suprimentos", label: "Aceitar lotes", descricao: "Sem uso desde 27/09/2026: o lote entra disponível ao registrar a chegada, sem quarentena." },
   { key: "estoque.lote.gerir", modulo: "Suprimentos", label: "Corrigir estoque", descricao: "Ajustar saldos, inventário e estornar recebimentos." },
   { key: "estoque.descartar_bloquear", modulo: "Suprimentos", label: "Bloquear e descartar lotes", descricao: "Bloquear, desbloquear e descartar lotes." },
   { key: "planejamento.ver", modulo: "Suprimentos", label: "Acessar Planejamento", descricao: "Ver planos, reservas e faltas." },

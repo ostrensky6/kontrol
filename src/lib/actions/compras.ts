@@ -305,27 +305,45 @@ export async function cancelarPedido(_prev: FormState, formData: FormData): Prom
   return { ok: true, message: "Compra cancelada." };
 }
 
-/** Encerra uma compra recebida em parte: o restante não será mais esperado. */
+const DESTINOS_PENDENCIA = ["nova_compra", "desistencia", "atendido_outra_forma"] as const;
+
+/**
+ * Encerra uma compra recebida em parte dando destino ao que faltou (0130):
+ * nova compra (criada na hora, ligada a esta), desistência ou atendido de
+ * outra forma. A quantidade não atendida fica gravada em cada item.
+ */
 export async function encerrarPedidoComPendencia(
   _prev: FormState,
   formData: FormData,
 ): Promise<FormState> {
   if (!(await pode("compras.aprovar"))) return SEM_PERMISSAO;
   const pedido_id = Number(formData.get("pedido_id"));
+  const destino = String(formData.get("destino") ?? "");
   const motivo = String(formData.get("motivo") ?? "").trim();
-  if (!motivo) return { ok: false, message: "Informe por que o restante não será recebido." };
+  if (!DESTINOS_PENDENCIA.includes(destino as (typeof DESTINOS_PENDENCIA)[number])) {
+    return { ok: false, message: "Escolha o destino do que faltou." };
+  }
+  if (motivo.length < 3) return { ok: false, message: "Explique o motivo (pelo menos 3 letras)." };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("transicionar_pedido_compra", {
+  const { data, error } = await supabase.rpc("encerrar_compra_com_pendencia", {
     p_pedido_id: pedido_id,
-    p_status_destino: "recebido",
-    p_observacao: motivo,
+    p_destino: destino,
+    p_motivo: motivo,
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
-  return { ok: true, message: "Compra encerrada. A pendência ficou registrada nos itens." };
+  const novaCompra = Number((data as { nova_compra_id?: number | null } | null)?.nova_compra_id ?? 0);
+  if (novaCompra) {
+    revalidarPedidoCompra(novaCompra);
+    return {
+      ok: true,
+      message: `Compra encerrada. O que faltou virou a compra #${novaCompra}, que aguarda aprovação.`,
+    };
+  }
+  return { ok: true, message: "Compra encerrada. O que faltou ficou registrado com o destino escolhido." };
 }
 
-/** Recebe um item do pedido: cria lote em quarentena (FEFO) e vincula. */
+/** Recebe um item do pedido: cria o lote já disponível no estoque e vincula. */
 export async function receberItemPedido(formData: FormData): Promise<FormState> {
   if (!(await pode("compras.receber"))) return SEM_PERMISSAO;
   const pedido_id = Number(formData.get("pedido_id"));
@@ -379,6 +397,6 @@ export async function receberItemPedido(formData: FormData): Promise<FormState> 
   revalidatePath("/estoque");
   return {
     ok: true,
-    message: "Chegada registrada. O lote entrou em quarentena e precisa ser aceito por outra pessoa.",
+    message: "Chegada registrada. O lote já está disponível no estoque.",
   };
 }

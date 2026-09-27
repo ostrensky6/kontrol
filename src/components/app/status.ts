@@ -47,7 +47,7 @@ const STATUS: Record<string, StatusInfo> = {
   // Sucesso / concluídos
   aprovado: { label: "Aprovado", tone: "success" },
   aprovada: { label: "Aprovada", tone: "success" },
-  aceito: { label: "Aceito", tone: "success" },
+  aceito: { label: "Disponível", tone: "success" },
   revisado: { label: "Revisado", tone: "success" },
   liberado: { label: "Liberado", tone: "success" },
   concluido: { label: "Concluído", tone: "success" },

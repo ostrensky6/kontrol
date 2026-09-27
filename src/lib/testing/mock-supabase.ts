@@ -864,13 +864,6 @@ function mockAguardandoVoce(sessao: SessaoMock) {
       (row) => `Compra #${row.id}`,
     );
   }
-  if (mockTemPermissao("estoque.lote.aceitar", sessao)) {
-    linha(
-      "lotes_quarentena",
-      (store.lotes_estoque ?? []).filter((row) => row.status === "quarentena"),
-      (row) => `Lote ${row.codigo_lote ?? `#${row.id}`}`,
-    );
-  }
   if (mockTemPermissao("planejamento.editar", sessao)) {
     linha(
       "planos_rascunho",
@@ -1176,12 +1169,13 @@ function receiveLot(args: Row) {
     codigo_lote: args.p_codigo ?? `L-${Date.now()}`,
     validade: args.p_validade ?? null,
     quantidade_atual: Number(args.p_quantidade),
-    status: "quarentena",
+    // 0130: sem quarentena; o lote entra disponível.
+    status: "aceito",
   };
   store.lotes_estoque.push(lote);
   if (saldo) {
     saldo.em_maos = Number(saldo.em_maos ?? 0) + lote.quantidade_atual;
-    saldo.em_quarentena = Number(saldo.em_quarentena ?? 0) + lote.quantidade_atual;
+    saldo.disponivel = Number(saldo.disponivel ?? 0) + lote.quantidade_atual;
   }
 }
 

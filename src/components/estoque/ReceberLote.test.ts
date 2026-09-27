@@ -16,17 +16,18 @@ describe("entrada inicial de estoque", () => {
 
   it("mantem os saldos operacionais separados das unidades abertas e fechadas", () => {
     expect(tables).toContain('header: "Em mãos"');
-    expect(tables).toContain('header: "Quarentena"');
+    // 0130: sem quarentena, a coluna saiu do saldo
+    expect(tables).not.toContain('header: "Quarentena"');
     // explicação sob demanda ("?"), não mais texto fixo na tela
     expect(tables).toContain('<HelpTip title="Como ler o saldo">');
-    expect(tables).toContain("<b>Em mãos</b> soma os lotes liberados");
+    expect(tables).toContain("<b>Em mãos</b> soma os lotes guardados");
     expect(tables).not.toContain('header: "Saldo aceito (calculado)"');
   });
 
   it("orienta antes e depois da entrada sem prometer permissao", () => {
-    expect(button).toContain("O lote entra em quarentena e só fica disponível depois de aceito.");
+    expect(button).toContain("O lote entra disponível para uso assim que a entrada é registrada.");
     expect(button).toContain("Material comprado deve ser recebido");
-    expect(button).toContain("Falta aceitar o lote para liberar o uso.");
+    expect(button).not.toContain("Falta aceitar o lote");
     expect(button).toContain('href="/estoque"');
     expect(button).toContain("Revisar no Estoque");
     expect(button).toContain('role="status"');
