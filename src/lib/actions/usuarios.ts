@@ -60,21 +60,6 @@ function soExcecoes(selecionadas: Record<string, boolean>, categoria: Record<str
   );
 }
 
-async function permissoesDoUsuario(papel: string, formData?: FormData) {
-  if (papel === "admin") return {};
-  const categoria = await categoriaEfetiva(papel);
-  if (
-    formData &&
-    (formData.get("permissoes_presentes") === "1" || formData.getAll("permissoes").length > 0)
-  ) {
-    return soExcecoes(selectedPermissionsFromForm(formData, papel), categoria);
-  }
-  return {};
-}
-
-// ban "permanente" para suspensão; o GoTrue aceita uma duração em horas.
-const BAN_SUSPENSO = "876000h"; // ~100 anos
-
 type PerfilUpdate = Database["public"]["Tables"]["perfis"]["Update"];
 
 /**
@@ -108,6 +93,21 @@ async function ajustarPerfilDaContaNova(
       : `A conta ${email} foi criada, mas o perfil não foi ajustado; ela ficou suspensa. Exclua ${email} em Usuários e cadastre de novo.`,
   };
 }
+
+async function permissoesDoUsuario(papel: string, formData?: FormData) {
+  if (papel === "admin") return {};
+  const categoria = await categoriaEfetiva(papel);
+  if (
+    formData &&
+    (formData.get("permissoes_presentes") === "1" || formData.getAll("permissoes").length > 0)
+  ) {
+    return soExcecoes(selectedPermissionsFromForm(formData, papel), categoria);
+  }
+  return {};
+}
+
+// ban "permanente" para suspensão; o GoTrue aceita uma duração em horas.
+const BAN_SUSPENSO = "876000h"; // ~100 anos
 
 /**
  * Cadastra um usuário diretamente. Cria a conta no Auth com senha
