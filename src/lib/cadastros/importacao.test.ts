@@ -1,8 +1,10 @@
 import ExcelJS from "exceljs";
 import { describe, expect, it } from "vitest";
-import { CADASTROS } from "./config";
+import { CADASTROS, getCadastrosParaImportacao } from "./config";
 import {
   diferencas,
+  formatoPercentual,
+  normalizarChave,
   erroLinha,
   lerAbaCadastro,
   mapaCabecalhos,
@@ -188,5 +190,38 @@ describe("operacao_id deterministico", () => {
     expect(a).not.toBe(operacaoIdDeterministico("hash-arquivo", "insumos", 3));
     expect(a).not.toBe(operacaoIdDeterministico("outro-arquivo", "insumos", 2));
     expect(a).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  });
+});
+
+describe("CAD-5: percentual e ordem da importação", () => {
+  const percentual = { name: "percentual_dedicado", label: "% dedicado", tipo: "percent" } as const;
+
+  it("número sem formato de % já está em pontos percentuais (1 é 1%, não 100%)", () => {
+    expect(valorParaCampo(1, percentual)).toEqual({ ok: true, valor: 1 });
+    expect(valorParaCampo(0.5, percentual)).toEqual({ ok: true, valor: 0.5 });
+    expect(valorParaCampo("12,5%", percentual)).toEqual({ ok: true, valor: 12.5 });
+  });
+
+  it("célula formatada como % (planilha exportada) guarda fração", () => {
+    expect(valorParaCampo(0.5, percentual, undefined, { celulaEmPercentual: true })).toEqual({ ok: true, valor: 50 });
+    expect(valorParaCampo(0.01, percentual, undefined, { celulaEmPercentual: true })).toEqual({ ok: true, valor: 1 });
+    expect(formatoPercentual({ numFmt: "0.0%" })).toBe(true);
+    expect(formatoPercentual({ numFmt: "#,##0.###" })).toBe(false);
+  });
+
+  it("importa cada aba depois das abas que ela referencia", () => {
+    const ordem = getCadastrosParaImportacao().map((cfg) => cfg.slug);
+    const antes = (a: string, b: string) => expect(ordem.indexOf(a), `${a} antes de ${b}`).toBeLessThan(ordem.indexOf(b));
+    antes("fornecedores", "insumos");
+    antes("tipo_insumos", "insumos");
+    antes("clientes", "projetos");
+    expect(new Set(ordem).size).toBe(Object.keys(CADASTROS).length);
+  });
+
+  it("aceita o cabeçalho antigo de colunas renomeadas", () => {
+    const mapa = mapaCabecalhos(CADASTROS.insumos);
+    expect(mapa.get(normalizarChave("Data da última compra"))).toBe("data_aquisicao");
+    expect(mapa.get(normalizarChave("Unidade"))).toBe("unidade");
+    expect(mapa.get(normalizarChave("Unidade da embalagem"))).toBe("unidade");
   });
 });

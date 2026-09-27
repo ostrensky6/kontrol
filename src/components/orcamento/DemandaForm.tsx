@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Option = { id: number; nome: string };
 type Demanda = {
@@ -97,6 +99,7 @@ export function DemandaForm({
   analises,
   gruposAmostras,
   analisesSelecionadas,
+  matrizes = [],
   modo = "completo",
 }: {
   demanda: Demanda;
@@ -105,6 +108,8 @@ export function DemandaForm({
   analises: AnaliseCatalogoDemanda[];
   gruposAmostras: GrupoAmostraDemanda[];
   analisesSelecionadas: AnaliseSelecionadaDemanda[];
+  /** Matrizes cadastradas; o grupo só aceita um código desta lista (FK). */
+  matrizes?: { codigo: string; nome: string }[];
   modo?: "completo" | "demanda" | "laboratorio";
 }) {
   const action: (state: DemandaFormState, formData: FormData) => Promise<DemandaFormState> =
@@ -205,7 +210,7 @@ export function DemandaForm({
     .filter((reagente) => reagente.status_vinculo_insumo === "insumo_sem_cadastro_correspondente");
 
   return (
-    <form action={formAction} className="mt-3 space-y-4">
+    <form action={formAction} {...formularioSemPerda(state)} className="mt-3 space-y-4">
       {demanda.id > 0 ? <input type="hidden" name="demanda_id" value={demanda.id} /> : null}
       <input type="hidden" name="escopo_salvamento" value={modo} />
       {!mostraDemanda && (
@@ -258,17 +263,6 @@ export function DemandaForm({
             </div>
           </div>
           <div>
-            <label className={lbl}>Status</label>
-            <select name="status" defaultValue={demanda.status ?? "nova"} className={`${inp} mt-1 w-full`}>
-              <option value="nova">Nova</option>
-              <option value="em_analise">Em análise</option>
-              <option value="orcada">Orçada</option>
-              <option value="enviada">Enviada</option>
-              <option value="aprovada">Aprovada</option>
-              <option value="cancelada">Cancelada</option>
-            </select>
-          </div>
-          <div>
             <label className={lbl}>Prioridade</label>
             <select name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={`${inp} mt-1 w-full`}>
               <option value="baixa">Baixa</option>
@@ -307,7 +301,7 @@ export function DemandaForm({
           <div className="sm:col-span-2">
             <label className={lbl}>Cliente <Obrigatorio /></label>
             <select name="cliente_id" defaultValue={demanda.cliente_id ?? ""} className={`${inp} mt-1 w-full`}>
-              <option value="">Cliente avulso</option>
+              <option value="">Sem cadastro</option>
               {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
             </select>
           </div>
@@ -319,7 +313,7 @@ export function DemandaForm({
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className={lbl}>Cliente avulso <Selo texto="Editável" /></label>
+            <label className={lbl}>Nome do cliente <Selo texto="Editável" /></label>
             <input name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={`${inp} mt-1 w-full`} />
           </div>
           <div>
@@ -327,14 +321,11 @@ export function DemandaForm({
             <input name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={`${inp} mt-1 w-full`} />
           </div>
           <div>
-            <label className={`${lbl} flex items-center gap-1`}>
-              Instituição emissora
-              <HelpTip title="Instituição emissora">
-                <p>Define o <b>cabeçalho</b>, o logotipo e o responsável da proposta impressa e exportada.</p>
-                <HelpExample>Digite “GIA / UFPR” ou “ATGC”.</HelpExample>
-              </HelpTip>
-            </label>
-            <input name="instituicao" defaultValue={demanda.instituicao ?? ""} placeholder="GIA / UFPR ou ATGC" className={`${inp} mt-1 w-full`} />
+            <label htmlFor="demanda-instituicao" className={lbl}>Instituição emissora (cabeçalho da proposta)</label>
+            <select id="demanda-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={`${inp} mt-1 w-full`}>
+              <option value="">Escolha…</option>
+              {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+            </select>
           </div>
           <div className="sm:col-span-2">
             <label className={lbl}>Contato <Selo texto="Herdado do cliente quando selecionado" /></label>
@@ -387,7 +378,15 @@ export function DemandaForm({
                   preservando o vínculo de demanda_analises.grupo_amostra_id */}
               <input type="hidden" name="grupo_id" value={grupo.id ?? ""} />
               <div><label className={lbl}>Grupo</label><input name="grupo_identificacao" value={grupo.identificacao} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, identificacao: event.target.value } : item))} className={`${inp} mt-1 w-full`} /></div>
-              <div className="sm:col-span-2"><label className={lbl}>Tipo/matriz</label><input name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={`${inp} mt-1 w-full`} /></div>
+              <div className="sm:col-span-2"><label htmlFor={`matriz-${grupo.key}`} className={lbl}>Tipo/matriz</label>{matrizes.length > 0 ? (
+                <select id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={`${inp} mt-1 w-full`}>
+                  <option value="">Selecione…</option>
+                  {grupo.tipo_matriz && !matrizes.some((m) => m.codigo === grupo.tipo_matriz) && <option value={grupo.tipo_matriz}>{grupo.tipo_matriz}</option>}
+                  {matrizes.map((m) => <option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
+                </select>
+              ) : (
+                <input id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={`${inp} mt-1 w-full`} />
+              )}</div>
               <div><label className={lbl}>Quantidade</label><input name="grupo_quantidade" type="number" min="1" step="1" required value={grupo.quantidade_amostras} onChange={(event) => {
                 const quantidade = lerQuantidade(event.target.value);
                 setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, quantidade_amostras: quantidade } : item));
@@ -631,7 +630,7 @@ export function DemandaForm({
 
       <div className="flex flex-wrap items-center gap-3">
         <button disabled={pending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
-          {pending ? "Salvando..." : demanda.id > 0 ? (modo === "laboratorio" ? "Salvar análises laboratoriais" : "Salvar demanda") : "Criar demanda"}
+          {pending ? "Salvando…" : demanda.id > 0 ? (modo === "laboratorio" ? "Salvar análises laboratoriais" : "Salvar orçamento") : "Criar orçamento"}
         </button>
         {state.errors?.descricao ? <a href="#descricao" className="text-sm font-medium text-danger-strong">Corrigir descrição</a> : null}
       </div>
@@ -671,68 +670,67 @@ function CamposDemandaLeitura({
   quantidadeAmostras: number;
   matrizAmostra: string;
 }) {
+  // Os campos continuam no formulário (ocultos) para o salvamento não apagar
+  // nada; na tela, só um resumo legível, sem IDs nem códigos (UI-7).
+  const ocultos: Array<[string, string | number | null | undefined]> = [
+    ["titulo", demanda.titulo],
+    ["cliente_id", demanda.cliente_id],
+    ["projeto_id", demanda.projeto_id],
+    ["cliente_nome", demanda.cliente_nome],
+    ["cliente_cnpj", demanda.cliente_cnpj],
+    ["cliente_contato", demanda.cliente_contato],
+    ["instituicao", demanda.instituicao],
+    ["responsavel_interno", demanda.responsavel_interno],
+    ["origem", demanda.origem],
+    ["data_solicitacao", demanda.data_solicitacao],
+    ["prazo_esperado", demanda.prazo_esperado],
+    ["modalidade", demanda.modalidade ?? "analises"],
+    ["prioridade", demanda.prioridade ?? "normal"],
+    ["matriz_amostra", matrizAmostra],
+    ["quantidade_amostras_estimada", quantidadeAmostras],
+    ["prazo_tecnico_dias", demanda.prazo_tecnico_dias],
+    ["descricao", demanda.descricao],
+    ["escopo_preliminar", demanda.escopo_preliminar],
+    ["observacoes", demanda.observacoes],
+  ];
   return (
     <section className="rounded-md border border-border bg-muted/50 p-3">
+      {ocultos.map(([name, valor]) => (
+        <input key={name} type="hidden" name={name} value={valor == null ? "" : String(valor)} />
+      ))}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-1">
-          <h3 className="text-sm font-semibold">Dados completos da demanda</h3>
-          <HelpTip title="Dados somente leitura">
-            <p>Estes dados vêm da primeira etapa e aparecem aqui <b>só para conferência</b>. Para alterar, volte à etapa de dados do orçamento.</p>
-          </HelpTip>
-        </div>
-        <Selo texto="Leitura" />
+        <h3 className="text-sm font-semibold">Dados do orçamento</h3>
+        <Selo texto="Para alterar, volte à etapa Dados" />
       </div>
-      <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <CampoLeitura name="titulo" label="Título" value={demanda.titulo} className="sm:col-span-2" />
-        <CampoLeitura name="cliente_id" label="Cliente cadastrado (ID)" value={demanda.cliente_id} />
-        <CampoLeitura name="projeto_id" label="Projeto vinculado (ID)" value={demanda.projeto_id} />
-        <CampoLeitura name="cliente_nome" label="Cliente" value={demanda.cliente_nome} />
-        <CampoLeitura name="cliente_cnpj" label="CNPJ/CPF" value={demanda.cliente_cnpj} />
-        <CampoLeitura name="cliente_contato" label="Contato" value={demanda.cliente_contato} />
-        <CampoLeitura name="instituicao" label="Instituição" value={demanda.instituicao} />
-        <CampoLeitura name="responsavel_interno" label="Responsável interno" value={demanda.responsavel_interno} />
-        <CampoLeitura name="origem" label="Origem" value={demanda.origem} />
-        <CampoLeitura name="data_solicitacao" label="Data da solicitação" value={demanda.data_solicitacao} />
-        <CampoLeitura name="prazo_esperado" label="Prazo esperado" value={demanda.prazo_esperado} />
-        <CampoLeitura name="modalidade" label="Modalidade" value={demanda.modalidade ?? "analises"} />
-        <CampoLeitura name="status" label="Status" value={demanda.status ?? "nova"} />
-        <CampoLeitura name="prioridade" label="Prioridade" value={demanda.prioridade ?? "normal"} />
-        <CampoLeitura name="matriz_amostra" label="Matriz/amostra" value={matrizAmostra} />
-        <CampoLeitura name="quantidade_amostras_estimada" label="Quantidade estimada" value={quantidadeAmostras} />
-        <CampoLeitura name="prazo_tecnico_dias" label="Prazo técnico (dias)" value={demanda.prazo_tecnico_dias} />
-        <CampoLeitura name="descricao" label="Descrição do orçamento" value={demanda.descricao} multiline className="sm:col-span-2" />
-        <CampoLeitura name="escopo_preliminar" label="Escopo preliminar" value={demanda.escopo_preliminar} multiline className="sm:col-span-2" />
-        <CampoLeitura name="observacoes" label="Observações gerais" value={demanda.observacoes} multiline className="sm:col-span-2" />
-      </div>
+      <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
+        <ResumoLeitura rotulo="Título" valor={demanda.titulo} largo />
+        <ResumoLeitura rotulo="Cliente" valor={demanda.cliente_nome} />
+        <ResumoLeitura rotulo="Contato" valor={demanda.cliente_contato} />
+        <ResumoLeitura rotulo="Instituição emissora" valor={demanda.instituicao} />
+        <ResumoLeitura rotulo="Responsável interno" valor={demanda.responsavel_interno} />
+        <ResumoLeitura rotulo="Prazo esperado" valor={formatarData(demanda.prazo_esperado)} />
+        <ResumoLeitura rotulo="Amostras" valor={quantidadeAmostras ? `${quantidadeAmostras} · ${matrizAmostra || "matriz não informada"}` : null} />
+        <ResumoLeitura rotulo="Descrição" valor={demanda.descricao || demanda.escopo_preliminar} largo />
+      </dl>
     </section>
   );
 }
 
-function CampoLeitura({
-  name,
-  label,
-  value,
-  multiline = false,
-  className = "",
-}: {
-  name: string;
-  label: string;
-  value: string | number | null | undefined;
-  multiline?: boolean;
-  className?: string;
-}) {
-  const valor = value == null ? "" : String(value);
+function formatarData(valor: string | null | undefined) {
+  if (!valor) return null;
+  const [ano, mes, dia] = valor.slice(0, 10).split("-");
+  return ano && mes && dia ? `${dia}/${mes}/${ano}` : valor;
+}
+
+function ResumoLeitura({ rotulo, valor, largo = false }: { rotulo: string; valor: string | number | null | undefined; largo?: boolean }) {
   return (
-    <div className={className}>
-      <label className={lbl}>{label}</label>
-      {multiline ? (
-        <textarea name={name} value={valor} readOnly rows={3} className={`${inheritedInp} mt-1 w-full`} />
-      ) : (
-        <input name={name} value={valor} readOnly className={`${inheritedInp} mt-1 w-full`} />
-      )}
+    <div className={largo ? "sm:col-span-2" : ""}>
+      <dt className="text-xs text-muted-foreground">{rotulo}</dt>
+      <dd className="mt-0.5 whitespace-pre-wrap font-medium">{valor == null || valor === "" ? "—" : valor}</dd>
     </div>
   );
 }
+
 
 function Obrigatorio() {
   return <span className="text-[10px] font-semibold uppercase tracking-wide text-danger-strong">Obrigatório</span>;

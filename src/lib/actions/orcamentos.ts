@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import type { Json } from "@/lib/supabase/database.types";
 import { calcularTodas, type FonteCustoInsumos } from "@/lib/costing/loader";
+import type { Breakdown } from "@/lib/costing/engine";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import {
   montarSnapshotLaboratorio,
@@ -12,25 +14,12 @@ import {
   type ItemLaboratorioOperacional,
 } from "@/lib/orcamento/laboratorio-operacional";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
+import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
+import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 import { registrarEvento } from "./eventos";
 
-// Validação defensiva de servidor: impede edição direta de módulo laboratorial
-// revisado/enviado/aprovado/cancelado (Fase 5). Não confiar só no botão da UI.
-async function assegurarLaboratorioEditavel(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  orcamentoId: number,
-) {
-  const { data } = await supabase
-    .from("orcamentos")
-    .select("status, status_operacional")
-    .eq("id", orcamentoId)
-    .single();
-  const bloqueio = moduloBloqueadoParaEdicao({ status: data?.status, statusOperacional: data?.status_operacional });
-  if (bloqueio.bloqueado) {
-    throw new Error(bloqueio.motivo ?? "Edição bloqueada.");
-  }
-}
+type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 export type ParametrosEconomicosState = {
   ok: boolean;
@@ -87,8 +76,13 @@ const PARAMETROS_META: Record<
   },
 };
 
+function idValido(valor: FormDataEntryValue | null): number | null {
+  const id = Number(valor);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 async function atualizarOperacionalLaboratorio(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  supabase: Supabase,
   id: number,
   statusDocumento?: string | null,
 ) {
@@ -109,11 +103,14 @@ async function atualizarOperacionalLaboratorio(
   }).eq("id", id);
 }
 
-/** Salva o cabeçalho (cliente/projeto + dados) do orçamento. Se um cliente
- *  cadastrado for vinculado, os dados do documento são preenchidos a partir dele. */
-export async function salvarCabecalho(formData: FormData) {
-  const id = Number(formData.get("orcamento_id"));
-  if (!id) return;
+/** Salva o cabeçalho (cliente/projeto + dados) de um orçamento sem proposta.
+ *  Se um cliente cadastrado for vinculado, os dados do documento vêm dele. O
+ *  status não é mais editado aqui (UI-6): muda só pelas ações do fluxo. */
+export async function salvarCabecalho(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const id = idValido(formData.get("orcamento_id"));
+  if (!id) return falha("Orçamento não identificado.");
+  const recusa = await recusaSemPermissao("preencher_custos");
+  if (recusa) return recusa;
   const supabase = await createClient();
 
   const cliente_id = formData.get("cliente_id") ? Number(formData.get("cliente_id")) : null;
@@ -140,16 +137,6 @@ export async function salvarCabecalho(formData: FormData) {
     }
   }
 
-  const novoStatus = (formData.get("status") as string) || "rascunho";
-  const { data: anterior } = await supabase
-    .from("orcamentos")
-    .select("status")
-    .eq("id", id)
-    .single();
-  if (anterior && anterior.status !== novoStatus && ["enviado", "aprovado", "cancelado"].includes(novoStatus)) {
-    await exigirPapelOrcamento("revisar_modulo");
-  }
-
   const patch = {
     cliente_id,
     projeto_id,
@@ -162,35 +149,29 @@ export async function salvarCabecalho(formData: FormData) {
     responsavel: (formData.get("responsavel") as string)?.trim() || null,
     observacoes: (formData.get("observacoes") as string)?.trim() || null,
   };
-  const { error } = await supabase.from("orcamentos").update(patch).eq("id", id);
-  if (error) throw new Error(error.message);
-  if (anterior && anterior.status !== novoStatus) {
-    const { error: transicaoError } = await supabase.rpc("transicionar_orcamento", {
-      p_orcamento_id: id,
-      p_status_destino: novoStatus,
-      p_observacao: "Status alterado durante a atualização do cabeçalho.",
-    });
-    if (transicaoError) throw new Error(transicaoError.message);
-  }
-  await atualizarOperacionalLaboratorio(supabase, id, novoStatus);
+  const { data: gravado, error } = await supabase.from("orcamentos").update(patch).eq("id", id).select("id");
+  if (error) return falha(mensagemDoBanco(error));
+  if (!gravado?.length) return falha("Nada foi salvo: seu perfil não pode alterar este orçamento.");
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
+  return sucesso("Dados salvos.");
 }
 
 function normalizarFonteCustoInsumos(valor: unknown): FonteCustoInsumos {
   return valor === "custo_medio_ponderado" ? "custo_medio_ponderado" : "custo_padrao";
 }
 
-export async function revisarOrcamentoLaboratorio(formData: FormData) {
-  await exigirPapelOrcamento("revisar_modulo");
-  const id = Number(formData.get("orcamento_id"));
+export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const recusa = await recusaSemPermissao("revisar_modulo");
+  if (recusa) return recusa;
+  const id = idValido(formData.get("orcamento_id"));
   const responsavel = String(formData.get("responsavel") ?? "").trim();
   // A revisão interna só marca o módulo como revisado ("enviado"). Aprovação
   // é decisão do cliente e fica na proposta (versão final), não aqui.
   const novoStatus = "enviado";
-  if (!id) return;
+  if (!id) return falha("Orçamento não identificado.");
   if (!responsavel) {
-    throw new Error("Informe o responsável técnico antes de revisar os custos laboratoriais.");
+    return falha("Informe o responsável técnico antes de revisar os custos laboratoriais.");
   }
 
   const supabase = await createClient();
@@ -206,7 +187,7 @@ export async function revisarOrcamentoLaboratorio(formData: FormData) {
       .eq("orcamento_id", id),
   ]);
   if ((itens ?? []).length === 0) {
-    throw new Error("Adicione ao menos uma análise antes de revisar os custos laboratoriais.");
+    return falha("Adicione ao menos uma análise antes de revisar os custos laboratoriais.");
   }
 
   // Transição primeiro: se o banco recusar, nada foi gravado e o módulo não
@@ -218,7 +199,7 @@ export async function revisarOrcamentoLaboratorio(formData: FormData) {
       p_status_destino: novoStatus,
       p_observacao: "Revisão do módulo laboratorial.",
     });
-    if (transicaoError) throw new Error(transicaoError.message);
+    if (transicaoError) return falha(mensagemDoBanco(transicaoError));
   }
   const { error } = await supabase
     .from("orcamentos")
@@ -228,163 +209,179 @@ export async function revisarOrcamentoLaboratorio(formData: FormData) {
       status_operacional_atualizado_em: new Date().toISOString(),
     })
     .eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) return falha(mensagemDoBanco(error));
   await atualizarOperacionalLaboratorio(supabase, id, statusFinal);
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
+  return sucesso("Custos revisados. A proposta já pode ser emitida.");
 }
 
-/** Adiciona uma análise solicitada, gravando o snapshot de custo/preço atual. */
-export async function adicionarItemOrcamento(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = Number(formData.get("orcamento_id"));
-  const codigo = String(formData.get("codigo_analise") ?? "");
-  const n = Number(formData.get("n_amostras"));
-  if (!id || !codigo || !(n > 0)) return;
+type ItemGravado = {
+  codigo_analise: string;
+  n_amostras: number;
+  custo_unitario: number;
+  preco_unitario: number;
+  valor_snapshot: unknown;
+};
 
-  const supabase = await createClient();
-  const { data: analise } = await supabase
-    .from("analises")
-    .select("ativo, ofertavel")
-    .eq("codigo", codigo)
-    .single();
-  if (!analise?.ativo || !analise?.ofertavel) {
-    throw new Error("Analise inativa ou nao oferecivel para novo orcamento.");
-  }
-  const { data: orcamento } = await supabase
-    .from("orcamentos")
-    .select("fonte_custo_insumos")
-    .eq("id", id)
-    .single();
-  const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento?.fonte_custo_insumos);
-  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
-  const b = breakdowns.find((x) => x.codigo === codigo);
-  if (!b) throw new Error(`Não foi possível calcular a análise ${codigo}.`);
-
-  await assegurarLaboratorioEditavel(supabase, id);
+/** Custo congelado de uma análise no momento em que entra (ou muda) no orçamento. */
+function itemDoCusteio(b: Breakdown, n: number, fonteCustoInsumos: FonteCustoInsumos) {
   const lote = b.lote > 0 ? b.lote : 1;
-  const valorSnapshot = {
-    lote_padrao: lote,
-    numero_execucoes: Math.ceil(n / lote),
-    composicao: {
-      reagentes: b.reagentes,
-      equipamento: b.equipamento,
-      pessoal: b.pessoal,
-      overhead: b.overhead,
-      custo_total: b.custoTotal,
-      preco: b.preco,
-    },
-    composicao_totais: {
-      reagentes: b.reagentes * n,
-      equipamento: b.equipamento * n,
-      pessoal: b.pessoal * n,
-      overhead: b.overhead * n,
-      custo_total: b.custoTotal * n,
-      preco: b.preco * n,
-    },
-    proveniencia_dimensional: b.provenienciaDimensional ?? [],
-    fonte_custo_insumos: fonteCustoInsumos,
-  };
-  const payload = {
+  return {
     n_amostras: n,
     custo_unitario: b.custoTotal,
     preco_unitario: b.preco,
-    valor_snapshot: valorSnapshot,
+    valor_snapshot: {
+      lote_padrao: lote,
+      numero_execucoes: Math.ceil(n / lote),
+      composicao: {
+        reagentes: b.reagentes,
+        equipamento: b.equipamento,
+        pessoal: b.pessoal,
+        overhead: b.overhead,
+        custo_total: b.custoTotal,
+        preco: b.preco,
+      },
+      composicao_totais: {
+        reagentes: b.reagentes * n,
+        equipamento: b.equipamento * n,
+        pessoal: b.pessoal * n,
+        overhead: b.overhead * n,
+        custo_total: b.custoTotal * n,
+        preco: b.preco * n,
+      },
+      proveniencia_dimensional: b.provenienciaDimensional ?? [],
+      fonte_custo_insumos: fonteCustoInsumos,
+    },
   };
-  const { data: existentes, error: existentesError } = await supabase
-    .from("orcamento_itens")
-    .select("id")
-    .eq("orcamento_id", id)
-    .eq("codigo_analise", codigo)
-    .order("id", { ascending: true });
-  if (existentesError) throw new Error(existentesError.message);
+}
 
-  const principal = existentes?.[0];
-  if (principal) {
-    const { error } = await supabase
-      .from("orcamento_itens")
-      .update(payload)
-      .eq("id", principal.id);
-    if (error) throw new Error(error.message);
-
-    const duplicados = (existentes ?? []).slice(1).map((item) => item.id);
-    if (duplicados.length > 0) {
-      const { error: deleteError } = await supabase
-        .from("orcamento_itens")
-        .delete()
-        .in("id", duplicados);
-      if (deleteError) throw new Error(deleteError.message);
-    }
-  } else {
-    const { error } = await supabase.from("orcamento_itens").insert({
-      orcamento_id: id,
-      codigo_analise: codigo,
-      ...payload,
-    });
-    if (error) throw new Error(error.message);
+/**
+ * Inclui, remove ou muda a quantidade de uma análise do orçamento
+ * laboratorial (ORC2-1). Item e custo congelado do módulo são gravados juntos
+ * pela RPC salvar_item_orcamento (0126); antes, a segunda gravação era sempre
+ * recusada pelo banco e o item ficava sem custo.
+ */
+export async function salvarItemOrcamento(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const recusa = await recusaSemPermissao("preencher_custos");
+  if (recusa) return recusa;
+  const id = idValido(formData.get("orcamento_id"));
+  const codigo = String(formData.get("codigo_analise") ?? "").trim();
+  const remover = String(formData.get("acao") ?? "") === "remover";
+  const n = Number(formData.get("n_amostras"));
+  if (!id || !codigo) return falha("Análise ou orçamento não identificado.");
+  if (!remover && !(Number.isInteger(n) && n > 0)) {
+    return falha("Informe a quantidade de amostras (número inteiro maior que zero).");
   }
-  const { data: itensPersistidos, error: itensError } = await supabase
+
+  const supabase = await createClient();
+  const { data: orcamento, error: orcamentoError } = await supabase
+    .from("orcamentos")
+    .select("status, status_operacional, fonte_custo_insumos")
+    .eq("id", id)
+    .single();
+  if (orcamentoError || !orcamento) return falha("Orçamento não encontrado.");
+  const bloqueio = moduloBloqueadoParaEdicao({ status: orcamento.status, statusOperacional: orcamento.status_operacional });
+  if (bloqueio.bloqueado) {
+    return falha("Análises e quantidades deste orçamento estão travadas (revisado, enviado, aprovado ou cancelado).");
+  }
+
+  const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento.fonte_custo_insumos);
+  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+  const breakdown = breakdowns.find((x) => x.codigo === codigo);
+  if (!remover && !breakdown) {
+    return falha(`Não foi possível calcular o custo da análise ${codigo}. Confira a receita dela em Análises.`);
+  }
+
+  const { data: itensAtuais, error: itensError } = await supabase
     .from("orcamento_itens")
     .select("codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot")
     .eq("orcamento_id", id);
-  if (itensError) throw new Error(itensError.message);
-  const itensSnapshot = [
-    ...(itensPersistidos ?? []).filter((item) => item.codigo_analise !== codigo),
-    { codigo_analise: codigo, ...payload },
+  if (itensError) return falha(mensagemDoBanco(itensError));
+
+  const novo = !remover && breakdown ? itemDoCusteio(breakdown, n, fonteCustoInsumos) : null;
+  const itensSnapshot: ItemGravado[] = [
+    ...((itensAtuais ?? []) as ItemGravado[]).filter((item) => item.codigo_analise !== codigo),
+    ...(novo ? [{ codigo_analise: codigo, ...novo }] : []),
   ];
   const custoSnapshot = {
     ...(montarSnapshotLaboratorio(
       itensSnapshot as ItemLaboratorioOperacional[],
       breakdowns,
-    ) as Record<string, import("@/lib/supabase/database.types").Json>),
+    ) as Record<string, Json>),
     fonte_custo_insumos: fonteCustoInsumos,
   };
-  const { error: snapshotError } = await supabase
-    .from("orcamentos")
-    .update({ custo_snapshot: custoSnapshot })
-    .eq("id", id);
-  if (snapshotError) throw new Error(snapshotError.message);
-  await atualizarOperacionalLaboratorio(supabase, id);
+
+  const { error } = await supabase.rpc("salvar_item_orcamento", {
+    p_orcamento_id: id,
+    p_codigo_analise: codigo,
+    p_n_amostras: novo ? n : 0,
+    p_custo_unitario: novo?.custo_unitario ?? 0,
+    p_preco_unitario: novo?.preco_unitario ?? 0,
+    p_valor_snapshot: (novo?.valor_snapshot ?? {}) as Json,
+    p_custo_snapshot: custoSnapshot,
+  });
+  if (error) return falha(mensagemDoBanco(error));
   revalidatePath(`/orcamento/${id}`);
+  return sucesso(remover ? `${codigo} removida.` : `${codigo}: ${n} amostra(s) salvas.`);
 }
 
-export async function alternarAnaliseOrcamento(formData: FormData) {
-  const id = Number(formData.get("orcamento_id"));
-  const codigo = String(formData.get("codigo_analise") ?? "");
-  const incluir = String(formData.get("incluir") ?? "") === "true";
-  if (!id || !codigo) return;
-  if (!incluir) {
-    const supabase = await createClient();
-    await assegurarLaboratorioEditavel(supabase, id);
-    const { error } = await supabase
-      .from("orcamento_itens")
-      .delete()
-      .eq("orcamento_id", id)
-      .eq("codigo_analise", codigo);
-    if (error) throw new Error(`Não foi possível remover a análise: ${error.message}`);
-    await atualizarOperacionalLaboratorio(supabase, id);
-    revalidatePath(`/orcamento/${id}`);
-    return;
-  }
-  await adicionarItemOrcamento(formData);
-}
-
-export async function removerItemOrcamento(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = Number(formData.get("orcamento_id"));
-  const itemId = Number(formData.get("item_id"));
-  if (!itemId || !id) return;
+/**
+ * Copia para o orçamento laboratorial recém-criado as análises escolhidas nos
+ * grupos de amostras do orçamento (demanda_analises), somando as quantidades da
+ * mesma análise. Antes o módulo nascia vazio e o técnico escolhia tudo de novo.
+ * Cada item passa pela mesma RPC transacional do "Incluir" (custo congelado).
+ */
+export async function incluirAnalisesDaDemandaNoOrcamento(orcamentoId: number, demandaId: number): Promise<EstadoAcao> {
   const supabase = await createClient();
-  await assegurarLaboratorioEditavel(supabase, id);
-  // Filtra também pelo orçamento: a trava acima vale só para este orçamento.
-  const { error } = await supabase
-    .from("orcamento_itens")
-    .delete()
-    .eq("id", itemId)
-    .eq("orcamento_id", id);
-  if (error) throw new Error(`Não foi possível remover a análise: ${error.message}`);
-  await atualizarOperacionalLaboratorio(supabase, id);
-  revalidatePath(`/orcamento/${id}`);
+  const { data: escolhidas, error: escolhidasError } = await supabase
+    .from("demanda_analises")
+    .select("codigo_analise, quantidade_amostras")
+    .eq("demanda_id", demandaId);
+  if (escolhidasError) return falha(mensagemDoBanco(escolhidasError));
+  const quantidades = new Map<string, number>();
+  for (const linha of (escolhidas ?? []) as { codigo_analise: string; quantidade_amostras: number }[]) {
+    quantidades.set(linha.codigo_analise, (quantidades.get(linha.codigo_analise) ?? 0) + Number(linha.quantidade_amostras));
+  }
+  if (quantidades.size === 0) return sucesso("Nenhuma análise escolhida no orçamento.");
+
+  const { data: orcamento } = await supabase
+    .from("orcamentos")
+    .select("fonte_custo_insumos")
+    .eq("id", orcamentoId)
+    .single();
+  const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento?.fonte_custo_insumos);
+  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+
+  const gravados: ItemGravado[] = [];
+  const semCusto: string[] = [];
+  for (const [codigo, n] of quantidades) {
+    const breakdown = breakdowns.find((x) => x.codigo === codigo);
+    if (!breakdown) {
+      semCusto.push(codigo);
+      continue;
+    }
+    const novo = itemDoCusteio(breakdown, n, fonteCustoInsumos);
+    gravados.push({ codigo_analise: codigo, ...novo });
+    const custoSnapshot = {
+      ...(montarSnapshotLaboratorio(gravados as ItemLaboratorioOperacional[], breakdowns) as Record<string, Json>),
+      fonte_custo_insumos: fonteCustoInsumos,
+    };
+    const { error } = await supabase.rpc("salvar_item_orcamento", {
+      p_orcamento_id: orcamentoId,
+      p_codigo_analise: codigo,
+      p_n_amostras: n,
+      p_custo_unitario: novo.custo_unitario,
+      p_preco_unitario: novo.preco_unitario,
+      p_valor_snapshot: novo.valor_snapshot as Json,
+      p_custo_snapshot: custoSnapshot,
+    });
+    if (error) return falha(mensagemDoBanco(error));
+  }
+  revalidatePath(`/orcamento/${orcamentoId}`);
+  return semCusto.length > 0
+    ? falha(`Sem custo calculado para: ${semCusto.join(", ")}. Confira a receita em Análises e inclua depois.`)
+    : sucesso(`${gravados.length} análise(s) trazidas do orçamento.`);
 }
 
 export type ResultadoRecalculoOrcamento = {
@@ -396,7 +393,8 @@ export type ResultadoRecalculoOrcamento = {
 export async function recalcularOrcamento(
   formData: FormData,
 ): Promise<ResultadoRecalculoOrcamento> {
-  await exigirPapelOrcamento("recalcular_custos");
+  const recusa = await recusaSemPermissao("recalcular_custos");
+  if (recusa) return { ok: false, message: recusa.message ?? "Sem permissão para recalcular." };
   const id = Number(formData.get("orcamento_id"));
   if (!Number.isInteger(id) || id <= 0) {
     return { ok: false, message: "Informe um orçamento válido para recalcular." };
@@ -411,7 +409,7 @@ export async function recalcularOrcamento(
     .select("status, fonte_custo_insumos, custo_revisao")
     .eq("id", id)
     .maybeSingle();
-  if (atualError) throw new Error(atualError.message);
+  if (atualError) return { ok: false, message: mensagemDoBanco(atualError) };
   if (!atual) {
     return { ok: false, message: "Orçamento não encontrado para recálculo." };
   }
@@ -429,13 +427,17 @@ export async function recalcularOrcamento(
     .from("orcamento_itens")
     .select("id, codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot")
     .eq("orcamento_id", id);
-  if (itensError) throw new Error(itensError.message);
+  if (itensError) return { ok: false, message: mensagemDoBanco(itensError) };
   const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+  const semCusteio = (itens ?? []).find((it) => !breakdowns.some((x) => x.codigo === it.codigo_analise));
+  if (semCusteio) {
+    return {
+      ok: false,
+      message: `Não foi possível recalcular a análise ${semCusteio.codigo_analise}. Confira a receita dela em Análises.`,
+    };
+  }
   const itensRecalculados = (itens ?? []).map((it) => {
-    const b = breakdowns.find((x) => x.codigo === it.codigo_analise);
-    if (!b) {
-      throw new Error(`Não foi possível recalcular a análise ${it.codigo_analise}.`);
-    }
+    const b = breakdowns.find((x) => x.codigo === it.codigo_analise) as Breakdown;
     const quantidade = Number(it.n_amostras ?? 0);
     const lote = b.lote > 0 ? b.lote : 1;
     return {
@@ -472,7 +474,7 @@ export async function recalcularOrcamento(
     ...(montarSnapshotLaboratorio(
       itensRecalculados as ItemLaboratorioOperacional[],
       breakdowns,
-    ) as Record<string, import("@/lib/supabase/database.types").Json>),
+    ) as Record<string, Json>),
     fonte_custo_insumos: fonteCustoInsumos,
   };
   const motivo =
@@ -486,7 +488,7 @@ export async function recalcularOrcamento(
     p_snapshot: snapshot,
     p_operacao_id: operacaoId,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/orcamento/${id}`);
   return { ok: true, message: "Orçamento recalculado com sucesso." };
 }
@@ -502,40 +504,43 @@ export async function excluirOrcamento(formData: FormData) {
     .single();
 
   if (atual && ["enviado", "aprovado"].includes(atual.status)) {
-    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent("Orçamento enviado ou aprovado não pode ser excluído. Use cancelamento/versionamento quando disponível.")}`);
+    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent("Orçamento enviado ou aprovado não pode ser excluído. Cancele-o com um motivo.")}`);
   }
 
   const { error } = await supabase.from("orcamentos").delete().eq("id", id);
   if (error) {
-    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent(`Não foi possível excluir o orçamento: ${error.message}`)}`);
+    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent(`Não foi possível excluir o orçamento: ${mensagemDoBanco(error)}`)}`);
   }
   revalidatePath("/orcamento");
   redirect("/orcamento");
 }
 
-export async function cancelarOrcamento(formData: FormData) {
-  const id = Number(formData.get("orcamento_id"));
-  if (!id) return;
-  const motivo = String(formData.get("motivo") ?? "").trim() || "Cancelamento operacional.";
-  await exigirPapelOrcamento("cancelar_documento");
+export async function cancelarOrcamento(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const id = idValido(formData.get("orcamento_id"));
+  if (!id) return falha("Orçamento não identificado.");
+  const motivo = String(formData.get("motivo") ?? "").trim();
+  if (motivo.length < 3) return falha("Informe o motivo do cancelamento.");
+  const recusa = await recusaSemPermissao("cancelar_documento");
+  if (recusa) return recusa;
   const supabase = await createClient();
   const { data: atual } = await supabase
     .from("orcamentos")
     .select("status")
     .eq("id", id)
     .single();
-  if (!atual || atual.status === "cancelado") return;
+  if (!atual) return falha("Orçamento não encontrado.");
+  if (atual.status === "cancelado") return sucesso("O orçamento já estava cancelado.");
 
   const { error } = await supabase.rpc("transicionar_orcamento", {
     p_orcamento_id: id,
     p_status_destino: "cancelado",
     p_observacao: motivo,
   });
-  if (error) throw new Error(error.message);
+  if (error) return falha(mensagemDoBanco(error));
   await atualizarOperacionalLaboratorio(supabase, id, "cancelado");
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
-  redirect(`/orcamento/${id}`);
+  return sucesso("Orçamento cancelado. O histórico foi preservado.");
 }
 
 export async function salvarParametrosEconomicos(
@@ -559,7 +564,8 @@ export async function salvarParametrosEconomicos(
     }
     return { ok: false, message: "Verifique os campos destacados.", errors };
   }
-  await exigirPapelOrcamento("editar_parametros");
+  const recusa = await recusaSemPermissao("editar_parametros");
+  if (recusa) return recusa;
 
   const supabase = await createClient();
   const atualizado_em = new Date().toISOString();
@@ -574,7 +580,7 @@ export async function salvarParametrosEconomicos(
   const { error } = await supabase.from("parametros").upsert(rows, {
     onConflict: "chave",
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   await registrarVersaoParametrosEconomicos(supabase, {
     escopo: "laboratorio_global",

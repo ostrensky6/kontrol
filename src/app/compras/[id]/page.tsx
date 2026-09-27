@@ -4,10 +4,12 @@ import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import {
   adicionarItemPedido,
+  definirFornecedorCompra,
   removerItemPedido,
 } from "@/lib/actions/compras";
 import { PedidoAcoes } from "@/components/compras/PedidoAcoes";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { ScannerRecebimentoCompra } from "@/components/compras/ScannerRecebimentoCompra";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
@@ -39,7 +41,7 @@ type PedidoCompraItemRow = {
   quantidade_em: string | null;
   conteudo_embalagem: number | null;
   insumos: { especificacao: string | null; unidade: string | null } | null;
-  pedidos_internos_itens?: { pedido_interno_id: number | null } | null;
+  pedidos_internos_itens?: { pedido_interno_id: number | null; fornecedor_sugerido: string | null } | null;
   pedidos_compra_item_recebimentos?: CompraItemRecebimento[] | null;
 };
 
@@ -51,6 +53,8 @@ type CompraItemRecebimento = {
   validade: string | null;
   responsavel: string | null;
   recebido_em: string;
+  /** recebimento desfeito (0127): não conta no recebido, fica só como histórico */
+  estornado_em: string | null;
 };
 
 type PedidoCompraItensQuery = {
@@ -73,9 +77,10 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
     .single();
   if (!pedido) notFound();
 
-  const [{ data: itens }, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar] = await Promise.all([
+  const semFornecedor = pedido.status === "solicitado" && pedido.fornecedor_id == null;
+  const [{ data: itens }, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
     (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
-      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em)")
+      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)")
       .eq("pedido_id", pedidoId)
       .order("id"),
     supabase.from("insumos").select("id, especificacao").order("especificacao"),
@@ -83,6 +88,10 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
     pode("compras.receber"),
     pode("compras.cancelar"),
     pode("compras.solicitar"),
+    supabase.from("locais").select("id, nome").order("nome"),
+    semFornecedor
+      ? supabase.from("fornecedores").select("id, nome, ativo").order("nome")
+      : Promise.resolve({ data: [] as { id: number; nome: string; ativo: boolean }[] }),
   ]);
 
   const eventos = await listarEventos("pedido_compra", pedidoId);
@@ -93,15 +102,26 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
     (a, it) => a + Number(it.quantidade) * Number(it.custo_unitario_estimado ?? 0),
     0,
   );
+  // Compra nascida de pedido interno: se todos os itens sugerem o mesmo
+  // fornecedor e ele está cadastrado (mesmo nome, sem diferenciar maiúsculas),
+  // ele vem pré-selecionado. A gravação continua sendo escolha de quem edita.
+  const listaFornecedores = ((fornecedores ?? []) as { id: number; nome: string; ativo: boolean | null }[]);
+  const sugestoesFornecedor = new Set(
+    (itens ?? []).map((it) => it.pedidos_internos_itens?.fornecedor_sugerido?.trim().toLocaleLowerCase("pt-BR") ?? ""),
+  );
+  const nomeSugerido = sugestoesFornecedor.size === 1 ? [...sugestoesFornecedor][0] : "";
+  const fornecedorSugerido = nomeSugerido
+    ? listaFornecedores.find((f) => f.nome.trim().toLocaleLowerCase("pt-BR") === nomeSugerido) ?? null
+    : null;
   const inp = "rounded-md border border-input bg-card px-2 py-1.5 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Compras", href: "/compras" }, { label: `Pedido #${pedido.id}` }]} />
+        <Breadcrumbs items={[{ label: "Compras", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <h1 className="text-xl font-semibold tracking-tight">Pedido #{pedido.id}</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Compra #{pedido.id}</h1>
             <span className="rounded-full bg-muted px-3 py-1 text-xs font-medium">
               {STATUS[pedido.status] ?? pedido.status}
             </span>
@@ -117,6 +137,54 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
           {pedido.aprovador ? ` · Aprovado por ${pedido.aprovador}` : ""}
           {pedido.data_prevista_entrega ? ` · Previsão: ${formatDate(pedido.data_prevista_entrega)}` : ""}
         </p>
+
+        {semFornecedor && (
+          <section
+            aria-labelledby="compra-sem-fornecedor"
+            className="mt-4 rounded-lg border border-warning-strong/30 bg-warning-soft px-4 py-3 text-sm"
+          >
+            <h2 id="compra-sem-fornecedor" className="font-semibold text-warning-strong">
+              Compra sem fornecedor
+            </h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              {fornecedorSugerido
+                ? `Todos os itens sugerem ${fornecedorSugerido.nome}. Confirme para que ele saia no pedido impresso.`
+                : "Defina o fornecedor antes de aprovar: sem ele o pedido impresso sai incompleto."}
+            </p>
+            {editavel || podeAprovar ? (
+              listaFornecedores.length > 0 ? (
+                <FormComMensagem action={definirFornecedorCompra} className="mt-2 flex flex-wrap items-end gap-2">
+                  <input type="hidden" name="pedido_id" value={pedidoId} />
+                  <div>
+                    <label htmlFor="compra-fornecedor" className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">
+                      Fornecedor
+                    </label>
+                    <select
+                      id="compra-fornecedor"
+                      name="fornecedor_id"
+                      required
+                      defaultValue={fornecedorSugerido ? String(fornecedorSugerido.id) : ""}
+                      className={inp}
+                    >
+                      <option value="" disabled>Selecione…</option>
+                      {listaFornecedores
+                        .filter((f) => f.ativo !== false || f.id === fornecedorSugerido?.id)
+                        .map((f) => (
+                          <option key={f.id} value={f.id}>{f.nome}</option>
+                        ))}
+                    </select>
+                  </div>
+                  <SubmitButton size="sm" pendingLabel="Salvando…">Definir fornecedor</SubmitButton>
+                </FormComMensagem>
+              ) : (
+                <p className="mt-2 text-xs">
+                  Nenhum fornecedor cadastrado.{" "}
+                  <Link href="/cadastros/fornecedores" className="text-primary hover:underline">Cadastrar fornecedor</Link>
+                </p>
+              )
+            ) : null}
+          </section>
+        )}
 
         {/* itens */}
         <section className="mt-8">
@@ -137,7 +205,8 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                           O item pode chegar <b>em partes</b>. Cada entrega vira um lote em quarentena,
                           listado aqui com número, validade e responsável.
                         </p>
-                        <p>O pedido só fica como Recebido quando todos os itens chegam.</p>
+                        <p>A compra só fica como Recebida quando todos os itens chegam.</p>
+                        <p>Para desfazer uma entrega registrada por engano, abra o lote e use <b>Estornar recebimento</b>.</p>
                       </HelpTip>
                     </span>
                   </th>
@@ -163,13 +232,18 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                       <td className="px-4 py-2.5 text-right tabular-nums">{rotuloQuantidadeItem(it, ins?.unidade)}</td>
                       <td className="px-4 py-2.5 text-right tabular-nums">{brl(it.custo_unitario_estimado)}</td>
                       <td className="px-4 py-2.5 text-center">
-                        {Number(it.quantidade_recebida ?? 0) > 0 ? (
+                        {Number(it.quantidade_recebida ?? 0) > 0 || recebimentos.length > 0 ? (
                           <span className="inline-flex flex-col items-center gap-0.5">
-                            <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-                              {Number(it.quantidade_recebida) >= Number(it.quantidade)
-                                ? `✓ recebido (${rotuloQuantidadeItem(it, ins?.unidade, it.quantidade_recebida)})`
-                                : `parcial: ${fmt(it.quantidade_recebida)} de ${rotuloQuantidadeItem(it, ins?.unidade)}`}
-                            </span>
+                            {Number(it.quantidade_recebida ?? 0) > 0 ? (
+                              <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
+                                {Number(it.quantidade_recebida) >= Number(it.quantidade)
+                                  ? `✓ recebido (${rotuloQuantidadeItem(it, ins?.unidade, it.quantidade_recebida)})`
+                                  : `parcial: ${fmt(it.quantidade_recebida)} de ${rotuloQuantidadeItem(it, ins?.unidade)}`}
+                              </span>
+                            ) : (
+                              // todos os recebimentos foram estornados: o item voltou a aguardar
+                              <span className="text-xs text-muted-foreground/80">nada recebido</span>
+                            )}
                             {it.divergencia_recebimento && (
                               <span className="text-[10px] text-warning-strong">
                                 {it.divergencia_recebimento}
@@ -178,11 +252,29 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                             {recebimentos.length > 0 && (
                               <span className="mt-1 w-full space-y-0.5 text-left text-[10px] text-muted-foreground">
                                 {recebimentos.map((recebimento) => (
-                                  <span key={recebimento.id} className="block">
-                                    Lote {recebimento.codigo_lote ?? `#${recebimento.lote_id}`} · {rotuloQuantidadeItem(it, ins?.unidade, recebimento.quantidade)}
-                                    {recebimento.validade ? ` · val. ${formatDate(recebimento.validade)}` : ""}
-                                    {recebimento.responsavel ? ` · ${recebimento.responsavel}` : ""}
-                                    {` · ${formatDateTime(recebimento.recebido_em)}`}
+                                  <span
+                                    key={recebimento.id}
+                                    className="block"
+                                    title={
+                                      recebimento.estornado_em
+                                        ? `Recebimento estornado em ${formatDateTime(recebimento.estornado_em)}: não conta no recebido.`
+                                        : undefined
+                                    }
+                                  >
+                                    <span className={recebimento.estornado_em ? "line-through opacity-70" : undefined}>
+                                      <Link href={`/estoque/lotes/${recebimento.lote_id}`} className="text-primary hover:underline">
+                                        Lote {recebimento.codigo_lote ?? `#${recebimento.lote_id}`}
+                                      </Link>{" "}
+                                      · {rotuloQuantidadeItem(it, ins?.unidade, recebimento.quantidade)}
+                                      {recebimento.validade ? ` · val. ${formatDate(recebimento.validade)}` : ""}
+                                      {recebimento.responsavel ? ` · ${recebimento.responsavel}` : ""}
+                                      {` · ${formatDateTime(recebimento.recebido_em)}`}
+                                    </span>
+                                    {recebimento.estornado_em && (
+                                      <span className="ml-1 rounded bg-danger-soft px-1 py-px font-semibold text-danger-strong">
+                                        estornado
+                                      </span>
+                                    )}
                                   </span>
                                 ))}
                               </span>
@@ -214,6 +306,10 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                                 emFrascos: emFrascos(it),
                                 conteudoEmbalagem: it.conteudo_embalagem == null ? null : Number(it.conteudo_embalagem),
                               }}
+                              locais={((locais ?? []) as { id: number; nome: string | null }[]).map((local) => ({
+                                id: Number(local.id),
+                                nome: local.nome ?? `Local #${local.id}`,
+                              }))}
                             />
                           )}
                         </td>

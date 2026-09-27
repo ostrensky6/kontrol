@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatCurrency as brl } from "@/lib/formatters";
 import { anosDoProjeto, subtotalCusto } from "@/lib/project-budget/editor";
-import { FormAcao } from "./FormAcao";
+import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
 export type LinhaPessoal = {
   id: number;
@@ -51,7 +51,7 @@ export function GradeMesesPessoal({
   orcamentoProjetoId: number;
   demandaId: number;
   editavel: boolean;
-  action: (formData: FormData) => void | Promise<void>;
+  action: AcaoFormulario;
   /** Botões de editar/remover já renderizados no servidor, por id da linha. */
   acoesLinha?: Record<number, ReactNode>;
 }) {

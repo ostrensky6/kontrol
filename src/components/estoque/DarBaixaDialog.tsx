@@ -37,7 +37,7 @@ type Erros = Partial<Record<"lote" | "quantidade" | "motivo_tipo" | "motivo_deta
 
 /**
  * "Dar baixa" reutilizável: por lote (página do lote, tabela de lotes) ou
- * por insumo (sugere o lote FEFO e permite trocar). Pede embalagens inteiras
+ * por insumo (sugere o lote FEFO e permite trocar). Pede frascos inteiros
  * para lotes de embalagens fechadas e quantidade na unidade do insumo para
  * lotes legados. Motivo obrigatório.
  */
@@ -94,7 +94,7 @@ export function DarBaixaDialog({
   const motivosPermitidos = somenteVencimento ? (["Vencimento"] as const) : MOTIVOS_BAIXA;
   const motivoEfetivo = somenteVencimento ? "Vencimento" : motivoTipo;
   const disponivel = lote ? disponivelParaBaixa(lote) : 0;
-  const unidadeQtd = emEmbalagens ? "embalagem(ns)" : unidade;
+  const unidadeQtd = emEmbalagens ? "frasco(s)" : unidade;
 
   function limpar() {
     setLoteId(null);
@@ -119,7 +119,7 @@ export function DarBaixaDialog({
     const n = Number(quantidade.replace(",", "."));
     if (!lote) novos.lote = "Selecione o lote.";
     if (!quantidade.trim() || !Number.isFinite(n) || n <= 0) novos.quantidade = "Informe uma quantidade maior que zero.";
-    else if (emEmbalagens && !Number.isInteger(n)) novos.quantidade = "Use um número inteiro de embalagens.";
+    else if (emEmbalagens && !Number.isInteger(n)) novos.quantidade = "Use um número inteiro de frascos.";
     else if (n > disponivel) {
       novos.quantidade = `Máximo disponível: ${formatNumber(disponivel)} ${unidadeQtd}.`;
     }
@@ -214,14 +214,14 @@ export function DarBaixaDialog({
               <p className="rounded-md bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                 Lote <span className="font-medium text-foreground">{lote?.codigoLote}</span> · validade{" "}
                 {formatarDataIso(lote?.validade)} · saldo {formatNumber(lote?.quantidadeAtual ?? 0)}{" "}
-                {emEmbalagens ? "embalagem(ns)" : unidade}
+                {emEmbalagens ? "frasco(s)" : unidade}
                 {lote && lote.reservado > 0 ? ` (${formatNumber(lote.reservado)} reservado)` : ""}
               </p>
             )}
 
             <div className="grid gap-1">
               <Label htmlFor={`${uid}-quantidade`}>
-                {emEmbalagens ? "Embalagens a baixar" : `Quantidade a baixar (${unidade || "unidade do insumo"})`}
+                {emEmbalagens ? "Frascos a baixar" : `Quantidade a baixar (${unidade || "unidade do insumo"})`}
               </Label>
               <Input
                 id={`${uid}-quantidade`}
@@ -239,7 +239,7 @@ export function DarBaixaDialog({
               <p id={`${uid}-quantidade-ajuda`} className={erros.quantidade ? "text-xs text-danger-strong" : "text-xs text-muted-foreground"}>
                 {erros.quantidade ??
                   (emEmbalagens
-                    ? `Número inteiro de embalagens fechadas. Disponível: ${formatNumber(disponivel)}.`
+                    ? `Número inteiro de frascos fechados. Disponível: ${formatNumber(disponivel)}.`
                     : `Disponível: ${formatNumber(disponivel)} ${unidade}.`)}
               </p>
             </div>

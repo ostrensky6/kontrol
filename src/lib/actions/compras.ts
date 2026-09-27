@@ -6,24 +6,15 @@ import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { computarDemandaPlano } from "@/lib/costing/demanda";
-import { registrarEvento } from "./eventos";
+import { falha, mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
 import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
-  message: "Sem permissão — requer papel coordenador ou superior.",
+  message: "Seu perfil não tem permissão para esta ação. Peça ao administrador para liberar em Usuários.",
 };
 const MSG_VALIDADE_CRITICO = "Validade é obrigatória para receber insumo crítico.";
 const UUID_RECEBIMENTO = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-
-function erroSchemaCache(error: { message?: string; code?: string } | null | undefined) {
-  return Boolean(
-    error &&
-      (error.code === "PGRST204" ||
-        error.message?.includes("schema cache") ||
-        error.message?.includes("Could not find the")),
-  );
-}
 
 function leadTimeEfetivo(
   leadTimeInsumo: unknown,
@@ -53,7 +44,7 @@ export async function criarPedido(_prev: FormState, formData: FormData): Promise
     .insert({ fornecedor_id, projeto, projeto_id, solicitante: u?.email ?? null, status: "solicitado" })
     .select("id")
     .single();
-  if (error) return { ok: false, message: `Não foi possível criar a solicitação: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível criar a solicitação.") };
   revalidatePath("/compras");
   redirect(`/compras/${data.id}`);
 }
@@ -63,7 +54,7 @@ export async function gerarRascunhosReposicao(_prev: FormState): Promise<FormSta
   if (!(await pode("compras.solicitar"))) return SEM_PERMISSAO;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("gerar_reposicao_automatica");
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const resultado = data as {
     pedidos_criados?: number;
@@ -85,107 +76,73 @@ export async function gerarRascunhosReposicao(_prev: FormState): Promise<FormSta
 /**
  * 2.3 — Falta do plano → pedido interno. A falta operacional nasce como
  * demanda rastreável do laboratório/campo; a formalização em compra acontece
- * depois da aprovação do coordenador.
+ * depois da aprovação do coordenador. A RPC é transacional e desconta o que já
+ * está pedido para o plano (dois cliques não geram dois pedidos).
  */
-export async function comprarFaltasDoPlano(formData: FormData) {
+export async function comprarFaltasDoPlano(_prev: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const planId = Number(formData.get("planejamento_id"));
-  if (!planId) return;
+  if (!planId) return falha("Planejamento não informado.");
+  if (!(await pode("pedido.criar"))) {
+    return falha("Seu perfil não tem permissão para criar pedido interno. Peça ao administrador para liberar em Usuários.");
+  }
   const supabase = await createClientUntyped();
-  const u = await usuarioAtual();
 
   const demanda = await computarDemandaPlano(supabase, planId);
   const faltas = demanda.filter((d) => d.falta > 0);
-  if (faltas.length === 0)
-    throw new Error("Este plano não tem faltas para comprar.");
+  if (faltas.length === 0) return falha("Este plano não tem faltas para comprar.");
 
-  const [{ data: plano }, { data: insumos }] = await Promise.all([
-    supabase.from("planejamento").select("id, nome, projeto_id, projetos(coordenador)").eq("id", planId).single(),
-    supabase.from("insumos").select("id, fornecedor_id, custo_unitario, fornecedores(nome)").in("id", faltas.map((f) => f.insumo_id)),
-  ]);
+  const { data: insumos } = await supabase
+    .from("insumos")
+    .select("id, custo_unitario, fornecedores!insumos_fornecedor_id_fkey(nome)")
+    .in("id", faltas.map((f) => f.insumo_id));
   const infoMap = new Map((insumos ?? []).map((i) => [i.id, i]));
 
-  const projeto = Array.isArray(plano?.projetos) ? plano?.projetos[0] : plano?.projetos;
-  const payload = {
-    titulo: `Pedido interno do planejamento #${planId}${plano?.nome ? ` · ${plano.nome}` : ""}`,
-    status: "rascunho",
-    solicitante: u?.email ?? null,
-    projeto_id: plano?.projeto_id ?? null,
-    planejamento_id: planId,
-    tipo_demanda: "laboratorio",
-    urgencia: "alta",
-    fonte_recurso: "A definir pelo projeto",
-    justificativa: `Pedido interno gerado porque o planejamento #${planId} não tinha saldo suficiente para iniciar. A compra formal deve seguir o fluxo de validação e compras.`,
-    coordenador_projeto_nome: projeto?.coordenador ?? null,
-    coordenador_projeto_email: String(projeto?.coordenador ?? "").includes("@") ? projeto?.coordenador ?? null : null,
-  };
-  let { data: pedido, error } = await supabase
-    .from("pedidos_internos")
-    .insert(payload)
-    .select("id")
-    .single();
-  if (erroSchemaCache(error)) {
-    const retry = await supabase
-      .from("pedidos_internos")
-      .insert({
-        titulo: payload.titulo,
-        status: payload.status,
-        solicitante: payload.solicitante,
-        projeto_id: payload.projeto_id,
-        planejamento_id: payload.planejamento_id,
-        urgencia: payload.urgencia,
-        fonte_recurso: payload.fonte_recurso,
-        justificativa: payload.justificativa,
-      })
-      .select("id")
-      .single();
-    pedido = retry.data;
-    error = retry.error;
+  const itens = faltas.map((f) => {
+    const info = infoMap.get(f.insumo_id) as {
+      custo_unitario?: number | null;
+      fornecedores?: { nome: string | null } | { nome: string | null }[] | null;
+    } | undefined;
+    const fornecedor = Array.isArray(info?.fornecedores)
+      ? info?.fornecedores[0]?.nome
+      : info?.fornecedores?.nome;
+    const quantidadePedido = f.quantidadeCompra > 0 ? f.quantidadeCompra : f.falta;
+    const minimoCompra = f.quantidadeMinimaCompra ?? f.quantidadeEmbalagem;
+    const unidade = f.unidade ?? "";
+    const regraCompra = minimoCompra
+      ? ` Pedido ajustado para ${quantidadePedido} ${unidade} pela quantidade mínima/múltiplo de compra de ${minimoCompra} ${unidade}.`
+      : "";
+    const custoUnidade = f.custoUnitario ?? info?.custo_unitario ?? null;
+    // Compra em frascos (unidade oficial do estoque): a falta vem na unidade
+    // física e é arredondada para frascos inteiros.
+    const conteudo = f.quantidadeEmbalagem && f.quantidadeEmbalagem > 0 ? f.quantidadeEmbalagem : null;
+    const frascos = conteudo ? Math.ceil(quantidadePedido / conteudo) : null;
+    return {
+      insumo_id: f.insumo_id,
+      especificacao: f.especificacao,
+      quantidade: frascos ?? quantidadePedido,
+      unidade: frascos ? `frasco(s) de ${conteudo} ${unidade}`.trim() : f.unidade,
+      quantidade_em: frascos ? "embalagem" : "unidade",
+      conteudo_embalagem: conteudo,
+      orcamento_previo: custoUnidade == null ? null : frascos && conteudo ? custoUnidade * conteudo : custoUnidade,
+      fornecedor_sugerido: fornecedor ?? null,
+      observacao: `Falta operacional gerada pelo planejamento #${planId}: falta de ${f.falta} ${unidade}.${regraCompra}`,
+    };
+  });
+
+  const { data, error } = await supabase.rpc("criar_pedido_faltas_planejamento", {
+    p_planejamento_id: planId,
+    p_itens: itens,
+  });
+  if (error) return falha(mensagemDoBanco(error));
+  const pedidoId = Number((data as { pedido_id?: number } | null)?.pedido_id);
+  if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
+    return falha("Não foi possível criar o pedido interno para as faltas do planejamento.");
   }
-  if (error) throw new Error(error.message);
-  if (!pedido) throw new Error("Não foi possível criar o pedido interno para as faltas do planejamento.");
 
-  const { error: itensErr } = await supabase.from("pedidos_internos_itens").insert(
-    faltas.map((f) => {
-      const info = infoMap.get(f.insumo_id) as {
-        custo_unitario?: number | null;
-        fornecedores?: { nome: string | null } | { nome: string | null }[] | null;
-      } | undefined;
-      const fornecedor = Array.isArray(info?.fornecedores)
-        ? info?.fornecedores[0]?.nome
-        : info?.fornecedores?.nome;
-      const quantidadePedido = f.quantidadeCompra > 0 ? f.quantidadeCompra : f.falta;
-      const minimoCompra = f.quantidadeMinimaCompra ?? f.quantidadeEmbalagem;
-      const unidade = f.unidade ?? "";
-      const regraCompra = minimoCompra
-        ? ` Pedido ajustado para ${quantidadePedido} ${unidade} pela quantidade mínima/múltiplo de compra de ${minimoCompra} ${unidade}.`
-        : "";
-      const custoUnidade = f.custoUnitario ?? info?.custo_unitario ?? null;
-      // Compra em frascos (unidade oficial do estoque): a falta vem na unidade
-      // física e é arredondada para frascos inteiros.
-      const conteudo = f.quantidadeEmbalagem && f.quantidadeEmbalagem > 0 ? f.quantidadeEmbalagem : null;
-      const frascos = conteudo ? Math.ceil(quantidadePedido / conteudo) : null;
-      return {
-        pedido_interno_id: pedido.id,
-        tipo: "material",
-        insumo_id: f.insumo_id,
-        especificacao: f.especificacao,
-        quantidade: frascos ?? quantidadePedido,
-        unidade: frascos ? `frasco(s) de ${conteudo} ${unidade}`.trim() : f.unidade,
-        quantidade_em: frascos ? "embalagem" : "unidade",
-        conteudo_embalagem: conteudo,
-        orcamento_previo: custoUnidade == null ? null : frascos && conteudo ? custoUnidade * conteudo : custoUnidade,
-        fornecedor_sugerido: fornecedor ?? null,
-        observacao: `Falta operacional gerada pelo planejamento #${planId}: falta de ${f.falta} ${unidade}.${regraCompra}`,
-      };
-    }),
-  );
-  if (itensErr) throw new Error(itensErr.message);
-
-  await registrarEvento("pedido_interno", pedido.id, null, "rascunho", `Pedido interno gerado pelas faltas do planejamento #${planId}.`);
   revalidatePath("/pedido");
   revalidatePath(`/planejamento/${planId}`);
   revalidatePath("/suprimentos");
-  redirect(`/pedido/${pedido.id}`);
+  redirect(`/pedido/${pedidoId}`);
 }
 
 export async function adicionarItemPedido(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -218,7 +175,7 @@ export async function adicionarItemPedido(_prev: FormState, formData: FormData):
     quantidade_em: conteudo ? "embalagem" : "unidade",
     conteudo_embalagem: conteudo,
   });
-  if (error) return { ok: false, message: `Não foi possível adicionar o item: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível adicionar o item.") };
   revalidatePath(`/compras/${pedido_id}`);
   return { ok: true, message: "Item adicionado." };
 }
@@ -229,9 +186,38 @@ export async function removerItemPedido(_prev: FormState, formData: FormData): P
   if (!id) return { ok: false, message: "Item não informado." };
   const supabase = await createClient();
   const { error } = await supabase.from("pedidos_compra_itens").delete().eq("id", id);
-  if (error) return { ok: false, message: `Não foi possível remover o item: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível remover o item.") };
   revalidatePath(`/compras/${pedido_id}`);
   return { ok: true, message: "Item removido." };
+}
+
+/**
+ * Define o fornecedor de uma compra ainda solicitada. A formalização do pedido
+ * interno cria a compra sem fornecedor; sem ele a impressão sai incompleta.
+ * A RLS (0127) já restringe a alteração a `solicitado` para quem só solicita.
+ */
+export async function definirFornecedorCompra(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = Number(formData.get("pedido_id"));
+  const fornecedorId = Number(formData.get("fornecedor_id"));
+  if (!(pedidoId > 0)) return { ok: false, message: "Compra não informada." };
+  if (!(fornecedorId > 0)) return { ok: false, message: "Escolha o fornecedor." };
+  const [podeSolicitar, podeAprovar] = await Promise.all([pode("compras.solicitar"), pode("compras.aprovar")]);
+  if (!podeSolicitar && !podeAprovar) return SEM_PERMISSAO;
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("pedidos_compra")
+    .update({ fornecedor_id: fornecedorId })
+    .eq("id", pedidoId)
+    .eq("status", "solicitado")
+    .select("id");
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível definir o fornecedor.") };
+  if ((data ?? []).length === 0) {
+    return { ok: false, message: "Só é possível definir o fornecedor enquanto a compra está solicitada." };
+  }
+  revalidatePath(`/compras/${pedidoId}`);
+  revalidatePath(`/compras/${pedidoId}/imprimir`);
+  revalidatePath("/compras");
+  return { ok: true, message: "Fornecedor definido." };
 }
 
 function revalidarPedidoCompra(pedidoId: number) {
@@ -254,7 +240,7 @@ export async function aprovarPedido(_prev: FormState, formData: FormData): Promi
       .single(),
     supabase
       .from("pedidos_compra_itens")
-      .select("insumos(lead_time_dias, fornecedores(prazo_medio_dias))")
+      .select("insumos(lead_time_dias, fornecedores!insumos_fornecedor_id_fkey(prazo_medio_dias))")
       .eq("pedido_id", pedido_id),
   ]);
 
@@ -284,7 +270,7 @@ export async function aprovarPedido(_prev: FormState, formData: FormData): Promi
     p_observacao: "Aprovação administrativa da compra.",
     p_data_prevista_entrega: prevista ?? undefined,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
   return { ok: true, message: "Pedido aprovado." };
 }
@@ -298,7 +284,7 @@ export async function marcarEnviado(_prev: FormState, formData: FormData): Promi
     p_status_destino: "enviado",
     p_observacao: "Pedido enviado ao fornecedor.",
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
   return { ok: true, message: "Pedido marcado como enviado." };
 }
@@ -306,15 +292,17 @@ export async function marcarEnviado(_prev: FormState, formData: FormData): Promi
 export async function cancelarPedido(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("compras.cancelar"))) return SEM_PERMISSAO;
   const pedido_id = Number(formData.get("pedido_id"));
+  const motivo = String(formData.get("motivo") ?? "").trim();
+  if (motivo.length < 3) return { ok: false, message: "Informe o motivo do cancelamento." };
   const supabase = await createClient();
   const { error } = await supabase.rpc("transicionar_pedido_compra", {
     p_pedido_id: pedido_id,
     p_status_destino: "cancelado",
-    p_observacao: "Cancelamento administrativo da compra.",
+    p_observacao: `Compra cancelada: ${motivo}`,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
-  return { ok: true, message: "Pedido cancelado." };
+  return { ok: true, message: "Compra cancelada." };
 }
 
 /** Encerra uma compra recebida em parte: o restante não será mais esperado. */
@@ -332,7 +320,7 @@ export async function encerrarPedidoComPendencia(
     p_status_destino: "recebido",
     p_observacao: motivo,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
   return { ok: true, message: "Compra encerrada. A pendência ficou registrada nos itens." };
 }
@@ -366,19 +354,12 @@ export async function receberItemPedido(formData: FormData): Promise<FormState> 
     return { ok: false, message: MSG_VALIDADE_CRITICO };
   }
 
-  // Frasco chegou com volume diferente do cadastro: registra no item antes de
-  // receber, para o lote guardar o volume real.
+  // Frasco com volume diferente do cadastro e local de guarda: valem só para
+  // esta entrega (lote e livro); o item da compra não muda (EST2-6/CAD2-8).
   const conteudoInformado = Number(formData.get("conteudo_embalagem"));
-  if (conteudoInformado > 0) {
-    const { error: conteudoErr } = await supabase
-      .from("pedidos_compra_itens")
-      .update({ conteudo_embalagem: conteudoInformado })
-      .eq("id", item_id)
-      .eq("pedido_id", pedido_id);
-    if (conteudoErr) return { ok: false, message: conteudoErr.message };
-  }
+  const localInformado = Number(formData.get("local_id"));
 
-  const { error } = await supabase.rpc("receber_item_pedido_compra" as never, {
+  const { error } = await supabase.rpc("receber_item_pedido_compra", {
     p_pedido_id: pedido_id,
     p_item_id: item_id,
     p_operacao_id: operacaoId,
@@ -386,13 +367,18 @@ export async function receberItemPedido(formData: FormData): Promise<FormState> 
     p_validade: validade ?? undefined,
     p_codigo: codigo ?? undefined,
     p_responsavel: responsavel ?? undefined,
-  } as never);
-  if (error) return { ok: false, message: error.message };
+    p_conteudo_embalagem: conteudoInformado > 0 ? conteudoInformado : undefined,
+    p_local_id: Number.isInteger(localInformado) && localInformado > 0 ? localInformado : undefined,
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath(`/compras/${pedido_id}`);
   revalidatePath("/compras");
   revalidatePath("/recebimento");
   revalidatePath("/suprimentos");
   revalidatePath("/estoque");
-  return { ok: true, message: "Item recebido. O lote entrou em quarentena." };
+  return {
+    ok: true,
+    message: "Chegada registrada. O lote entrou em quarentena e precisa ser aceito por outra pessoa.",
+  };
 }

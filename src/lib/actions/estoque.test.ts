@@ -98,14 +98,17 @@ describe("actions de estoque", () => {
       ok: true,
       message: "Entrada de inventário registrada (lote em quarentena).",
     });
+    // 0127: idempotente por operacao_id (gerado se o formulário não mandar).
     expect(rpc).toHaveBeenCalledWith("entrada_inventario", {
       p_insumo_id: 7,
       p_quantidade: 12.5,
+      p_operacao_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       p_validade: "2026-12-31",
       p_custo: 3.25,
       p_codigo: "L-123",
       p_fornecedor: "Fornecedor A",
       p_motivo: "contagem cíclica",
+      p_local_id: undefined,
     });
     expect(revalidatePath).toHaveBeenCalledWith("/estoque");
   });
@@ -159,6 +162,7 @@ describe("actions de estoque", () => {
       p_lote_id: 9,
       p_quantidade: 2.5,
       p_motivo: "consumo extra",
+      p_operacao_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
     });
     expect(rpc).toHaveBeenNthCalledWith(2, "ajustar_saldo_lote", {
       p_lote_id: 9,
@@ -191,8 +195,8 @@ describe("actions de estoque", () => {
   it.each([
     "pedidos_compra_item_recebimentos",
     "pedidos_internos_item_recebimentos",
-  ])("recusa no servidor lote vinculado em %s", async (table) => {
-    rpc.mockResolvedValue({ error: null });
+  ])("lote vinculado em %s usa o estorno bilateral (EST-2)", async (table) => {
+    rpc.mockResolvedValue({ data: { pedido_compra_id: 5, repetido: false }, error: null });
     origemLote[table] = { data: [{ id: 41 }], error: null };
     const { estornarRecebimentoLote } = await import("./estoque");
     const formData = new FormData();
@@ -201,27 +205,27 @@ describe("actions de estoque", () => {
 
     const result = await estornarRecebimentoLote({ ok: false }, formData);
 
-    expect(result).toEqual({
-      ok: false,
-      message: "Este lote pertence a um recebimento vinculado. Faça o estorno pelo fluxo de Recebimento para reconciliar pedidos e histórico.",
+    expect(result.ok).toBe(true);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("estornar_recebimento_do_lote", {
+      p_lote_id: 9,
+      p_motivo: "quantidade digitada incorretamente",
     });
-    expect(rpc).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalledWith("estornar_recebimento_lote", expect.anything());
   });
 
-  it("repete a recusa de lote vinculado sem chamar a primitiva", async () => {
-    rpc.mockResolvedValue({ error: null });
+  it("estorno repetido de lote vinculado não chama a primitiva e informa que já estava estornado", async () => {
+    rpc.mockResolvedValue({ data: { pedido_interno_id: 3, repetido: true }, error: null });
     origemLote.pedidos_internos_item_recebimentos = { data: [{ id: 42 }], error: null };
     const { estornarRecebimentoLote } = await import("./estoque");
     const formData = new FormData();
     formData.set("lote_id", "9");
     formData.set("motivo", "quantidade digitada incorretamente");
 
-    const primeira = await estornarRecebimentoLote({ ok: false }, formData);
-    const segunda = await estornarRecebimentoLote({ ok: false }, formData);
+    const resultado = await estornarRecebimentoLote({ ok: false }, formData);
 
-    expect(primeira).toEqual(segunda);
-    expect(primeira.ok).toBe(false);
-    expect(rpc).not.toHaveBeenCalled();
+    expect(resultado).toEqual({ ok: true, message: "Este recebimento já estava estornado." });
+    expect(rpc).not.toHaveBeenCalledWith("estornar_recebimento_lote", expect.anything());
   });
 
   it("nao inicia estorno sem motivo auditavel", async () => {
@@ -403,6 +407,7 @@ describe("actions de estoque", () => {
         p_lote_id: 12,
         p_quantidade: 2.5,
         p_motivo: "Consumo em análise",
+        p_operacao_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       });
     });
 

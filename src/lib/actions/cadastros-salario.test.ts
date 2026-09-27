@@ -48,7 +48,7 @@ describe("salário dos técnicos nas ações de cadastro", () => {
   beforeEach(() => {
     resetMockSupabaseStore();
     getMockSupabaseStore().tecnicos = [
-      { id: 1, nome: "Ana", processo: "Laboratório", valor_mes: 8000, horas_mes_base: 160, percentual_dedicado: 50 },
+      { id: 1, nome: "Ana", processo: "Laboratório", valor_mes: 8000, horas_mes_base: 160, percentual_dedicado: 50, ativo: true },
     ];
   });
   afterEach(() => {

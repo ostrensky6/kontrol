@@ -3,6 +3,7 @@ import { criarPedido } from "@/lib/actions/compras";
 import { ComprasTable, type CompraRow } from "@/components/compras/ComprasTable";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
@@ -44,27 +45,20 @@ export default async function ComprasPage() {
     };
   });
 
-  // sugestões de compra: disponível abaixo do ponto de reposição
-  const sugestoes = (saldo ?? [])
-    .filter((s) => (s.ponto_reposicao ?? 0) > 0 && (s.disponivel ?? 0) <= (s.ponto_reposicao ?? 0))
-    .map((s) => ({
-      especificacao: s.especificacao,
-      disponivel: s.disponivel ?? 0,
-      ponto: s.ponto_reposicao ?? 0,
-      sugerido: Math.max(0, (s.ponto_reposicao ?? 0) + (s.estoque_seguranca ?? 0) - (s.disponivel ?? 0)),
-      categoria: s.categoria_compra,
-    }))
-    .sort((a, b) => b.sugerido - a.sugerido);
-  const sugestoesHistoricas = (previsao ?? [])
+  // Sugestões de compra: a mesma fórmula da previsão de suprimentos (consumo no
+  // prazo de entrega + segurança − disponível − já pedido), na unidade do saldo
+  // (frascos para insumo contado em frascos). EST-7.
+  const unidadeSaldo = new Map((saldo ?? []).map((s) => [s.insumo_id, s.unidade_saldo ?? s.unidade ?? ""]));
+  const sugestoes = (previsao ?? [])
     .filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0)
     .map((p) => ({
       especificacao: p.especificacao,
       disponivel: Number(p.disponivel ?? 0),
       sugerido: Number(p.qtd_sugerida_compra ?? 0),
+      unidade: unidadeSaldo.get(p.insumo_id) ?? p.unidade ?? "",
       categoria: p.categoria_compra,
-    }))
-    .slice(0, 8);
-  const sugestoesRender = sugestoesHistoricas.length > 0 ? sugestoesHistoricas : sugestoes;
+    }));
+  const sugestoesRender = sugestoes.slice(0, 8);
 
   const inp = "rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
 
@@ -75,7 +69,7 @@ export default async function ComprasPage() {
           <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
           <HelpTip title="Compras">
             <p>
-              Cada pedido segue os status abaixo. O material recebido entra em <b>quarentena</b> até
+              Cada compra segue os status abaixo. O material recebido entra em <b>quarentena</b> até
               alguém conferir e aceitar o lote.
             </p>
             <HelpLegend
@@ -91,12 +85,12 @@ export default async function ComprasPage() {
         </div>
 
         {/* sugestões */}
-        {(sugestoes.length > 0 || sugestoesHistoricas.length > 0) && (
+        {sugestoes.length > 0 && (
           <div className="mt-6 rounded-xl border border-warning-strong/30 bg-warning-soft p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-1">
-                  <h2 className="text-sm font-semibold text-warning-strong">Sugestões de reposição ({Math.max(sugestoes.length, sugestoesHistoricas.length)})</h2>
+                  <h2 className="text-sm font-semibold text-warning-strong">Sugestões de reposição ({sugestoes.length})</h2>
                   <HelpTip title="Sugestões de reposição">
                     <p>
                       Itens que chegaram ao ponto de reposição. A <b>quantidade sugerida</b> cobre o
@@ -117,7 +111,7 @@ export default async function ComprasPage() {
                     {s.especificacao}
                   </span>
                   <span className="shrink-0 tabular-nums">
-                    disp. {fmt(s.disponivel)} · pedir ~{fmt(s.sugerido)}
+                    disp. {fmt(s.disponivel)} · pedir ~{fmt(s.sugerido)} {s.unidade}
                   </span>
                 </li>
               ))}
@@ -138,11 +132,11 @@ export default async function ComprasPage() {
                 </HelpTip>
               </div>
             </div>
-            <GerarPedidoReposicaoButton />
+            {sugestoes.length === 0 && <GerarPedidoReposicaoButton />}
           </div>
         </div>
 
-        {/* novo pedido */}
+        {/* nova compra */}
         <FormComMensagem action={criarPedido} className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Fornecedor</label>
@@ -166,9 +160,9 @@ export default async function ComprasPage() {
             <label className="block text-xs font-medium text-muted-foreground">Campanha (texto livre)</label>
             <input aria-label="Campanha (texto livre)" name="projeto" className={`${inp} mt-1 w-full`} />
           </div>
-          <button className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
-            + Nova solicitação
-          </button>
+          <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
+            + Nova compra
+          </SubmitButton>
         </FormComMensagem>
 
         <div className="mt-6">

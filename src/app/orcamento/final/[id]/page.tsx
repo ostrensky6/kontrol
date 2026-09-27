@@ -5,18 +5,33 @@ import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { ExportOrcamentoFinalButtons } from "@/components/orcamento/ExportOrcamentoFinalButtons";
 import { PrintButton } from "@/components/orcamento/PrintButton";
-import { cancelarVersaoFinal, duplicarVersaoFinal } from "@/lib/actions/orcamento-historico";
+import {
+  cancelarVersaoFinal,
+  duplicarVersaoFinal,
+  gerarPlanejamentoDaProposta,
+} from "@/lib/actions/orcamento-historico";
+import { criarLinkPublico, revogarLinkPublico } from "@/lib/actions/orcamento-projetos";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
 import { rotuloModalidade } from "@/lib/orcamento/orcamento-economico";
-import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { HelpTip, HelpExample } from "@/components/common/HelpTip";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { CancelarComMotivo } from "@/components/orcamento/CancelarComMotivo";
+import { FormEstado } from "@/components/orcamento/FormEstado";
+import { LinkPublicoPainel, type LinkPublicoResumo } from "@/components/orcamento/LinkPublicoPainel";
 import { montarPropostaFinalExport } from "@/lib/orcamento/proposta-final-export";
 import { explicarOrigem } from "@/lib/orcamento/orcamento-final";
-import { rotuloStatusVersaoFinal, statusEfetivoVersaoFinal } from "@/lib/orcamento/rotulos-status";
+import {
+  hojeCalendario,
+  rotuloStatusModulo,
+  rotuloStatusVersaoFinal,
+  statusEfetivoVersaoFinal,
+} from "@/lib/orcamento/rotulos-status";
+import { STATUS_APROVADOS, STATUS_VIVOS, estaVencida } from "@/lib/orcamento/transicoes-versao";
 import type { Json } from "@/lib/supabase/database.types";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
 
 export const dynamic = "force-dynamic";
 
@@ -100,22 +115,29 @@ type SnapshotItemProjeto = {
 
 export default async function OrcamentoFinalPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ erro?: string }>;
 }) {
-  const { id } = await params;
+  const [{ id }, { erro }] = await Promise.all([params, searchParams]);
   const versaoId = Number(id);
   const operacaoDuplicacaoId = randomUUID();
-  const [podeDuplicar, podeCancelar] = await Promise.all([
+  const [podeDuplicar, podeCancelar, podeEmitir, podePlanejar] = await Promise.all([
     podeOrcamento("duplicar_final"),
     podeOrcamento("cancelar_documento"),
+    podeOrcamento("emitir_final"),
+    temPermissao("planejamento.editar"),
   ]);
   const supabase = await createClient();
-  // Proposta aprovada gera o plano sozinha (0122).
+  // Proposta aprovada gera o plano sozinha (0122); cancelado não conta (0126).
   const { data: planoGerado } = await supabase
     .from("planejamento")
-    .select("id")
+    .select("id, status_operacional")
     .eq("orcamento_final_versao_id", versaoId)
+    .neq("status_operacional", "cancelado")
+    .order("id", { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   const { data: versao } = await supabase
@@ -124,6 +146,33 @@ export default async function OrcamentoFinalPage({
     .eq("id", versaoId)
     .single();
   if (!versao) notFound();
+
+  const [{ data: linksRaw }, { data: outrasVersoes }] = await Promise.all([
+    supabase
+      .from("orcamento_projeto_links")
+      .select("id, criado_em, revogado, aprovado_em, aprovado_por")
+      .eq("orcamento_final_versao_id", versaoId)
+      .order("id", { ascending: false }),
+    supabase
+      .from("orcamento_final_versoes")
+      .select("id, numero, versao, status")
+      .eq("demanda_id", versao.demanda_id)
+      .neq("id", versaoId),
+  ]);
+  const links = (linksRaw ?? []) as LinkPublicoResumo[];
+  const hoje = hojeCalendario();
+  const vencida = estaVencida(versao.valido_ate, hoje);
+  const aprovada = (STATUS_APROVADOS as readonly string[]).includes(versao.status);
+  const viva = (STATUS_VIVOS as readonly string[]).includes(versao.status);
+  const outraAprovada = (outrasVersoes ?? []).find((v) => (STATUS_APROVADOS as readonly string[]).includes(v.status));
+  const versaoMaisNova = (outrasVersoes ?? []).find((v) => v.versao > versao.versao && (STATUS_VIVOS as readonly string[]).includes(v.status));
+  const motivoSemLink = !viva
+    ? "Link de aprovação só existe para proposta emitida ou enviada, ainda não aprovada."
+    : vencida
+      ? "Proposta vencida: emita uma nova versão antes de enviar o link."
+      : !podeEmitir
+        ? "Criar ou revogar o link exige a permissão “Orçamentos: Emitir proposta”."
+        : null;
 
   const snapshot = normalizarSnapshot(versao.snapshot);
   const { data: demandaAtual } = await supabase
@@ -141,21 +190,21 @@ export default async function OrcamentoFinalPage({
     (orcamento.orcamento_itens ?? []).map((item) => ({
       ...item,
       origem: `Laboratório #${orcamento.id ?? "—"}`,
-      status: orcamento.status ?? "—",
+      status: orcamento.status ? rotuloStatusModulo(orcamento.status) : "—",
     })),
   );
   const custosProjeto = (snapshot.orcamentos_projeto ?? []).flatMap((orcamento) =>
     (orcamento.orcamento_projeto_custos ?? []).map((item) => ({
       ...item,
       origem: `Projeto #${orcamento.id ?? "—"}`,
-      status: orcamento.status ?? "—",
+      status: orcamento.status ? rotuloStatusModulo(orcamento.status) : "—",
     })),
   );
   const analisesProjeto = (snapshot.orcamentos_projeto ?? []).flatMap((orcamento) =>
     (orcamento.orcamento_projeto_analises ?? []).map((item) => ({
       ...item,
       origem: `Projeto #${orcamento.id ?? "—"}`,
-      status: orcamento.status ?? "—",
+      status: orcamento.status ? rotuloStatusModulo(orcamento.status) : "—",
     })),
   );
   // Estrutura única de exportação/apresentação (reusa proposta-final-export).
@@ -175,8 +224,8 @@ export default async function OrcamentoFinalPage({
         <div className="no-print flex flex-wrap items-center justify-between gap-3">
           <Breadcrumbs
             items={[
-              { label: "Demandas/Propostas", href: "/orcamento/demandas" },
-              { label: demanda?.titulo ?? `Demanda #${versao.demanda_id}`, href: `/orcamento/demandas/${versao.demanda_id}` },
+              { label: "Orçamentos", href: "/orcamento/demandas" },
+              { label: demanda?.titulo ?? `Orçamento #${versao.demanda_id}`, href: `/orcamento/demandas/${versao.demanda_id}` },
               { label: versao.numero },
             ]}
           />
@@ -192,11 +241,27 @@ export default async function OrcamentoFinalPage({
               href={`/orcamento/demandas/${versao.demanda_id}`}
               className="rounded-md border border-zinc-300 px-4 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
             >
-              Voltar à demanda
+              Voltar ao orçamento
             </Link>
             <PrintButton />
           </div>
         </div>
+        {erro && (
+          <p role="alert" className="no-print mt-3 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">
+            {erro}
+          </p>
+        )}
+        {versaoMaisNova && (
+          <p className="no-print mt-3 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+            Existe uma versão mais nova desta proposta ({versaoMaisNova.numero}).{" "}
+            <Link href={`/orcamento/final/${versaoMaisNova.id}`} className="font-medium underline">Abrir a versão em vigor</Link>
+          </p>
+        )}
+        {viva && vencida && (
+          <p className="no-print mt-3 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+            Proposta vencida em {formatDate(versao.valido_ate)}: não pode mais ser aprovada. Emita uma nova versão.
+          </p>
+        )}
         {avisoIdentidade && (
           <p role="alert" className="no-print mt-3 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-sm text-warning-strong">
             {avisoIdentidade}
@@ -217,7 +282,7 @@ export default async function OrcamentoFinalPage({
                   {identidade.nomeCurto}
                 </p>
                 <h1 className="mt-2 text-2xl font-semibold tracking-tight">Proposta comercial</h1>
-                <p className="mt-1 text-sm text-zinc-300">{demanda?.titulo ?? `Demanda #${versao.demanda_id}`}</p>
+                <p className="mt-1 text-sm text-zinc-300">{demanda?.titulo ?? `Orçamento #${versao.demanda_id}`}</p>
                 </div>
               </div>
               <div className="text-right text-sm">
@@ -347,29 +412,30 @@ export default async function OrcamentoFinalPage({
                   Planejamento #{planoGerado.id}
                 </Link>
               )}
-              {podeDuplicar && (
+              {podeDuplicar && !aprovada && !outraAprovada && (
               <form action={duplicarVersaoFinal}>
                 <input type="hidden" name="versao_id" value={versao.id} />
                 <input type="hidden" name="operacao_id" value={operacaoDuplicacaoId} />
                 <input type="hidden" name="validade_dias" value={versao.validade_dias ?? 30} />
-                <button className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800">
+                <button
+                  title="Cria nova versão com os mesmos itens e valores; a versão em vigor passa a substituída."
+                  className="rounded-md border border-zinc-300 px-3 py-2 text-sm font-medium hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
+                >
                   Duplicar versão
                 </button>
               </form>
               )}
-              {podeDuplicar && (
-              <HelpTip title="Duplicar versão">
-                <p>Cria uma <b>nova versão</b> com os mesmos itens e valores, pronta para ajustes. A versão atual continua no histórico.</p>
-                <HelpExample>v1 duplicada → v2 com nova validade; a v1 não é alterada.</HelpExample>
-              </HelpTip>
-              )}
-              {podeCancelar && versao.status !== "cancelado" && (
-                <ConfirmActionButton
+              {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(versao.status) && (
+                <CancelarComMotivo
                   action={cancelarVersaoFinal}
-                  fields={{ versao_id: versao.id, motivo: "Cancelamento a partir do detalhe da versão final." }}
+                  fields={{ versao_id: versao.id }}
                   trigger="Cancelar proposta"
                   titulo="Cancelar esta proposta?"
-                  mensagem={`A versão ${versao.numero} deixará de valer para o cliente. O registro continua no histórico.`}
+                  mensagem={
+                    aprovada
+                      ? `A versão ${versao.numero} deixa de valer. O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas; se já estiver em execução, continua e o coordenador é avisado.`
+                      : `A versão ${versao.numero} deixa de valer para o cliente e o link de aprovação dela é revogado. O registro continua no histórico.`
+                  }
                   confirmLabel="Cancelar proposta"
                   triggerClassName="rounded-md border border-red-200 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950/30"
                 />
@@ -377,13 +443,49 @@ export default async function OrcamentoFinalPage({
             </div>
           </div>
 
+          {aprovada && !planoGerado && (
+            <div className="no-print mt-4 rounded-md border border-brand-200 bg-brand-50 p-3 text-sm dark:border-brand-900 dark:bg-brand-950/30">
+              {itensLaboratorio.length + analisesProjeto.length === 0 ? (
+                <p>Proposta aprovada sem análises laboratoriais: não há planejamento a gerar. Organize a execução pelo projeto.</p>
+              ) : podePlanejar ? (
+                <FormEstado action={gerarPlanejamentoDaProposta} className="flex flex-wrap items-center gap-3">
+                  <input type="hidden" name="versao_id" value={versao.id} />
+                  <p>Esta proposta aprovada está sem planejamento ativo.</p>
+                  <SubmitButton size="sm" pendingLabel="Gerando…">Gerar planejamento desta proposta</SubmitButton>
+                </FormEstado>
+              ) : (
+                <p>Esta proposta aprovada está sem planejamento ativo. Gerar o plano exige a permissão “Montar planejamento”.</p>
+              )}
+            </div>
+          )}
+
+          <section className="no-print mt-6 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800">
+            <div className="flex items-center gap-1">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-zinc-500">Link de aprovação do cliente</h2>
+              <HelpTip title="Link de aprovação">
+                <p>Endereço para o cliente ver a proposta e aprovar <b>sem login</b>. Vale só para esta versão.</p>
+                <p>Nova versão, cancelamento ou vencimento encerram o link. Aprovar pelo link cria o planejamento, como a aprovação pela equipe.</p>
+              </HelpTip>
+            </div>
+            <div className="mt-3">
+              <LinkPublicoPainel
+                versaoId={versao.id}
+                links={links}
+                podeCriar={viva && !vencida && podeEmitir && !outraAprovada && !versaoMaisNova}
+                motivoSemLink={motivoSemLink}
+                criar={criarLinkPublico}
+                revogar={revogarLinkPublico}
+              />
+            </div>
+          </section>
+
           <dl className="mt-6 grid gap-3 text-sm md:grid-cols-3">
             <Campo titulo="Cliente" valor={demanda?.cliente_nome ?? "—"} />
             <Campo titulo="CNPJ/CPF" valor={demanda?.cliente_cnpj ?? "—"} />
             <Campo titulo="Contato" valor={demanda?.cliente_contato ?? "—"} />
-            <Campo titulo="Demanda" valor={demanda?.titulo ?? `#${versao.demanda_id}`} />
+            <Campo titulo="Orçamento" valor={demanda?.titulo ?? `#${versao.demanda_id}`} />
             <Campo titulo="Modalidade" valor={rotuloModalidade(demanda?.modalidade)} />
-            <Campo titulo="Validade" valor={`${versao.validade_dias} dias`} />
+            <Campo titulo="Validade" valor={versao.validade_dias != null ? `${versao.validade_dias} dias` : "—"} />
           </dl>
 
           <div className="mt-6 grid gap-3 md:grid-cols-5">
@@ -433,7 +535,7 @@ export default async function OrcamentoFinalPage({
             <div className="mt-3 grid gap-3 text-sm md:grid-cols-3">
               <Campo titulo="Valores" valor="Congelados na emissão" />
               <Campo titulo="Status da versão" valor={statusLabel} />
-              <Campo titulo="Demanda origem" valor={`#${versao.demanda_id}`} />
+              <Campo titulo="Orçamento de origem" valor={`#${versao.demanda_id}`} />
             </div>
             <div className="mt-4 divide-y divide-zinc-100 rounded-md border border-zinc-200 dark:divide-zinc-800 dark:border-zinc-800">
               {origens.map((origem) => (

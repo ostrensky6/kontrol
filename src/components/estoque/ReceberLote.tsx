@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { entradaEmbalagens, entradaInventario } from "@/lib/actions/estoque";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import type { FormState } from "@/lib/actions/cadastros";
+import { enviarSemReset } from "@/lib/formulario-sem-perda";
 
 /**
  * 2.4 — Entrada de inventário / ajuste (porta avulsa, separada do recebimento
@@ -17,6 +18,7 @@ export function AjusteInventarioButton({
   unidade,
   abertoInicial = false,
   embalagemFechada = false,
+  emFrascos = false,
   triggerLabel = "+ Entrada",
   triggerClassName,
 }: {
@@ -26,6 +28,8 @@ export function AjusteInventarioButton({
   abertoInicial?: boolean;
   /** insumo contado em embalagens fechadas: o lote entra liberado, em número inteiro */
   embalagemFechada?: boolean;
+  /** insumo contado em frascos (ainda sem lote de frascos): a entrada vai em quarentena, em frascos inteiros */
+  emFrascos?: boolean;
   triggerLabel?: string;
   triggerClassName?: string;
 }) {
@@ -125,19 +129,19 @@ export function AjusteInventarioButton({
                 </div>
               </div>
             ) : (
-              <form action={action} className="mt-4 grid grid-cols-2 gap-3">
+              <form onSubmit={enviarSemReset(action)} className="mt-4 grid grid-cols-2 gap-3">
                 <input type="hidden" name="insumo_id" value={insumoId} />
                 <input type="hidden" name="operacao_id" value={operacaoId} />
                 <div className="col-span-1">
                   <label htmlFor={`entrada-qtd-${insumoId}`} className="block text-xs font-medium text-muted-foreground">
-                    {embalagemFechada ? "Embalagens" : "Quantidade"} <span className="text-danger-strong">*</span>
+                    {embalagemFechada ? "Embalagens" : emFrascos ? "Frascos" : "Quantidade"} <span className="text-danger-strong">*</span>
                   </label>
                   <input
                     id={`entrada-qtd-${insumoId}`}
                     name="quantidade"
                     type="number"
-                    inputMode={embalagemFechada ? "numeric" : "decimal"}
-                    step={embalagemFechada ? "1" : "any"}
+                    inputMode={embalagemFechada || emFrascos ? "numeric" : "decimal"}
+                    step={embalagemFechada || emFrascos ? "1" : "any"}
                     min="0"
                     className={inp}
                   />
@@ -156,7 +160,7 @@ export function AjusteInventarioButton({
                 </div>
                 <div className="col-span-1">
                   <label htmlFor={`entrada-custo-${insumoId}`} className="block text-xs font-medium text-muted-foreground">
-                    {embalagemFechada ? "Custo por embalagem (R$)" : "Custo unitário (R$)"}
+                    {embalagemFechada ? "Custo por embalagem (R$)" : emFrascos ? "Custo por frasco (R$)" : "Custo unitário (R$)"}
                     {embalagemFechada && <span className="text-danger-strong"> *</span>}
                   </label>
                   <input
@@ -227,6 +231,7 @@ export function AjusteInventarioButton({
                   </button>
                   <button
                     disabled={pending}
+                    aria-busy={pending || undefined}
                     className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
                   >
                     {pending ? "Registrando…" : "Registrar entrada"}

@@ -19,7 +19,7 @@ export type CompraRow = {
 const columns: ColumnDef<CompraRow, unknown>[] = [
   {
     accessorKey: "pedido",
-    header: "Pedido",
+    header: "Compra",
     cell: ({ row }) => (
       <Link href={`/compras/${row.original.id}`} className="font-medium text-primary hover:underline">
         {row.original.pedido}
@@ -58,8 +58,8 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
     <DataTable
       data={rows}
       columns={columns}
-      searchPlaceholder="Buscar pedido, fornecedor ou projeto..."
-      emptyText="Nenhum pedido. Crie uma solicitação acima."
+      searchPlaceholder="Buscar compra, fornecedor ou projeto..."
+      emptyText="Nenhuma compra ainda."
       filters={[
         {
           columnId: "statusLabel",

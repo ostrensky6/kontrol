@@ -40,9 +40,9 @@ describe("avaliarCompletudeDemanda", () => {
     expect(resultado.completa).toBe(false);
     expect(resultado.faltante).toBe(83);
     expect(resultado.pendencias).toEqual([
-      "informar o titulo da demanda",
-      "informar cliente cadastrado ou cliente livre",
-      "descrever escopo preliminar ou descricao da demanda",
+      "informar o título",
+      "informar o cliente (cadastrado ou pelo nome)",
+      "descrever o escopo ou a descrição",
       "informar matriz ou tipo de amostra",
       "informar quantidade estimada de amostras",
     ]);

@@ -1,5 +1,6 @@
 "use server";
 
+import { mensagemDoBanco } from "@/lib/erros";
 import { createHash, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -15,7 +16,7 @@ import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
-  message: "Sem permissão — requer papel coordenador ou superior.",
+  message: "Seu perfil não tem permissão para esta etapa. Peça ao administrador para liberar em Usuários.",
 };
 const MSG_VALIDADE_CRITICO = "Validade é obrigatória para receber insumo crítico.";
 const UUID_RECEBIMENTO = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -50,10 +51,6 @@ function comentarioObrigatorio(formData: FormData) {
   const observacao = texto(formData, "observacao");
   if (!observacao) return { ok: false as const, message: "Informe o motivo/comentário para esta decisão." };
   return { ok: true as const, observacao };
-}
-
-function hojeIso() {
-  return new Date().toISOString();
 }
 
 function hojeData() {
@@ -156,16 +153,17 @@ async function podeAprovarComoCoordenadorProjeto(pedidoId: number) {
 }
 
 const STATUS_ITENS_LIVRES = ["rascunho", "ajuste_solicitante", "ajuste_compras"];
-const STATUS_ITENS_TERMINAIS = ["cancelado", "compra_concluida"];
+const STATUS_ITENS_VALIDACAO = ["em_validacao", "validado"];
 
 /**
- * Itens podem ser alterados quando o pedido está em rascunho/ajuste (qualquer técnico)
- * ou em qualquer etapa não terminal, desde que o usuário seja coordenador ou superior.
+ * Itens mudam em rascunho/ajuste (quem cria pedidos) e, antes da
+ * formalização, também na validação (quem aprova). Depois de formalizado, o
+ * pedido precisa voltar para ajuste: a compra formal acompanha a lista.
  */
 async function podeMexerItens(status: string) {
-  if (STATUS_ITENS_TERMINAIS.includes(status)) return false;
   if (STATUS_ITENS_LIVRES.includes(status)) return true;
-  return pode("pedido.aprovar");
+  if (STATUS_ITENS_VALIDACAO.includes(status)) return pode("pedido.aprovar");
+  return false;
 }
 
 async function mudarStatus({
@@ -175,7 +173,7 @@ async function mudarStatus({
   observacao,
   etapa,
   decisao = "aprovado",
-  extras = {},
+  dados = {},
 }: {
   pedidoId: number;
   para: string;
@@ -183,23 +181,22 @@ async function mudarStatus({
   observacao?: string | null;
   etapa?: string;
   decisao?: "aprovado" | "reprovado" | "devolvido" | "registrado";
-  extras?: Record<string, unknown>;
+  /** dados da etapa que a RPC grava (aprovador, instituição, protocolo…); datas vêm do banco */
+  dados?: Record<string, string | boolean | null>;
 }) {
   const supabase = await createClient();
   void permitidoDe;
-  const { error } = await supabase.rpc("transicionar_pedido_interno" as never, {
+  // Transição e dados da etapa (datas, aprovador, modalidade) gravados juntos
+  // pela RPC; o app não atualiza a tabela direto.
+  const { error } = await supabase.rpc("registrar_etapa_pedido_interno", {
     p_pedido_id: pedidoId,
     p_status_destino: para,
     p_etapa: etapa ?? para,
     p_decisao: decisao,
-    p_observacao: observacao ?? null,
-  } as never);
-  if (error) return { ok: false, message: error.message };
-
-  if (Object.keys(extras).length > 0) {
-    const { error: extrasError } = await supabase.from("pedidos_internos").update(extras as never).eq("id", pedidoId);
-    if (extrasError) return { ok: false, message: extrasError.message };
-  }
+    p_observacao: observacao ?? undefined,
+    p_dados: dados as never,
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Etapa atualizada." };
@@ -255,9 +252,9 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     data = retry.data;
     error = retry.error;
   }
-  if (error) return { ok: false, message: `Não foi possível criar o pedido: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível criar o pedido.") };
   if (!data) return { ok: false, message: "Não foi possível criar o pedido interno." };
-  await registrarEvento("pedido_interno", data.id, null, "rascunho", "Demanda inicial registrada.");
+  await registrarEvento("pedido_interno", data.id, null, "rascunho", "Pedido registrado.");
   revalidatePath("/pedido");
   redirect(`/pedido/${data.id}`);
 }
@@ -304,7 +301,7 @@ async function criarPedidoReposicao(
       quantidade: Number(item.qtd_sugerida_compra ?? 0),
     })),
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const resultado = data as unknown as { pedido_id?: number; itens?: number } | null;
   const pedidoId = Number(resultado?.pedido_id);
@@ -344,7 +341,7 @@ export async function gerarPedidoReposicaoInsumo(
     .eq("insumo_id", insumoId)
     .single();
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   const previsao = data as PrevisaoReposicao | null;
   if (!previsao) return { ok: false, message: "Previsão de reposição não encontrada." };
 
@@ -368,7 +365,7 @@ export async function gerarPedidosReposicaoEstoque(
     .order("categoria_compra", { ascending: true })
     .order("especificacao", { ascending: true });
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   return criarPedidoReposicao(
     (data ?? []) as PrevisaoReposicao[],
@@ -381,7 +378,7 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
   const pedidoId = numero(formData, "pedido_interno_id");
   if (!pedidoId) return { ok: false, message: "Pedido não informado." };
   const titulo = texto(formData, "titulo");
-  if (!titulo) return { ok: false, message: "Informe a demanda (título do pedido)." };
+  if (!titulo) return { ok: false, message: "Informe o título do pedido." };
 
   const supabase = await createClientUntyped();
   const projeto_id = numero(formData, "projeto_id");
@@ -419,7 +416,7 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
     const retry = await supabase.from("pedidos_internos").update(legado).eq("id", pedidoId);
     error = retry.error;
   }
-  if (error) return { ok: false, message: `Não foi possível salvar: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível salvar.") };
   revalidatePath(`/pedido/${pedidoId}`);
   revalidatePath("/pedido");
   return { ok: true, message: "Pedido atualizado." };
@@ -427,7 +424,7 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
 
 export async function excluirPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) {
-    return { ok: false, message: "Sem permissão — excluir rascunho requer papel coordenador ou superior." };
+    return { ok: false, message: "Seu perfil não tem permissão para excluir pedidos internos." };
   }
   const pedidoId = numero(formData, "pedido_interno_id");
   if (!pedidoId) return { ok: false, message: "Pedido não informado." };
@@ -445,7 +442,7 @@ export async function excluirPedidoInterno(_prev: FormState, formData: FormData)
     };
   }
   const { error } = await supabase.from("pedidos_internos").delete().eq("id", pedidoId);
-  if (error) return { ok: false, message: `Não foi possível excluir: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível excluir.") };
   revalidatePath("/pedido");
   redirect("/pedido");
 }
@@ -481,7 +478,7 @@ export async function adicionarItemPedidoInterno(_prev: FormState, formData: For
     fornecedor_sugerido: texto(formData, "fornecedor_sugerido"),
     observacao: texto(formData, "observacao"),
   });
-  if (error) return { ok: false, message: `Não foi possível adicionar o item: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível adicionar o item.") };
   revalidatePath(`/pedido/${pedido_interno_id}`);
   return { ok: true, message: "Item adicionado." };
 }
@@ -532,14 +529,14 @@ export async function removerItemPedidoInterno(_prev: FormState, formData: FormD
     .eq("id", pedidoId)
     .single();
   if (!pedido || !(await podeMexerItens(pedido.status))) {
-    return { ok: false, message: "Nesta etapa do pedido, remover itens exige papel coordenador (ou o pedido já foi encerrado)." };
+    return { ok: false, message: "Nesta etapa os itens não mudam. Depois da formalização, devolva o pedido para ajuste antes de alterar a lista." };
   }
   const { error } = await supabase
     .from("pedidos_internos_itens")
     .delete()
     .eq("id", itemId)
     .eq("pedido_interno_id", pedidoId);
-  if (error) return { ok: false, message: `Não foi possível remover o item: ${error.message}` };
+  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível remover o item.") };
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Item removido." };
 }
@@ -573,9 +570,8 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
     para: "em_validacao",
     permitidoDe: ["rascunho", "ajuste_solicitante", "ajuste_compras"],
     observacao: texto(formData, "observacao"),
-    etapa: "Demanda inicial e lista de materiais",
+    etapa: "Lista de materiais",
     decisao: "registrado",
-    extras: { enviado_validacao_em: new Date().toISOString() },
   });
 }
 
@@ -590,9 +586,7 @@ export async function validarInformacoes(_prev: FormState, formData: FormData): 
     observacao: texto(formData, "observacao") ?? "Informações de modelo, volume e quantidade confirmadas.",
     etapa: "Validação das especificações técnicas",
     decisao: "aprovado",
-    extras: {
-      validado_em: hojeIso(),
-      aprovado_coordenador_em: hojeIso(),
+    dados: {
       aprovador_coordenador: permissao.usuario.nome ?? permissao.usuario.email,
       coordenador_projeto_nome: permissao.coordenadorNome,
       coordenador_projeto_email: permissao.coordenadorEmail,
@@ -619,49 +613,39 @@ export async function formalizarPedidoInterno(_prev: FormState, formData: FormDa
   if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const supabase = await createClient();
-  const { error } = await supabase.rpc("formalizar_pedido_interno" as never, {
+  const { data, error } = await supabase.rpc("formalizar_pedido_interno" as never, {
     p_pedido_id: pedidoId,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath("/compras");
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
-  return { ok: true, message: "Pedido formalizado e compra criada." };
+  const resultado = data as { pedido_compra_id?: number; retomada?: boolean } | null;
+  return {
+    ok: true,
+    message: resultado?.retomada
+      ? `Pedido formalizado de novo. A compra #${resultado.pedido_compra_id} continua valendo.`
+      : "Pedido formalizado e compra criada.",
+  };
 }
 
-export async function registrarAnaliseAdministrativa(formData: FormData) {
-  if (!(await pode("pedido.aprovar"))) return;
-  const pedidoId = Number(formData.get("pedido_interno_id"));
-  const observacao = texto(formData, "observacao");
+export async function registrarAnaliseAdministrativa(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
   const fonte_recurso = texto(formData, "fonte_recurso");
   const rubrica = texto(formData, "rubrica");
   const conformidade_admin = texto(formData, "conformidade_admin");
   if (!fonte_recurso || !rubrica || !conformidade_admin) {
-    throw new Error("Fonte de recurso, rubrica e conformidade administrativa são obrigatórias.");
+    return { ok: false, message: "Fonte de recurso, rubrica e conformidade administrativa são obrigatórias." };
   }
-  const supabase = await createClient();
-  const { error: transicaoError } = await supabase.rpc("transicionar_pedido_interno" as never, {
-    p_pedido_id: pedidoId,
-    p_status_destino: "analise_administrativa",
-    p_etapa: "Análise de fonte de recurso, rubrica e conformidade",
-    p_decisao: "registrado",
-    p_observacao: observacao ?? null,
-  } as never);
-  if (transicaoError) throw new Error(transicaoError.message);
-
-  const { error } = await supabase
-    .from("pedidos_internos")
-    .update({
-      fonte_recurso,
-      rubrica,
-      conformidade_admin,
-      observacao_compras: observacao,
-      analisado_em: new Date().toISOString(),
-    })
-    .eq("id", pedidoId);
-  if (error) throw new Error(error.message);
-  revalidatePath(`/pedido/${pedidoId}`);
-  revalidatePath("/pedido");
+  return mudarStatus({
+    pedidoId: Number(formData.get("pedido_interno_id")),
+    para: "analise_administrativa",
+    permitidoDe: ["formalizado"],
+    observacao: texto(formData, "observacao"),
+    etapa: "Análise de fonte de recurso, rubrica e conformidade",
+    decisao: "registrado",
+    dados: { fonte_recurso, rubrica, conformidade_admin },
+  });
 }
 
 export async function aprovarAnaliseAdministrativa(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -696,10 +680,9 @@ export async function registrarLevantamentoOrcamentos(_prev: FormState, formData
     pedidoId: Number(formData.get("pedido_interno_id")),
     para: "orcamentos",
     permitidoDe: ["aprovado_compra"],
-    observacao: texto(formData, "observacao") ?? "Orçamentos levantados com especificações dos projetos.",
-    etapa: "Levantamento de orçamentos",
+    observacao: texto(formData, "observacao") ?? "Cotações solicitadas com as especificações dos projetos.",
+    etapa: "Levantamento de cotações",
     decisao: "registrado",
-    extras: { orcamentos_em: new Date().toISOString() },
   });
 }
 
@@ -714,14 +697,14 @@ export async function marcarOrcamentosRecebidos(_prev: FormState, formData: Form
     .in("tipo", ["orcamento_previo", "proposta", "print", "email"])
     .limit(1);
   if (!anexos || anexos.length === 0) {
-    return { ok: false, message: "Anexe ao menos um orçamento, proposta, print ou e-mail antes de marcar como recebido." };
+    return { ok: false, message: "Anexe ao menos uma cotação (arquivo, print ou e-mail) antes de marcar como recebida." };
   }
   return mudarStatus({
     pedidoId,
     para: "orcamentos_recebidos",
     permitidoDe: ["orcamentos"],
-    observacao: texto(formData, "observacao") ?? "Orçamentos/propostas recebidos e registrados.",
-    etapa: "Orçamentos recebidos",
+    observacao: texto(formData, "observacao") ?? "Cotações recebidas e registradas.",
+    etapa: "Cotações recebidas",
     decisao: "registrado",
   });
 }
@@ -747,7 +730,6 @@ export async function aprovarCompraFinal(_prev: FormState, formData: FormData): 
     observacao: texto(formData, "observacao") ?? "Fornecedor/caminho de compra aprovado.",
     etapa: "Escolha do fornecedor ou encaminhamento institucional",
     decisao: "aprovado",
-    extras: { aprovacao_final_em: new Date().toISOString() },
   });
 }
 
@@ -761,13 +743,7 @@ export async function fecharComFornecedor(_prev: FormState, formData: FormData):
     observacao: texto(formData, "observacao") ?? "Compra fechada com fornecedor; documentos enviados por e-mail.",
     etapa: "Fechamento da compra",
     decisao: "aprovado",
-    extras: {
-      fechado_em: hojeIso(),
-      modalidade_compra: "compra_direta",
-      modalidade_definida_em: hojeIso(),
-      modalidade_definida_por: u?.nome ?? u?.email ?? null,
-      observacao_administrativa: texto(formData, "observacao"),
-    },
+    dados: { modalidade_definida_por: u?.nome ?? u?.email ?? null },
   });
 }
 
@@ -789,15 +765,11 @@ export async function encaminharInstituicao(_prev: FormState, formData: FormData
       "Documentos, orçamentos e termos encaminhados para a instituição responsável pela compra.",
     etapa: "Envio de documentos para instituição compradora",
     decisao: "aprovado",
-    extras: {
-      encaminhado_em: hojeIso(),
+    dados: {
       modalidade_compra: modalidade,
-      modalidade_definida_em: hojeIso(),
       modalidade_definida_por: u?.nome ?? u?.email ?? null,
       instituicao_destino: instituicao,
       protocolo_externo: texto(formData, "protocolo_externo"),
-      data_envio_instituicao: hojeData(),
-      observacao_administrativa: texto(formData, "observacao"),
     },
   });
 }
@@ -811,7 +783,6 @@ export async function marcarAguardandoPagamentoNf(_prev: FormState, formData: Fo
     observacao: texto(formData, "observacao") ?? "Aguardando pagamento, emissão de nota ou comprovante.",
     etapa: "Pagamento e documentos fiscais",
     decisao: "registrado",
-    extras: { pagamento_nf_em: new Date().toISOString() },
   });
 }
 
@@ -835,7 +806,6 @@ export async function concluirCompra(_prev: FormState, formData: FormData): Prom
     observacao: texto(formData, "observacao") ?? "Compra concluída com documentos finais registrados.",
     etapa: "Compra concluída",
     decisao: "aprovado",
-    extras: { concluido_em: new Date().toISOString() },
   });
 }
 
@@ -905,7 +875,7 @@ export async function receberItemPedidoInterno(_prev: FormState, formData: FormD
     p_projeto: pedido.projetos?.nome ?? undefined,
     p_responsavel: responsavel ?? undefined,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const { data: itemAtualizado } = await supabase
     .from("pedidos_internos_itens")
@@ -945,7 +915,7 @@ export async function estornarRecebimentoItem(_prev: FormState, formData: FormDa
     p_recebimento_id: null,
     p_motivo: "Estorno solicitado na tela de recebimento.",
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath("/recebimento");
   revalidatePath("/estoque");
   revalidatePath("/pedido");
@@ -968,7 +938,7 @@ export async function estornarRecebimentoLancamento(_prev: FormState, formData: 
     p_recebimento_id: recebimentoId,
     p_motivo: "Estorno de lançamento solicitado na tela de recebimento.",
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath("/recebimento");
   revalidatePath("/estoque");
   revalidatePath("/pedido");
@@ -976,18 +946,20 @@ export async function estornarRecebimentoLancamento(_prev: FormState, formData: 
   return { ok: true, message: "Lançamento de recebimento estornado." };
 }
 
-export async function adicionarAnexoPedidoInterno(formData: FormData) {
+export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const arquivoForm = formData.get("arquivo");
   const arquivo = arquivoForm instanceof File && arquivoForm.size > 0 ? arquivoForm : null;
   const titulo = texto(formData, "titulo") ?? (arquivo ? arquivo.name : null);
-  if (!pedidoId || !titulo) return;
-  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) throw new Error("Sem permissão para registrar documentos.");
+  if (!pedidoId || !titulo) return { ok: false, message: "Informe o título do documento ou escolha um arquivo." };
+  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) {
+    return { ok: false, message: "Seu perfil não tem permissão para registrar documentos." };
+  }
   if (arquivo && arquivo.size > TAMANHO_MAXIMO_ANEXO) {
-    throw new Error("O arquivo excede o limite de 15 MB.");
+    return { ok: false, message: "O arquivo excede o limite de 15 MB." };
   }
   if (arquivo && arquivo.type && !MIME_TYPES_ANEXO.has(arquivo.type)) {
-    throw new Error("Formato de arquivo não permitido. Envie PDF, imagem, DOCX ou XLSX.");
+    return { ok: false, message: "Formato de arquivo não permitido. Envie PDF, imagem, DOCX ou XLSX." };
   }
 
   const u = await usuarioAtual();
@@ -1009,7 +981,7 @@ export async function adicionarAnexoPedidoInterno(formData: FormData) {
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ANEXOS_PEDIDOS)
       .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-    if (uploadError) throw new Error(`Falha no upload do documento: ${uploadError.message}`);
+    if (uploadError) return { ok: false, message: mensagemDoBanco(uploadError, "Falha no envio do arquivo. Tente de novo.") };
   }
 
   let { error } = await supabase.from("pedidos_internos_anexos").insert({
@@ -1042,15 +1014,18 @@ export async function adicionarAnexoPedidoInterno(formData: FormData) {
     });
     error = retry.error;
   }
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Documento registrado." };
 }
 
-export async function removerAnexoPedidoInterno(formData: FormData) {
+export async function removerAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const anexoId = Number(formData.get("anexo_id"));
   const pedidoId = Number(formData.get("pedido_interno_id"));
-  if (!anexoId || !pedidoId) return;
-  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) throw new Error("Sem permissão para remover documentos.");
+  if (!anexoId || !pedidoId) return { ok: false, message: "Documento não informado." };
+  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) {
+    return { ok: false, message: "Seu perfil não tem permissão para remover documentos." };
+  }
   const supabase = await createClient();
   const { data: anexo } = await supabase
     .from("pedidos_internos_anexos")
@@ -1062,15 +1037,17 @@ export async function removerAnexoPedidoInterno(formData: FormData) {
     const { error: storageError } = await supabase.storage
       .from(anexo.storage_bucket)
       .remove([anexo.storage_path]);
-    if (storageError) throw new Error(`Falha ao remover o arquivo: ${storageError.message}`);
+    if (storageError) return { ok: false, message: mensagemDoBanco(storageError, "Falha ao remover o arquivo. Tente de novo.") };
   }
-  await supabase.from("pedidos_internos_anexos").delete().eq("id", anexoId);
+  const { error } = await supabase.from("pedidos_internos_anexos").delete().eq("id", anexoId);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Documento removido." };
 }
 
-export async function registrarComunicacaoPedidoInterno(formData: FormData) {
+export async function registrarComunicacaoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const pedidoId = Number(formData.get("pedido_interno_id"));
-  if (!pedidoId) return;
+  if (!pedidoId) return { ok: false, message: "Pedido não informado." };
   const u = await usuarioAtual();
   const supabase = await createClient();
   const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
@@ -1085,8 +1062,9 @@ export async function registrarComunicacaoPedidoInterno(formData: FormData) {
     observacao: texto(formData, "observacao"),
     usuario: u?.email ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Comunicação registrada." };
 }
 
 export async function cancelarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -1106,7 +1084,7 @@ export async function cancelarPedidoInterno(_prev: FormState, formData: FormData
     p_responsavel: u?.nome ?? u?.email ?? null,
     p_observacao: comentario.observacao,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   await registrarEvento("pedido_interno", pedidoId, atual?.status ?? null, "cancelado", comentario.observacao);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);

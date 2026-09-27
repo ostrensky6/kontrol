@@ -32,6 +32,18 @@ describe("criarResolvedorDeTaxas", () => {
     expect(resolver(7)).toEqual({ impostos_legacy: 12, incubacao: 2, reserva: 1, investimentos: 1, lucro: 8 });
   });
 
+  it("ignora projeto cancelado, como a emissao (ORC-8)", () => {
+    const comCancelado = criarResolvedorDeTaxas({
+      projetos: [
+        { id: 1, demanda_id: 7, impostos_legacy: 5, incubacao: 1, reserva: 0, investimentos: 0, lucro: 1 },
+        { id: 2, demanda_id: 7, status: "cancelado", impostos_legacy: 12, incubacao: 2, reserva: 1, investimentos: 1, lucro: 8 },
+      ],
+      demandas: [{ id: 7 }],
+      parametrosGlobais: globais,
+    });
+    expect(comCancelado(7)).toEqual({ impostos_legacy: 5, incubacao: 1, reserva: 0, investimentos: 0, lucro: 1 });
+  });
+
   it("sem projeto: usa as taxas gravadas na proposta", () => {
     expect(resolver(8)).toEqual({ impostos_legacy: 6, incubacao: 2, reserva: 0, investimentos: 0, lucro: 4 });
   });

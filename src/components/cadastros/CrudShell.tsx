@@ -8,7 +8,9 @@ import {
   useId,
   useMemo,
   useState,
+  type ReactNode,
 } from "react";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 import { useRouter } from "next/navigation";
 import {
   type ColumnDef,
@@ -65,6 +67,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tooltip } from "@/components/ui/tooltip";
 import { HelpExample, HelpTip, TextoAjuda } from "@/components/common/HelpTip";
 import { DownloadButton } from "@/components/common/DownloadButton";
+import { MensagemAcao } from "@/components/common/MensagemAcao";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import type { LoteBaixa } from "@/lib/estoque/baixa";
 import {
@@ -83,6 +87,14 @@ function fmt(value: unknown, tipo?: Coluna["tipo"]) {
   if (value == null || value === "") return "—";
   // valor sigiloso já mascarado no servidor (ex.: salário sem permissão)
   if (estaMascarado(value)) return VALOR_MASCARADO;
+  // texto no lugar de número (ex.: "Sem custo") aparece como veio
+  if (
+    typeof value === "string" &&
+    (tipo === "currency" || tipo === "number" || tipo === "percent") &&
+    Number.isNaN(Number(value))
+  ) {
+    return value;
+  }
   switch (tipo) {
     case "currency":
       return formatCurrency(Number(value));
@@ -178,6 +190,9 @@ export function CrudShell({
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
   const [focusApplied, setFocusApplied] = useState(false);
+  // retorno da última ação (salvar/excluir): o drawer e o diálogo fecham no
+  // sucesso, então a confirmação é anunciada aqui, numa região viva
+  const [retorno, setRetorno] = useState<FormState | null>(null);
 
   const novo = useCallback(() => {
     setEditando(null);
@@ -275,6 +290,7 @@ export function CrudShell({
       cell: (ctx) => (
         <RowActions
           onEdit={() => editar(ctx.row.original)}
+          onRetorno={setRetorno}
           slug={slug}
           id={ctx.row.original.id as number}
           rotulo={String(ctx.row.original[rotulo] ?? "")}
@@ -449,6 +465,8 @@ export function CrudShell({
         </div>
       </div>
 
+      <MensagemAcao estado={retorno} className="mt-3" />
+
       {/* Tabela */}
       <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card text-xs shadow-sm">
         <Table>
@@ -596,6 +614,7 @@ export function CrudShell({
           registro={editando}
           onOpenChange={setAberto}
           onClose={() => setAberto(false)}
+          onSalvo={setRetorno}
         />
       )}
     </div>
@@ -604,11 +623,13 @@ export function CrudShell({
 
 function RowActions({
   onEdit,
+  onRetorno,
   slug,
   id,
   rotulo,
 }: {
   onEdit: () => void;
+  onRetorno: (estado: FormState) => void;
   slug: string;
   id: number;
   rotulo: string;
@@ -638,10 +659,14 @@ function RowActions({
         slug={slug}
         id={id}
         rotulo={rotulo}
+        onExcluido={onRetorno}
       />
     </>
   );
 }
+
+/** Cadastros que têm "Ativo": a saída para registro já usado é desativar. */
+const COM_ATIVO = new Set(["clientes", "fornecedores", "tipo_insumos", "tecnicos"]);
 
 function DeleteRegistroDialog({
   open,
@@ -649,12 +674,14 @@ function DeleteRegistroDialog({
   slug,
   id,
   rotulo,
+  onExcluido,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   slug: string;
   id: number;
   rotulo: string;
+  onExcluido: (estado: FormState) => void;
 }) {
   const router = useRouter();
   const [state, action, pending] = useActionState<FormState, FormData>(
@@ -662,9 +689,12 @@ function DeleteRegistroDialog({
     { ok: false },
   );
   useEffect(() => {
-    // sucesso: a linha some no refresh e este modal desmonta junto.
-    if (state.ok) router.refresh();
-  }, [state, router]);
+    // sucesso: a linha some no refresh e este modal desmonta junto; a
+    // confirmação é anunciada pela lista.
+    if (!state.ok) return;
+    onExcluido(state);
+    router.refresh();
+  }, [state, router, onExcluido]);
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !pending && onOpenChange(nextOpen)}>
@@ -674,13 +704,10 @@ function DeleteRegistroDialog({
           <DialogDescription>
             Tem certeza que deseja excluir <b>“{rotulo}”</b>? Esta ação não pode
             ser desfeita.
+            {COM_ATIVO.has(slug) && " Se ele já foi usado, a exclusão é recusada: desmarque “Ativo”."}
           </DialogDescription>
         </DialogHeader>
-        {state.message && !state.ok && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-            {state.message}
-          </p>
-        )}
+        <MensagemAcao estado={state.ok ? null : state} className="rounded-md bg-destructive/10 px-3 py-2 text-xs empty:p-0" />
         <DialogFooter>
           <Button
             type="button"
@@ -689,18 +716,50 @@ function DeleteRegistroDialog({
             onClick={() => onOpenChange(false)}
             disabled={pending}
           >
-            Cancelar
+            Voltar
           </Button>
-          <form action={action}>
+          <form action={action} {...formularioSemPerda(state)}>
             <input type="hidden" name="_slug" value={slug} />
             <input type="hidden" name="_id" value={id} />
-            <Button disabled={pending} variant="destructive" size="sm">
-              {pending ? "Excluindo…" : "Excluir"}
-            </Button>
+            <SubmitButton variant="destructive" size="sm" pendingLabel="Excluindo…">
+              Excluir
+            </SubmitButton>
           </form>
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+/**
+ * Seção de cada campo no formulário. O título vem do primeiro campo do grupo
+ * na configuração e vale até o próximo; assim, esconder o primeiro campo de um
+ * grupo (oculto) não apaga o título da seção.
+ */
+function camposComSecao(campos: Campo[], criando: boolean) {
+  let grupo: string | undefined;
+  const visiveis: { campo: Campo; grupo?: string }[] = [];
+  for (const campo of campos) {
+    if (campo.grupo) grupo = campo.grupo;
+    if (campo.oculto || campo.bloco) continue;
+    visiveis.push({ campo, grupo });
+  }
+  let anterior: string | undefined;
+  return {
+    formulario: visiveis.map(({ campo, grupo: secao }) => {
+      const titulo = secao !== anterior ? secao : undefined;
+      anterior = secao;
+      return { campo, titulo };
+    }),
+    estoqueInicial: criando ? campos.filter((campo) => campo.bloco === "estoque_inicial" && !campo.oculto) : [],
+  };
+}
+
+function TituloSecao({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="mt-2 border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:col-span-2">
+      {children}
+    </h3>
   );
 }
 
@@ -712,6 +771,7 @@ function CadastroDrawer({
   registro,
   onOpenChange,
   onClose,
+  onSalvo,
 }: {
   open: boolean;
   slug: string;
@@ -720,9 +780,10 @@ function CadastroDrawer({
   registro: Registro | null;
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
+  onSalvo: (estado: FormState) => void;
 }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState<FormState, FormData>(
+  const [state, action] = useActionState<FormState, FormData>(
     salvarRegistro,
     { ok: false },
   );
@@ -733,12 +794,14 @@ function CadastroDrawer({
   const isInsumos = slug === "insumos";
   const quantidadeModelo = isInsumos ? (registro?.quantidade_modelo as string | null | undefined) : null;
   const podeCorrigirQuantidade = isInsumos && registro?.id != null && quantidadeModelo !== "LEGADO";
+  const { formulario, estoqueInicial } = camposComSecao(campos, !registro);
 
   useEffect(() => {
     if (!state.ok) return;
+    onSalvo(state);
     router.refresh();
     onClose();
-  }, [state.ok, router, onClose]);
+  }, [state, router, onClose, onSalvo]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>
@@ -763,20 +826,16 @@ function CadastroDrawer({
           />
         )}
 
-        <form action={action} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <form action={action} {...formularioSemPerda(state)} className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <input type="hidden" name="_slug" value={slug} />
           <input type="hidden" name="_operacao_id" value={operacaoId} />
           {registro?.id != null && (
             <input type="hidden" name="_id" value={String(registro.id)} />
           )}
 
-          {campos.map((c) => (
+          {formulario.map(({ campo: c, titulo }) => (
             <Fragment key={c.name}>
-              {c.grupo && (
-                <h3 className="mt-2 sm:col-span-2 border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                  {c.grupo}
-                </h3>
-              )}
+              {titulo && <TituloSecao>{titulo}</TituloSecao>}
               <CampoInput
                 campo={c}
                 valor={registro?.[c.name]}
@@ -787,20 +846,17 @@ function CadastroDrawer({
 
           {isInsumos && !registro && (
             <>
-              <h3 className="mt-2 border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:col-span-2">
-                Estoque inicial
-              </h3>
+              <TituloSecao>Estoque inicial</TituloSecao>
               <div>
                 <div className="flex min-h-5 items-center gap-0.5">
                   <Label htmlFor="campo-quantidade" className="block">
                     Quantidade (embalagens fechadas)
                   </Label>
-                  <HelpTip title="Quantidade em estoque">
+                  <HelpTip title="Quantidade (embalagens fechadas)">
                     <p>
                       Conte <b>embalagens fechadas</b> (frascos, pacotes, kits), não o volume de cada
                       uma. Deixe 0 se ainda não houver.
                     </p>
-                    <p>A quantidade entra direto no estoque, sem quarentena.</p>
                     <HelpExample>
                       3 frascos de 500 mL → informe <b>3</b> (não 1500).
                     </HelpExample>
@@ -815,48 +871,47 @@ function CadastroDrawer({
                   step="1"
                   defaultValue="0"
                   aria-invalid={state.errors?.quantidade ? true : undefined}
+                  aria-describedby={
+                    state.errors?.quantidade ? "campo-quantidade-aviso campo-quantidade-erro" : "campo-quantidade-aviso"
+                  }
                   className={cn(
                     "mt-1",
                     state.errors?.quantidade && "border-destructive focus-visible:ring-destructive",
                   )}
                 />
+                {/* CAD-3: consequência visível, não escondida no "?" */}
+                <p id="campo-quantidade-aviso" className="mt-1 text-xs text-muted-foreground">
+                  Entra direto no estoque, sem quarentena.
+                </p>
                 {state.errors?.quantidade && (
-                  <p className="mt-1 text-xs text-destructive">{state.errors.quantidade}</p>
+                  <p id="campo-quantidade-erro" className="mt-1 text-xs text-destructive">
+                    {state.errors.quantidade}
+                  </p>
                 )}
               </div>
               <div>
-                <div className="flex min-h-5 items-center gap-0.5">
-                  <Label htmlFor="campo-codigo_lote" className="block">
-                    Número do lote
-                  </Label>
-                  <HelpTip title="Número do lote">
-                    <p>
-                      Código que o <b>fabricante</b> imprime na embalagem. Liga a quantidade informada
-                      ao lado à validade e ao rastreio do lote.
-                    </p>
-                    <HelpExample>
-                      Frasco com “LOT 24B1187” → informe <b>24B1187</b>. Sem código? Deixe vazio e o
-                      sistema cria um identificador.
-                    </HelpExample>
-                  </HelpTip>
-                </div>
+                <Label htmlFor="campo-codigo_lote" className="block">
+                  Lote do fabricante
+                </Label>
                 <Input
                   id="campo-codigo_lote"
                   name="codigo_lote"
                   maxLength={80}
-                  placeholder="Ex.: 24B1187"
+                  placeholder="Ex.: 24B1187 (vazio: o Kontrol gera um código)"
                   autoComplete="off"
                   className="mt-1"
                 />
               </div>
+              {estoqueInicial.map((c) => (
+                <CampoInput key={c.name} campo={c} valor={undefined} erro={state.errors?.[c.name]} />
+              ))}
             </>
           )}
 
-          {state.message && !state.ok && (
-            <p className="rounded-md sm:col-span-2 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {state.message}
-            </p>
-          )}
+          <MensagemAcao
+            estado={state.ok ? null : state}
+            className="rounded-md bg-destructive/10 px-3 py-2 empty:p-0 sm:col-span-2"
+          />
 
           <DrawerFooter className="sm:col-span-2">
             <Button
@@ -866,9 +921,7 @@ function CadastroDrawer({
             >
               Cancelar
             </Button>
-            <Button disabled={pending}>
-              {pending ? "Salvando…" : "Salvar"}
-            </Button>
+            <SubmitButton>Salvar</SubmitButton>
           </DrawerFooter>
         </form>
       </DrawerContent>
@@ -1015,12 +1068,13 @@ function CorrigirQuantidadeDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={action} className="mt-2 grid gap-3">
+        <form action={action} {...formularioSemPerda(state)} className="mt-2 grid gap-3">
           <input type="hidden" name="insumo_id" value={insumoId} />
           <input type="hidden" name="operacao_id" value={operacaoId} />
           <div>
-            <Label className="block">Quantidade correta (embalagens fechadas)</Label>
+            <Label htmlFor="corrigir-quantidade_alvo" className="block">Quantidade correta (embalagens fechadas)</Label>
             <Input
+              id="corrigir-quantidade_alvo"
               name="quantidade_alvo"
               type="number"
               min={0}
@@ -1036,9 +1090,11 @@ function CorrigirQuantidadeDialog({
             )}
           </div>
           <div>
-            <Label className="block">Motivo</Label>
+            <Label htmlFor="corrigir-motivo" className="block">Motivo</Label>
             <Input
+              id="corrigir-motivo"
               name="motivo"
+              required
               placeholder="Ex.: contagem física divergente do cadastro"
               className={cn(
                 "mt-1",
@@ -1050,11 +1106,7 @@ function CorrigirQuantidadeDialog({
             )}
           </div>
 
-          {state.message && !state.ok && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {state.message}
-            </p>
-          )}
+          <MensagemAcao estado={state.ok ? null : state} className="rounded-md bg-destructive/10 px-3 py-2 text-xs" />
 
           <DialogFooter>
             <Button
@@ -1064,11 +1116,11 @@ function CorrigirQuantidadeDialog({
               onClick={() => onOpenChange(false)}
               disabled={pending}
             >
-              Cancelar
+              Voltar
             </Button>
-            <Button disabled={pending} size="sm">
-              {pending ? "Corrigindo…" : "Corrigir"}
-            </Button>
+            <SubmitButton size="sm" pendingLabel="Corrigindo…">
+              Corrigir
+            </SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -1096,6 +1148,37 @@ function CampoInput({
   const idBase = useId();
   const inputId = `campo-${campo.name}`;
   const erroId = erro ? `${inputId}-erro` : undefined;
+  const avisoId = campo.aviso ? `${inputId}-aviso` : undefined;
+  const descritoPor = [avisoId, erroId].filter(Boolean).join(" ") || undefined;
+  // inativos só aparecem quando já são o valor atual (CAD2-4)
+  const opcoes = (campo.opcoes ?? []).filter((o) => !o.inativo || String(o.value) === v);
+
+  if (campo.somenteLeitura) {
+    // Calculado no servidor: sem `name`, nada é enviado e o valor não muda.
+    const notaId = `${idBase}-calc`;
+    return (
+      <div className={span}>
+        <div className="flex min-h-5 items-center gap-0.5">
+          <Label htmlFor={inputId} className="block">
+            {campo.label}
+          </Label>
+        </div>
+        <Input
+          id={inputId}
+          value={campo.tipo === "date" && v ? formatDate(v) : v || "—"}
+          readOnly
+          disabled
+          aria-describedby={campo.ajuda ? notaId : undefined}
+          className="mt-1"
+        />
+        {campo.ajuda && (
+          <p id={notaId} className="mt-1 text-xs text-muted-foreground">
+            <TextoAjuda texto={campo.ajuda} />
+          </p>
+        )}
+      </div>
+    );
+  }
 
   if (campo.mascarado) {
     // Sem permissão: o servidor já trocou o valor por "XXX". O input não tem
@@ -1148,7 +1231,7 @@ function CampoInput({
         <Textarea
           id={inputId}
           aria-invalid={erro ? true : undefined}
-          aria-describedby={erroId}
+          aria-describedby={descritoPor}
           name={campo.name}
           defaultValue={v}
           rows={3}
@@ -1162,7 +1245,7 @@ function CampoInput({
         <Select
           id={inputId}
           aria-invalid={erro ? true : undefined}
-          aria-describedby={erroId}
+          aria-describedby={descritoPor}
           name={campo.name}
           defaultValue={v}
           className={cn(
@@ -1171,9 +1254,9 @@ function CampoInput({
           )}
         >
           <option value="">—</option>
-          {campo.opcoes?.map((o) => (
+          {opcoes.map((o) => (
             <option key={o.value} value={o.value}>
-              {o.label}
+              {o.inativo ? `${o.label} (inativo)` : o.label}
             </option>
           ))}
         </Select>
@@ -1189,7 +1272,7 @@ function CampoInput({
         <Input
           id={inputId}
           aria-invalid={erro ? true : undefined}
-          aria-describedby={erroId}
+          aria-describedby={descritoPor}
           name={campo.name}
           defaultValue={v}
           placeholder={campo.placeholder}
@@ -1214,6 +1297,11 @@ function CampoInput({
         />
       )}
 
+      {campo.aviso && (
+        <p id={avisoId} className="mt-1 text-xs text-muted-foreground">
+          {campo.aviso}
+        </p>
+      )}
       {erro && (
         <p id={erroId} className="mt-1 text-xs text-destructive">
           {erro}

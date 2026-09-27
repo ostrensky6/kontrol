@@ -31,7 +31,7 @@ import { formatCurrency as brl } from "@/lib/formatters";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
-import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { HelpTip } from "@/components/common/HelpTip";
 import { ExportProjetoButtons } from "@/components/orcamento/ExportProjetoButtons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AdicionarDoCatalogo, type ItemCatalogo } from "./AdicionarDoCatalogo";
@@ -363,7 +363,7 @@ export async function EditorCustosProjeto({
                         }`}
                         title={situacao.situacao === "ajustado" ? `Pelas entradas de viagem seriam ${situacao.calculada}` : undefined}
                       >
-                        {situacao.situacao === "calculado" ? "Calculado" : "Ajustado"}
+                        {situacao.situacao === "calculado" ? "Calculado" : `Ajustado · calc.: ${Number(situacao.calculada).toLocaleString("pt-BR")}`}
                       </span>
                     )}
                   </td>
@@ -463,19 +463,10 @@ export async function EditorCustosProjeto({
               <>
                 {rubrica === "VD" && (
                   <div className="rounded-md border border-border p-3">
-                    <div className="flex items-center gap-1">
-                      <h4 className="text-sm font-semibold">Entradas de viagem</h4>
-                      <HelpTip title="Entradas de viagem">
-                        <p>Ao salvar, as quantidades de alimentação, hospedagem, combustível, pedágio, passagem, aluguel de veículo e seguro são <b>recalculadas</b> e substituem ajustes manuais dessas linhas. Os <b>dias extras</b> somam aos dias de campo e às diárias.</p>
-                        <HelpExample>2 pessoas e 3 dias de campo → alimentação com quantidade 6.</HelpExample>
-                        <HelpLegend
-                          items={[
-                            { tom: "ok", rotulo: "Calculado", texto: "quantidade igual à das entradas de viagem." },
-                            { tom: "atencao", rotulo: "Ajustado", texto: "quantidade alterada à mão; passe o mouse para ver a calculada." },
-                          ]}
-                        />
-                      </HelpTip>
-                    </div>
+                    <h4 className="text-sm font-semibold">Entradas de viagem</h4>
+                    <p className="mt-1 rounded-md bg-warning-soft px-2 py-1 text-xs text-warning-strong">
+                      Salvar recalcula as quantidades (alimentação, hospedagem, combustível, pedágio, passagem, aluguel de veículo e seguro) e substitui ajustes manuais. Dias extras somam aos dias de campo e às diárias.
+                    </p>
                     <FormAcao action={salvarViagensProjeto} sucesso="Entradas de viagem salvas e quantidades recalculadas." aria-label="Entradas de viagem" className="mt-3">
                       {campos}
                       <fieldset disabled={!editavel} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">

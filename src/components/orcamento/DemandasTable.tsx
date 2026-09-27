@@ -26,7 +26,7 @@ export type DemandaRow = {
 const columns: ColumnDef<DemandaRow, unknown>[] = [
   {
     accessorKey: "titulo",
-    header: "Demanda",
+    header: "Orçamento",
     cell: ({ row }) => (
       <div>
         <Link href={`/orcamento/demandas/${row.original.id}`} className="font-medium text-primary hover:underline">
@@ -73,8 +73,8 @@ export function DemandasTable({ rows }: { rows: DemandaRow[] }) {
     <DataTable
       data={rows}
       columns={columns}
-      searchPlaceholder="Buscar demanda, cliente ou projeto..."
-      emptyText="Nenhuma demanda registrada."
+      searchPlaceholder="Buscar orçamento, cliente ou projeto…"
+      emptyText="Nenhum orçamento ainda."
       filters={[
         {
           columnId: "statusLabel",

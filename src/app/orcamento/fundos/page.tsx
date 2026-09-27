@@ -83,11 +83,19 @@ export default async function FundosPage() {
   const { data: versoesData, error } = await db
     .from("orcamento_final_versoes")
     .select("id, demanda_id, versao, numero, status, total_final, valido_ate, criado_em, snapshot")
-    .eq("status", "aprovado")
+    .in("status", ["aprovado", "convertido_projeto"])
     .order("criado_em", { ascending: false });
   if (error) throw new Error(error.message);
 
-  const versoes = (versoesData ?? []) as VersaoFinalRow[];
+  // ORC2-6: só a proposta aprovada vigente de cada orçamento (a mesma regra da
+  // view v_proposta_aprovada_vigente). Versões antigas aprovadas antes da 0126
+  // não somam de novo.
+  const vigentePorDemanda = new Map<number, VersaoFinalRow>();
+  for (const versao of (versoesData ?? []) as VersaoFinalRow[]) {
+    const atual = vigentePorDemanda.get(versao.demanda_id);
+    if (!atual || Number(versao.versao) > Number(atual.versao)) vigentePorDemanda.set(versao.demanda_id, versao);
+  }
+  const versoes = [...vigentePorDemanda.values()].sort((a, b) => String(b.criado_em).localeCompare(String(a.criado_em)));
   const versaoIds = versoes.map((versao) => versao.id);
   const demandaIds = [...new Set(versoes.map((versao) => versao.demanda_id).filter(Boolean))];
 
@@ -263,7 +271,7 @@ export default async function FundosPage() {
                       <Link href={`/orcamento/final/${linha.versao.id}`} className="font-semibold text-primary hover:underline">
                         {linha.versao.numero}
                       </Link>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{linha.demanda?.titulo ?? `Demanda #${linha.versao.demanda_id}`}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{linha.demanda?.titulo ?? `Orçamento #${linha.versao.demanda_id}`}</p>
                       <p className="text-xs text-muted-foreground">
                         {linha.demanda?.cliente_nome ?? "Cliente sem nome"} · {rotuloStatus(linha.versao.status)} · validade {formatDate(linha.versao.valido_ate)}
                       </p>

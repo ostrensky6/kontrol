@@ -3,7 +3,9 @@
 import ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getCadastrosOrdenados, type CadastroConfig } from "@/lib/cadastros/config";
+import { getCadastrosParaImportacao, type CadastroConfig } from "@/lib/cadastros/config";
+import { mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
+import { criariaCicloLocal } from "@/lib/cadastros/locais";
 import {
   QUANTIDADE_INSUMO_KEY,
   QUANTIDADE_INSUMO_LABEL,
@@ -27,10 +29,8 @@ import { podeVerSalario } from "@/lib/auth/permissao-efetiva";
 import { dadosCriacaoInsumo } from "@/lib/cadastros/insumo-rpc";
 import { createClientUntyped } from "@/lib/supabase/server";
 
-export type FormState = {
-  ok: boolean;
-  message?: string;
-  errors?: Record<string, string>;
+/** Retorno padrão (EstadoAcao, src/lib/erros.ts) + id do registro criado. */
+export type FormState = EstadoAcao & {
   createdId?: number;
 };
 
@@ -112,12 +112,23 @@ function addYears(dateText: unknown, years: unknown): string | null {
   return addDays(dateText, n * 365.2425);
 }
 
+const boolForm = z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean());
+
+/** Quantidade na embalagem: obrigatória e maior que 0 (a contagem em frascos depende dela). */
+const quantidadeEmbalagemSchema = z.preprocess(
+  (v) => (v === "" || v == null ? undefined : Number(v)),
+  z
+    .number({ error: "Obrigatório" })
+    .refine((n) => Number.isFinite(n) && n > 0, "Informe quanto vem em 1 embalagem (maior que 0)"),
+);
+
 const tecnicosSchema = z.object({
   nome: reqStr,
   processo: optStr,
   valor_mes: reqNum({ min: 0 }),
   horas_mes_base: reqNum({ min: 1 }),
   percentual_dedicado: reqNum({ min: 0, max: 100 }),
+  ativo: boolForm,
 });
 /** Sem permissão (ou valor "XXX"): o salário não é validado nem gravado. */
 const tecnicosSemSalarioSchema = tecnicosSchema.omit({ valor_mes: true });
@@ -144,6 +155,14 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
     data_inicio: optDate,
     data_fim: optDate,
     descricao: optStr,
+  }).superRefine((d, ctx) => {
+    if (d.data_inicio && d.data_fim && String(d.data_fim) < String(d.data_inicio)) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["data_fim"],
+        message: "A data de término não pode ser anterior à de início",
+      });
+    }
   }),
   equipamentos: z.object({
     nome: reqStr,
@@ -157,7 +176,10 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
     possui: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
   }).transform((d) => ({
     ...d,
-    data_validade: addYears(d.data_aquisicao, d.vida_util_anos) ?? d.data_validade,
+    // Calculada (campo só leitura no formulário). Sem aquisição e vida útil,
+    // mantém o que veio (planilha) ou, na edição, o valor gravado (undefined
+    // não é enviado ao banco).
+    data_validade: addYears(d.data_aquisicao, d.vida_util_anos) ?? d.data_validade ?? undefined,
   })),
   insumos: z
     .object({
@@ -168,8 +190,8 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
       codigo_fabricante: optStr,
       codigo_interno: optStr,
       custo_total_embalagem: reqNum({ min: 0 }),
-      quantidade_embalagem: reqNum({ min: 0.000001 }),
-      unidade: optStr,
+      quantidade_embalagem: quantidadeEmbalagemSchema,
+      unidade: reqStr,
       unidade_consumo: optStr,
       fator_conversao: reqNum({ min: 0.000001 }),
       data_aquisicao: optDate,
@@ -299,17 +321,23 @@ function schemaEObjeto(
   };
 }
 
-/** Mensagem legível para recusas do banco (RLS, vínculo, duplicidade). */
-function mensagemErroBanco(error: { code?: string | null; message: string }) {
-  if (error.code === "42501" || /row-level security|permission denied/i.test(error.message)) {
-    return "Seu perfil não tem permissão para alterar este cadastro.";
-  }
-  if (error.code === "23505") return "Já existe um registro com esses dados.";
-  return error.message;
+/**
+ * Recusa do banco em texto para o usuário (mensagemDoBanco). Os gatilhos de
+ * exclusão (0120, 0129) já explicam em português por que o registro não pode
+ * sair (código 23503): essa explicação é mantida.
+ */
+function mensagemRecusa(error: { code?: string | null; message?: string | null }, emUso?: string) {
+  const texto = (error.message ?? "").trim();
+  if (error.code === "23503" && texto && !/violates|foreign key|constraint/i.test(texto)) return texto;
+  if (error.code === "23503" && emUso) return emUso;
+  return mensagemDoBanco(error);
 }
 
 const NADA_ALTERADO =
   "Nada foi alterado: o registro não existe mais ou seu perfil não tem permissão para alterá-lo.";
+
+const EM_USO =
+  "Não é possível excluir: o registro está em uso (ex.: em uma análise, lote ou pedido). Se não for mais usado, desative-o.";
 
 function errosZod(error: z.ZodError) {
   const errors: Record<string, string> = {};
@@ -318,6 +346,71 @@ function errosZod(error: z.ZodError) {
     if (path && !errors[path]) errors[path] = issue.message;
   }
   return errors;
+}
+
+/**
+ * Colunas calculadas no servidor que acompanham a edição de outros campos.
+ * Recebe os campos enviados pelo formulário e diz se a coluna deve ser gravada.
+ */
+const DERIVADOS: Record<string, Record<string, (enviados: Set<string>) => boolean>> = {
+  insumos: {
+    custo_unitario: (e) => e.has("custo_total_embalagem") || e.has("quantidade_embalagem"),
+    data_validade: (e) =>
+      ["data_validade", "data_fabricacao", "data_aquisicao", "validade_dias"].some((c) => e.has(c)),
+  },
+  equipamentos: {
+    data_validade: (e) => e.has("data_aquisicao") || e.has("vida_util_anos"),
+  },
+};
+
+/**
+ * Edição: grava só as colunas que o formulário enviou (e as derivadas delas).
+ * Campo fora do formulário (oculto, só leitura, dado de lote ou sem
+ * permissão) preserva o valor gravado em vez de virar NULL; ex.: a
+ * hierarquia dos locais (CAD-6).
+ */
+function payloadEdicao(
+  slug: string,
+  dados: Record<string, unknown>,
+  enviados: Set<string>,
+): Record<string, unknown> {
+  const derivados = DERIVADOS[slug] ?? {};
+  const payload: Record<string, unknown> = {};
+  for (const [chave, valor] of Object.entries(dados)) {
+    if (valor === undefined) continue;
+    if (enviados.has(chave) || derivados[chave]?.(enviados)) payload[chave] = valor;
+  }
+  return payload;
+}
+
+function semIndefinidos(dados: Record<string, unknown>) {
+  return Object.fromEntries(Object.entries(dados).filter(([, valor]) => valor !== undefined));
+}
+
+const AVISO_SEM_CUSTO =
+  " Atenção: com valor da embalagem R$ 0, o insumo entra sem custo nas análises.";
+
+function avisoSemCusto(slug: string, dados: Record<string, unknown>) {
+  return slug === "insumos" && "custo_total_embalagem" in dados && Number(dados.custo_total_embalagem) === 0
+    ? AVISO_SEM_CUSTO
+    : "";
+}
+
+/** Local não pode ficar dentro de si mesmo nem de um local que está dentro dele. */
+async function conferirHierarquiaLocal(
+  supabase: Awaited<ReturnType<typeof createClientUntyped>>,
+  id: number | null,
+  parentId: unknown,
+): Promise<string | null> {
+  if (parentId == null || parentId === "") return null;
+  const pai = Number(parentId);
+  if (id != null && pai === id) return "Um local não pode ficar dentro de si mesmo";
+  if (id == null) return null;
+  const { data, error } = await supabase.from("locais").select("id, parent_id");
+  if (error) return null; // o banco continua sendo a última palavra
+  return criariaCicloLocal((data ?? []) as { id: number; parent_id: number | null }[], id, pai)
+    ? "Este local já contém o local escolhido; escolha outro"
+    : null;
 }
 
 export async function salvarRegistro(
@@ -344,21 +437,30 @@ export async function salvarRegistro(
   }
 
   const supabase = await createClientUntyped();
-  const payload = parsed.data;
+
+  if (slug === "locais") {
+    const erroHierarquia = await conferirHierarquiaLocal(supabase, id, parsed.data.parent_id);
+    if (erroHierarquia) {
+      return { ok: false, message: "Verifique os campos destacados.", errors: { parent_id: erroHierarquia } };
+    }
+  }
 
   if (id) {
+    const payload = payloadEdicao(slug, parsed.data, new Set(Object.keys(obj)));
     // o RLS recusa sem erro (0 linhas): sem esta conferência a tela diria "Atualizado."
     const { data, error } = await supabase.from(tabela).update(payload).eq("id", id).select("id");
-    if (error) return { ok: false, message: mensagemErroBanco(error) };
+    if (error) return { ok: false, message: mensagemRecusa(error) };
     if (!data?.length) return { ok: false, message: NADA_ALTERADO };
 
     revalidarDependentes(slug);
-    return { ok: true, message: "Atualizado." };
+    return { ok: true, message: `Atualizado.${avisoSemCusto(slug, payload)}` };
   }
+
+  const payload = semIndefinidos(parsed.data);
 
   // Insumos: a quantidade (embalagens fechadas) é informada no próprio
   // cadastro e entra direto (sem quarentena), atômico com a criação do
-  // insumo — ver public.criar_insumo_com_quantidade.
+  // insumo; ver public.criar_insumo_com_quantidade.
   if (slug === "insumos") {
     const quantidadeParsed = quantidadeInsumoSchema.safeParse(formData.get("quantidade"));
     if (!quantidadeParsed.success) {
@@ -377,7 +479,7 @@ export async function salvarRegistro(
       p_quantidade_embalagens: quantidadeParsed.data,
       p_operacao_id: operacaoId,
     });
-    if (error) return { ok: false, message: mensagemErroBanco(error) };
+    if (error) return { ok: false, message: mensagemRecusa(error) };
 
     const createdId = (data as { insumo_id?: number } | null)?.insumo_id;
     if (typeof createdId !== "number" || !Number.isSafeInteger(createdId) || createdId <= 0) {
@@ -388,11 +490,11 @@ export async function salvarRegistro(
     }
 
     revalidarDependentes(slug);
-    return { ok: true, message: "Criado.", createdId };
+    return { ok: true, message: `Criado.${avisoSemCusto(slug, payload)}`, createdId };
   }
 
   const { data, error } = await supabase.from(tabela).insert(payload).select("id").single();
-  if (error) return { ok: false, message: mensagemErroBanco(error) };
+  if (error) return { ok: false, message: mensagemRecusa(error) };
 
   const createdId = data?.id;
   if (typeof createdId !== "number" || !Number.isSafeInteger(createdId) || createdId <= 0) {
@@ -418,13 +520,7 @@ export async function excluirRegistro(
   const supabase = await createClientUntyped();
   const { data, error } = await supabase.from(tabela).delete().eq("id", id).select("id");
 
-  if (error) {
-    const msg =
-      error.code === "23503"
-        ? "Não é possível excluir: o registro está em uso (ex.: em uma análise, lote ou pedido)."
-        : mensagemErroBanco(error);
-    return { ok: false, message: msg };
-  }
+  if (error) return { ok: false, message: mensagemRecusa(error, EM_USO) };
   if (!data?.length) return { ok: false, message: NADA_ALTERADO };
 
   revalidarDependentes(slug);
@@ -497,7 +593,7 @@ async function importarCadastro(
     podeVerSalario: podeVerSalarioTecnicos,
   });
   if (selectError) {
-    resumo.erros.push(selectError.message);
+    resumo.erros.push(mensagemDoBanco(selectError, `Não foi possível ler ${cfg.titulo.toLowerCase()} para comparar.`));
     return resumo;
   }
 
@@ -580,7 +676,7 @@ async function importarCadastro(
       }
       const { error } = await supabase.from(tabela).update(payload).eq("id", alvoId);
       if (error) {
-        falhar([`Linha ${linha.excelRow}: ${error.message}`]);
+        falhar([`Linha ${linha.excelRow}: ${mensagemRecusa(error)}`]);
         continue;
       }
       resumo.atualizados += 1;
@@ -619,7 +715,7 @@ async function importarCadastro(
         p_operacao_id: operacaoIdDeterministico(arquivoHash, cfg.slug, linha.excelRow),
       });
       if (error) {
-        falhar([`Linha ${linha.excelRow}: ${error.message}`]);
+        falhar([`Linha ${linha.excelRow}: ${mensagemRecusa(error)}`]);
         continue;
       }
       if (naturalKey) naturaisImportados.add(naturalKey);
@@ -637,7 +733,7 @@ async function importarCadastro(
 
     const { error } = await supabase.from(tabela).insert(parsed.data);
     if (error) {
-      falhar([`Linha ${linha.excelRow}: ${error.message}`]);
+      falhar([`Linha ${linha.excelRow}: ${mensagemRecusa(error)}`]);
       continue;
     }
     if (naturalKey) naturaisImportados.add(naturalKey);
@@ -670,7 +766,7 @@ export async function importarCadastrosWorkbook(
     const arquivoHash = hashConteudo(conteudo);
 
     const resumo: ImportCadastroResumo[] = [];
-    for (const cfg of getCadastrosOrdenados()) {
+    for (const cfg of getCadastrosParaImportacao()) {
       const sheet = localizarAba(workbook, cfg);
       if (!sheet) continue;
       resumo.push(await importarCadastro(cfg, sheet, arquivoHash));
@@ -700,9 +796,10 @@ export async function importarCadastrosWorkbook(
       resumo,
     };
   } catch (error) {
+    console.error("importarCadastrosWorkbook", error);
     return {
       ok: false,
-      message: error instanceof Error ? error.message : "Não foi possível ler a planilha.",
+      message: "Não foi possível ler a planilha. Confira se é um arquivo .xlsx (Excel) e tente de novo.",
     };
   }
 }

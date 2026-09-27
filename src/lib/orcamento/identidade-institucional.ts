@@ -78,3 +78,17 @@ export function resolverIdentidadeComAviso(valor?: string | null): {
     aviso: "Instituição emissora não informada no orçamento; usada GIA / UFPR. Corrija o campo Instituição (GIA / UFPR ou ATGC).",
   };
 }
+
+/** Opções aceitas no campo "Instituição emissora" (lista em vez de texto livre). */
+export const OPCOES_INSTITUICAO = [
+  { valor: "GIA / UFPR", rotulo: "GIA / UFPR" },
+  { valor: "ATGC", rotulo: "ATGC Genética Ambiental" },
+] as const;
+
+/** Valor da lista que corresponde ao texto gravado (registros antigos em texto livre). */
+export function opcaoInstituicao(valor?: string | null): string {
+  const identidade = resolverIdentidadeInstitucional(valor);
+  if (identidade?.id === "GIA") return "GIA / UFPR";
+  if (identidade?.id === "ATGC") return "ATGC";
+  return "";
+}

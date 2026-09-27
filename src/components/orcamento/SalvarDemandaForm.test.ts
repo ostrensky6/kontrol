@@ -35,7 +35,7 @@ describe("SalvarDemandaForm", () => {
       "quantidade_amostras_estimada",
       "prazo_tecnico_dias",
       "modalidade",
-      "status",
+      // UI-6: status sai do formulário; a RPC preserva o atual.
       "prioridade",
       "descricao",
       "escopo_preliminar",
@@ -61,7 +61,7 @@ describe("SalvarDemandaForm", () => {
     expect(component).toContain("action={formAction}");
     expect(component).toContain("aria-busy={pending}");
     expect(component).toMatch(/<button[\s\S]*type="submit"[\s\S]*disabled=\{pending\}/);
-    expect(component).toContain('{pending ? "Salvando..." : "Salvar demanda"}');
+    expect(component).toContain('{pending ? "Salvando…" : "Salvar orçamento"}');
     expect(component).not.toContain("redirect(");
   });
 });

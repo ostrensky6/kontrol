@@ -3,8 +3,9 @@ import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { DownloadButton } from "@/components/common/DownloadButton";
-import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
-import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
+import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { CancelarComMotivo } from "@/components/orcamento/CancelarComMotivo";
+import { ClassificarVersao } from "@/components/orcamento/ClassificarVersao";
 import {
   atualizarOrcamentosFinaisVencidos,
   cancelarVersaoFinal,
@@ -17,6 +18,7 @@ import type { Json } from "@/lib/supabase/database.types";
 import { rotuloModalidade } from "@/lib/orcamento/orcamento-economico";
 import { hojeCalendario, rotuloStatusVersaoFinal, statusEfetivoVersaoFinal } from "@/lib/orcamento/rotulos-status";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
+import { STATUS_APROVADOS, classificacoesPermitidas } from "@/lib/orcamento/transicoes-versao";
 
 export const dynamic = "force-dynamic";
 
@@ -124,12 +126,6 @@ const atalhosStatus = [
   ["convertido_projeto", "Convertidos em projeto"],
 ] as const;
 
-const classificacaoOptions = [
-  ["enviado", "Enviado"],
-  ["alterado_reenviado", "Alterado e reenviado"],
-  ["aprovado", "Aprovado"],
-  ["recusado", "Recusado"],
-] as const;
 
 export default async function HistoricoOrcamentosPage({
   searchParams,
@@ -175,10 +171,15 @@ export default async function HistoricoOrcamentosPage({
   const cancelados = versoes.filter((item) => item.status === "cancelado").length;
   const totalHistorico = versoes.reduce((total, item) => total + Number(item.total_final ?? 0), 0);
   const operacoesDuplicacao = new Map(versoes.map((item) => [item.id, randomUUID()]));
-  const [podeDuplicar, podeCancelar] = await Promise.all([
+  const [podeDuplicar, podeCancelar, podeClassificar] = await Promise.all([
     podeOrcamento("duplicar_final"),
     podeOrcamento("cancelar_documento"),
+    podeOrcamento("classificar_final"),
   ]);
+  // Uma versão viva por proposta: com versão aprovada, nenhuma outra é aprovada nem duplicada.
+  const propostasAprovadas = new Set(
+    lidas.filter((v) => (STATUS_APROVADOS as readonly string[]).includes(v.status)).map((v) => v.demanda_id),
+  );
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -202,7 +203,7 @@ export default async function HistoricoOrcamentosPage({
               Exportar CSV
             </DownloadButton>
             <Link href="/orcamento/demandas/nova" className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500">
-              + Novo Orçamento
+              + Novo orçamento
             </Link>
           </div>
         </div>
@@ -328,13 +329,7 @@ export default async function HistoricoOrcamentosPage({
                 <th className="px-3 py-3 text-right">Fundos/equip.</th>
                 <th className="px-3 py-3 text-right">Preço final</th>
                 <th className="px-3 py-3 text-right">
-                  <span className="inline-flex items-center gap-1">
-                    Delta
-                    <HelpTip title="Delta" align="end">
-                      <p>Diferença do preço final em relação à <b>versão anterior</b> da mesma proposta, em R$ e em %.</p>
-                      <HelpExample>v1 de R$ 10.000 e v2 de R$ 11.000 → +R$ 1.000 (+10%).</HelpExample>
-                    </HelpTip>
-                  </span>
+                  Variação vs. versão anterior
                 </th>
                 <th className="px-3 py-3 text-right">Ações</th>
               </tr>
@@ -353,7 +348,7 @@ export default async function HistoricoOrcamentosPage({
                     </td>
                     <td className="px-3 py-3">
                       <Link href={`/orcamento/demandas/${item.demanda_id}`} className="font-medium hover:underline">
-                        {snapshot.demanda?.titulo ?? item.demandas_propostas?.titulo ?? `Demanda ${item.demanda_id}`}
+                        {snapshot.demanda?.titulo ?? item.demandas_propostas?.titulo ?? `Orçamento ${item.demanda_id}`}
                       </Link>
                     </td>
                     <td className="px-3 py-3">{snapshot.demanda?.cliente_nome ?? item.demandas_propostas?.cliente_nome ?? "Cliente não informado"}</td>
@@ -372,8 +367,18 @@ export default async function HistoricoOrcamentosPage({
                       <Status status={item.status} />
                       {item.cancelado_motivo && <p className="mt-1 max-w-40 text-xs text-muted-foreground">{item.cancelado_motivo}</p>}
                       {item.classificacao_motivo && <p className="mt-1 max-w-48 text-xs text-muted-foreground">{item.classificacao_motivo}</p>}
-                      {!["cancelado", "substituido", "vencido"].includes(item.status) && (
-                        <ClassificacaoForm versaoId={item.id} statusAtual={item.status} />
+                      {podeClassificar && (
+                        <ClassificarVersao
+                          versaoId={item.id}
+                          numero={item.numero}
+                          action={classificarVersaoFinal}
+                          opcoes={classificacoesPermitidas({
+                            status: item.status,
+                            valido_ate: item.valido_ate,
+                            hoje,
+                            outraAprovada: propostasAprovadas.has(item.demanda_id) && !(STATUS_APROVADOS as readonly string[]).includes(item.status),
+                          })}
+                        />
                       )}
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.custoAnalises)}</td>
@@ -398,7 +403,7 @@ export default async function HistoricoOrcamentosPage({
                         <Link href={`/orcamento/historico?${new URLSearchParams({ ...limparFiltros(filtros), comparar: String(item.id) }).toString()}`} className="text-xs text-brand-700 hover:underline dark:text-brand-300">
                           Comparar
                         </Link>
-                        {podeDuplicar && (
+                        {podeDuplicar && !propostasAprovadas.has(item.demanda_id) && (
                         <form action={duplicarVersaoFinal}>
                           <input type="hidden" name="versao_id" value={item.id} />
                           <input type="hidden" name="validade_dias" value={item.validade_dias || 30} />
@@ -406,15 +411,16 @@ export default async function HistoricoOrcamentosPage({
                           <button className="text-xs text-brand-700 hover:underline dark:text-brand-300">Duplicar</button>
                         </form>
                         )}
-                        {podeCancelar && !["cancelado", "substituido"].includes(item.status) && (
-                          <ConfirmActionButton
+                        {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(item.status) && (
+                          <CancelarComMotivo
                             action={cancelarVersaoFinal}
-                            fields={{ versao_id: item.id, motivo: "Cancelamento operacional pelo histórico." }}
+                            fields={{ versao_id: item.id }}
                             trigger="Cancelar"
                             titulo="Cancelar versão final"
-                            mensagem={`Cancelar a versão ${item.numero}? O registro continuará no histórico.`}
+                            mensagem={item.status === "aprovado"
+                              ? `Cancelar a versão aprovada ${item.numero}? O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas.`
+                              : `Cancelar a versão ${item.numero}? O registro continuará no histórico.`}
                             confirmLabel="Cancelar versão"
-                            triggerClassName="text-xs text-danger-strong hover:underline"
                           />
                         )}
                       </div>
@@ -581,7 +587,7 @@ function ComparacaoLadoALado({ atual, anterior }: { atual: VersaoComAnterior; an
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Comparação lado a lado</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {atual.numero} contra {anterior ? anterior.numero : "primeira versão da demanda"}.
+            {atual.numero} contra {anterior ? anterior.numero : "primeira versão"}.
           </p>
         </div>
         <Link href="/orcamento/historico" className="text-sm text-muted-foreground hover:underline">Fechar comparação</Link>
@@ -592,7 +598,7 @@ function ComparacaoLadoALado({ atual, anterior }: { atual: VersaoComAnterior; an
           <PainelComparado titulo="Versão anterior" versao={anterior} snapshot={snapAnterior ?? {}} />
         ) : (
           <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground">
-            Esta demanda não tem versão anterior para comparação.
+            Não há versão anterior para comparar.
           </div>
         )}
       </div>
@@ -654,23 +660,6 @@ function Badge({ children }: { children: React.ReactNode }) {
   return <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{children}</span>;
 }
 
-function ClassificacaoForm({ versaoId, statusAtual }: { versaoId: number; statusAtual: string }) {
-  const valorAtual = classificacaoOptions.some(([value]) => value === statusAtual) ? statusAtual : "enviado";
-  return (
-    <form action={classificarVersaoFinal} className="mt-2 grid min-w-44 gap-1">
-      <input type="hidden" name="versao_id" value={versaoId} />
-      <select name="status" defaultValue={valorAtual} className="h-8 rounded-md border border-input bg-card px-2 text-xs">
-        {classificacaoOptions.map(([value, label]) => (
-          <option key={value} value={value}>{label}</option>
-        ))}
-      </select>
-      <input name="motivo" placeholder="Observação opcional" className="h-8 rounded-md border border-input bg-card px-2 text-xs" />
-      <button className="h-8 rounded-md bg-brand-600 px-2 text-xs font-medium text-white hover:bg-brand-500">
-        Classificar
-      </button>
-    </form>
-  );
-}
 
 function Status({ status }: { status: string }) {
   const cls =

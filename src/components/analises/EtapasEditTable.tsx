@@ -41,12 +41,15 @@ export function EtapasEditTable({
   etapas,
   emptyText,
   showAddForm = false,
+  podeEditar = true,
 }: {
   codigo: string;
   titulo: string;
   etapas: EtapaEditRowData[];
   emptyText?: string;
   showAddForm?: boolean;
+  /** sem a permissão "Editar análises": só consulta */
+  podeEditar?: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -70,7 +73,7 @@ export function EtapasEditTable({
                 <th className={th}>Bancada h</th>
                 <th className={th}>Limitação</th>
                 <th className={th}>Opcional</th>
-                <th className={th}>Ações</th>
+                {podeEditar && <th className={th}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -81,6 +84,7 @@ export function EtapasEditTable({
                   etapa={etapa}
                   editing={editingId === etapa.id}
                   onEdit={() => setEditingId(etapa.id)}
+                  podeEditar={podeEditar}
                 />
               ))}
             </tbody>
@@ -90,7 +94,7 @@ export function EtapasEditTable({
         <p className="mt-3 text-sm text-muted-foreground">{emptyText ?? "Nenhuma etapa cadastrada."}</p>
       )}
 
-      {showAddForm && <AdicionarEtapaForm codigo={codigo} />}
+      {showAddForm && podeEditar && <AdicionarEtapaForm codigo={codigo} />}
     </>
   );
 }
@@ -100,11 +104,13 @@ function EtapaRow({
   etapa,
   editing,
   onEdit,
+  podeEditar,
 }: {
   codigo: string;
   etapa: EtapaEditRowData;
   editing: boolean;
   onEdit: () => void;
+  podeEditar: boolean;
 }) {
   const id = formId(etapa.id);
 
@@ -137,6 +143,7 @@ function EtapaRow({
       <td className={`${td} text-center`}>
         <input form={id} type="checkbox" name="atividade_opcional" defaultChecked={Boolean(etapa.atividade_opcional)} disabled={!editing} />
       </td>
+      {podeEditar && (
       <td className={`${td} whitespace-nowrap`}>
         <div className="flex justify-center gap-1">
           {!editing ? (
@@ -166,6 +173,7 @@ function EtapaRow({
           )}
         </div>
       </td>
+      )}
     </tr>
   );
 }

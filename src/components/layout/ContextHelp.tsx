@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { HelpCircle, LifeBuoy } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -180,7 +180,7 @@ export function ContextHelp() {
           className="fixed bottom-4 right-4 z-40 hidden h-10 w-10 rounded-full shadow-lg md:inline-flex print:hidden"
           aria-label="Ajuda contextual"
         >
-          <HelpCircle />
+          <LifeBuoy aria-hidden />
         </Button>
       </DialogTrigger>
       <DialogContent>

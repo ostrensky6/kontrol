@@ -18,6 +18,7 @@ type Percentual = number | string | null | undefined;
 export type ProjetoComTaxas = {
   id: number;
   demanda_id?: number | null;
+  status?: string | null;
   impostos_legacy?: Percentual;
   impostos?: Percentual;
   incubacao?: Percentual;
@@ -45,7 +46,8 @@ export function criarResolvedorDeTaxas(args: {
   const padroes = padroesDeParametrosGlobais(args.parametrosGlobais);
   const projetoReferencia = new Map<number, ProjetoComTaxas>();
   for (const projeto of args.projetos ?? []) {
-    if (projeto.demanda_id == null) continue;
+    // ORC-8: como na emissão, projeto cancelado não fornece as taxas da proposta.
+    if (projeto.demanda_id == null || projeto.status === "cancelado") continue;
     const atual = projetoReferencia.get(projeto.demanda_id);
     if (!atual || projeto.id > atual.id) projetoReferencia.set(projeto.demanda_id, projeto);
   }

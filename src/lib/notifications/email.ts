@@ -1,13 +1,19 @@
+import { caminhoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
+
+type Resultado<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
+
 type SupabaseLike = {
   from: (table: string) => {
     select: (columns: string) => {
       is: (column: string, value: null) => {
         neq: (column: string, value: string) => {
-          order: (
-            column: string,
-            options: { ascending: boolean },
-          ) => {
-            limit: (count: number) => PromiseLike<{ data: NotificationEmailRow[] | null; error: { message: string } | null }>;
+          lt: (column: string, value: number) => {
+            order: (
+              column: string,
+              options: { ascending: boolean },
+            ) => {
+              limit: (count: number) => Resultado<NotificationEmailRow[]>;
+            };
           };
         };
       };
@@ -16,6 +22,7 @@ type SupabaseLike = {
       eq: (column: string, value: number) => PromiseLike<{ error: { message: string } | null }>;
     };
   };
+  rpc: (fn: string, args: Record<string, unknown>) => Resultado<unknown>;
 };
 
 type NotificationEmailRow = {
@@ -36,6 +43,10 @@ type EmailDispatchResult = {
   skippedReason?: string;
 };
 
+/** Depois disso o aviso deixa de ser tentado por e-mail (continua no app). */
+const MAX_TENTATIVAS = 5;
+
+/** Lista fixa só para avisos sem destinatário identificável (opcional). */
 function recipientsFromEnv() {
   return (process.env.NOTIFICATION_EMAIL_TO ?? "")
     .split(",")
@@ -50,11 +61,7 @@ function appBaseUrl() {
 }
 
 function notificationUrl(row: NotificationEmailRow) {
-  const base = appBaseUrl();
-  if (row.entidade_tipo === "pedido_compra" && row.entidade_id) return `${base}/compras/${row.entidade_id}`;
-  if (row.entidade_tipo === "planejamento" && row.entidade_id) return `${base}/planejamento/${row.entidade_id}`;
-  if (row.entidade_tipo === "insumo") return `${base}/cadastros/insumos`;
-  return `${base}/notificacoes`;
+  return `${appBaseUrl()}${caminhoNotificacao(row.entidade_tipo, row.entidade_id) ?? "/notificacoes"}`;
 }
 
 function escapeHtml(value: string) {
@@ -69,7 +76,7 @@ function emailHtml(row: NotificationEmailRow) {
   const url = notificationUrl(row);
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#18181b">
-      <p style="font-size:12px;text-transform:uppercase;color:#71717a;margin:0 0 8px">Kontrol · ${escapeHtml(row.tipo.replace("_", " "))}</p>
+      <p style="font-size:12px;text-transform:uppercase;color:#71717a;margin:0 0 8px">Kontrol · ${escapeHtml(rotuloTipoNotificacao(row.tipo))}</p>
       <h1 style="font-size:18px;margin:0 0 12px">${escapeHtml(row.titulo)}</h1>
       ${row.corpo ? `<p style="font-size:14px;margin:0 0 16px">${escapeHtml(row.corpo)}</p>` : ""}
       <p style="font-size:14px;margin:0 0 16px">
@@ -101,22 +108,34 @@ async function sendWithResend(row: NotificationEmailRow, to: string[]) {
   }
 }
 
+/**
+ * Destinatários do aviso pelo destino gravado (pessoa, permissão ou papel),
+ * calculados no banco (public.destinatarios_notificacao, 0128). Sem ninguém,
+ * cai na lista fixa NOTIFICATION_EMAIL_TO, se houver.
+ */
+async function destinatarios(supabase: SupabaseLike, row: NotificationEmailRow, fallback: string[]) {
+  const { data, error } = await supabase.rpc("destinatarios_notificacao", { p_notificacao_id: row.id });
+  if (error) throw new Error(error.message);
+  const emails = Array.isArray(data)
+    ? data.filter((item): item is string => typeof item === "string" && item.includes("@"))
+    : [];
+  return emails.length > 0 ? emails : fallback;
+}
+
 export async function dispatchPendingNotificationEmails(
   supabase: SupabaseLike,
 ): Promise<EmailDispatchResult> {
-  const to = recipientsFromEnv();
   if (!process.env.RESEND_API_KEY) {
     return { enabled: false, sent: 0, failed: 0, skippedReason: "RESEND_API_KEY ausente" };
   }
-  if (to.length === 0) {
-    return { enabled: false, sent: 0, failed: 0, skippedReason: "NOTIFICATION_EMAIL_TO ausente" };
-  }
+  const fallback = recipientsFromEnv();
 
   const { data, error } = await supabase
     .from("notificacoes")
     .select("id,tipo,titulo,corpo,entidade_tipo,entidade_id,criado_em,email_tentativas")
     .is("email_enviado_em", null)
     .neq("status", "arquivada")
+    .lt("email_tentativas", MAX_TENTATIVAS)
     .order("criado_em", { ascending: true })
     .limit(20);
 
@@ -126,6 +145,8 @@ export async function dispatchPendingNotificationEmails(
   let failed = 0;
   for (const row of data ?? []) {
     try {
+      const to = await destinatarios(supabase, row, fallback);
+      if (to.length === 0) throw new Error("Nenhum destinatário com e-mail para este aviso.");
       await sendWithResend(row, to);
       const { error: updateError } = await supabase
         .from("notificacoes")

@@ -18,6 +18,8 @@ import { PedidoItemCamposAssistidos, type PedidoItemCatalogo } from "@/component
 import { Timeline } from "@/components/common/Timeline";
 import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { statusInfo } from "@/components/app/status";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { listarEventos } from "@/lib/actions/eventos";
@@ -42,6 +44,9 @@ type PedidoInternoItem = {
   volume: string | null;
   quantidade: number;
   unidade: string | null;
+  /** 0123: "embalagem" = quantidade em frascos fechados de conteudo_embalagem. */
+  quantidade_em?: string | null;
+  conteudo_embalagem?: number | null;
   orcamento_previo: number | null;
   fornecedor_sugerido: string | null;
   observacao: string | null;
@@ -77,6 +82,7 @@ type InsumoPedidoRaw = {
   codigo_fabricante?: string | null;
   custo_unitario?: number | null;
   quantidade_embalagem?: number | null;
+  custo_total_embalagem?: number | null;
   tipo_insumos?: { nome: string | null } | { nome: string | null }[] | null;
   fornecedores?: { nome: string | null } | { nome: string | null }[] | null;
 };
@@ -145,8 +151,8 @@ const URGENCIA_LABEL: Record<string, string> = {
 };
 
 const ANEXO_TIPO_LABEL: Record<string, string> = {
-  orcamento_previo: "Orçamento prévio",
-  proposta: "Proposta",
+  orcamento_previo: "Cotação prévia",
+  proposta: "Cotação do fornecedor",
   print: "Print",
   email: "E-mail",
   termo_referencia: "Termo de referência",
@@ -187,8 +193,8 @@ function proximaAcaoDetalhe(status: string) {
     validado: { acao: "Formalizar em compras", responsavel: "Coordenador/Compras" },
     formalizado: { acao: "Registrar análise administrativa", responsavel: "Administrativo" },
     analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
-    aprovado_compra: { acao: "Registrar orçamento", responsavel: "Compras/Admin." },
-    orcamentos: { acao: "Anexar orçamentos", responsavel: "Compras/Admin." },
+    aprovado_compra: { acao: "Registrar cotações", responsavel: "Compras/Admin." },
+    orcamentos: { acao: "Anexar cotações", responsavel: "Compras/Admin." },
     orcamentos_recebidos: { acao: "Enviar para aprovação final", responsavel: "Coordenador" },
     aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
     aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
@@ -220,7 +226,11 @@ function primeiraRelacao<T>(value: T | T[] | null | undefined): T | null {
   return value ?? null;
 }
 
-function montarCatalogoItens(insumos: InsumoPedidoRaw[], historico: PedidoItemHistorico[]): PedidoItemCatalogo[] {
+function montarCatalogoItens(
+  insumos: InsumoPedidoRaw[],
+  historico: PedidoItemHistorico[],
+  insumosLegado: Set<number>,
+): PedidoItemCatalogo[] {
   const unidades = new Map<number, Set<string>>();
   const modelos = new Map<number, Set<string>>();
   const volumes = new Map<number, Set<string>>();
@@ -253,6 +263,15 @@ function montarCatalogoItens(insumos: InsumoPedidoRaw[], historico: PedidoItemHi
     tipoInsumo: primeiraRelacao(insumo.tipo_insumos)?.nome,
     unidade: insumo.unidade,
     custoUnitario: insumo.custo_unitario,
+    // Mesma regra de kontrol_private.modelo_quantidade_insumo (0123): conta em frascos
+    // quando há volume do frasco e unidade, e não restam lotes antigos por volume.
+    emFrascos: !insumosLegado.has(insumo.id) && Number(insumo.quantidade_embalagem) > 0 && Boolean(insumo.unidade?.trim()),
+    conteudoEmbalagem: insumo.quantidade_embalagem ?? null,
+    custoEmbalagem:
+      insumo.custo_total_embalagem ??
+      (insumo.custo_unitario != null && insumo.quantidade_embalagem
+        ? insumo.custo_unitario * insumo.quantidade_embalagem
+        : null),
     unidades: [...(unidades.get(insumo.id) ?? [])],
     modelos: [...(modelos.get(insumo.id) ?? [])],
     volumes: [...(volumes.get(insumo.id) ?? [])],
@@ -319,15 +338,17 @@ export default async function PedidoInternoDetalhe({
     { data: comunicacoes },
     eventos,
     podeGerir,
+    podeCancelar,
+    podeRegistrarRecebimento,
   ] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
-      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, observacao, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
+      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
       .eq("pedido_interno_id", pedidoId)
       .order("id"),
     supabase
       .from("insumos")
-      .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, tipo_insumos(nome), fornecedores(nome)")
+      .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, custo_total_embalagem, tipo_insumos(nome), fornecedores!insumos_fornecedor_id_fkey(nome)")
       .order("especificacao"),
     supabase
       .from("pedidos_internos_itens")
@@ -354,6 +375,8 @@ export default async function PedidoInternoDetalhe({
       .order("criado_em", { ascending: false }),
     listarEventos("pedido_interno", pedidoId),
     pode("pedido.aprovar"),
+    pode("compras.cancelar"),
+    pode("recebimento.registrar"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -382,9 +405,15 @@ export default async function PedidoInternoDetalhe({
   const linhas = ((itens ?? []) as unknown as PedidoInternoItem[]) ?? [];
   const insumoRows = ((insumos ?? []) as unknown as InsumoPedidoRaw[]) ?? [];
   const historicoRows = ((historicoItens ?? []) as unknown as PedidoItemHistorico[]) ?? [];
+  const { data: lotesLegado } = await supabase
+    .from("lotes_estoque")
+    .select("insumo_id")
+    .neq("modelo_quantidade", "EMBALAGEM_FECHADA")
+    .gt("quantidade_atual", 0);
   const catalogoItens = montarCatalogoItens(
     insumoRows,
     historicoRows,
+    new Set(((lotesLegado ?? []) as { insumo_id: number }[]).map((lote) => lote.insumo_id)),
   );
   const fornecedoresPedido = montarFornecedoresPedido(((fornecedores ?? []) as unknown as FornecedorRaw[]) ?? [], insumoRows, historicoRows);
   const aprovacaoRows = ((aprovacoes ?? []) as unknown as PedidoInternoAprovacao[]) ?? [];
@@ -402,10 +431,10 @@ export default async function PedidoInternoDetalhe({
     0,
   );
   const editavel = ["rascunho", "ajuste_solicitante", "ajuste_compras"].includes(pedido.status);
-  const itensTerminal = ["cancelado", "compra_concluida"].includes(pedido.status);
-  // Itens podem ser editados/removidos em rascunho/ajuste (qualquer técnico) ou em qualquer
-  // etapa não terminal por coordenador+.
-  const podeEditarItens = !itensTerminal && (editavel || podeGerir);
+  // Itens mudam em rascunho/ajuste e, antes da formalização, na validação (quem
+  // aprova). Depois de formalizado, o pedido volta para ajuste antes de mudar a
+  // lista (a compra formal acompanha). Mesma regra do servidor.
+  const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado"].includes(pedido.status));
   const inputCls = "rounded-md border border-input bg-card px-3 py-2 text-sm";
 
   // Etapas: verde = superada, amarelo = em andamento, branco = futura.
@@ -596,7 +625,9 @@ export default async function PedidoInternoDetalhe({
                       {[item.modelo, item.volume].filter(Boolean).join(" · ") || "—"}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">
-                      {fmt(item.quantidade)} {item.unidade ?? item.insumos?.unidade ?? ""}
+                      {item.quantidade_em === "embalagem" && item.conteudo_embalagem
+                        ? `${fmt(item.quantidade)} ${Number(item.quantidade) === 1 ? "frasco" : "frascos"} de ${fmt(item.conteudo_embalagem)} ${item.insumos?.unidade ?? ""}`.trim()
+                        : `${fmt(item.quantidade)} ${item.unidade ?? item.insumos?.unidade ?? ""}`}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{brl(item.orcamento_previo)}</td>
                     <td className="px-4 py-2.5 text-muted-foreground">{item.fornecedor_sugerido ?? "—"}</td>
@@ -615,7 +646,7 @@ export default async function PedidoInternoDetalhe({
                           orcamentoPrevio: item.orcamento_previo,
                         }}
                         insumos={catalogoItens}
-                        podeReceber={aguardandoChegada && !compraFormal}
+                        podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
                         recebidoEm={item.recebido_em}
                         recebidoPor={item.recebido_por}
                         recebimentos={(item.pedidos_internos_item_recebimentos ?? [])
@@ -685,13 +716,14 @@ export default async function PedidoInternoDetalhe({
           )}
           {editavel && (
             <div className="mt-3 rounded-lg border border-border bg-card p-3 shadow-sm">
-              <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <div>
+              {/* Em larguras médias (~1024 px com a barra lateral) a lista e as ações não cabem lado a lado: empilham. */}
+              <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+                <div className="min-w-0">
                   <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Conferência do rascunho</h3>
                   <div className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
                     {pendencias.map((item) => (
-                      <div key={item.label} className="flex items-center gap-2 text-xs">
-                        <span className={`h-2.5 w-2.5 rounded-full ${item.ok ? "bg-brand-500" : "bg-warning-strong"}`} />
+                      <div key={item.label} className="flex items-start gap-2 text-xs">
+                        <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${item.ok ? "bg-brand-500" : "bg-warning-strong"}`} />
                         <span className={item.ok ? "text-muted-foreground" : "font-medium text-warning-strong"}>
                           {item.label}
                         </span>
@@ -699,11 +731,13 @@ export default async function PedidoInternoDetalhe({
                     ))}
                   </div>
                 </div>
-                <div className="flex justify-start lg:justify-end">
+                <div className="flex justify-start border-t border-border/70 pt-3 xl:justify-end xl:border-t-0 xl:pt-0">
                   <PedidoInternoAcoes
                     pedidoId={pedidoId}
                     status={pedido.status}
                     podeGerir={podeGerir}
+                    podeCancelar={podeCancelar}
+                    temCompraFormal={Boolean(compraFormal)}
                     podeEnviarValidacao={rascunhoCompleto}
                   />
                 </div>
@@ -752,11 +786,11 @@ export default async function PedidoInternoDetalhe({
                 </p>
               )}
               {!podeGerir && !["rascunho", "ajuste_solicitante", "ajuste_compras"].includes(pedido.status) && (
-                <p className="text-sm text-muted-foreground/80">Esta etapa exige papel coordenador ou superior.</p>
+                <p className="text-sm text-muted-foreground/80">Esta etapa exige a permissão “Aprovar pedidos internos”.</p>
               )}
             </div>
             {pedido.status === "formalizado" && podeGerir && (
-              <form action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
+              <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div className="md:col-span-2">
                   <h3 className="text-sm font-semibold">Análise administrativa</h3>
@@ -764,26 +798,26 @@ export default async function PedidoInternoDetalhe({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
-                  <input name="fonte_recurso" defaultValue={pedido.fonte_recurso ?? ""} className={`${inputCls} mt-1 w-full`} />
+                  <input name="fonte_recurso" required defaultValue={pedido.fonte_recurso ?? ""} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">Rubrica</label>
-                  <input name="rubrica" defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
+                  <input name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
-                  <textarea name="conformidade_admin" defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
+                  <textarea name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-muted-foreground">Observação</label>
                   <input name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                  <SubmitButton pendingLabel="Registrando…" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                     Registrar análise administrativa
-                  </button>
+                  </SubmitButton>
                 </div>
-              </form>
+              </FormComMensagem>
             )}
             {aguardandoChegada && (
               <div className="mt-3 rounded-lg border border-leaf-300 bg-leaf-50 p-3 text-sm text-leaf-800 dark:border-leaf-900 dark:bg-leaf-950/30 dark:text-leaf-300">
@@ -845,7 +879,7 @@ export default async function PedidoInternoDetalhe({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Documentos</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Orçamentos, propostas, termos, ofícios, boletos, notas e comprovantes.</p>
+                <p className="mt-1 text-xs text-muted-foreground">Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
               </div>
               <span className={`rounded-md px-2 py-1 text-xs ${temDocumentoCotacao ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
                 {anexoRows.length} anexo(s)
@@ -880,11 +914,19 @@ export default async function PedidoInternoDetalhe({
                       {anexo.observacao && <p className="mt-1 text-xs text-muted-foreground">{anexo.observacao}</p>}
                     </div>
                     {editavel && (
-                      <form action={removerAnexoPedidoInterno}>
+                      <FormComMensagem action={removerAnexoPedidoInterno} className="text-right">
                         <input type="hidden" name="anexo_id" value={anexo.id} />
                         <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                        <button className="text-xs text-danger-strong hover:underline">Remover</button>
-                      </form>
+                        <ConfirmSubmitButton
+                          className="text-xs text-danger-strong hover:underline"
+                          titulo="Remover o documento?"
+                          mensagem={`"${anexo.titulo}" sai da lista de documentos deste pedido e o arquivo é apagado.`}
+                          confirmLabel="Remover"
+                          destrutivo
+                        >
+                          Remover
+                        </ConfirmSubmitButton>
+                      </FormComMensagem>
                     )}
                   </div>
                 </div>
@@ -894,13 +936,13 @@ export default async function PedidoInternoDetalhe({
 
             <details className="mt-3 border-t border-border/70 pt-3">
               <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">Registrar documento</summary>
-              <form action={adicionarAnexoPedidoInterno} encType="multipart/form-data" className="mt-3 grid gap-3 md:grid-cols-2">
+              <FormComMensagem action={adicionarAnexoPedidoInterno} encType="multipart/form-data" className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
                   <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</label>
                   <select name="tipo" defaultValue="orcamento_previo" className={`${inputCls} mt-1 w-full`}>
-                    <option value="orcamento_previo">Orçamento prévio</option>
-                    <option value="proposta">Proposta</option>
+                    <option value="orcamento_previo">Cotação prévia</option>
+                    <option value="proposta">Cotação do fornecedor</option>
                     <option value="print">Print</option>
                     <option value="email">E-mail</option>
                     <option value="termo_referencia">Termo de referência</option>
@@ -929,11 +971,11 @@ export default async function PedidoInternoDetalhe({
                   <input name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <button className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                  <SubmitButton pendingLabel="Enviando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                     Registrar documento
-                  </button>
+                  </SubmitButton>
                 </div>
-              </form>
+              </FormComMensagem>
             </details>
           </div>
 
@@ -957,7 +999,7 @@ export default async function PedidoInternoDetalhe({
 
             <details className="mt-3 border-t border-border/70 pt-3">
               <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">Registrar comunicação</summary>
-              <form action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
+              <FormComMensagem action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
                   <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</label>
@@ -990,11 +1032,11 @@ export default async function PedidoInternoDetalhe({
                   <input name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <button className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                  <SubmitButton pendingLabel="Registrando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                     Registrar comunicação
-                  </button>
+                  </SubmitButton>
                 </div>
-              </form>
+              </FormComMensagem>
             </details>
           </div>
         </section>

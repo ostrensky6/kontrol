@@ -10,6 +10,8 @@ import {
 } from "@/lib/actions/compras";
 import type { FormState } from "@/lib/actions/cadastros";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 type Confirmacao = { titulo: string; mensagem: string; confirmLabel: string };
@@ -20,30 +22,49 @@ function Botao({
   label,
   cls,
   confirmacao,
+  motivo,
 }: {
   pedidoId: number;
   action: Action;
   label: string;
   cls: string;
   confirmacao?: Confirmacao;
+  /** motivo obrigatório (campo dentro do mesmo formulário da confirmação) */
+  motivo?: { rotulo: string; placeholder: string };
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState<FormState, FormData>(action, { ok: false });
+  const [state, formAction] = useActionState<FormState, FormData>(action, { ok: false });
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state, router]);
   return (
     <div className="flex flex-col gap-1">
-      <form action={formAction}>
+      <form action={formAction} {...formularioSemPerda(state)} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="pedido_id" value={pedidoId} />
+        {motivo && (
+          <div>
+            <label htmlFor={`motivo-${label}-${pedidoId}`} className="block text-xs text-muted-foreground">
+              {motivo.rotulo}
+            </label>
+            <textarea
+              id={`motivo-${label}-${pedidoId}`}
+              name="motivo"
+              required
+              minLength={3}
+              rows={1}
+              placeholder={motivo.placeholder}
+              className="w-64 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            />
+          </div>
+        )}
         {confirmacao ? (
           <ConfirmSubmitButton className={cls} destrutivo {...confirmacao}>
             {label}
           </ConfirmSubmitButton>
         ) : (
-          <button disabled={pending} className={cls}>
-            {pending ? "…" : label}
-          </button>
+          <SubmitButton pendingLabel="Processando…" className={cls}>
+            {label}
+          </SubmitButton>
         )}
       </form>
       {state.message && (
@@ -68,7 +89,7 @@ function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
   }, [state, router]);
   return (
     <div className="flex flex-col gap-1">
-      <form action={formAction} className="flex flex-wrap items-end gap-2">
+      <form action={formAction} {...formularioSemPerda(state)} className="flex flex-wrap items-end gap-2">
         <input type="hidden" name="pedido_id" value={pedidoId} />
         <div>
           <label htmlFor={`motivo-encerrar-${pedidoId}`} className="block text-xs text-muted-foreground">
@@ -141,12 +162,13 @@ export function PedidoAcoes({
       {temRecebimento ? (
         podeAprovar && <EncerrarComPendencia pedidoId={pedidoId} />
       ) : podeCancelar && (
-        <Botao pedidoId={pedidoId} action={cancelarPedido} label="Cancelar pedido"
+        <Botao pedidoId={pedidoId} action={cancelarPedido} label="Cancelar compra"
           cls="rounded-md border border-input px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+          motivo={{ rotulo: "Motivo do cancelamento", placeholder: "Ex.: fornecedor não atende" }}
           confirmacao={{
-            titulo: `Cancelar o pedido #${pedidoId}?`,
-            mensagem: "O pedido sai do ciclo de compras e não pode ser reaberto. O histórico é preservado.",
-            confirmLabel: "Cancelar pedido",
+            titulo: `Cancelar a compra #${pedidoId}?`,
+            mensagem: "A compra sai do ciclo de compras e não pode ser reaberta. O histórico e o motivo ficam registrados.",
+            confirmLabel: "Cancelar compra",
           }} />
       )}
     </div>

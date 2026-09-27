@@ -178,8 +178,8 @@ function proximaAcaoPedido(status: string) {
     formalizado: { acao: "Análise administrativa", responsavel: "Administrativo" },
     analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
     ajuste_compras: { acao: "Corrigir administrativo", responsavel: "Compras/Admin." },
-    aprovado_compra: { acao: "Registrar orçamentos", responsavel: "Compras/Admin." },
-    orcamentos: { acao: "Anexar orçamentos", responsavel: "Compras/Admin." },
+    aprovado_compra: { acao: "Registrar cotações", responsavel: "Compras/Admin." },
+    orcamentos: { acao: "Anexar cotações", responsavel: "Compras/Admin." },
     orcamentos_recebidos: { acao: "Enviar aprovação final", responsavel: "Coordenador" },
     aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
     aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
@@ -196,7 +196,7 @@ function pendenciasPedido(pedido: PedidoInternoRow) {
   const pendencias: string[] = [];
   if (!pedido.projetos) pendencias.push("sem projeto");
   if (!pedido.pedidos_internos_itens.length) pendencias.push("sem itens");
-  if (["aprovado_compra", "orcamentos"].includes(pedido.status) && !docsCotacao(pedido)) pendencias.push("orçamento pendente");
+  if (["aprovado_compra", "orcamentos"].includes(pedido.status) && !docsCotacao(pedido)) pendencias.push("cotação pendente");
   if (pedido.status === "aprovado_para_compra" && !pedido.modalidade_compra) pendencias.push("modalidade pendente");
   return pendencias;
 }
@@ -444,7 +444,7 @@ export default async function SuprimentosPage() {
             <Kpi label="Planos com falta" value={planosComReservaParcial.length} detail="reservas parciais ou pendências de estoque" href="#planejamentos" tone={planosComReservaParcial.length ? "red" : "green"} />
             <Kpi label="Em execução" value={planosExecucao.length} detail="baixa já iniciada" href="#planejamentos" tone="blue" />
             <Kpi label="Aguardando coordenador" value={aguardandoCoordenador.length} detail="pedidos internos em validação" href="#pedidos" tone={aguardandoCoordenador.length ? "amber" : "green"} />
-            <Kpi label="Orçamento pendente" value={aguardandoOrcamento.length} detail="cotação/documento ainda não registrado" href="#pedidos" tone={aguardandoOrcamento.length ? "amber" : "green"} />
+            <Kpi label="Cotação pendente" value={aguardandoOrcamento.length} detail="cotação/documento ainda não registrado" href="#pedidos" tone={aguardandoOrcamento.length ? "amber" : "green"} />
             <Kpi label="No administrativo" value={noAdministrativo.length} detail="fonte, rubrica, conformidade e cotação" href="#pedidos" tone="blue" />
             <Kpi label="Fundação/Universidade" value={enviadosInstituicao.length} detail="processos enviados ou nessa modalidade" href="#pedidos" tone="blue" />
             <Kpi label="Compra direta" value={compraDireta.length} detail="fornecedor/pagamento/NF em andamento" href="#pedidos" tone="blue" />

@@ -92,7 +92,7 @@ export default async function EstoqueControlePage() {
       status: l.status,
       statusLabel: LOTE_STATUS[l.status] ?? l.status,
       especificacao: l.insumos?.especificacao ?? "—",
-      unidade: l.insumos?.unidade ?? "",
+      unidade: baixa.modeloQuantidade === "EMBALAGEM_FECHADA" ? "frasco(s)" : (l.insumos?.unidade ?? ""),
       vencido: loteVencido(baixa.validade, hoje),
       critico: l.insumos?.categoria_compra === "critico",
     };

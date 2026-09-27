@@ -44,11 +44,11 @@ export const PERMISSOES_ORCAMENTO: PermissaoOrcamento[] = [
   {
     acao: "criar_demanda",
     chave: "orcamentos.criar_editar",
-    titulo: "Criar demanda",
-    descricao: "Abrir uma solicitação comercial ou técnica antes do orçamento formal.",
+    titulo: "Criar orçamento",
+    descricao: "Abrir um orçamento com os dados do cliente, das amostras e das análises.",
     papelMinimo: "tecnico",
     motivoObrigatorio: false,
-    eventoAuditavel: "Auditoria do registro de demanda",
+    eventoAuditavel: "Registro do orçamento",
   },
   {
     acao: "preencher_custos",

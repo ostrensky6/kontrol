@@ -20,6 +20,8 @@ import {
   validarInformacoes,
 } from "@/lib/actions/pedidos-internos";
 import type { FormState } from "@/lib/actions/cadastros";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 
@@ -45,7 +47,7 @@ function Botao({
   children?: React.ReactNode;
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState<FormState, FormData>(action, { ok: false });
+  const [state, formAction] = useActionState<FormState, FormData>(action, { ok: false });
   useEffect(() => {
     if (state.ok) router.refresh();
   }, [state, router]);
@@ -59,20 +61,22 @@ function Botao({
 
   return (
     <div className="flex flex-col gap-1">
-      <form action={formAction} className="flex flex-wrap items-center gap-2">
+      <form action={formAction} {...formularioSemPerda(state)} className="flex flex-wrap items-center gap-2">
         <input type="hidden" name="pedido_interno_id" value={pedidoId} />
         {observacao && <input type="hidden" name="observacao" value={observacao} />}
         {comentarioPlaceholder && (
           <input
             name="observacao"
+            required
+            aria-label={comentarioPlaceholder}
             placeholder={comentarioPlaceholder}
             className="h-8 w-52 rounded-md border border-input bg-card px-2 text-xs"
           />
         )}
         {children}
-        <button disabled={pending || disabled} className={cls} title={disabledReason}>
-          {pending ? "..." : label}
-        </button>
+        <SubmitButton disabled={disabled} pendingLabel="Enviando…" className={cls} title={disabledReason}>
+          {label}
+        </SubmitButton>
       </form>
       {disabled && disabledReason && <p className="max-w-64 text-xs text-muted-foreground">{disabledReason}</p>}
       {state.message && (
@@ -88,11 +92,18 @@ export function PedidoInternoAcoes({
   pedidoId,
   status,
   podeGerir,
+  podeCancelar = false,
+  temCompraFormal = false,
   podeEnviarValidacao = true,
 }: {
   pedidoId: number;
   status: string;
+  /** permissão "Aprovar pedidos internos" */
   podeGerir: boolean;
+  /** mesma chave do servidor: "Cancelar compras" (compras.cancelar) */
+  podeCancelar?: boolean;
+  /** pedido devolvido depois de formalizado: retoma a compra que já existe */
+  temCompraFormal?: boolean;
   podeEnviarValidacao?: boolean;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
@@ -125,7 +136,11 @@ export function PedidoInternoAcoes({
       )}
 
       {status === "validado" && podeGerir && (
-        <Botao pedidoId={pedidoId} action={formalizarPedidoInterno} label="Formalizar em compras" />
+        <Botao
+          pedidoId={pedidoId}
+          action={formalizarPedidoInterno}
+          label={temCompraFormal ? "Retomar compra formal" : "Formalizar em compras"}
+        />
       )}
 
       {status === "analise_administrativa" && podeGerir && (
@@ -142,12 +157,12 @@ export function PedidoInternoAcoes({
       )}
 
       {status === "aprovado_compra" && podeGerir && (
-        <Botao pedidoId={pedidoId} action={registrarLevantamentoOrcamentos} label="Registrar orçamentos" />
+        <Botao pedidoId={pedidoId} action={registrarLevantamentoOrcamentos} label="Registrar cotações" />
       )}
 
       {status === "orcamentos" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={marcarOrcamentosRecebidos} label="Marcar orçamentos recebidos" />
+          <Botao pedidoId={pedidoId} action={marcarOrcamentosRecebidos} label="Marcar cotações recebidas" />
         </>
       )}
 
@@ -195,7 +210,7 @@ export function PedidoInternoAcoes({
         </>
       )}
 
-      {podeGerir && (
+      {podeCancelar && (
         <Botao
           pedidoId={pedidoId}
           action={cancelarPedidoInterno}

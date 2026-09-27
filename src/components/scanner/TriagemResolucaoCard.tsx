@@ -8,6 +8,7 @@ import {
   resolverTriagemComEntidadeExistente,
 } from "@/lib/actions/cadastros-triagem";
 import { Button } from "@/components/ui/button";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Opcao = {
   id: number;
@@ -77,6 +78,7 @@ export function TriagemResolucaoCard({
       <div className="mt-5 grid gap-4 lg:grid-cols-2">
         <form
           action={existenteAction}
+          {...formularioSemPerda(existenteState)}
           className="grid gap-3 rounded-md border border-border p-3"
         >
           <input type="hidden" name="triagem_id" value={triagem.id} />
@@ -129,6 +131,7 @@ export function TriagemResolucaoCard({
 
         <form
           action={insumoAction}
+          {...formularioSemPerda(insumoState)}
           className="grid gap-3 rounded-md border border-border p-3"
         >
           <input type="hidden" name="triagem_id" value={triagem.id} />
@@ -207,7 +210,7 @@ export function TriagemResolucaoCard({
         </form>
       </div>
 
-      <form action={arquivarAction} className="mt-4 flex flex-wrap items-center gap-3">
+      <form action={arquivarAction} {...formularioSemPerda(arquivarState)} className="mt-4 flex flex-wrap items-center gap-3">
         <input type="hidden" name="triagem_id" value={triagem.id} />
         <Button type="submit" variant="outline" disabled={arquivarPending}>
           {arquivarPending ? (

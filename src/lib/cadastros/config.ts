@@ -3,9 +3,10 @@
  * Dados serializáveis — compartilhados entre Server Components (páginas) e
  * Client Components (formulário/drawer). Sem imports de servidor aqui.
  *
- * Cada categoria expõe TODOS os campos da tabela, agrupados por seção; os
- * dados vêm importados da planilha e o usuário ajusta livremente — ao salvar,
- * o app revalida e recalcula tudo que depende (custeio, orçamentos, estoque…).
+ * Cada categoria lista os campos da tabela, agrupados por seção. Campos sem
+ * uso demonstrado ficam fora do formulário (`oculto`), mas continuam na
+ * planilha; ao salvar, o app revalida o que depende (custeio, orçamentos,
+ * estoque…).
  */
 
 export type CampoTipo =
@@ -26,9 +27,29 @@ export type Campo = {
   step?: string;
   min?: number;
   max?: number;
-  opcoes?: { value: string; label: string }[];
+  /**
+   * `inativo`: registro desativado (fornecedor, cliente, tipo técnico). Só
+   * aparece no seletor quando já é o valor atual do registro editado.
+   */
+  opcoes?: { value: string; label: string; inativo?: boolean }[];
   /** preenche as opções dinamicamente no servidor (ex.: lista de fornecedores) */
-  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos";
+  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais";
+  /**
+   * fora do formulário (sem uso demonstrado), mas mantido na planilha de
+   * exportação/importação; a edição pelo formulário não altera o valor gravado.
+   */
+  oculto?: boolean;
+  /** exibido no formulário, mas calculado: não é editável nem enviado */
+  somenteLeitura?: boolean;
+  /**
+   * "estoque_inicial": dado do primeiro lote. Aparece só ao criar o registro,
+   * no bloco "Estoque inicial"; na edição, lotes são mantidos em Estoque.
+   */
+  bloco?: "estoque_inicial";
+  /** rótulos de versões anteriores, aceitos no cabeçalho da planilha importada */
+  rotulosAntigos?: string[];
+  /** texto curto sempre visível sob o campo (consequência que não pode ficar escondida no "?") */
+  aviso?: string;
   /** explicação curta exibida no "?" ao lado do rótulo */
   ajuda?: string;
   /** exemplo curto exibido junto da ajuda */
@@ -138,7 +159,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       },
 
       { name: "data_inicio", label: "Data de início", tipo: "date", grupo: "Prazos" },
-      { name: "data_fim", label: "Data de término", tipo: "date" },
+      { name: "data_fim", label: "Data de término", tipo: "date", ajuda: "Não pode ser anterior à data de início." },
 
       { name: "descricao", label: "Descrição / escopo", tipo: "textarea", colSpan: 2, grupo: "Descrição" },
     ],
@@ -173,7 +194,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         name: "data_validade",
         label: "Data de validade / fim da vida útil",
         tipo: "date",
-        ajuda: "Calculada somando a **vida útil** à data de aquisição, quando os dois estiverem preenchidos.",
+        somenteLeitura: true,
+        ajuda: "Calculada somando a **vida útil** à data de aquisição. Para mudar, altere uma das duas.",
       },
 
       {
@@ -211,13 +233,13 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "unidade", label: "Unidade", largura: "xs" },
       { key: "quantidade", label: "Quantidade", tipo: "number", alinhar: "right", largura: "sm", calculada: true },
       { key: "custo_unitario", label: "Custo un.", tipo: "currency", alinhar: "right", largura: "sm", calculada: true },
-      { key: "data_validade", label: "Validade", tipo: "date", largura: "sm" },
+      { key: "validade_lotes", label: "Validade", tipo: "date", largura: "sm", calculada: true },
       { key: "ponto_reposicao", label: "Repos.", tipo: "number", alinhar: "right", largura: "xs" },
     ],
     colunasXlsx: [
       { key: "especificacao", label: "Item específico / SKU" },
       { key: "fabricante", label: "Marca / fabricante" },
-      { key: "unidade", label: "Unidade" },
+      { key: "unidade", label: "Unidade da embalagem" },
       // Só vale para itens novos na importação (estoque inicial); para itens
       // existentes é informativa — entradas e baixas passam pelo Estoque.
       { key: "quantidade", label: "Quantidade (embalagens fechadas)", tipo: "number" },
@@ -236,7 +258,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { name: "especificacao", label: "Item específico / SKU", tipo: "text", obrigatorio: true, colSpan: 2, ajuda: "Nome exato do item comprado (marca e apresentação). É ele que aparece na compra, no estoque e nos **lotes**." },
       { name: "fabricante", label: "Marca / fabricante", tipo: "text", placeholder: "Qiagen, Illumina, KASVI…" },
       { name: "codigo_fabricante", label: "Código do fabricante", tipo: "text", placeholder: "Catálogo / part number" },
-      { name: "codigo_interno", label: "Código interno", tipo: "text", exportar: false },
+      // Sem uso demonstrado (auditoria 26/09 §3): fora do formulário; o valor gravado é preservado.
+      { name: "codigo_interno", label: "Código interno", tipo: "text", oculto: true, exportar: false },
 
       {
         name: "custo_total_embalagem",
@@ -245,17 +268,33 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         obrigatorio: true,
         min: 0,
         grupo: "Embalagem e custo",
-        ajuda: "Preço de uma embalagem fechada. O **custo unitário** é este valor dividido pela quantidade na embalagem.",
+        ajuda: "Preço de uma embalagem fechada. O **custo unitário** é este valor dividido pela quantidade na embalagem. Com R$ 0, o insumo entra **sem custo** nas análises.",
         exemplo: "R$ 500 por frasco de 100 mL → R$ 5,00 por mL.",
       },
-      { name: "quantidade_embalagem", label: "Quantidade na embalagem", tipo: "number", obrigatorio: true, min: 0 },
-      { name: "unidade", label: "Unidade", tipo: "text", placeholder: "uL, reações, un, mL…" },
+      {
+        name: "quantidade_embalagem",
+        label: "Quantidade na embalagem",
+        tipo: "number",
+        obrigatorio: true,
+        min: 0.000001,
+        step: "any",
+        ajuda: "Quanto vem em 1 embalagem fechada, na unidade da embalagem.",
+        exemplo: "Frasco de 500 mL → 500.",
+      },
+      {
+        name: "unidade",
+        label: "Unidade da embalagem",
+        tipo: "text",
+        obrigatorio: true,
+        placeholder: "mL, un, reações…",
+        ajuda: "Unidade em que a embalagem é vendida (mL, un, reações). A de consumo pode ser outra; o fator converte.",
+      },
       {
         name: "unidade_consumo",
         label: "Unidade de consumo",
         tipo: "text",
-        placeholder: "uL, reações, un, mL…",
-        ajuda: "Unidade usada nas **receitas** das análises e no consumo do estoque. Pode ser igual à da embalagem.",
+        placeholder: "µL, reações, un, mL…",
+        ajuda: "Unidade usada nas **receitas** das análises e no consumo do estoque. Se ficar vazia, vale a unidade da embalagem.",
         exemplo: "Embalagem em mL, receita em µL → unidade de consumo: µL.",
       },
       {
@@ -270,9 +309,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         exemplo: "Embalagem em mL e consumo em µL → 1 mL = 1000 µL → fator **1000**.",
       },
 
-      { name: "data_aquisicao", label: "Data da última compra", tipo: "date", grupo: "Compra e fornecedor" },
-      { name: "fornecedor_id", label: "Fornecedor principal", tipo: "select", opcoesDe: "fornecedores" },
-      { name: "fornecedor_alt_id", label: "Fornecedor alternativo", tipo: "select", opcoesDe: "fornecedores" },
+      { name: "fornecedor_id", label: "Fornecedor principal", tipo: "select", opcoesDe: "fornecedores", grupo: "Compra e fornecedor" },
+      { name: "fornecedor_alt_id", label: "Fornecedor alternativo", tipo: "select", opcoesDe: "fornecedores", oculto: true },
       {
         name: "categoria_compra",
         label: "Categoria de compra",
@@ -284,8 +322,22 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         ],
         ajuda: "**Crítico** ganha destaque nas sugestões de compra. Ao aceitar um lote crítico, é preciso informar responsável e critério de aceite.",
       },
-      { name: "quantidade_minima_compra", label: "Quantidade mínima de compra", tipo: "number", min: 0 },
-      { name: "prazo_entrega_max_dias", label: "Prazo de entrega máx. (dias)", tipo: "number", min: 0 },
+      {
+        name: "quantidade_minima_compra",
+        label: "Quantidade mínima de compra",
+        tipo: "number",
+        min: 0,
+        ajuda: "Em embalagens fechadas.",
+        exemplo: "Fornecedor só vende caixas de 5 → 5.",
+      },
+      {
+        name: "prazo_entrega_max_dias",
+        label: "Prazo de entrega máx. (dias)",
+        tipo: "number",
+        min: 0,
+        step: "1",
+        ajuda: "Prazo aceito no contrato. O cálculo da compra usa o **Lead time**.",
+      },
 
       { name: "ponto_reposicao", label: "Ponto de reposição", tipo: "number", min: 0, ajuda: "Quando o **disponível** chega a este número, o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Ponto de reposição 2: com 2 frascos ou menos, o sistema sugere comprar.", grupo: "Estoque e reposição" },
       {
@@ -293,26 +345,11 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Estoque de segurança",
         tipo: "number",
         min: 0,
-        ajuda: "Margem para imprevistos (atraso, consumo maior). Entra no **ponto sugerido** junto com o consumo durante o lead time.",
+        ajuda: "Em embalagens fechadas. Margem para imprevistos (atraso, consumo maior). Entra no **ponto sugerido** junto com o consumo durante o lead time.",
         exemplo: "Consumo de 2/dia, lead time de 10 dias e segurança 5 → ponto sugerido 25.",
       },
-      { name: "lead_time_dias", label: "Lead time (dias)", tipo: "number", min: 0, ajuda: "Dias entre fazer o pedido e o insumo chegar. Usado para **antecipar a compra**; se ficar vazio, vale o prazo médio do fornecedor." },
+      { name: "lead_time_dias", label: "Lead time (dias)", tipo: "number", min: 0, step: "1", ajuda: "Dias entre fazer o pedido e o insumo chegar. Usado para **antecipar a compra**; se ficar vazio, vale o prazo médio do fornecedor." },
 
-      { name: "data_fabricacao", label: "Data de fabricação", tipo: "date", grupo: "Validade" },
-      {
-        name: "validade_dias",
-        label: "Validade após fabricação/aquisição (dias)",
-        tipo: "number",
-        min: 0,
-        ajuda: "Se a data de validade ficar vazia, ela é **calculada** somando estes dias à fabricação (ou à última compra).",
-        exemplo: "Fabricado em 01/09/2026 + 180 dias → validade 28/02/2027.",
-      },
-      {
-        name: "data_validade",
-        label: "Data de validade",
-        tipo: "date",
-        ajuda: "Data **impressa na embalagem**. Se ficar vazia, é calculada pela validade em dias.",
-      },
       {
         name: "condicao_armazenamento",
         label: "Condição de armazenamento",
@@ -320,16 +357,41 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         colSpan: 2,
         placeholder: "−20 °C, 2–8 °C, temperatura ambiente…",
         grupo: "Armazenamento",
+        oculto: true,
       },
       {
         name: "validade_apos_abertura_dias",
         label: "Validade após abertura (dias)",
         tipo: "number",
         min: 0,
+        step: "1",
+        grupo: "Armazenamento",
         ajuda: "Prazo de uso depois que a embalagem é aberta. Vale a data que **vencer primeiro**: a do lote ou a da abertura.",
         exemplo: "Aberto em 10/09 com 30 dias → usar até 10/10, mesmo que o lote vença depois.",
       },
-      { name: "sds_url", label: "Ficha de segurança (URL do SDS)", tipo: "text", colSpan: 2 },
+      { name: "sds_url", label: "Ficha de segurança (URL do SDS)", tipo: "text", colSpan: 2, oculto: true },
+
+      // Dados do primeiro lote (auditoria 26/09 §3: validade, fabricação e
+      // aquisição são do lote, não do produto). Só aparecem ao criar o insumo.
+      { name: "data_aquisicao", label: "Data de aquisição", tipo: "date", bloco: "estoque_inicial", rotulosAntigos: ["Data da última compra"] },
+      { name: "data_fabricacao", label: "Data de fabricação", tipo: "date", bloco: "estoque_inicial" },
+      {
+        name: "validade_dias",
+        label: "Validade após fabricação/aquisição (dias)",
+        tipo: "number",
+        min: 0,
+        step: "1",
+        bloco: "estoque_inicial",
+        ajuda: "Se a data de validade ficar vazia, ela é **calculada** somando estes dias à fabricação (ou à aquisição).",
+        exemplo: "Fabricado em 01/09/2026 + 180 dias → validade 28/02/2027.",
+      },
+      {
+        name: "data_validade",
+        label: "Data de validade",
+        tipo: "date",
+        bloco: "estoque_inicial",
+        ajuda: "Data **impressa na embalagem**. Se ficar vazia, é calculada pela validade em dias. Obrigatória para item **crítico** com quantidade.",
+      },
     ],
   },
 
@@ -386,6 +448,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "percentual_dedicado", label: "% dedicado", tipo: "percent", alinhar: "right" },
       { key: "custo_hora", label: "Custo/hora", tipo: "currency", alinhar: "right", calculada: true },
       { key: "valor_hh", label: "Valor HH", tipo: "currency", alinhar: "right", calculada: true },
+      { key: "ativo", label: "Ativo", tipo: "checkbox" },
     ],
     campos: [
       { name: "nome", label: "Nome", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação" },
@@ -397,6 +460,13 @@ export const CADASTROS: Record<string, CadastroConfig> = {
           { value: "Laboratório", label: "Laboratório" },
           { value: "Bioinformática", label: "Bioinformática" },
         ],
+      },
+      {
+        name: "ativo",
+        label: "Ativo",
+        tipo: "checkbox",
+        padraoLigado: true,
+        ajuda: "Desmarque quando o técnico sair da equipe: ele deixa de entrar no **custo da hora de pessoal** das análises, e o histórico fica preservado.",
       },
 
       { name: "valor_mes", label: "Valor mensal (R$)", tipo: "currency", obrigatorio: true, min: 0, grupo: "Custo e dedicação" },
@@ -438,13 +508,13 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { name: "contato", label: "Vendedor / representante", tipo: "text", colSpan: 2, grupo: "Contato" },
       { name: "email", label: "E-mail", tipo: "text" },
       { name: "telefone", label: "Telefone", tipo: "text" },
-      { name: "site", label: "Site", tipo: "text", colSpan: 2 },
+      { name: "site", label: "Site", tipo: "text", colSpan: 2, oculto: true },
 
       { name: "endereco", label: "Endereço", tipo: "text", colSpan: 2, grupo: "Endereço" },
 
-      { name: "catalogo_padrao", label: "Catálogo padrão", tipo: "text", grupo: "Compras e prazos" },
+      { name: "catalogo_padrao", label: "Catálogo padrão", tipo: "text", grupo: "Compras e prazos", oculto: true },
       { name: "prazo_medio_dias", label: "Prazo médio (dias)", tipo: "number", min: 0, ajuda: "Tempo usual entre o pedido e a entrega. Vale como **lead time** dos insumos deste fornecedor que não têm um próprio." },
-      { name: "prazo_max_dias", label: "Prazo máximo (dias)", tipo: "number", min: 0 },
+      { name: "prazo_max_dias", label: "Prazo máximo (dias)", tipo: "number", min: 0, oculto: true },
 
       { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },
     ],
@@ -461,6 +531,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     colunas: [
       { key: "nome", label: "Local" },
       { key: "tipo", label: "Tipo" },
+      { key: "parent_nome", label: "Dentro de" },
       { key: "condicao_armazenamento", label: "Condição" },
     ],
     campos: [
@@ -485,7 +556,14 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         name: "condicao_armazenamento",
         label: "Condição de armazenamento",
         tipo: "text",
-        placeholder: "-20 °C, 2-8 °C, ambiente...",
+        placeholder: "−20 °C, 2–8 °C, ambiente…",
+      },
+      {
+        name: "parent_id",
+        label: "Fica dentro de",
+        tipo: "select",
+        opcoesDe: "locais",
+        ajuda: "Local maior que contém este (ex.: a gaveta fica dentro do armário). Deixe vazio para um local de primeiro nível.",
       },
     ],
   },
@@ -542,6 +620,31 @@ export const ORDEM_CADASTROS = [
   "locais",
   "overhead",
 ] as const;
+
+/**
+ * Ordem da importação por planilha: cada aba vem depois das que ela referencia
+ * (fornecedor e tipo técnico antes de insumo; cliente antes de projeto), para
+ * que registros novos da mesma planilha já existam quando forem citados.
+ */
+export const ORDEM_IMPORTACAO = [
+  "clientes",
+  "fornecedores",
+  "tipo_insumos",
+  "locais",
+  "projetos",
+  "insumos",
+  "equipamentos",
+  "tecnicos",
+  "overhead",
+] as const;
+
+export function getCadastrosParaImportacao(): CadastroConfig[] {
+  const vistos = new Set<string>(ORDEM_IMPORTACAO);
+  return [
+    ...ORDEM_IMPORTACAO.map((slug) => CADASTROS[slug]).filter(Boolean),
+    ...Object.values(CADASTROS).filter((cadastro) => !vistos.has(cadastro.slug)),
+  ];
+}
 
 export function getCadastrosOrdenados(): CadastroConfig[] {
   const slugsOrdenados = new Set<string>(ORDEM_CADASTROS);

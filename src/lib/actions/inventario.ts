@@ -1,5 +1,6 @@
 "use server";
 
+import { mensagemDoBanco } from "@/lib/erros";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { usuarioAtual } from "@/lib/auth/roles";
@@ -13,7 +14,7 @@ import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
-  message: "Sem permissão — requer papel coordenador ou superior.",
+  message: "Seu perfil não tem permissão para esta ação. Peça ao administrador para liberar em Usuários.",
 };
 
 const criarCicloSchema = z.object({
@@ -75,7 +76,7 @@ export async function criarCicloInventario(
     local_id: parsed.data.local_id,
     criado_por: usuario?.email ?? usuario?.id ?? null,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque/inventario");
   return { ok: true, message: "Campanha de inventário criada." };
@@ -144,7 +145,7 @@ export async function registrarContagemInventario(
     justificativa: parsed.data.justificativa,
     contado_por: usuario?.email ?? usuario?.id ?? null,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque/inventario");
   return {
@@ -161,7 +162,7 @@ export async function aplicarAjusteContagemInventario(
 ): Promise<FormState> {
   if (!(await pode("estoque.lote.gerir"))) return {
     ok: false,
-    message: "Sem permissão — requer papel gestor ou superior.",
+    message: "Aplicar ajuste de inventário exige a permissão “Corrigir estoque”.",
   };
 
   const parsed = aplicarAjusteSchema.safeParse({
@@ -175,7 +176,7 @@ export async function aplicarAjusteContagemInventario(
   const { error } = await supabase.rpc("aplicar_ajuste_inventario_contagem" as never, {
     p_contagem_id: parsed.data.contagem_id,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
   revalidatePath("/estoque/inventario");

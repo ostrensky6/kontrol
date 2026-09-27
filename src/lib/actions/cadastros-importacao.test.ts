@@ -245,12 +245,12 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     const instrucoes = workbook.getWorksheet("Instruções")!.getColumn(1).values.join("\n");
     expect(instrucoes).toContain("nenhum registro é excluído");
     expect(instrucoes).toContain("só vale para itens novos");
-    expect(instrucoes).toContain("Insumos: Item específico / SKU, Valor da embalagem (R$), Quantidade na embalagem, Fator de conversão");
+    expect(instrucoes).toContain("Insumos: Item específico / SKU, Valor da embalagem (R$), Quantidade na embalagem, Unidade da embalagem, Fator de conversão");
 
     const aba = workbook.getWorksheet("Insumos")!;
     const cabecalho = (aba.getRow(1).values as unknown[]).slice(1);
     const colunaQuantidade = cabecalho.indexOf("Quantidade (embalagens fechadas)") + 1;
-    expect(cabecalho.indexOf("Unidade") + 2).toBe(colunaQuantidade);
+    expect(cabecalho.indexOf("Unidade da embalagem") + 2).toBe(colunaQuantidade);
     expect(aba.getRow(2).getCell(colunaQuantidade).value).toBe(2);
     expect(String(aba.getRow(1).getCell(colunaQuantidade).note)).toContain("Só para itens novos");
 

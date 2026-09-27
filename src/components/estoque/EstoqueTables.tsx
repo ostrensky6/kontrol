@@ -15,7 +15,12 @@ import { formatNumber as fmt } from "@/lib/formatters";
 export type SaldoRow = {
   insumoId: number;
   especificacao: string;
+  /** unidade do saldo: "frasco(s) de 100 mL" para insumo contado em frascos */
   unidade: string;
+  /** unidade física do cadastro (mL, g…) */
+  unidadeFisica?: string;
+  /** insumo contado em frascos: a entrada avulsa é em frascos inteiros */
+  embalagemFechada?: boolean;
   emMaos: number;
   emQuarentena: number;
   reservado: number;
@@ -46,6 +51,8 @@ export type LoteRow = {
   vencido: boolean;
   critico: boolean;
   estornoDiretoPermitido: boolean;
+  /** quem registrou a chegada não aceita o próprio lote */
+  aceiteBloqueadoMotivo?: string | null;
 };
 
 function SaldoStatusBadge({ status, label }: { status: SaldoRow["status"]; label: string }) {
@@ -111,7 +118,7 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
   },
   {
     accessorKey: "pontoReposicao",
-    header: "Ponto atual",
+    header: "Ponto de reposição",
     sortingFn: numericSort,
     meta: { align: "right" },
     cell: ({ row }) => (row.original.pontoReposicao > 0 ? fmt(row.original.pontoReposicao) : "—"),
@@ -132,7 +139,7 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
   },
   {
     accessorKey: "pontoSugerido",
-    header: "Ponto suger.",
+    header: "Ponto sugerido",
     sortingFn: numericSort,
     meta: { align: "right" },
     cell: ({ row }) => (row.original.pontoSugerido > 0 ? fmt(row.original.pontoSugerido) : "—"),
@@ -165,19 +172,27 @@ function SaldoAcoes({ row, entradaInicialInsumoId }: { row: SaldoRow; entradaIni
         unidade={row.unidade === "—" ? null : row.unidade}
         abertoInicial={row.insumoId === entradaInicialInsumoId}
         embalagemFechada={row.lotesBaixa.some((lote) => lote.modeloQuantidade === "EMBALAGEM_FECHADA")}
+        emFrascos={row.embalagemFechada}
       />
       <DarBaixaDialog
         lotes={row.lotesBaixa}
-        unidade={row.unidade === "—" ? "" : row.unidade}
+        unidade={row.unidadeFisica ?? (row.unidade === "—" ? "" : row.unidade)}
         especificacao={row.especificacao}
       />
     </span>
   );
 }
 
-type PermissoesLote = { podeAceitar: boolean; podeGerir: boolean; podeCorrigir?: boolean; podeBaixar?: boolean };
+type PermissoesLote = {
+  podeAceitar: boolean;
+  podeGerir: boolean;
+  podeCorrigir?: boolean;
+  podeBaixar?: boolean;
+  /** quem está logado: sugestão do responsável no aceite do lote */
+  responsavelPadrao?: string;
+};
 
-function LoteAcoesLinha({ row, podeAceitar, podeGerir, podeCorrigir, podeBaixar }: { row: LoteRow } & PermissoesLote) {
+function LoteAcoesLinha({ row, podeAceitar, podeGerir, podeCorrigir, podeBaixar, responsavelPadrao }: { row: LoteRow } & PermissoesLote) {
   return (
     <LoteAcoes
       loteId={row.id}
@@ -191,10 +206,12 @@ function LoteAcoesLinha({ row, podeAceitar, podeGerir, podeCorrigir, podeBaixar 
       reservado={row.reservado}
       modeloQuantidade={row.modeloQuantidade}
       estornoDiretoPermitido={row.estornoDiretoPermitido}
+      aceiteBloqueadoMotivo={row.aceiteBloqueadoMotivo ?? null}
       podeAceitar={podeAceitar}
       podeGerir={podeGerir}
       podeCorrigir={podeCorrigir}
       podeBaixar={podeBaixar}
+      responsavelPadrao={responsavelPadrao}
     />
   );
 }
@@ -262,12 +279,15 @@ export function SaldoTable({
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Saldo por insumo</h2>
         <HelpTip title="Como ler o saldo">
           <p>
+            Insumo contado em frascos mostra o saldo em <b>frascos</b> (ex.: frasco(s) de 100 mL).
+          </p>
+          <p>
             <b>Em mãos</b> soma os lotes liberados; a quarentena fica à parte. <b>Disponível</b> é o
             que sobra depois das reservas dos planos, sem contar vencidos.
           </p>
           <p>
             Cobertura é quantos dias o disponível dura no consumo médio dos últimos {janelaDias} dias.
-            Quando o disponível chega ao <b>ponto atual</b>, o insumo vira Repor; o ponto sugerido
+            Quando o disponível chega ao <b>ponto de reposição</b>, o insumo vira Repor; o ponto sugerido
             soma o consumo durante o prazo de entrega e a margem de segurança.
           </p>
           <HelpExample>
@@ -285,7 +305,7 @@ export function SaldoTable({
             columnId: "statusLabel",
             label: "Status",
             options: [
-              { value: "OK", label: "OK" },
+              { value: "Em dia", label: "Em dia" },
               { value: "Repor", label: "Repor" },
               { value: "Sem estoque", label: "Sem estoque" },
             ],

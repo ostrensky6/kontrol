@@ -24,14 +24,18 @@ export function hojeCalendario(agora: Date = new Date()) {
 }
 
 /**
- * Status para exibição: uma versão ainda "emitida" com validade passada é
- * mostrada como vencida, sem depender de escrita no banco.
+ * Status para exibição: uma versão ainda viva (emitida, enviada ou reenviada)
+ * com validade passada é mostrada como vencida, sem esperar o job diário (0126).
  */
 export function statusEfetivoVersaoFinal(
   versao: { status: string; valido_ate?: string | null },
   hoje: string = hojeCalendario(),
 ) {
-  if (versao.status === "emitido" && versao.valido_ate && versao.valido_ate.slice(0, 10) < hoje) {
+  if (
+    ["emitido", "enviado", "alterado_reenviado"].includes(versao.status)
+    && versao.valido_ate
+    && versao.valido_ate.slice(0, 10) < hoje
+  ) {
     return "vencido";
   }
   return versao.status;

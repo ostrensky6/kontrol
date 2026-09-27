@@ -70,7 +70,7 @@ export function EditorParametrosProposta({
               de 100%.
             </p>
             <p>
-              A <b>taxa de incubação (UFPR)</b> incide sobre o valor dos serviços <b>sem os impostos</b>.
+              A <b>taxa de incubação (UFPR)</b> tem padrão de 2%, sobre o valor dos serviços <b>sem os impostos</b>; o padrão é ajustado em Parâmetros de custeio.
               A mensalidade fixa da incubação é custo fixo e fica em Cadastros → Overhead.
             </p>
             <HelpExample>

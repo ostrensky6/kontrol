@@ -11,6 +11,8 @@ import { modalidadeExigeLaboratorio, modalidadeExigeProjeto } from "@/lib/orcame
 import { detectarCustosZero } from "@/lib/orcamento/proposta-final";
 import { planejarModulosProposta, type PlanoModulos } from "@/lib/orcamento/garantir-modulos";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
+import { mensagemDoBanco } from "@/lib/erros";
+import { incluirAnalisesDaDemandaNoOrcamento } from "./orcamentos";
 import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/orcamento/parametros-proposta";
 import {
   lerAnalisesSelecionadas,
@@ -159,12 +161,20 @@ async function executarCriacaoDemanda(formData: FormData): Promise<string | null
     p_analises: analises,
   } as never);
 
-  if (error) return `Não foi possível criar o orçamento: ${error.message}`;
+  if (error) return `Não foi possível criar o orçamento: ${mensagemGruposDemanda(error)}`;
   const demandaId = (data as { demanda_id?: number } | null)?.demanda_id;
   if (!demandaId) return "O banco não confirmou a criação do orçamento. Nada foi salvo.";
 
   revalidatePath(listaPath);
   redirect(`${listaPath}/${demandaId}`);
+}
+
+/** Recusa ao gravar orçamento com grupos: a matriz do grupo precisa estar cadastrada. */
+function mensagemGruposDemanda(error: { code?: string | null; message: string }) {
+  if (error.code === "23503" && /tipo_matriz/.test(error.message)) {
+    return "o tipo/matriz de um grupo não está cadastrado. Escolha uma matriz da lista.";
+  }
+  return mensagemDoBanco(error);
 }
 
 export async function criarDemandaCompleta(
@@ -188,7 +198,7 @@ export async function salvarDemanda(
   const formData = maybeFormData ?? (stateOrFormData as FormData);
   const retornaEstado = Boolean(maybeFormData);
   const id = Number(formData.get("demanda_id"));
-  if (!id) return retornaEstado ? { ok: false, message: "Demanda inválida." } : undefined;
+  if (!id) return retornaEstado ? { ok: false, message: "Orçamento inválido." } : undefined;
 
   const supabase = await createClient();
   const clienteId = numeroOuNull(formData, "cliente_id");
@@ -211,7 +221,7 @@ export async function salvarDemanda(
   const patch = {
     cliente_id: clienteId,
     projeto_id: numeroOuNull(formData, "projeto_id"),
-    titulo: texto(formData, "titulo") || "Demanda sem titulo",
+    titulo: texto(formData, "titulo") || "Orçamento sem título",
     cliente_nome: cliente?.nome ?? texto(formData, "cliente_nome"),
     cliente_cnpj: cliente?.cnpj ?? texto(formData, "cliente_cnpj"),
     cliente_contato: cliente?.contato || cliente?.email || cliente?.telefone || texto(formData, "cliente_contato"),
@@ -220,7 +230,8 @@ export async function salvarDemanda(
     data_solicitacao: texto(formData, "data_solicitacao") ?? undefined,
     prazo_esperado: texto(formData, "prazo_esperado"),
     modalidade: texto(formData, "modalidade") || "analises",
-    status: texto(formData, "status") || "nova",
+    // UI-6: o status não é mais editado no formulário; a RPC preserva o atual (nulo = mantém).
+    status: texto(formData, "status"),
     origem: texto(formData, "origem"),
     prioridade: texto(formData, "prioridade") || "normal",
     descricao: texto(formData, "descricao"),
@@ -251,8 +262,8 @@ export async function salvarDemanda(
   } as never);
 
   if (error) {
-    if (retornaEstado) return { ok: false, message: error.message };
-    throw new Error(error.message);
+    if (retornaEstado) return { ok: false, message: mensagemGruposDemanda(error) };
+    throw new Error(mensagemGruposDemanda(error));
   }
   // A RPC é SECURITY INVOKER: sob RLS negada, o UPDATE interno não acha a
   // linha e a função levanta P0002. Ainda assim, retorno vazio não é sucesso.
@@ -265,7 +276,7 @@ export async function salvarDemanda(
   revalidatePath(listaPath);
   revalidatePath(`${listaPath}/${id}`);
   if (retornaEstado) {
-    return { ok: true, message: "Demanda salva com sucesso.", savedAt: new Date().toISOString() };
+    return { ok: true, message: "Orçamento salvo.", savedAt: new Date().toISOString() };
   }
 }
 
@@ -313,10 +324,26 @@ export async function gerarOrcamentoAnalisesDaDemanda(formData: FormData) {
     .select("id")
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    // ORC-10: duplo clique cai no índice único de módulo ativo (0126); abre o que já existe.
+    if (error.code === "23505") {
+      const { data: existente } = await supabase
+        .from("orcamentos")
+        .select("id")
+        .eq("demanda_id", id)
+        .neq("status", "cancelado")
+        .neq("status_operacional", "cancelado")
+        .limit(1)
+        .maybeSingle();
+      if (existente?.id) redirect(`/orcamento/${existente.id}`);
+    }
+    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(mensagemDoBanco(error))}`);
+  }
+  // As análises escolhidas nos grupos entram no módulo (antes ele nascia vazio).
+  const copia = await incluirAnalisesDaDemandaNoOrcamento(data.id, id);
   await marcarEmAnalise(supabase, demanda);
   revalidatePath(listaPath);
-  redirect(`/orcamento/${data.id}`);
+  redirect(copia.ok ? `/orcamento/${data.id}` : `/orcamento/${data.id}?aviso=${encodeURIComponent(copia.message ?? "")}`);
 }
 
 export async function gerarOrcamentoProjetoDaDemanda(formData: FormData) {
@@ -363,7 +390,10 @@ export async function gerarOrcamentoProjetoDaDemanda(formData: FormData) {
       observacoes: demanda.observacoes,
     });
 
-  if (error) throw new Error(error.message);
+  // ORC-10: duplo clique cai no índice único (0126) e só reabre a etapa do projeto.
+  if (error && error.code !== "23505") {
+    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(mensagemDoBanco(error))}`);
+  }
   await marcarEmAnalise(supabase, demanda);
   revalidatePath(listaPath);
   redirect(`/orcamento/demandas/${id}?etapa=projeto`);
@@ -390,18 +420,18 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
 
   const completude = avaliarCompletudeDemanda(demanda);
   if (!completude.completa) {
-    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Complete a demanda antes de emitir o orçamento final.")}`);
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Complete os dados antes de emitir a proposta.")}`);
   }
 
   const [{ data: orcamentosTodos }, { data: orcProjetosTodos }] = await Promise.all([
     supabase
       .from("orcamentos")
-      .select("id, status, status_operacional, fonte_custo_insumos, custo_snapshot, orcamento_itens(id, n_amostras, custo_unitario, preco_unitario, valor_snapshot)")
+      .select("id, status, status_operacional, fonte_custo_insumos, custo_snapshot, orcamento_itens(id, codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot)")
       .eq("demanda_id", id)
       .order("id"),
     supabase
       .from("orcamento_projetos")
-      .select("id, status, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
+      .select("id, status, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
       .eq("demanda_id", id)
       .order("id"),
   ]);
@@ -416,7 +446,7 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
   const projAtivos = (orcProjetos ?? []).filter((o) => o.status !== "cancelado").map((o) => o.id);
   if (labAtivos.length > 1 || projAtivos.length > 1) {
     redirect(
-      `${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Duplicidade ativa de módulos na demanda; saneamento necessário antes de emitir.")}`,
+      `${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Há orçamentos duplicados. Peça revisão ao gestor antes de emitir.")}`,
     );
   }
 
@@ -534,7 +564,7 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user?.id || !user.email) {
-    throw new Error("Sessão autenticada obrigatória para emitir o orçamento final.");
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Sua sessão expirou. Entre de novo para emitir a proposta.")}`);
   }
   const economia = consolidado.economia;
 
@@ -590,7 +620,7 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
     p_operacao_id: operacaoId,
   });
   if (error) {
-    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent(`Falha ao emitir: ${error.message}`)}`);
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent(`Falha ao emitir: ${mensagemDoBanco(error)}`)}`);
   }
   void resultado;
 

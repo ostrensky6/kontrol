@@ -1,0 +1,3 @@
+# Migrations e testes SQL sempre com LF: remendos que procuram quebra de linha
+# (como os da 0124) falham em silêncio com CRLF.
+*.sql text eol=lf

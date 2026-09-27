@@ -81,11 +81,14 @@ begin
       l.modelo_quantidade, l.quantidade_atual, l.conteudo_embalagem_snapshot, l.custo_unitario;
   end if;
 
-  -- frasco com volume diferente na chegada
-  update public.pedidos_compra_itens set conteudo_embalagem = 50 where id = v_item;
-  v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date + 300, 'TS-0123-F2', null);
+  -- frasco com volume diferente na chegada (0127: informado no recebimento,
+  -- vale só para o lote/livro; o item da compra continua com 100)
+  v_lote := public.receber_item_pedido_compra(v_ped, v_item, gen_random_uuid(), 1, current_date + 300, 'TS-0123-F2', null, 50);
   if (select conteudo_embalagem_snapshot from public.lotes_estoque where id = v_lote) <> 50 then
     raise exception '0123: volume do frasco informado na chegada nao foi registrado';
+  end if;
+  if (select conteudo_embalagem from public.pedidos_compra_itens where id = v_item) <> 100 then
+    raise exception '0127: volume informado na chegada nao pode alterar o item da compra';
   end if;
 
   -- 300 mL antigos para insumo em frascos: 150 mL nao fecha frasco; 200 mL = 2 frascos

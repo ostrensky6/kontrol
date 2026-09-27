@@ -8,6 +8,8 @@ import { gargalo, type Etapa } from "@/lib/costing/engine";
 import { reservarEquipamentoDoPlano } from "@/lib/actions/planejamento";
 import { comprarFaltasDoPlano } from "@/lib/actions/compras";
 import { pode } from "@/lib/auth/permissao-efetiva";
+import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { PlanoAcoes } from "@/components/planejamento/PlanoAcoes";
 import { PlanoContextoForm } from "@/components/planejamento/PlanoContextoForm";
 import { PlanoItensEditor } from "@/components/planejamento/PlanoItensEditor";
@@ -28,6 +30,28 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const STATUS_RESERVA: Record<string, string> = {
+  reservado: "reservado",
+  parcial: "parcial",
+  consumido: "retirado",
+  liberado: "liberado",
+  cancelado: "cancelado",
+};
+
+/** Reserva de lote em frascos é contada em frascos, não na unidade física (EST2-5). */
+function unidadeReserva(
+  lote: { modelo_quantidade?: string | null; conteudo_embalagem_snapshot?: number | null; unidade_fisica_snapshot?: string | null } | null | undefined,
+  unidadeFisica: string | null | undefined,
+) {
+  if (lote?.modelo_quantidade === "EMBALAGEM_FECHADA") {
+    const volume = lote.conteudo_embalagem_snapshot
+      ? ` de ${fmt(lote.conteudo_embalagem_snapshot)} ${lote.unidade_fisica_snapshot ?? unidadeFisica ?? ""}`.trimEnd()
+      : "";
+    return `frasco(s)${volume}`;
+  }
+  return unidadeFisica ?? "";
+}
+
 function erroSchemaCache(error: { message?: string; code?: string } | null | undefined) {
   return Boolean(
     error &&
@@ -40,7 +64,7 @@ function erroSchemaCache(error: { message?: string; code?: string } | null | und
 async function consultarReservasPlano(supabase: Awaited<ReturnType<typeof createClientUntyped>>, planId: number) {
   const full = await supabase
     .from("reservas_estoque")
-    .select("id, status, insumo_id, lote_id, quantidade, quantidade_consumida, lotes_estoque(codigo_lote, validade, validade_apos_abertura)")
+    .select("id, status, insumo_id, lote_id, quantidade, quantidade_consumida, lotes_estoque(codigo_lote, validade, validade_apos_abertura, modelo_quantidade, conteudo_embalagem_snapshot, unidade_fisica_snapshot)")
     .eq("planejamento_id", planId);
 
   if (!erroSchemaCache(full.error)) return full;
@@ -88,6 +112,8 @@ export default async function PlanoDetalhe({
     { data: margemRealRows },
     { data: pedidosAtivos },
     podeGerir,
+    podeExecutar,
+    podeCriarPedido,
   ] = await Promise.all([
     supabase.from("planejamento_itens").select("id, codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual").eq("planejamento_id", planId).order("id"),
     // Só análises ativas podem entrar em um plano novo; itens antigos continuam listados.
@@ -97,6 +123,8 @@ export default async function PlanoDetalhe({
     supabase.from("v_margem_real_planejamento").select("*").eq("planejamento_id", planId).limit(1),
     supabaseUntyped.from("pedidos_internos").select("id, status").eq("planejamento_id", planId).neq("status", "cancelado"),
     pode("planejamento.editar"),
+    pode("planejamento.executar"),
+    pode("pedido.criar"),
   ]);
   const margemReal = margemRealRows?.[0] ?? null;
 
@@ -149,7 +177,14 @@ export default async function PlanoDetalhe({
     lote_id: number | null;
     quantidade: number;
     quantidade_consumida?: number | null;
-    lotes_estoque?: { codigo_lote: string | null; validade: string | null; validade_apos_abertura: string | null } | null;
+    lotes_estoque?: {
+      codigo_lote: string | null;
+      validade: string | null;
+      validade_apos_abertura: string | null;
+      modelo_quantidade?: string | null;
+      conteudo_embalagem_snapshot?: number | null;
+      unidade_fisica_snapshot?: string | null;
+    } | null;
   }>;
   const reservasPorInsumo = new Map<number, typeof rs>();
   for (const reserva of rs) {
@@ -481,16 +516,16 @@ export default async function PlanoDetalhe({
                   {reservaDestePlano ? (
                     <p className="mt-3 text-xs text-muted-foreground">Reserva deste plano: {new Date(reservaDestePlano.data_inicio).toLocaleString("pt-BR")} → {new Date(reservaDestePlano.data_fim).toLocaleString("pt-BR")}</p>
                   ) : (
-                    <form action={reservarEquipamentoDoPlano} className="mt-3 grid gap-2 md:grid-cols-4">
+                    <FormComMensagem action={reservarEquipamentoDoPlano} className="mt-3 grid gap-2 md:grid-cols-4">
                       <input type="hidden" name="planejamento_id" value={planId} />
                       <input type="hidden" name="equipamento_unidade_id" value={unidade.id} />
                       <input name="data_inicio" type="datetime-local" defaultValue={inicioReservaPadrao} disabled={!contextoCompleto || bloqueada} className={`${inp} w-full`} />
                       <input name="data_fim" type="datetime-local" defaultValue={fimReservaPadrao} disabled={!contextoCompleto || bloqueada} className={`${inp} w-full`} />
                       <input name="observacao" placeholder="Observação (opcional)" disabled={!contextoCompleto || bloqueada} className={`${inp} w-full`} />
-                      <button disabled={!contextoCompleto || bloqueada} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground">
+                      <SubmitButton disabled={!contextoCompleto || bloqueada || !podeExecutar} pendingLabel="Reservando…" className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground">
                         Reservar unidade
-                      </button>
-                    </form>
+                      </SubmitButton>
+                    </FormComMensagem>
                   )}
                 </div>
               );
@@ -574,7 +609,7 @@ export default async function PlanoDetalhe({
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-                Demanda de insumos {temFalta && <span className="text-warning-strong">· há faltas</span>}
+                Insumos necessários {temFalta && <span className="text-warning-strong">· há faltas</span>}
               </h2>
               {temFalta && (
                 <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
@@ -589,18 +624,18 @@ export default async function PlanoDetalhe({
                 </p>
               )}
             </div>
-            {temFalta && (
-              <form action={comprarFaltasDoPlano}>
+            {temFalta && podeCriarPedido && (
+              <FormComMensagem action={comprarFaltasDoPlano} className="flex max-w-xs flex-col items-end gap-1">
                 <input type="hidden" name="planejamento_id" value={planId} />
-                <button className="app-action-compact bg-primary text-primary-foreground hover:bg-primary/90">
+                <SubmitButton pendingLabel="Gerando…" className="app-action-compact bg-primary text-primary-foreground hover:bg-primary/90">
                   Gerar pedido interno
-                </button>
-              </form>
+                </SubmitButton>
+              </FormComMensagem>
             )}
           </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-xs font-medium text-muted-foreground">Demanda prevista</p>
+              <p className="text-xs font-medium text-muted-foreground">Consumo previsto</p>
               <p className="mt-1 text-2xl font-semibold tabular-nums">{fmt(demandaTotal)}</p>
               <p className="mt-1 text-xs text-muted-foreground">{formatCurrency(valorUsoEstimadoTotal)} em uso previsto</p>
             </div>
@@ -626,7 +661,7 @@ export default async function PlanoDetalhe({
                 <tr>
                   <th className="px-4 py-3 text-left">Insumo</th>
                   <th className="px-4 py-3 text-left">Un.</th>
-                  <th className="px-4 py-3 text-right">Demanda</th>
+                  <th className="px-4 py-3 text-right">Necessário</th>
                   <th className="px-4 py-3 text-right">Disponível</th>
                   <th className="px-4 py-3 text-left">Lote reservado</th>
                   <th className="px-4 py-3 text-right">Falta</th>
@@ -655,14 +690,23 @@ export default async function PlanoDetalhe({
                                   </Link>
                                 ) : "sem lote"}
                                 {" · "}
-                                {fmt(reserva.quantidade)} · {reserva.status}
+                                {fmt(reserva.quantidade)} {unidadeReserva(reserva.lotes_estoque, d.unidade)} · {STATUS_RESERVA[reserva.status] ?? reserva.status}
                               </div>
                             ))}
                           </div>
                         ) : "—"}
                       </td>
                       <td className={`px-4 py-2 text-right tabular-nums font-medium ${d.falta > 0 ? "text-warning-strong" : "text-muted-foreground/80"}`}>
-                        {d.falta > 0 ? fmt(d.falta) : "—"}
+                        {d.falta > 0 ? (
+                          <div>
+                            <span>{fmt(d.falta)}</span>
+                            {d.quantidadeEmbalagem && d.quantidadeEmbalagem > 0 ? (
+                              <p className="text-[11px] font-normal text-muted-foreground">
+                                ≈ {Math.ceil(d.falta / d.quantidadeEmbalagem)} frasco(s) de {fmt(d.quantidadeEmbalagem)} {d.unidade ?? ""}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : "—"}
                       </td>
                       <td className="px-4 py-2 text-right tabular-nums">
                         {d.quantidadeCompra > 0 ? (
@@ -692,7 +736,7 @@ export default async function PlanoDetalhe({
                 {demanda.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground/80">
-                      Adicione análises para calcular a demanda.
+                      Adicione análises para calcular o consumo.
                     </td>
                   </tr>
                 )}
@@ -718,6 +762,8 @@ export default async function PlanoDetalhe({
             contextoCompleto={contextoCompleto}
             temBloqueioEquipamentos={temBloqueioEquipamentos}
             reservaDesatualizada={reservaDesatualizada}
+            podeExecutar={podeExecutar}
+            podeEditar={podeGerir}
           />
         </section>
       </main>

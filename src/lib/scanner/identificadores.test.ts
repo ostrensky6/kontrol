@@ -35,7 +35,7 @@ describe("identificadores escaneaveis", () => {
     expect(isEntidadeTipo("equipamento_unidade")).toBe(true);
     expect(isEntidadeTipo("manutencao")).toBe(false);
     expect(validarEntidadeTipo("lote")).toBe("lote");
-    expect(() => validarEntidadeTipo("manutencao")).toThrow("Tipo de entidade invalido");
+    expect(() => validarEntidadeTipo("manutencao")).toThrow("Tipo de entidade inválido");
   });
 
   it("resolve identificador interno Kontrol", () => {

@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import type { FormState } from "@/lib/actions/cadastros";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type PedidoReposicaoState = FormState & { pedidoId?: number };
 
@@ -50,7 +51,7 @@ export function GerarPedidoReposicaoButton() {
               Cria um pedido interno em rascunho com os insumos abaixo do ponto de reposição.
             </DialogDescription>
           </DialogHeader>
-          <form action={action} onSubmit={() => setOpen(false)}>
+          <form action={action} {...formularioSemPerda(state)} onSubmit={() => setOpen(false)}>
             <DialogFooter>
               <Button type="button" variant="outline" disabled={pending} onClick={() => setOpen(false)}>
                 Cancelar

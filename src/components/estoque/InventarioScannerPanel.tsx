@@ -17,6 +17,7 @@ import {
 import { calcularDivergenciaInventario } from "@/lib/inventario/contagem";
 import { HelpTip } from "@/components/common/HelpTip";
 import type { FormState } from "@/lib/actions/cadastros";
+import { enviarSemReset } from "@/lib/formulario-sem-perda";
 
 type StatusCamera = "parada" | "iniciando" | "ativa" | "erro";
 
@@ -278,7 +279,7 @@ export function InventarioScannerPanel({
           )}
         </div>
 
-        <form action={salvarContagem} className="grid gap-3">
+        <form onSubmit={enviarSemReset(salvarContagem)} className="grid gap-3">
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Campanha</label>
             <select

@@ -8,6 +8,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { avaliarGestaoPlano } from "@/lib/planejamento/gestao";
 import { criarResolvedorDeTaxas, valorLaboratorioNaProposta, valorProjetoNaProposta } from "@/lib/orcamento/valores-modulos";
 import { formatCurrency as moeda, formatDate as fmtData } from "@/lib/formatters";
+import { rotuloStatusOrcamento } from "@/lib/orcamento/rotulos-status";
 import { STATUS_PROJETO } from "../_lib/status";
 import { responsavelDoProjeto } from "../_lib/responsavel";
 
@@ -126,6 +127,12 @@ export default async function ProjetoHubPage({
     supabase.from("fornecedores").select("id, nome"),
     supabase.from("parametros").select("chave, valor"),
   ]);
+  // ORC-9/ORC2-5: "orçado" = propostas aprovadas em vigor (uma por orçamento),
+  // pelo total congelado na emissão; o status dos módulos não chega a "aprovado".
+  const { data: propostasVigentes } = await supabase
+    .from("v_proposta_aprovada_vigente")
+    .select("versao_id, total_final")
+    .eq("projeto_id", id);
 
   const fornecedorNome = new Map((fornecedores ?? []).map((f) => [f.id, f.nome]));
 
@@ -165,9 +172,7 @@ export default async function ProjetoHubPage({
   });
 
   const orcLinhas = [...orcAnalises, ...orcProjetoLinhas];
-  const orcadoAprovado = orcLinhas
-    .filter((o) => o.status === "aprovado")
-    .reduce((a, o) => a + o.total, 0);
+  const orcadoAprovado = (propostasVigentes ?? []).reduce((a, v) => a + Number(v.total_final ?? 0), 0);
 
   // --- Compras: valor comprometido (estimado), exceto cancelados ---
   const comprasLinhas = (compras ?? []).map((c) => {
@@ -238,10 +243,10 @@ export default async function ProjetoHubPage({
           <Kpi
             label="Orçado (aprovado)"
             valor={moeda(orcadoAprovado)}
-            hint={`${orcLinhas.length} orçamento(s)`}
+            hint={`${(propostasVigentes ?? []).length} proposta(s) aprovada(s)`}
             ajuda={
               <HelpTip title="Orçado (aprovado)">
-                <p>Soma dos orçamentos deste projeto com status <b>aprovado</b>. Os que estão em elaboração, recusados ou cancelados não entram.</p>
+                <p>Soma das <b>propostas aprovadas em vigor</b> deste projeto, pelo valor final da emissão (uma por orçamento). Propostas canceladas ou substituídas não entram.</p>
               </HelpTip>
             }
           />
@@ -256,7 +261,7 @@ export default async function ProjetoHubPage({
             }
           />
           <Kpi label="Planejamentos" valor={String(planosLinhas.length)} hint={`${planosLinhas.reduce((a, p) => a + p.amostras, 0)} amostras`} />
-          <Kpi label="Demandas" valor={String((demandas ?? []).length)} hint="entradas do projeto" />
+          <Kpi label="Orçamentos" valor={String((demandas ?? []).length)} hint="entradas do projeto" />
         </div>
 
         {/* Orçamentos */}
@@ -376,10 +381,10 @@ export default async function ProjetoHubPage({
           </div>
         </section>
 
-        {/* Demandas */}
+        {/* Orçamentos (demandas_propostas) */}
         {(demandas ?? []).length > 0 && (
           <section className="mt-8">
-            <h2 className="mb-2 text-lg font-semibold tracking-tight">Demandas / Propostas</h2>
+            <h2 className="mb-2 text-lg font-semibold tracking-tight">Orçamentos e propostas</h2>
             <div className={`${cardCls} overflow-x-auto`}>
               <table className="min-w-full">
                 <thead className="border-b border-border/70">
@@ -394,7 +399,7 @@ export default async function ProjetoHubPage({
                     <tr key={d.id} className="border-b border-border/50 last:border-b-0 hover:bg-muted/50">
                       <td className={tdCls}><Link href={`/orcamento/demandas/${d.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-400">{d.titulo}</Link></td>
                       <td className={tdCls}>{fmtData(d.data_solicitacao)}</td>
-                      <td className={tdCls}>{d.status}</td>
+                      <td className={tdCls}>{rotuloStatusOrcamento(d.status)}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -95,16 +95,17 @@ export async function updateSession(request: NextRequest) {
   }
 
   // A caixinha manda (0124): sem a permissão "Acessar …" a área não abre.
-  // Se a consulta falhar, segue: o banco continua protegendo os dados.
+  // Falha fechada: se a consulta das permissões falhar, a área não abre.
   const acesso = user ? acessoDaRota(path) : null;
   if (acesso) {
     const { data: efetivas, error: erroPermissoes } = await supabase.rpc("minhas_permissoes");
     const bruto = efetivas as { admin?: boolean; permissoes?: Record<string, unknown> } | null;
-    const liberado = Boolean(erroPermissoes) || bruto?.admin === true || bruto?.permissoes?.[acesso.chave] === true;
+    const liberado =
+      !erroPermissoes && (bruto?.admin === true || bruto?.permissoes?.[acesso.chave] === true);
     if (!liberado) {
       const url = request.nextUrl.clone();
       url.pathname = "/sem-acesso";
-      url.search = `?area=${encodeURIComponent(acesso.area)}`;
+      url.search = `?area=${encodeURIComponent(acesso.area)}${erroPermissoes ? "&falha=1" : ""}`;
       return NextResponse.redirect(url);
     }
   }

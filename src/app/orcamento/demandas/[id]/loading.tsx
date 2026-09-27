@@ -1,5 +1,5 @@
 import { PageLoading } from "@/components/common/PageLoading";
 
 export default function Loading() {
-  return <PageLoading title="Carregando demanda" />;
+  return <PageLoading title="Carregando orçamento" />;
 }

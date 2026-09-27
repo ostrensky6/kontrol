@@ -2,7 +2,7 @@
 
 import { createHash, randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { calcularTodas } from "@/lib/costing/loader";
@@ -19,7 +19,9 @@ import { validarParametrosProjetoGrossUp } from "@/lib/project-budget/orcamento-
 import { linhasViagemFaltantes, normalizarMeses } from "@/lib/project-budget/editor";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
+import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
+import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 
 const pathDemandas = "/orcamento/demandas";
 
@@ -294,7 +296,7 @@ export async function salvarParametrosEconomicosProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
-export async function adicionarAnaliseProjeto(formData: FormData) {
+async function adicionarAnaliseProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   const codigo = texto(formData, "codigo_analise");
@@ -308,7 +310,7 @@ export async function adicionarAnaliseProjeto(formData: FormData) {
     .eq("codigo", codigo)
     .single();
   if (!analise?.ativo || !analise?.ofertavel) {
-    throw new Error("Analise inativa ou nao oferecivel para novo orcamento.");
+    throw new Error("Análise inativa ou fora da oferta; não pode entrar em novos orçamentos.");
   }
   const { breakdowns } = await calcularTodas();
   const breakdown = breakdowns.find((x) => x.codigo === codigo);
@@ -324,7 +326,7 @@ export async function adicionarAnaliseProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
-export async function adicionarCustoProjeto(formData: FormData) {
+async function adicionarCustoProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   const descricao = texto(formData, "descricao");
@@ -366,7 +368,7 @@ export async function adicionarCustoProjeto(formData: FormData) {
  * Edita uma linha de custo existente (descrição, unidade, quantidade, custo e classificação).
  * Rubrica, origem e vínculo com o catálogo não mudam: para trocar de rubrica, remova e adicione.
  */
-export async function atualizarCustoProjeto(formData: FormData) {
+async function atualizarCustoProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   const itemId = numero(formData, "item_id");
@@ -403,7 +405,7 @@ export async function atualizarCustoProjeto(formData: FormData) {
  * O total da linha passa a ser meses × valor mensal; com meses marcados, a quantidade acompanha
  * a contagem (como no app antigo). Sem meses, a quantidade anterior é mantida (a coluna exige > 0).
  */
-export async function salvarMesesPessoalProjeto(formData: FormData) {
+async function salvarMesesPessoalProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   if (!id) return;
@@ -440,7 +442,7 @@ export async function salvarMesesPessoalProjeto(formData: FormData) {
  * Altera a duração do projeto (1 a 60 meses, como no app antigo). Meses do pessoal que
  * ficarem fora do novo prazo são retirados das linhas PE para o total não contar mês inexistente.
  */
-export async function salvarDuracaoProjeto(formData: FormData) {
+async function salvarDuracaoProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   if (!id) return;
@@ -478,7 +480,7 @@ export async function salvarDuracaoProjeto(formData: FormData) {
  * Conclui a revisão dos custos de projeto (rascunho → enviado pelo RPC transacional).
  * É o que marca o módulo como "revisado" e libera parâmetros e emissão da proposta.
  */
-export async function concluirRevisaoCustosProjeto(formData: FormData) {
+async function concluirRevisaoCustosProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("revisar_modulo");
   const id = numero(formData, "orcamento_projeto_id");
   if (!id) return;
@@ -513,7 +515,7 @@ export async function concluirRevisaoCustosProjeto(formData: FormData) {
 }
 
 /** Reabre custos recusados para edição (recusado → rascunho). "Enviado" não volta a rascunho no RPC. */
-export async function reabrirCustosProjeto(formData: FormData) {
+async function reabrirCustosProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("revisar_modulo");
   const id = numero(formData, "orcamento_projeto_id");
   if (!id) return;
@@ -532,7 +534,7 @@ export async function reabrirCustosProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
-export async function adicionarCustoCatalogoProjeto(formData: FormData) {
+async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   const catalogoId = texto(formData, "catalogo_item_id");
@@ -581,7 +583,7 @@ export async function adicionarCustoCatalogoProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
-export async function salvarViagensProjeto(formData: FormData) {
+async function salvarViagensProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
   const id = numero(formData, "orcamento_projeto_id");
   if (!id) return;
@@ -701,65 +703,129 @@ export async function removerCustoProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
+/**
+ * Item 12: as ações do editor de custos devolvem a recusa (permissão, módulo
+ * travado, validação ou banco) para o FormAcao mostrar, em vez de lançar — em
+ * produção o erro lançado vira a tela genérica e a mensagem se perde.
+ * redirect()/notFound() continuam passando (unstable_rethrow).
+ */
+async function comRetorno(acao: () => Promise<void>): Promise<EstadoAcao | void> {
+  try {
+    await acao();
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
+}
+
+export async function adicionarAnaliseProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => adicionarAnaliseProjetoInterno(formData));
+}
+
+export async function adicionarCustoProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => adicionarCustoProjetoInterno(formData));
+}
+
+export async function atualizarCustoProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => atualizarCustoProjetoInterno(formData));
+}
+
+export async function salvarMesesPessoalProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => salvarMesesPessoalProjetoInterno(formData));
+}
+
+export async function salvarDuracaoProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => salvarDuracaoProjetoInterno(formData));
+}
+
+export async function concluirRevisaoCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => concluirRevisaoCustosProjetoInterno(formData));
+}
+
+export async function reabrirCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => reabrirCustosProjetoInterno(formData));
+}
+
+export async function adicionarCustoCatalogoProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => adicionarCustoCatalogoProjetoInterno(formData));
+}
+
+export async function salvarViagensProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() => salvarViagensProjetoInterno(formData));
+}
+
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-/** Gera um link público read-only de aprovação. O token bruto é mostrado uma
- *  única vez (via query param); o banco guarda só o hash SHA-256. */
-export async function criarLinkPublico(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = numero(formData, "orcamento_projeto_id");
-  if (!id) return;
+type EstadoLink = EstadoAcao & { caminho?: string };
 
-  const token = randomBytes(24).toString("base64url");
+/**
+ * Gera o link público de aprovação de uma versão da proposta (ORC-2,
+ * funcionalidade do app antigo restaurada). O código bruto volta uma única vez
+ * para a tela; o banco guarda só o hash SHA-256. Mesma permissão na tela e no
+ * banco (RLS): "Orçamentos: Emitir proposta".
+ */
+export async function criarLinkPublico(_estado: EstadoLink, formData: FormData): Promise<EstadoLink> {
+  const recusa = await recusaSemPermissao("emitir_final");
+  if (recusa) return recusa;
+  const versaoId = numero(formData, "versao_id");
+  if (!versaoId) return falha("Proposta não identificada.");
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { data: projeto, error: projetoError } = await supabase
-    .from("orcamento_projetos")
-    .select("demanda_id")
-    .eq("id", id)
-    .single();
-  if (projetoError || !projeto?.demanda_id) {
-    throw new Error("Não foi possível identificar a demanda deste orçamento.");
-  }
-  const { data: versaoFinal, error: versaoError } = await supabase
+  const { data: versao, error: versaoError } = await supabase
     .from("orcamento_final_versoes")
+    .select("id, demanda_id, status, valido_ate")
+    .eq("id", versaoId)
+    .maybeSingle();
+  if (versaoError || !versao) return falha("Proposta não encontrada.");
+  if (!["emitido", "enviado", "alterado_reenviado"].includes(versao.status)) {
+    return falha("Link de aprovação só existe para proposta emitida ou enviada, ainda não aprovada.");
+  }
+  // Módulo de projeto ativo, quando houver (o link também vale sem ele — 0126).
+  const { data: projeto } = await supabase
+    .from("orcamento_projetos")
     .select("id")
-    .eq("demanda_id", projeto.demanda_id)
-    .in("status", ["emitido", "enviado", "alterado_reenviado", "aprovado"])
-    .order("versao", { ascending: false })
+    .eq("demanda_id", versao.demanda_id)
+    .neq("status", "cancelado")
+    .order("id", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (versaoError || !versaoFinal?.id) {
-    throw new Error("Emita uma versão final antes de criar o link público.");
-  }
 
+  const token = randomBytes(24).toString("base64url");
   const { error } = await supabase.from("orcamento_projeto_links").insert({
-    orcamento_projeto_id: id,
-    orcamento_final_versao_id: versaoFinal.id,
+    orcamento_projeto_id: projeto?.id ?? null,
+    orcamento_final_versao_id: versao.id,
     token_hash: hashToken(token),
     criado_por: user?.id ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) return falha(mensagemDoBanco(error));
 
-  revalidarEtapaProjeto(projeto.demanda_id);
-  redirect(comParametro(caminhoEtapa(projeto.demanda_id, "final"), "novo_link", token));
+  revalidatePath(`/orcamento/final/${versao.id}`);
+  return { ok: true, message: "Link criado.", caminho: `/aprovar/${token}` };
 }
 
-export async function revogarLinkPublico(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = numero(formData, "orcamento_projeto_id");
+export async function revogarLinkPublico(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  const recusa = await recusaSemPermissao("emitir_final");
+  if (recusa) return recusa;
+  const versaoId = numero(formData, "versao_id");
   const linkId = numero(formData, "link_id");
-  if (!id || !linkId) return;
+  if (!versaoId || !linkId) return falha("Link não identificado.");
   const supabase = await createClient();
-  await supabase
+  const { data, error } = await supabase
     .from("orcamento_projeto_links")
     .update({ revogado: true })
     .eq("id", linkId)
-    .eq("orcamento_projeto_id", id);
-  revalidarEtapaProjeto(demandaDe(await carregarProjeto(supabase, id), formData));
+    .eq("orcamento_final_versao_id", versaoId)
+    .select("id");
+  if (error) return falha(mensagemDoBanco(error));
+  if (!data?.length) return falha("O link não foi revogado: ele não existe mais ou seu perfil não pode alterá-lo.");
+  revalidatePath(`/orcamento/final/${versaoId}`);
+  return sucesso("Link revogado. Quem tiver o endereço não consegue mais abrir a proposta.");
 }
+
+const MOTIVOS_APROVACAO_PUBLICA = new Set(["vencida", "outra_aprovada", "versao_nova"]);
 
 /** Aprovação pública (sem login) via RPC SECURITY DEFINER validando o token. */
 export async function aprovarOrcamentoPublico(formData: FormData) {
@@ -775,9 +841,13 @@ export async function aprovarOrcamentoPublico(formData: FormData) {
     aprovado?: boolean;
     repetido?: boolean;
     versao_id?: number;
+    motivo?: string;
   } | null;
   if (error || !resultado?.aprovado || !resultado.versao_id) {
-    redirect(`/aprovar/${token}?erro=link_indisponivel`);
+    const motivo = resultado?.motivo && MOTIVOS_APROVACAO_PUBLICA.has(resultado.motivo)
+      ? resultado.motivo
+      : "link_indisponivel";
+    redirect(`/aprovar/${token}?erro=${motivo}`);
   }
   revalidatePath(`/aprovar/${token}`);
   revalidatePath(`/orcamento/final/${resultado.versao_id}`);

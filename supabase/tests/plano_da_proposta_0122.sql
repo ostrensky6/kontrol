@@ -25,8 +25,9 @@ begin
 
   insert into public.demandas_propostas (titulo, cliente_nome)
   values ('TS-0122 proposta', 'Cliente TS-0122') returning id into v_demanda;
+  -- modulo em rascunho: desde a 0126, modulo enviado nao aceita itens novos
   insert into public.orcamentos (demanda_id, cliente_nome, status)
-  values (v_demanda, 'Cliente TS-0122', 'enviado') returning id into v_orc;
+  values (v_demanda, 'Cliente TS-0122', 'rascunho') returning id into v_orc;
   insert into public.orcamento_itens (orcamento_id, codigo_analise, n_amostras)
   values (v_orc, v_analises[1], 10) returning id into v_item_a;
   insert into public.orcamento_itens (orcamento_id, codigo_analise, n_amostras)
@@ -47,10 +48,6 @@ begin
       'orcamentos_projeto', '[]'::jsonb
     )
   );
-  insert into public.orcamento_final_versoes (demanda_id, versao, numero, status, validade_dias, snapshot)
-  select demanda_id, 2, 'TS-0122-v2', 'emitido', 30, snapshot
-  from public.orcamento_final_versoes where numero = 'TS-0122-v1';
-
   perform set_config('ts0122.analises', array_to_string(v_analises, ','), true);
 end $$;
 
@@ -91,10 +88,19 @@ begin
   end if;
 end $$;
 
--- Segunda versao aprovada da mesma proposta: nao duplica o plano, so avisa.
+-- Segunda versao da mesma proposta: desde a 0126 nao e aprovada enquanto a v1
+-- estiver aprovada (uma versao viva por proposta) e nao duplica o plano.
+insert into public.orcamento_final_versoes (demanda_id, versao, numero, status, validade_dias, snapshot)
+select demanda_id, 2, 'TS-0122-v2', 'emitido', 30, snapshot
+from public.orcamento_final_versoes where numero = 'TS-0122-v1';
 set local role authenticated;
-select public.transicionar_orcamento_final(
-  (select id from public.orcamento_final_versoes where numero = 'TS-0122-v2'), 'aprovado', 'nova versao aprovada');
+do $$
+begin
+  perform public.transicionar_orcamento_final(
+    (select id from public.orcamento_final_versoes where numero = 'TS-0122-v2'), 'aprovado', 'nova versao aprovada');
+  raise exception '0122/0126: segunda versao aprovada com a v1 ainda aprovada';
+exception when invalid_parameter_value then null;
+end $$;
 
 -- Retirada registra quem movimentou
 insert into public.insumos (especificacao, unidade, fator_conversao) values ('TS-0122 Insumo', 'un', 1);

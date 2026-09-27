@@ -28,6 +28,7 @@ import type { FormState } from "@/lib/actions/cadastros";
 import { AssinaturaUsuarioForm } from "./AssinaturaUsuarioForm";
 import { HelpTip } from "@/components/common/HelpTip";
 import type { UsuarioRow } from "./UsuariosTable";
+import { enviarSemReset, formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initial: FormState = { ok: false, message: "" };
 
@@ -87,7 +88,7 @@ function EditarDialog({
           <DialogTitle>Editar usuário</DialogTitle>
           <DialogDescription>{row.email}</DialogDescription>
         </DialogHeader>
-        <form action={handle} className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4">
+        <form onSubmit={enviarSemReset(handle)} className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4">
           <input type="hidden" name="id" value={row.id} />
           <input type="hidden" name="permissoes_presentes" value="1" />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -249,7 +250,7 @@ function PreAprovarDialog({
             Cria a conta de {row.email} no Auth com senha provisória e categoria {row.papelLabel}.
           </DialogDescription>
         </DialogHeader>
-        <form action={action} className="space-y-4">
+        <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="pre_aprovado_id" value={row.preAprovadoId ?? ""} />
           {state.message && (
             <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
@@ -287,7 +288,7 @@ function AlterarSenhaDialog({
             Nova senha para {row.email}. Ela não fica visível para ninguém.
           </DialogDescription>
         </DialogHeader>
-        <form action={action} className="space-y-4">
+        <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="id" value={row.id} />
           <div>
             <label className="block text-xs font-medium text-muted-foreground">Nova senha</label>
@@ -359,7 +360,7 @@ function ExcluirDialog({
             histórico de auditoria das ações dele é preservado.
           </DialogDescription>
         </DialogHeader>
-        <form action={action} className="space-y-4">
+        <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="id" value={row.id} />
           <input type="hidden" name="email" value={row.email} />
           {state.message && !state.ok && <p className="text-xs text-danger-strong">{state.message}</p>}

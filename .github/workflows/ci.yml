@@ -47,6 +47,21 @@ jobs:
       - name: Validar permissões (a caixinha manda)
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/permissoes_0124.sql
 
+      - name: Validar item de pedido interno e travas da reposição
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/pedido_interno_itens_0125.sql
+
+      - name: Validar permissões, auditoria e notificações por usuário
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/permissoes_auditoria_0128.sql
+
+      - name: Validar integridade dos cadastros (exclusão com vínculo, técnico ativo, faixas)
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/cadastros_integridade_0129.sql
+
+      - name: Validar ciclo físico do insumo (compra, recebimento, lote, reserva, estorno)
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/estoque_ciclo_0127.sql
+
+      - name: Validar versões da proposta, link público e plano da aprovada
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/orcamento_versoes_0126.sql
+
   check:
     runs-on: ubuntu-latest
     steps:

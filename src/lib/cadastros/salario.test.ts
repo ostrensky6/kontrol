@@ -150,7 +150,7 @@ describe("leitura server-side com o mock do banco", () => {
     semear();
     const { data } = await lerLinhasCadastro(cliente("tecnico"), "tecnicos", { podeVerSalario: false });
     expect(Object.keys(data![0]).sort()).toEqual(
-      ["horas_mes_base", "id", "nome", "percentual_dedicado", "processo", "valor_mes"].sort(),
+      ["ativo", "horas_mes_base", "id", "nome", "percentual_dedicado", "processo", "valor_mes"].sort(),
     );
     expect(data![0].valor_mes).toBe(VALOR_MASCARADO);
   });

@@ -35,7 +35,7 @@ describe("entrada inicial de estoque", () => {
     expect(button.match(/await entradaInventario\(/g)).toHaveLength(1);
     const successBranch = button.indexOf("{state.ok ? (");
     expect(successBranch).toBeGreaterThan(-1);
-    expect(successBranch).toBeLessThan(button.indexOf("<form action={action}"));
+    expect(successBranch).toBeLessThan(button.indexOf("<form onSubmit={enviarSemReset(action)}"));
   });
 
   it("mantem Aceitar visivel somente sob a permissao existente", () => {

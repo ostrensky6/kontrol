@@ -148,14 +148,14 @@ export const APP_MODULES: AppModule[] = [
       {
         href: "/planejamento",
         label: "Planejamento",
-        desc: "demanda, reservas e consumo previsto",
+        desc: "necessidades, reservas e consumo previsto",
         icon: "CalendarClock",
         shortcut: "P",
       },
       {
         href: "/pedido",
-        label: "Pedido",
-        desc: "demandas internas para compra",
+        label: "Pedidos internos",
+        desc: "pedidos do laboratório para compra",
         icon: "ClipboardList",
       },
       {
@@ -216,14 +216,14 @@ export const APP_MODULES: AppModule[] = [
     children: [
       {
         href: "/orcamento/demandas",
-        label: "Orçamentos não finalizados",
+        label: "Orçamentos",
         desc: "entrada comercial e orçamentos pendentes",
         icon: "Inbox",
         shortcut: "O",
       },
       {
         href: "/orcamento/demandas/nova",
-        label: "Novo Orçamento",
+        label: "Novo orçamento",
         desc: "abre diretamente o formulário de entrada comercial",
         icon: "FileText",
       },
@@ -255,14 +255,14 @@ export const APP_MODULES: AppModule[] = [
       },
       {
         href: "/orcamento/modelos",
-        label: "Modelos/Templates",
+        label: "Modelos",
         desc: "templates comerciais e modelos de proposta",
         icon: "LayoutGrid",
         showInTopNav: false,
       },
       {
         href: "/orcamento/governanca",
-        label: "Governança",
+        label: "Regras do orçamento",
         desc: "validações e trilha de controles do orçamento",
         icon: "ShieldCheck",
         showInTopNav: false,

@@ -39,6 +39,7 @@ import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Notificacao = {
   id: number;
@@ -57,6 +58,8 @@ type EstoqueSaldo = {
   insumo_id: number | null;
   especificacao: string | null;
   unidade: string | null;
+  /** 0127: "frasco(s) de 100 mL" para insumo contado em frascos. */
+  unidade_saldo?: string | null;
   em_maos: number | null;
   em_quarentena: number | null;
   reservado: number | null;
@@ -206,6 +209,8 @@ export function StockControlHub({
 
       return {
         ...s,
+        // Saldo, reserva e ponto vêm na unidade do saldo (frascos no modelo atual).
+        unidade: s.unidade_saldo ?? s.unidade,
         status,
         statusLabel,
         tone,
@@ -887,7 +892,7 @@ function GerarPedidoInsumoButton({ insumoId }: { insumoId: number | null }) {
 
   return (
     <div className="flex flex-col items-end gap-1">
-      <form action={action}>
+      <form action={action} {...formularioSemPerda(state)}>
         <input type="hidden" name="insumo_id" value={insumoId} />
         <button
           disabled={pending}

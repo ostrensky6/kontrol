@@ -6,6 +6,7 @@ import { entrar, solicitarRedefinicaoSenha } from "@/lib/actions/auth";
 import { SENHA_PROVISORIA } from "@/lib/auth/senha-provisoria";
 import type { FormState } from "@/lib/actions/cadastros";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 export default function LoginPage() {
   const [state, action, pending] = useActionState<FormState, FormData>(entrar, {
@@ -56,7 +57,7 @@ export default function LoginPage() {
             </p>
           </div>
 
-          <form action={action} aria-busy={pending} className="mt-5 space-y-4">
+          <form action={action} {...formularioSemPerda(state)} aria-busy={pending} className="mt-5 space-y-4">
             <div>
               <label
                 htmlFor="login-email"
@@ -117,6 +118,7 @@ export default function LoginPage() {
 
           <form
             action={resetAction}
+            {...formularioSemPerda(resetState)}
             aria-busy={resetPending}
             className="mt-5 rounded-xl border border-border bg-muted/50 p-4"
           >

@@ -33,12 +33,13 @@ export function ExecutiveCharts({
   gastos,
   funil,
 }: {
-  gastos: GastoRow[];
-  funil: FunnelRow[];
+  /** null esconde o gráfico (sem a permissão de ver o módulo). */
+  gastos: GastoRow[] | null;
+  funil: FunnelRow[] | null;
 }) {
   const [mounted, setMounted] = useState(false);
   const gastosPorMes = Object.values(
-    gastos.reduce<Record<string, { mes: string; gasto: number }>>((acc, item) => {
+    (gastos ?? []).reduce<Record<string, { mes: string; gasto: number }>>((acc, item) => {
       const mes = item.mes.slice(0, 7);
       acc[mes] ??= { mes, gasto: 0 };
       acc[mes].gasto += item.gasto;
@@ -46,15 +47,19 @@ export function ExecutiveCharts({
     }, {}),
   );
   const temGastos = gastosPorMes.length > 0;
-  const temFunil = funil.some((item) => item.total > 0);
+  const temFunil = (funil ?? []).some((item) => item.total > 0);
+  const ambos = gastos !== null && funil !== null;
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMounted(true);
   }, []);
 
+  if (gastos === null && funil === null) return null;
+
   return (
-    <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]">
+    <div className={`grid min-w-0 gap-4 ${ambos ? "lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.8fr)]" : ""}`}>
+      {gastos !== null && (
       <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-foreground dark:text-white">Gasto por mês</h3>
         <div className="mt-3 h-64 min-h-64 min-w-0">
@@ -75,7 +80,9 @@ export function ExecutiveCharts({
           )}
         </div>
       </section>
+      )}
 
+      {funil !== null && (
       <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-foreground dark:text-white">Funil de orçamentos</h3>
         <div className="mt-3 h-64 min-h-64 min-w-0">
@@ -108,6 +115,7 @@ export function ExecutiveCharts({
           ))}
         </div>
       </section>
+      )}
     </div>
   );
 }

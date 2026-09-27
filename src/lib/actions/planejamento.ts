@@ -13,6 +13,7 @@ import {
   statusEditavel,
 } from "@/lib/planejamento/gestao";
 import type { FormState } from "./cadastros";
+import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type SupabaseUntyped = Awaited<ReturnType<typeof createClientUntyped>>;
@@ -181,7 +182,7 @@ async function statusDoPlano(
     .select("status_operacional")
     .eq("id", planId)
     .maybeSingle();
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   if (!data) return { ok: false, message: "Planejamento não encontrado." };
   return { ok: true, status: String(data.status_operacional ?? "rascunho") };
 }
@@ -257,7 +258,7 @@ export async function atualizarPlanejamentoExecutivo(
     data = retry.data;
     error = retry.error;
   }
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   if (semLinhasAfetadas(data)) {
     const atual = await planoEditavel(supabase, planId);
     return {
@@ -276,19 +277,19 @@ export async function atualizarPlanejamentoExecutivo(
  * A RPC faz a checagem transacional de indisponibilidade e sobreposição; esta
  * camada também impede que o formulário reserve equipamento alheio ao escopo.
  */
-export async function reservarEquipamentoDoPlano(formData: FormData) {
+export async function reservarEquipamentoDoPlano(_prev: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const planId = Number(formData.get("planejamento_id"));
   const unidadeId = Number(formData.get("equipamento_unidade_id"));
   const inicio = texto(formData, "data_inicio");
   const fim = texto(formData, "data_fim");
   if (!planId || !unidadeId || !inicio || !fim) {
-    throw new Error("Informe o equipamento e o período da reserva.");
+    return falha("Informe o equipamento e o período da reserva.");
   }
 
   const inicioDate = new Date(inicio);
   const fimDate = new Date(fim);
   if (Number.isNaN(inicioDate.getTime()) || Number.isNaN(fimDate.getTime()) || fimDate <= inicioDate) {
-    throw new Error("Período de reserva inválido.");
+    return falha("Período de reserva inválido.");
   }
 
   const supabase = await createClientUntyped();
@@ -308,31 +309,31 @@ export async function reservarEquipamentoDoPlano(formData: FormData) {
       .eq("id", unidadeId)
       .single(),
   ]);
-  if (planoError) throw new Error(planoError.message);
-  if (unidadeError || !unidade) throw new Error(unidadeError?.message ?? "Equipamento não encontrado.");
+  if (planoError) return falha(mensagemDoBanco(planoError));
+  if (unidadeError || !unidade) return falha(unidadeError ? mensagemDoBanco(unidadeError) : "Equipamento não encontrado.");
   if (["cancelado", "concluido"].includes(String(plano?.status_operacional ?? ""))) {
-    throw new Error("Não é possível reservar equipamento para um plano encerrado.");
+    return falha("Não é possível reservar equipamento para um plano encerrado.");
   }
   if (!plano?.data_inicio_prevista || !plano?.data_fim_prevista) {
-    throw new Error("Defina início e fim previstos do plano antes de reservar equipamentos.");
+    return falha("Defina início e fim previstos do plano antes de reservar equipamentos.");
   }
 
   const inicioPlano = new Date(`${plano.data_inicio_prevista}T00:00:00`);
   const fimPlano = new Date(`${plano.data_fim_prevista}T23:59:59`);
   if (inicioDate < inicioPlano || fimDate > fimPlano) {
-    throw new Error("A reserva do equipamento deve ficar dentro do período previsto do plano.");
+    return falha("A reserva do equipamento deve ficar dentro do período previsto do plano.");
   }
 
   const codigos = [...new Set((itens ?? []).map((item) => item.codigo_analise).filter(Boolean))];
-  if (codigos.length === 0) throw new Error("Adicione análises ao plano antes de reservar equipamentos.");
+  if (codigos.length === 0) return falha("Adicione análises ao plano antes de reservar equipamentos.");
   const { data: vinculos, error: vinculosError } = await supabase
     .from("equipamento_analise")
     .select("equipamento_id")
     .in("codigo_analise", codigos);
-  if (vinculosError) throw new Error(vinculosError.message);
+  if (vinculosError) return falha(mensagemDoBanco(vinculosError));
   const equipamentosPermitidos = new Set((vinculos ?? []).map((vinculo) => Number(vinculo.equipamento_id)));
   if (!equipamentosPermitidos.has(Number(unidade.equipamento_id))) {
-    throw new Error("Este equipamento não está vinculado às análises do plano.");
+    return falha("Este equipamento não está vinculado às análises do plano.");
   }
 
   const usuario = await usuarioAtual();
@@ -344,11 +345,12 @@ export async function reservarEquipamentoDoPlano(formData: FormData) {
     p_responsavel: texto(formData, "responsavel") ?? usuario?.nome ?? usuario?.email ?? null,
     p_observacao: texto(formData, "observacao"),
   });
-  if (error) throw new Error(error.message);
+  if (error) return falha(mensagemDoBanco(error));
 
   revalidatePath(`/planejamento/${planId}`);
   revalidatePath("/planejamento");
   revalidatePath("/suprimentos");
+  return sucesso("Equipamento reservado para o plano.");
 }
 
 type NumerosItem = {
@@ -464,7 +466,7 @@ export async function reservarPlano(
   const { error: validacaoErr } = await supabase.rpc("validar_planejamento_executivo" as never, {
     p_planejamento_id: planId,
   } as never);
-  if (validacaoErr) return { ok: false, message: validacaoErr.message };
+  if (validacaoErr) return { ok: false, message: mensagemDoBanco(validacaoErr) };
 
   const demanda = await computarDemandaPlano(supabase, planId);
   if (demanda.length === 0)
@@ -475,7 +477,7 @@ export async function reservarPlano(
     p_planejamento_id: planId,
     p_itens: itens,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const shortfalls = parseShortfalls((data as unknown as { shortfalls?: unknown } | null)?.shortfalls);
   const faltaPorInsumo = new Map<number, number>();
@@ -538,7 +540,7 @@ export async function iniciarPlano(
   const { data, error } = await supabase.rpc("dar_baixa_plano", {
     p_planejamento_id: planId,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const shortfalls = parseShortfalls((data as { shortfalls?: unknown } | null)?.shortfalls);
   const faltaPorInsumo = new Map<number, number>();
@@ -572,7 +574,7 @@ export async function liberarPlano(
   const planId = Number(formData.get("planejamento_id"));
   const supabase = await createClient();
   const { error } = await supabase.rpc("liberar_plano", { p_planejamento_id: planId });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/planejamento/${planId}`);
   revalidatePath("/estoque");
   return { ok: true, message: "Reservas liberadas. O plano voltou para rascunho." };
@@ -587,7 +589,7 @@ export async function concluirPlano(
   const { error } = await supabase.rpc("concluir_planejamento" as never, {
     p_planejamento_id: planId,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/planejamento/${planId}`);
   revalidatePath("/planejamento");
   return { ok: true, message: "Planejamento concluído." };
@@ -604,7 +606,7 @@ function mensagemErroGestao(error: { message?: string; code?: string }, acao: "e
     return `Não foi possível ${acao}: o banco ainda não tem a migration 0111.`;
   }
   if (error.code === "42501" && message.includes("Sem permiss")) {
-    return `Somente coordenador pode ${acao} planos.`;
+    return `Seu perfil não tem permissão para ${acao} planos. Peça ao administrador para liberar em Usuários.`;
   }
   return message || `Não foi possível ${acao} o plano.`;
 }

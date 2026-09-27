@@ -12,7 +12,8 @@ const additiveMigrations = readdirSync(migrationsUrl)
     source: readFileSync(new URL(migration.name, migrationsUrl), "utf8"),
   }));
 
-function latestFunctionDefinition(name: string) {
+// Com sobrecargas (ex.: emitir com e sem operacao_id), `assinatura` escolhe qual.
+function latestFunctionDefinition(name: string, assinatura?: RegExp) {
   const escapedName = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const pattern = new RegExp(
     `create\\s+(?:or\\s+replace\\s+)?function\\s+(?:"?[\\w]+"?\\.)?"?${escapedName}"?\\s*\\([\\s\\S]*?\\bas\\s+(\\$[\\w]*\\$)[\\s\\S]*?\\1\\s*;`,
@@ -25,11 +26,12 @@ function latestFunctionDefinition(name: string) {
         source: match[0],
       })),
     )
+    .filter((definicao) => !assinatura || assinatura.test(definicao.source.slice(0, definicao.source.search(/\breturns\b/i))))
     .at(-1);
 }
 
-function requireLatestFunctionDefinition(name: string) {
-  const definition = latestFunctionDefinition(name);
+function requireLatestFunctionDefinition(name: string, assinatura?: RegExp) {
+  const definition = latestFunctionDefinition(name, assinatura);
   expect(
     definition,
     `Nenhuma migration aditiva numericamente posterior a 0098 define ${name}; 0079–0098 permanecem congeladas.`,
@@ -122,7 +124,7 @@ describe("KONTROL-DIAG-008 — pós-emissão atômico", () => {
       "emitir_orcamento_final_transacional",
       "recalcular_orcamento_transacional",
     ]) {
-      const definition = requireLatestFunctionDefinition(functionName);
+      const definition = requireLatestFunctionDefinition(functionName, /p_operacao_id\s+uuid/i);
       expect.soft(definition, functionName).toContain(
         "OPERACAO_ID_REUTILIZADA_COM_PAYLOAD_DIFERENTE",
       );

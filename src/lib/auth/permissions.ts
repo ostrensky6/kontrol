@@ -150,6 +150,8 @@ const TECNICO: PermissaoUsuario[] = [
   "compras.solicitar",
   "pedido.criar",
   "recebimento.registrar",
+  // 0127: o técnico registra a chegada da compra; o aceite do lote segue com o coordenador.
+  "compras.receber",
   "estoque.movimentar",
   "planejamento.executar",
 ];
@@ -163,7 +165,6 @@ const COORDENADOR: PermissaoUsuario[] = [
   "orcamentos.emitir",
   "orcamentos.cancelar",
   "compras.aprovar",
-  "compras.receber",
   "compras.cancelar",
   "pedido.aprovar",
   "estoque.lote.aceitar",

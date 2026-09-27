@@ -1,4 +1,3 @@
-import { HelpTip } from "@/components/common/HelpTip";
 import { PrivilegiosMatriz } from "@/components/governanca/PrivilegiosMatriz";
 import { obterMatrizPrivilegios } from "@/lib/actions/privilegios";
 
@@ -18,20 +17,10 @@ export default async function PrivilegiosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Privilégios</h1>
-          <HelpTip title="Privilégios">
-            <p>
-              O que cada papel (técnico, coordenador, gestor, administrador) pode ver e fazer. O{" "}
-              <b>administrador</b> sempre tem tudo.
-            </p>
-            <p>
-              Alguns privilégios vêm desligados por padrão, como “Ver salário dos técnicos”, que só o
-              administrador tem.
-            </p>
-          </HelpTip>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">O que cada papel pode ver e fazer.</p>
+        <h1 className="text-xl font-semibold tracking-tight">Privilégios</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          O que cada papel pode ver e fazer. O administrador sempre tem tudo.
+        </p>
 
         <div className="mt-6">
           <PrivilegiosMatriz permissoesPorCategoria={permissoesPorCategoria} />

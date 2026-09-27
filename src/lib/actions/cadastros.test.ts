@@ -74,7 +74,7 @@ describe("cadastro de insumos", () => {
     const result = await salvarRegistro({ ok: false }, formInsumo({ quantidade_embalagem: "0" }));
 
     expect(result.ok).toBe(false);
-    expect(result.errors?.quantidade_embalagem).toBe("Mínimo 0.000001");
+    expect(result.errors?.quantidade_embalagem).toBe("Informe quanto vem em 1 embalagem (maior que 0)");
     expect(from).not.toHaveBeenCalled();
     expect(rpc).not.toHaveBeenCalled();
   });
@@ -227,5 +227,113 @@ describe("cadastro de insumos", () => {
     expect(result).not.toHaveProperty("createdId");
     expect(rpc).toHaveBeenCalledOnce();
     expect(revalidatePath).not.toHaveBeenCalled();
+  });
+});
+
+describe("cadastros: auditoria de 26/09 (onda 2)", () => {
+  beforeEach(() => {
+    revalidatePath.mockReset();
+    from.mockClear();
+    insert.mockReset();
+    update.mockReset();
+    select.mockClear();
+    single.mockReset();
+    eq.mockReset();
+    rpc.mockReset();
+    insert.mockReturnValue({ select });
+    update.mockReturnValue({ eq });
+    single.mockResolvedValue({ data: { id: 7 }, error: null });
+    selectAtualizados.mockReset();
+    selectAtualizados.mockResolvedValue({ data: [{ id: 7 }], error: null });
+    eq.mockReturnValue({ select: selectAtualizados });
+    rpc.mockResolvedValue({ data: { insumo_id: 7, repetido: false }, error: null });
+  });
+
+  function form(campos: Record<string, string>) {
+    const formData = new FormData();
+    for (const [chave, valor] of Object.entries(campos)) formData.set(chave, valor);
+    return formData;
+  }
+
+  it("CAD2-1: unidade da embalagem é obrigatória no insumo", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    const result = await salvarRegistro({ ok: false }, formInsumo({ unidade: " " }));
+    expect(result.ok).toBe(false);
+    expect(result.errors?.unidade).toBe("Obrigatório");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("CAD-6: editar sem enviar um campo não o apaga (grava só o que o formulário enviou)", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    const result = await salvarRegistro(
+      { ok: false },
+      form({ _slug: "locais", _id: "7", nome: "Freezer 2", tipo: "freezer" }),
+    );
+    expect(result.ok).toBe(true);
+    const payload = update.mock.calls[0][0] as Record<string, unknown>;
+    expect(payload).toEqual({ nome: "Freezer 2", tipo: "freezer" });
+    expect(payload).not.toHaveProperty("parent_id");
+  });
+
+  it("edição de insumo não apaga campos fora do formulário nem dados do lote", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    await salvarRegistro({ ok: false }, formInsumoExistente(7));
+    const payload = update.mock.calls[0][0] as Record<string, unknown>;
+    for (const campo of ["codigo_interno", "sds_url", "fornecedor_alt_id", "condicao_armazenamento", "data_validade", "data_fabricacao", "data_aquisicao"]) {
+      expect(payload, campo).not.toHaveProperty(campo);
+    }
+    expect(payload.custo_unitario).toBe(5);
+  });
+
+  it("local não pode ficar dentro de si mesmo", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    const result = await salvarRegistro(
+      { ok: false },
+      form({ _slug: "locais", _id: "7", nome: "Gaveta", parent_id: "7" }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors?.parent_id).toMatch(/dentro de si mesmo/);
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("projeto com término antes do início é recusado", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    const result = await salvarRegistro(
+      { ok: false },
+      form({ _slug: "projetos", nome: "P1", data_inicio: "2026-10-10", data_fim: "2026-10-01" }),
+    );
+    expect(result.ok).toBe(false);
+    expect(result.errors?.data_fim).toBe("A data de término não pode ser anterior à de início");
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("CAD2-11: embalagem de R$ 0 salva com aviso de sem custo", async () => {
+    const { salvarRegistro } = await import("./cadastros");
+    const result = await salvarRegistro({ ok: false }, formInsumo({ custo_total_embalagem: "0" }));
+    expect(result.ok).toBe(true);
+    expect(result.message).toMatch(/sem custo/);
+  });
+
+  it("exclusão recusada pelo gatilho mantém a orientação em português", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: { code: "23503", message: "Não é possível excluir: o fornecedor tem pedidos ou insumos. Desative-o." },
+    }));
+    from.mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never);
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "fornecedores", _id: "7" }));
+    expect(result).toEqual({ ok: false, message: "Não é possível excluir: o fornecedor tem pedidos ou insumos. Desative-o." });
+  });
+
+  it("recusa técnica do banco não chega crua à tela", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: { code: "23503", message: 'update or delete on table "x" violates foreign key constraint' },
+    }));
+    from.mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never);
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "clientes", _id: "7" }));
+    expect(result.message).toMatch(/^Não é possível excluir: o registro está em uso/);
+    expect(result.message).not.toMatch(/violates/);
   });
 });

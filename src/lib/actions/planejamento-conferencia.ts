@@ -1,5 +1,6 @@
 "use server";
 
+import { mensagemDoBanco } from "@/lib/erros";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { usuarioAtual } from "@/lib/auth/roles";
@@ -124,8 +125,8 @@ export async function registrarConferenciaLotePlanejamento(
     justificativa: parsed.data.justificativa,
     conferido_por: usuario?.email ?? usuario?.id ?? null,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath(`/planejamento/${parsed.data.planejamento_id}`);
-  return { ok: true, message: validacao.message };
+  return { ok: true, message: mensagemDoBanco(validacao) };
 }

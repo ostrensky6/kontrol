@@ -18,6 +18,6 @@ describe("QrCode", () => {
       renderToStaticMarkup(
         createElement(QrCode, { value: `/s/lote/${"1".repeat(60)}` }),
       ),
-    ).toThrow("ate 53 bytes");
+    ).toThrow("até 53 bytes");
   });
 });

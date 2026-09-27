@@ -16,6 +16,9 @@ import {
 import { PERMISSOES, PAPEIS, type PapelUsuario, type PermissaoUsuario } from "@/lib/auth/permissions";
 import type { FormState } from "@/lib/actions/cadastros";
 import { HelpTip } from "@/components/common/HelpTip";
+import { MensagemAcao } from "@/components/common/MensagemAcao";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initial: FormState = { ok: false, message: "" };
 
@@ -24,7 +27,7 @@ type PermissoesPorCategoria = Record<PapelUsuario, Record<PermissaoUsuario, bool
 export function PermissoesCategoriasTable({ permissoesPorCategoria }: { permissoesPorCategoria: PermissoesPorCategoria }) {
   const [categoriaEditando, setCategoriaEditando] = useState<PapelUsuario | null>(null);
   const categoria = PAPEIS.find((papel) => papel.value === categoriaEditando);
-  const [state, action, pending] = useActionState(salvarPermissoesCategoria, initial);
+  const [state, action] = useActionState(salvarPermissoesCategoria, initial);
 
   return (
     <section className="mt-8 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -91,7 +94,7 @@ export function PermissoesCategoriasTable({ permissoesPorCategoria }: { permisso
             </DialogDescription>
           </DialogHeader>
           {categoria && (
-            <form action={action} className="space-y-4">
+            <form action={action} {...formularioSemPerda(state)} className="space-y-4">
               <input type="hidden" name="papel" value={categoria.value} />
               <input type="hidden" name="permissoes_presentes" value="1" />
               <div className="grid gap-2 md:grid-cols-2">
@@ -111,13 +114,9 @@ export function PermissoesCategoriasTable({ permissoesPorCategoria }: { permisso
                   </label>
                 ))}
               </div>
-              {state.message && (
-                <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>{state.message}</p>
-              )}
+              <MensagemAcao estado={state} />
               <DialogFooter>
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Salvando..." : "Salvar permissões"}
-                </Button>
+                <SubmitButton pendingLabel="Salvando…">Salvar permissões</SubmitButton>
               </DialogFooter>
             </form>
           )}

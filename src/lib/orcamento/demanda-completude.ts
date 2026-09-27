@@ -24,12 +24,12 @@ export function avaliarCompletudeDemanda(demanda: DemandaCompletudeInput) {
 
   criterios.push(preenchido(demanda.titulo));
   if (!criterios.at(-1)) {
-    pendencias.push("informar o titulo da demanda");
+    pendencias.push("informar o título");
   }
 
   criterios.push(Boolean(demanda.cliente_id || preenchido(demanda.cliente_nome)));
   if (!criterios.at(-1)) {
-    pendencias.push("informar cliente cadastrado ou cliente livre");
+    pendencias.push("informar o cliente (cadastrado ou pelo nome)");
   }
 
   criterios.push(preenchido(modalidade));
@@ -39,7 +39,7 @@ export function avaliarCompletudeDemanda(demanda: DemandaCompletudeInput) {
 
   criterios.push(Boolean(preenchido(demanda.escopo_preliminar) || preenchido(demanda.descricao)));
   if (!criterios.at(-1)) {
-    pendencias.push("descrever escopo preliminar ou descricao da demanda");
+    pendencias.push("descrever o escopo ou a descrição");
   }
 
   if (modalidadeExigeProjeto(modalidade)) {

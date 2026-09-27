@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { mensagemDoBanco } from "@/lib/erros";
 import { normalizarCodigo } from "@/lib/scanner/identificadores";
 import {
   entidadeTipoParaResolucao,
@@ -25,15 +26,15 @@ const triagemSchema = z.object({
 const resolverExistenteSchema = z.object({
   triagem_id: z.coerce.number().int().positive("Triagem inválida."),
   entidade_tipo: z.string().refine(isTipoResolucaoTriagem, "Tipo de resolução inválido."),
-  entidade_id: z.coerce.number().int().positive("Entidade obrigatoria."),
+  entidade_id: z.coerce.number().int().positive("Escolha o item."),
 });
 
 const novoInsumoSchema = z.object({
   triagem_id: z.coerce.number().int().positive("Triagem inválida."),
-  especificacao: z.string().trim().min(1, "Especificacao obrigatoria."),
-  unidade: z.string().trim().min(1, "Unidade de estoque obrigatoria."),
-  unidade_consumo: z.string().trim().min(1, "Unidade de consumo obrigatoria."),
-  fator_conversao: z.coerce.number().positive("Fator de conversao deve ser > 0."),
+  especificacao: z.string().trim().min(1, "Especificação obrigatória."),
+  unidade: z.string().trim().min(1, "Unidade da embalagem obrigatória."),
+  unidade_consumo: z.string().trim().min(1, "Unidade de consumo obrigatória."),
+  fator_conversao: z.coerce.number().positive("O fator de conversão deve ser maior que 0."),
   quantidade_embalagem: z.coerce.number().positive("Quantidade da embalagem deve ser > 0."),
   custo_total_embalagem: z.preprocess(
     (value) => (value === "" || value == null ? null : Number(value)),
@@ -145,7 +146,7 @@ async function vincularCodigoTriagem(args: {
       .single();
 
     if (error) {
-      return { ok: false, message: error.message };
+      return { ok: false, message: mensagemDoBanco(error) };
     }
     identificadorCriadoId = Number(criado.id);
   }
@@ -167,7 +168,7 @@ async function vincularCodigoTriagem(args: {
         .update({ ativo: false })
         .eq("id", identificadorCriadoId);
     }
-    return { ok: false, message: updateError.message };
+    return { ok: false, message: mensagemDoBanco(updateError) };
   }
 
   revalidarTriagem();
@@ -221,7 +222,7 @@ export async function criarTriagemCodigoDesconhecido(
         } else {
           return {
             ok: false,
-            message: "Nao foi possivel registrar a triagem agora.",
+            message: "Não foi possível registrar a triagem agora.",
           };
         }
       }
@@ -229,7 +230,7 @@ export async function criarTriagemCodigoDesconhecido(
   } catch {
     return {
       ok: false,
-      message: "Nao foi possivel registrar a triagem agora.",
+      message: "Não foi possível registrar a triagem agora.",
     };
   }
 
@@ -305,7 +306,7 @@ export async function criarInsumoMinimoDaTriagem(
   if (error) {
     return {
       ok: false,
-      message: error.message || "Nao foi possivel criar o insumo pela triagem.",
+      message: mensagemDoBanco(error, "Não foi possível criar o insumo pela triagem."),
     };
   }
 
@@ -334,7 +335,7 @@ export async function arquivarTriagemCodigoDesconhecido(
     .eq("id", parsed.data.triagem_id)
     .in("status", ["pendente", "em_analise"]);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidarTriagem();
   redirect("/scanner/triagem?status=arquivado");

@@ -811,6 +811,82 @@ function podeVerSalarioMock(sessao: SessaoMock) {
   return mockTemPermissao("tecnicos.salario.ver", sessao);
 }
 
+/** Mesma forma de public.v_minhas_notificacoes (0128): estado de leitura por usuário. */
+function mockMinhasNotificacoes(): Row[] {
+  const leituras = (store.notificacoes_leituras ?? []).filter((row) => row.user_id === MOCK_USER_ID);
+  return (store.notificacoes ?? []).map((n) => {
+    const leitura = [...leituras].reverse().find((row) => row.notificacao_id === n.id);
+    const status = leitura?.arquivada_em
+      ? "arquivada"
+      : leitura?.lida_em
+        ? "lida"
+        : !leitura && n.status && n.status !== "nao_lida"
+          ? n.status
+          : "nao_lida";
+    return {
+      ...n,
+      permissao_destino: n.permissao_destino ?? null,
+      usuario_destino: n.usuario_destino ?? null,
+      status,
+      lida_em: leitura?.lida_em ?? null,
+      arquivada_em: leitura?.arquivada_em ?? null,
+    };
+  });
+}
+
+/** Mesma regra de public.aguardando_voce (0128), com os dados do mock. */
+function mockAguardandoVoce(sessao: SessaoMock) {
+  const saida: Row[] = [];
+  const linha = (chave: string, rows: Row[], rotulo: (row: Row) => string) =>
+    saida.push({
+      chave,
+      quantidade: rows.length,
+      itens: rows.slice(0, 3).map((row) => ({ id: row.id, rotulo: rotulo(row) })),
+    });
+  if (mockTemPermissao("pedido.aprovar", sessao)) {
+    linha(
+      "pedidos_validacao",
+      (store.pedidos_internos ?? []).filter((row) => row.status === "em_validacao"),
+      (row) => `#${row.id} · ${row.titulo ?? "sem título"}`,
+    );
+  }
+  if (mockTemPermissao("compras.aprovar", sessao)) {
+    linha(
+      "compras_aprovar",
+      (store.pedidos_compra ?? []).filter((row) => row.status === "solicitado"),
+      (row) => `Compra #${row.id}`,
+    );
+  }
+  if (mockTemPermissao("compras.receber", sessao)) {
+    linha(
+      "compras_receber",
+      (store.pedidos_compra ?? []).filter((row) => ["aprovado", "enviado", "em_transito"].includes(String(row.status))),
+      (row) => `Compra #${row.id}`,
+    );
+  }
+  if (mockTemPermissao("estoque.lote.aceitar", sessao)) {
+    linha(
+      "lotes_quarentena",
+      (store.lotes_estoque ?? []).filter((row) => row.status === "quarentena"),
+      (row) => `Lote ${row.codigo_lote ?? `#${row.id}`}`,
+    );
+  }
+  if (mockTemPermissao("planejamento.editar", sessao)) {
+    linha(
+      "planos_rascunho",
+      (store.planejamento ?? []).filter((row) => (row.status_operacional ?? "rascunho") === "rascunho"),
+      (row) => String(row.nome ?? `Plano #${row.id}`),
+    );
+  }
+  return saida;
+}
+
+/** Linhas de leitura de uma tabela; as visões derivadas são calculadas na hora. */
+function linhasDaTabela(table: string): Row[] {
+  if (table === "v_minhas_notificacoes") return mockMinhasNotificacoes();
+  return store[table] ?? [];
+}
+
 /** Emula os triggers de proteção de salário/preço PE da 0112. */
 function violacaoSalario(
   table: string,
@@ -1060,7 +1136,7 @@ class MockQuery {
         ? (this.mutation.payload as Row[])
         : this.mutation?.type === "delete"
           ? removidos
-          : (store[this.table] ?? []).filter((row) => this.matches(row));
+          : linhasDaTabela(this.table).filter((row) => this.matches(row));
     const linhas = source.map((row) => withRelations(this.table, row));
     // Tabelas com coluna sigilosa: devolve só as colunas pedidas, como o
     // PostgREST faria (as demais tabelas mantêm o comportamento anterior).
@@ -1799,6 +1875,19 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
       // Permissão efetiva e leituras sigilosas (migration 0112).
       if (fn === "tem_permissao") return { data: mockTemPermissao(args.p_chave, sessao), error: null };
       if (fn === "minhas_permissoes") return { data: mockMinhasPermissoes(sessao), error: null };
+      // "Aguardando você" e leitura por usuário (migration 0128).
+      if (fn === "aguardando_voce") return { data: mockAguardandoVoce(sessao), error: null };
+      if (fn === "marcar_todas_notificacoes_lidas") {
+        const agora = new Date().toISOString();
+        const pendentes = mockMinhasNotificacoes().filter((row) => row.status === "nao_lida");
+        for (const row of pendentes) {
+          store.notificacoes_leituras = [
+            ...(store.notificacoes_leituras ?? []),
+            { notificacao_id: row.id, user_id: MOCK_USER_ID, lida_em: agora, arquivada_em: null },
+          ];
+        }
+        return { data: pendentes.length, error: null };
+      }
       if (fn === "tecnicos_remuneracao") {
         const pode = podeVerSalarioMock(sessao);
         return {

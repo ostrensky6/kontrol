@@ -72,8 +72,8 @@ function proximaAcao(status: string) {
     validado: { acao: "Formalizar compra", responsavel: "Coordenador/Compras" },
     formalizado: { acao: "Análise administrativa", responsavel: "Administrativo" },
     analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
-    aprovado_compra: { acao: "Registrar orçamentos", responsavel: "Compras/Admin." },
-    orcamentos: { acao: "Anexar orçamentos", responsavel: "Compras/Admin." },
+    aprovado_compra: { acao: "Registrar cotações", responsavel: "Compras/Admin." },
+    orcamentos: { acao: "Anexar cotações", responsavel: "Compras/Admin." },
     orcamentos_recebidos: { acao: "Enviar aprovação final", responsavel: "Coordenador" },
     aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
     aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
@@ -89,7 +89,7 @@ function proximaAcao(status: string) {
 function pendenciasPedido(row: PedidoInternoListRow) {
   const pendencias: string[] = [];
   const docsCotacao = row.pedidos_internos_anexos.some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
-  if (!docsCotacao && ["orcamentos", "aprovado_compra"].includes(row.status)) pendencias.push("orçamento");
+  if (!docsCotacao && ["orcamentos", "aprovado_compra"].includes(row.status)) pendencias.push("cotação");
   if (!row.projetos) pendencias.push("projeto");
   if (!row.pedidos_internos_itens.length) pendencias.push("itens");
   if (row.status === "aprovado_para_compra" && !row.modalidade_compra) pendencias.push("modalidade");
@@ -202,7 +202,7 @@ export default async function PedidoPage() {
         <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <Kpi label="Abertos" value={abertos.length} detail="em qualquer etapa ativa" tone={abertos.length ? "info" : "neutral"} />
           <Kpi label="Aguardando coordenador" value={aguardandoCoordenador.length} detail="validação técnica" tone={aguardandoCoordenador.length ? "warning" : "neutral"} />
-          <Kpi label="Em cotação" value={cotacao.length} detail="orçamento e proposta" tone={cotacao.length ? "info" : "neutral"} />
+          <Kpi label="Em cotação" value={cotacao.length} detail="cotações" tone={cotacao.length ? "info" : "neutral"} />
           <Kpi label="Com pendências" value={pendentes.length} detail="faltam dados/documentos" tone={pendentes.length ? "warning" : "neutral"} />
           <Kpi label="Aguardando recebimento" value={recebimento.length} detail="itens ainda não recebidos" tone={recebimento.length ? "success" : "neutral"} />
         </section>

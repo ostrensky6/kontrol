@@ -5,7 +5,6 @@ import { useActionState, useMemo, useState } from "react";
 import type { FormState } from "@/lib/actions/cadastros";
 import { salvarPrivilegiosPapel } from "@/lib/actions/privilegios";
 import {
-  HISTORICAL_ROLE_RECONCILIATION,
   PERMISSOES,
   PAPEIS,
   type PapelUsuario,
@@ -14,6 +13,8 @@ import {
 import type { PermissoesPorCategoria } from "@/lib/auth/permission-categories";
 import { Button } from "@/components/ui/button";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
+import { MensagemAcao } from "@/components/common/MensagemAcao";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
@@ -23,12 +24,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initial: FormState = { ok: false, message: "" };
 
 export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCategoria: PermissoesPorCategoria }) {
   const [papelEditando, setPapelEditando] = useState<PapelUsuario | null>(null);
-  const [state, action, pending] = useActionState(salvarPrivilegiosPapel, initial);
+  const [state, action] = useActionState(salvarPrivilegiosPapel, initial);
   const papel = PAPEIS.find((item) => item.value === papelEditando);
   const grupos = useMemo(() => {
     const modulos = new Map<string, typeof PERMISSOES>();
@@ -40,39 +42,6 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
 
   return (
     <div className="space-y-6">
-      <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
-        <div className="flex items-center gap-1">
-          <h2 className="text-sm font-semibold">Papéis antigos e equivalência atual</h2>
-          <HelpTip title="Papéis antigos">
-            <p>
-              O Kontrol usa quatro papéis: técnico, coordenador, gestor e administrador. O antigo
-              papel “administrativo” virou <b>privilégios</b> que você liga ou desliga na matriz
-              abaixo.
-            </p>
-          </HelpTip>
-        </div>
-        <div className="mt-4 overflow-x-auto rounded-md border border-border">
-          <table className="w-full min-w-[760px] border-collapse text-sm">
-            <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-3 text-left">Papel histórico</th>
-                <th className="px-3 py-3 text-left">Tratamento atual</th>
-                <th className="px-3 py-3 text-left">Observação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {HISTORICAL_ROLE_RECONCILIATION.map((item) => (
-                <tr key={item.historico}>
-                  <td className="px-3 py-3 font-medium text-foreground">{item.historico}</td>
-                  <td className="px-3 py-3 text-foreground">{item.atual}</td>
-                  <td className="px-3 py-3 text-muted-foreground">{item.observacao}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -156,7 +125,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
             </DialogDescription>
           </DialogHeader>
           {papel && (
-            <form action={action} className="space-y-4">
+            <form action={action} {...formularioSemPerda(state)} className="space-y-4">
               <input type="hidden" name="papel" value={papel.value} />
               {/* sem isto, desmarcar tudo voltaria aos padrões do código */}
               <input type="hidden" name="permissoes_presentes" value="1" />
@@ -187,15 +156,9 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                   </fieldset>
                 ))}
               </div>
-              {state.message && (
-                <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
-                  {state.message}
-                </p>
-              )}
+              <MensagemAcao estado={state} />
               <DialogFooter>
-                <Button type="submit" disabled={pending}>
-                  {pending ? "Salvando..." : "Salvar privilégios"}
-                </Button>
+                <SubmitButton pendingLabel="Salvando…">Salvar privilégios</SubmitButton>
               </DialogFooter>
             </form>
           )}

@@ -13,11 +13,13 @@ import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import {
   salvarCabecalho,
   revisarOrcamentoLaboratorio,
-  alternarAnaliseOrcamento,
-  removerItemOrcamento,
+  salvarItemOrcamento,
   cancelarOrcamento,
   excluirOrcamento,
 } from "@/lib/actions/orcamentos";
+import { FormEstado } from "@/components/orcamento/FormEstado";
+import { CancelarComMotivo } from "@/components/orcamento/CancelarComMotivo";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { listarEventos } from "@/lib/actions/eventos";
 import { Timeline } from "@/components/common/Timeline";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
@@ -68,10 +70,10 @@ export default async function OrcamentoDetalhe({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ erro_exclusao?: string }>;
+  searchParams: Promise<{ erro_exclusao?: string; aviso?: string }>;
 }) {
   const { id } = await params;
-  const { erro_exclusao: erroExclusao } = await searchParams;
+  const { erro_exclusao: erroExclusao, aviso } = await searchParams;
   const orcId = Number(id);
   const supabase = await createClient();
 
@@ -217,12 +219,24 @@ export default async function OrcamentoDetalhe({
     podeOrcamento("revisar_modulo"),
     podeOrcamento("cancelar_documento"),
   ]);
+  // Cada pendência da revisão leva ao campo onde ela se resolve.
+  const formularioRevisaoVisivel =
+    Boolean(demanda) && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar;
+  const alvoPendencia: Record<string, string | null> = {
+    "informar cliente": demanda ? `/orcamento/demandas/${demanda.id}#demanda` : "#cabecalho-cliente",
+    "informar responsável técnico": formularioRevisaoVisivel
+      ? "#revisao-responsavel"
+      : demanda
+        ? null
+        : "#cabecalho-responsavel",
+    "adicionar ao menos uma análise": "#analises-quantidades",
+  };
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="print-area app-page-container">
         <div className="no-print flex flex-wrap items-center justify-between gap-3">
-          <Breadcrumbs items={[{ label: "Orçamentos não finalizados", href: "/orcamento/demandas" }, { label: `Custos laboratoriais #${orc.id}` }]} />
+          <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento/demandas" }, { label: `Custos laboratoriais #${orc.id}` }]} />
           <div className="flex flex-wrap items-center gap-2">
             <PrintButton />
             {planoGerado && (
@@ -271,7 +285,7 @@ export default async function OrcamentoDetalhe({
               <dd className="font-medium">#{orc.id} · {rotuloStatusModulo(orc.status)}</dd>
             </div>
             <div className="flex gap-2">
-              <dt className="text-muted-foreground">Demanda:</dt>
+              <dt className="text-muted-foreground">Orçamento:</dt>
               <dd>
                 {demanda ? (
                   <Link href={`/orcamento/demandas/${demanda.id}`} className="font-medium text-primary hover:underline">
@@ -343,14 +357,7 @@ export default async function OrcamentoDetalhe({
                   <p>Tudo aqui é <b>custo</b>: insumos, equipamentos, mão de obra e overhead. O preço da proposta só é formado depois, nos parâmetros econômicos.</p>
                   <p><b>Preço preservado</b> é o preço de tabela das análises, mostrado apenas como referência.</p>
                   <HelpExample>Custo de R$ 80 por amostra e preço de tabela de R$ 120: a proposta parte dos R$ 80.</HelpExample>
-                </HelpTip>
-              </div>
-              <span className="flex items-center gap-1">
-                <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium text-foreground ring-1 ring-border">
-                  {rotuloStatusModulo(statusOperacional)}
-                </span>
-                <HelpTip title="Status dos custos" align="end">
-                  <p>Indica a etapa da <b>conferência técnica</b> destes custos, não a situação da proposta.</p>
+                  <p>A etiqueta ao lado mostra a <b>conferência técnica</b> destes custos, não a situação da proposta:</p>
                   <HelpLegend
                     items={[
                       { tom: "neutro", rotulo: "Pendente", texto: "Nenhuma análise incluída ainda." },
@@ -359,6 +366,9 @@ export default async function OrcamentoDetalhe({
                     ]}
                   />
                 </HelpTip>
+              </div>
+              <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium text-foreground ring-1 ring-border">
+                {rotuloStatusModulo(statusOperacional)}
               </span>
             </div>
             <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
@@ -408,14 +418,7 @@ export default async function OrcamentoDetalhe({
                   <th className="px-3 py-2">Mão obra</th>
                   <th className="px-3 py-2">Overhead</th>
                   <th className="px-3 py-2">Custo</th>
-                  <th className="px-3 py-2 text-left">
-                    <span className="inline-flex items-center gap-1">
-                      Origem
-                      <HelpTip title="Origem do valor" align="end" className="no-print">
-                        <p><b>Gravado no item</b>: valor guardado quando a análise foi incluída. <b>Custeio atual</b>: calculado agora pela receita da análise.</p>
-                      </HelpTip>
-                    </span>
-                  </th>
+                  <th className="px-3 py-2 text-left">Origem do valor</th>
                   <th className="px-3 py-2 no-print"></th>
                 </tr>
               </thead>
@@ -441,13 +444,14 @@ export default async function OrcamentoDetalhe({
                     <td className="px-3 py-2 text-left text-xs text-muted-foreground">{linha.origem}</td>
                     <td className="px-3 py-2 no-print">
                       {!bloqueado && (
-                        <form action={removerItemOrcamento}>
+                        <FormEstado action={salvarItemOrcamento} mensagemClassName="text-xs">
                           <input type="hidden" name="orcamento_id" value={orcId} />
-                          <input type="hidden" name="item_id" value={linha.id} />
-                          <button className="text-xs text-danger-strong hover:underline">
+                          <input type="hidden" name="codigo_analise" value={linha.codigo} />
+                          <input type="hidden" name="acao" value="remover" />
+                          <button className="text-xs text-danger-strong hover:underline" aria-label={`Remover ${linha.codigo}`}>
                             Remover
                           </button>
-                        </form>
+                        </FormEstado>
                       )}
                     </td>
                   </tr>
@@ -531,6 +535,11 @@ export default async function OrcamentoDetalhe({
             {erroExclusao}
           </p>
         )}
+        {aviso && (
+          <p role="status" className="no-print mt-4 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
+            {aviso}
+          </p>
+        )}
 
         {/* Catálogo visível de análises */}
         <section id="identificacao-tecnica" className="no-print mt-6 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
@@ -570,20 +579,20 @@ export default async function OrcamentoDetalhe({
                 href={`/orcamento/demandas/${demanda.id}#demanda`}
                 className="app-nav-level-3 rounded-md border border-primary/20 px-3 py-2 text-xs font-medium text-brand-800 shadow-xs transition hover:border-primary/40 hover:text-brand-900 dark:text-brand-300"
               >
-                Editar dados da demanda
+                Editar dados do orçamento
               </Link>
             </div>
             <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
               <div><dt className="text-xs text-muted-foreground">Cliente</dt><dd className="font-medium">{orc.cliente_nome ?? "—"}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Documento</dt><dd>{orc.cliente_cnpj ?? "—"}</dd></div>
               <div><dt className="text-xs text-muted-foreground">Contato</dt><dd>{orc.cliente_contato ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Origem</dt><dd>Demanda nº {demanda.id}</dd></div>
+              <div><dt className="text-xs text-muted-foreground">Origem</dt><dd>Orçamento nº {demanda.id}</dd></div>
             </dl>
           </section>
         ) : (
         <section className="no-print mt-6 rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold">Dados do cliente e do orçamento</h2>
-          <form action={salvarCabecalho} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <FormEstado action={salvarCabecalho} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" mensagemClassName="sm:col-span-2">
             <input type="hidden" name="orcamento_id" value={orcId} />
             <div>
               <label className={lbl}>Cliente cadastrado</label>
@@ -608,7 +617,7 @@ export default async function OrcamentoDetalhe({
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>Cliente (texto livre, se não cadastrado)</label>
-              <input aria-label="Cliente (texto livre, se não cadastrado)" name="cliente_nome" defaultValue={orc.cliente_nome ?? ""} className={`${inp} mt-1 w-full`} />
+              <input id="cabecalho-cliente" aria-label="Cliente (texto livre, se não cadastrado)" name="cliente_nome" defaultValue={orc.cliente_nome ?? ""} className={`${inp} mt-1 w-full scroll-mt-28`} />
             </div>
             <div>
               <label className={lbl}>CNPJ</label>
@@ -632,37 +641,30 @@ export default async function OrcamentoDetalhe({
             </div>
             <div>
               <label className={lbl}>Responsável (laboratório)</label>
-              <input aria-label="Responsável (laboratório)" name="responsavel" defaultValue={orc.responsavel ?? ""} className={`${inp} mt-1 w-full`} />
+              <input id="cabecalho-responsavel" aria-label="Responsável (laboratório)" name="responsavel" defaultValue={orc.responsavel ?? ""} className={`${inp} mt-1 w-full scroll-mt-28`} />
             </div>
             <div>
-              <label className={lbl}>Status</label>
-              <select aria-label="Status" name="status" defaultValue={orc.status ?? "rascunho"} className={`${inp} mt-1 w-full`}>
-                <option value="rascunho">Rascunho</option>
-                <option value="enviado">Enviado</option>
-                <option value="aprovado">Aprovado</option>
-                <option value="recusado">Recusado</option>
-                <option value="cancelado">Cancelado</option>
-              </select>
+              <p className={lbl}>Situação</p>
+              <p className="mt-1 text-sm font-medium">{rotuloStatusModulo(orc.status)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/80">Muda pelas ações da página (revisar, cancelar), não por aqui.</p>
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>Observações</label>
               <textarea aria-label="Observações" name="observacoes" rows={3} defaultValue={orc.observacoes ?? ""} className={`${inp} mt-1 w-full`} />
             </div>
             <div className="sm:col-span-2">
-              <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                Salvar dados
-              </button>
+              <SubmitButton>Salvar dados</SubmitButton>
             </div>
-          </form>
+          </FormEstado>
         </section>
         )}
 
         <section id="revisao-laboratorio" className="no-print mt-6 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Revisão técnica</h2>
+              <h2 className="text-sm font-semibold">Revisão técnica dos custos</h2>
               <p className="mt-1 text-xs text-muted-foreground">
-                Checklist para marcar o orçamento como enviado, aprovado ou seguir para planejamento.
+                Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.
               </p>
             </div>
             <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
@@ -671,9 +673,23 @@ export default async function OrcamentoDetalhe({
           </div>
           {revisaoPendencias.length > 0 ? (
             <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-5 text-warning-strong">
-              {revisaoPendencias.map((pendencia) => (
-                <li key={pendencia}>{pendencia}</li>
-              ))}
+              {revisaoPendencias.map((pendencia) => {
+                const alvo = alvoPendencia[pendencia] ?? null;
+                return (
+                  <li key={pendencia}>
+                    {alvo ? (
+                      <a href={alvo} className="underline underline-offset-2 hover:text-warning-strong/80">
+                        {pendencia}
+                      </a>
+                    ) : (
+                      pendencia
+                    )}
+                    {pendencia === "informar responsável técnico" && alvo === "#revisao-responsavel" && (
+                      <span className="text-muted-foreground"> — no campo “Responsável técnico” abaixo; é gravado ao marcar revisado</span>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           ) : (
             <p className="mt-3 rounded-md bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200">
@@ -686,15 +702,15 @@ export default async function OrcamentoDetalhe({
             </p>
           )}
           {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar && (
-            <form action={revisarOrcamentoLaboratorio} className="mt-4 grid gap-3 rounded-md border border-border bg-muted/50 p-3 text-sm sm:grid-cols-[1fr_auto]">
+            <FormEstado action={revisarOrcamentoLaboratorio} className="mt-4 grid gap-3 rounded-md border border-border bg-muted/50 p-3 text-sm sm:grid-cols-[1fr_auto]" mensagemClassName="sm:col-span-2">
               <input type="hidden" name="orcamento_id" value={orcId} />
               <div>
-                <label className={lbl}>Responsável técnico</label>
+                <label htmlFor="revisao-responsavel" className={lbl}>Responsável técnico</label>
                 <input
-                  aria-label="Responsável técnico"
+                  id="revisao-responsavel"
                   name="responsavel"
                   defaultValue={orc.responsavel ?? demanda.responsavel_interno ?? ""}
-                  className={`${inp} mt-1 w-full`}
+                  className={`${inp} mt-1 w-full scroll-mt-28`}
                   required
                 />
               </div>
@@ -707,11 +723,8 @@ export default async function OrcamentoDetalhe({
                 >
                   Marcar revisado
                 </ConfirmSubmitButton>
-                <HelpTip title="Marcar revisado" align="end">
-                  <p><b>Congela</b> os custos atuais para a proposta. Depois disso, análises e quantidades não podem mais ser alteradas aqui.</p>
-                </HelpTip>
               </div>
-            </form>
+            </FormEstado>
           )}
         </section>
 
@@ -725,14 +738,13 @@ export default async function OrcamentoDetalhe({
 
         <div className="no-print mt-6 flex flex-wrap gap-3">
           {!podeCancelar ? null : ["enviado", "aprovado"].includes(orc.status) ? (
-            <ConfirmActionButton
+            <CancelarComMotivo
               action={cancelarOrcamento}
-              fields={{ orcamento_id: orcId, motivo: "Cancelamento operacional solicitado na tela do orçamento." }}
+              fields={{ orcamento_id: orcId }}
               trigger="Cancelar orçamento"
               titulo="Cancelar orçamento"
               mensagem={`Cancelar o orçamento de “${orc.cliente_nome}”? O histórico será preservado.`}
               confirmLabel="Cancelar orçamento"
-              destrutivo={false}
               triggerClassName="text-xs text-warning-strong hover:underline"
             />
           ) : (
@@ -811,13 +823,8 @@ function TabelaCatalogoAnalises({
             <th className="px-3 py-2 text-left">Nome</th>
             <th className="px-3 py-2">Lote</th>
             <th className="px-3 py-2">Custo unit.</th>
-            <th className="px-3 py-2">
-              <span className="inline-flex items-center gap-1">
-                Composição
-                <HelpTip title="Composição do custo">
-                  <p>Custo de uma amostra dividido por bloco: <b>R</b> reagentes, <b>E</b> equipamentos, <b>P</b> pessoal e <b>O</b> overhead.</p>
-                </HelpTip>
-              </span>
+            <th className="px-3 py-2" title="R reagentes · E equipamentos · P pessoal · O overhead">
+              Composição (R · E · P · O)
             </th>
             <th className="px-3 py-2">Amostras</th>
             <th className="px-3 py-2">Subtotal</th>
@@ -837,11 +844,11 @@ function TabelaCatalogoAnalises({
                   {bloqueado ? (
                     <span className="text-xs text-muted-foreground">{selecionada ? "Incluída" : "—"}</span>
                   ) : (
-                  <form action={alternarAnaliseOrcamento}>
+                  <FormEstado action={salvarItemOrcamento} mensagemClassName="mt-1 max-w-48 text-xs">
                     <input type="hidden" name="orcamento_id" value={orcId} />
                     <input type="hidden" name="codigo_analise" value={analise.codigo} />
                     <input type="hidden" name="n_amostras" value={amostras} />
-                    <input type="hidden" name="incluir" value={selecionada ? "false" : "true"} />
+                    <input type="hidden" name="acao" value={selecionada ? "remover" : "incluir"} />
                     <button
                       className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
                         selecionada
@@ -851,7 +858,7 @@ function TabelaCatalogoAnalises({
                     >
                       {selecionada ? "Remover" : "Incluir"}
                     </button>
-                  </form>
+                  </FormEstado>
                   )}
                 </td>
                 <td className="px-3 py-2 text-left font-semibold">{analise.codigo}</td>
@@ -865,10 +872,10 @@ function TabelaCatalogoAnalises({
                   {selecionada && bloqueado ? (
                     <span className="tabular-nums">{amostras}</span>
                   ) : selecionada ? (
-                    <form action={alternarAnaliseOrcamento} className="flex justify-end gap-2">
+                    <FormEstado action={salvarItemOrcamento} className="flex flex-wrap justify-end gap-2" mensagemClassName="w-full text-right text-xs">
                       <input type="hidden" name="orcamento_id" value={orcId} />
                       <input type="hidden" name="codigo_analise" value={analise.codigo} />
-                      <input type="hidden" name="incluir" value="true" />
+                      <input type="hidden" name="acao" value="quantidade" />
                       <input
                         aria-label={`Amostras de ${analise.codigo}`}
                         name="n_amostras"
@@ -881,7 +888,7 @@ function TabelaCatalogoAnalises({
                       <button className="rounded-md border border-input px-2 py-1 text-xs hover:bg-muted">
                         Salvar
                       </button>
-                    </form>
+                    </FormEstado>
                   ) : (
                     <span className="text-muted-foreground/80">—</span>
                   )}

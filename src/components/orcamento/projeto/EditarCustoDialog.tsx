@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { FormAcao } from "./FormAcao";
+import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
 export type CustoEditavel = {
   id: number;
@@ -52,7 +52,7 @@ export function EditarCustoDialog({
   item: CustoEditavel;
   orcamentoProjetoId: number;
   demandaId: number;
-  action: (formData: FormData) => void | Promise<void>;
+  action: AcaoFormulario;
 }) {
   const [aberto, setAberto] = useState(false);
   const id = useId();

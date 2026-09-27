@@ -1,21 +1,11 @@
 import { redirect } from "next/navigation";
 
-import { permiteMinRole } from "@/config/modules";
-import { createClient } from "@/lib/supabase/server";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
 
+/** A governança abre na auditoria para quem tem "Ver auditoria" (a caixinha manda). */
 export default async function GovernancaRedirectPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) redirect("/ajuda");
-
-  const { data: perfil } = await supabase.from("perfis").select("papel").eq("id", user.id).single();
-
-  if (permiteMinRole(perfil, "gestor")) {
+  if (await temPermissao("auditoria.visualizar")) {
     redirect("/auditoria");
   }
-
-  redirect("/ajuda");
+  redirect("/sem-acesso?area=Auditoria");
 }

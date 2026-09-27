@@ -14,7 +14,7 @@ export function entidadeTipoParaResolucao(
   tipo: TipoResolucaoTriagem,
 ): Extract<EntidadeTipo, "insumo" | "lote" | "local"> {
   if (!isEntidadeTipo(tipo)) {
-    throw new Error(`Tipo de resolucao invalido: ${tipo}`);
+    throw new Error(`Tipo inválido: ${tipo}`);
   }
   return tipo;
 }

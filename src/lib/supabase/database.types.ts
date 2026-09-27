@@ -1642,6 +1642,7 @@ export type Database = {
           id: number
           lida_em: string | null
           papel_destino: string | null
+          permissao_destino: string | null
           status: string
           tipo: string
           titulo: string
@@ -1660,6 +1661,7 @@ export type Database = {
           id?: never
           lida_em?: string | null
           papel_destino?: string | null
+          permissao_destino?: string | null
           status?: string
           tipo: string
           titulo: string
@@ -1678,12 +1680,42 @@ export type Database = {
           id?: never
           lida_em?: string | null
           papel_destino?: string | null
+          permissao_destino?: string | null
           status?: string
           tipo?: string
           titulo?: string
           usuario_destino?: string | null
         }
         Relationships: []
+      }
+      notificacoes_leituras: {
+        Row: {
+          arquivada_em: string | null
+          lida_em: string | null
+          notificacao_id: number
+          user_id: string
+        }
+        Insert: {
+          arquivada_em?: string | null
+          lida_em?: string | null
+          notificacao_id: number
+          user_id?: string
+        }
+        Update: {
+          arquivada_em?: string | null
+          lida_em?: string | null
+          notificacao_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notificacoes_leituras_notificacao_id_fkey"
+            columns: ["notificacao_id"]
+            isOneToOne: false
+            referencedRelation: "notificacoes"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       orcamento_final_versoes: {
         Row: {
@@ -2189,7 +2221,7 @@ export type Database = {
           expira_em: string | null
           id: number
           orcamento_final_versao_id: number | null
-          orcamento_projeto_id: number
+          orcamento_projeto_id: number | null
           revogado: boolean
           token_hash: string
         }
@@ -2201,7 +2233,7 @@ export type Database = {
           expira_em?: string | null
           id?: never
           orcamento_final_versao_id?: number | null
-          orcamento_projeto_id: number
+          orcamento_projeto_id?: number | null
           revogado?: boolean
           token_hash: string
         }
@@ -2213,7 +2245,7 @@ export type Database = {
           expira_em?: string | null
           id?: never
           orcamento_final_versao_id?: number | null
-          orcamento_projeto_id?: number
+          orcamento_projeto_id?: number | null
           revogado?: boolean
           token_hash?: string
         }
@@ -3966,6 +3998,7 @@ export type Database = {
       }
       tecnicos: {
         Row: {
+          ativo: boolean
           horas_mes_base: number
           id: number
           nome: string
@@ -3974,6 +4007,7 @@ export type Database = {
           valor_mes: number
         }
         Insert: {
+          ativo?: boolean
           horas_mes_base?: number
           id?: never
           nome: string
@@ -3982,6 +4016,7 @@ export type Database = {
           valor_mes?: number
         }
         Update: {
+          ativo?: boolean
           horas_mes_base?: number
           id?: never
           nome?: string
@@ -4060,6 +4095,7 @@ export type Database = {
         Row: {
           especificacao: string | null
           insumo_id: number | null
+          lote_id: number | null
           referencia: number | null
           tipo: string | null
           validade: string | null
@@ -4168,12 +4204,14 @@ export type Database = {
           estoque_seguranca: number | null
           insumo_id: number | null
           lead_time_dias: number | null
+          modelo_quantidade: string | null
           nome_item: string | null
           ponto_reposicao: number | null
           reservado: number | null
           tipo_insumo: string | null
           tipo_insumo_id: number | null
           unidade: string | null
+          unidade_saldo: string | null
           vencido: number | null
         }
         Relationships: [
@@ -4309,6 +4347,25 @@ export type Database = {
           },
         ]
       }
+      v_minhas_notificacoes: {
+        Row: {
+          arquivada_em: string | null
+          canal: string | null
+          corpo: string | null
+          criado_em: string | null
+          entidade_id: number | null
+          entidade_tipo: string | null
+          id: number | null
+          lida_em: string | null
+          papel_destino: string | null
+          permissao_destino: string | null
+          status: string | null
+          tipo: string | null
+          titulo: string | null
+          usuario_destino: string | null
+        }
+        Relationships: []
+      }
       v_planejamento_compromissos_estoque: {
         Row: {
           data_alvo: string | null
@@ -4325,6 +4382,7 @@ export type Database = {
           quantidade_comprometida: number | null
           status_operacional: string | null
           unidade: string | null
+          unidade_quantidade: string | null
         }
         Relationships: [
           {
@@ -4371,6 +4429,28 @@ export type Database = {
           },
         ]
       }
+      v_proposta_aprovada_vigente: {
+        Row: {
+          classificado_em: string | null
+          cliente_id: number | null
+          cliente_nome: string | null
+          criado_em: string | null
+          demanda_id: number | null
+          numero: string | null
+          projeto_id: number | null
+          status: string | null
+          titulo: string | null
+          total_final: number | null
+          total_laboratorio_custo: number | null
+          total_laboratorio_preco: number | null
+          total_projeto_custo: number | null
+          total_projeto_final: number | null
+          valido_ate: string | null
+          versao: number | null
+          versao_id: number | null
+        }
+        Relationships: []
+      }
       v_previsao_suprimentos: {
         Row: {
           categoria_compra: string | null
@@ -4393,6 +4473,7 @@ export type Database = {
           qtd_sugerida_compra: number | null
           reservado: number | null
           unidade: string | null
+          unidade_saldo: string | null
         }
         Relationships: [
           {
@@ -4414,6 +4495,7 @@ export type Database = {
         Args: { p_lote_id: number; p_motivo: string; p_quantidade_nova: number }
         Returns: undefined
       }
+      aguardando_voce: { Args: never; Returns: Json }
       aplicar_ajuste_inventario_contagem: {
         Args: { p_contagem_id: number }
         Returns: Json
@@ -4422,10 +4504,20 @@ export type Database = {
         Args: { p_nome: string; p_token: string }
         Returns: Json
       }
-      baixa_manual_lote: {
-        Args: { p_lote_id: number; p_motivo: string; p_quantidade: number }
-        Returns: undefined
-      }
+      baixa_manual_lote:
+        | {
+            Args: { p_lote_id: number; p_motivo: string; p_quantidade: number }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_lote_id: number
+              p_motivo: string
+              p_operacao_id: string
+              p_quantidade: number
+            }
+            Returns: Json
+          }
       bloquear_lote: {
         Args: { p_lote_id: number; p_motivo: string }
         Returns: undefined
@@ -4446,6 +4538,10 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      criar_pedido_faltas_planejamento: {
+        Args: { p_itens: Json; p_planejamento_id: number }
+        Returns: Json
+      }
       criar_pedido_reposicao_estoque: {
         Args: {
           p_data_necessidade: string
@@ -4458,6 +4554,7 @@ export type Database = {
       }
       current_papel: { Args: never; Returns: string }
       dar_baixa_plano: { Args: { p_planejamento_id: number }; Returns: Json }
+      gerar_planejamento_da_proposta: { Args: { p_versao_id: number }; Returns: Json }
       duplicar_orcamento_final_transacional: {
         Args: {
           p_operacao_id: string
@@ -4467,6 +4564,10 @@ export type Database = {
         Returns: Json
       }
       desbloquear_lote: { Args: { p_lote_id: number }; Returns: undefined }
+      destinatarios_notificacao: {
+        Args: { p_notificacao_id: number }
+        Returns: string[]
+      }
       descartar_lote: {
         Args: { p_justificativa: string; p_lote_id: number }
         Returns: undefined
@@ -4488,18 +4589,33 @@ export type Database = {
         }
         Returns: Json
       }
-      entrada_inventario: {
-        Args: {
-          p_codigo?: string
-          p_custo?: number
-          p_fornecedor?: string
-          p_insumo_id: number
-          p_motivo?: string
-          p_quantidade: number
-          p_validade?: string
-        }
-        Returns: number
-      }
+      entrada_inventario:
+        | {
+            Args: {
+              p_codigo?: string
+              p_custo?: number
+              p_fornecedor?: string
+              p_insumo_id: number
+              p_motivo?: string
+              p_quantidade: number
+              p_validade?: string
+            }
+            Returns: number
+          }
+        | {
+            Args: {
+              p_codigo?: string
+              p_custo?: number
+              p_fornecedor?: string
+              p_insumo_id: number
+              p_local_id?: number
+              p_motivo?: string
+              p_operacao_id: string
+              p_quantidade: number
+              p_validade?: string
+            }
+            Returns: Json
+          }
       estornar_recebimento_item_pedido_interno: {
         Args: {
           p_item_id: number
@@ -4508,6 +4624,10 @@ export type Database = {
           p_recebimento_id?: number
         }
         Returns: undefined
+      }
+      estornar_recebimento_do_lote: {
+        Args: { p_lote_id: number; p_motivo: string }
+        Returns: Json
       }
       estornar_recebimento_lote: {
         Args: { p_lote_id: number; p_motivo?: string }
@@ -4521,6 +4641,7 @@ export type Database = {
       gerar_reposicao_automatica: { Args: never; Returns: Json }
       ler_orcamento_publico: { Args: { p_token: string }; Returns: Json }
       liberar_plano: { Args: { p_planejamento_id: number }; Returns: undefined }
+      marcar_todas_notificacoes_lidas: { Args: never; Returns: number }
       marcar_planejamento_em_execucao: {
         Args: { p_planejamento_id: number }
         Returns: undefined
@@ -4585,6 +4706,20 @@ export type Database = {
             }
             Returns: number
           }
+        | {
+            Args: {
+              p_codigo?: string
+              p_conteudo_embalagem?: number
+              p_item_id: number
+              p_local_id?: number
+              p_operacao_id: string
+              p_pedido_id: number
+              p_quantidade?: number
+              p_responsavel?: string
+              p_validade?: string
+            }
+            Returns: number
+          }
       receber_item_pedido_interno: {
         Args: {
           p_codigo?: string
@@ -4613,6 +4748,17 @@ export type Database = {
           p_validade?: string
         }
         Returns: number
+      }
+      registrar_etapa_pedido_interno: {
+        Args: {
+          p_dados?: Json
+          p_decisao: string
+          p_etapa: string
+          p_observacao?: string
+          p_pedido_id: number
+          p_status_destino: string
+        }
+        Returns: Json
       }
       registrar_modalidade_pedido_interno: {
         Args: {
@@ -4656,6 +4802,18 @@ export type Database = {
           insumo_id: number
           triagem_id: number
         }[]
+      }
+      salvar_item_orcamento: {
+        Args: {
+          p_codigo_analise: string
+          p_custo_snapshot: Json
+          p_custo_unitario: number
+          p_n_amostras: number
+          p_orcamento_id: number
+          p_preco_unitario: number
+          p_valor_snapshot: Json
+        }
+        Returns: Json
       }
       tecnicos_remuneracao: {
         Args: never
@@ -4709,6 +4867,7 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      vencer_orcamentos_finais: { Args: never; Returns: number }
       valor_hora_pessoal_total: { Args: never; Returns: number }
     }
     Enums: {

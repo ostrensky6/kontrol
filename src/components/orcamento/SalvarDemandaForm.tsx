@@ -2,6 +2,7 @@
 
 import { useActionState, type ReactNode } from "react";
 import { salvarDemanda, type DemandaFormState } from "@/lib/actions/demandas";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initialState: DemandaFormState = { ok: false };
 const salvarComEstado: (
@@ -19,6 +20,7 @@ export function SalvarDemandaForm({ children }: { children: ReactNode }) {
   return (
     <form
       action={formAction}
+      {...formularioSemPerda(salvamentoConfirmado ? state : { ok: false, message: mensagem })}
       aria-busy={pending}
       className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"
     >
@@ -48,7 +50,7 @@ export function SalvarDemandaForm({ children }: { children: ReactNode }) {
           disabled={pending}
           className="min-h-11 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
         >
-          {pending ? "Salvando..." : "Salvar demanda"}
+          {pending ? "Salvando…" : "Salvar orçamento"}
         </button>
       </div>
     </form>

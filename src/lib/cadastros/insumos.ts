@@ -95,3 +95,25 @@ export function modeloQuantidadePorInsumo(lotes: LoteModelo[]): Map<string, Mode
   for (const chave of temFechada) if (!mapa.has(chave)) mapa.set(chave, "EMBALAGEM_FECHADA");
   return mapa;
 }
+
+export type LoteValidade = Pick<LoteInsumo, "insumo_id" | "status" | "quantidade_atual" | "validade" | "validade_apos_abertura">;
+
+/**
+ * Coluna "Validade" do cadastro de insumos: a validade é do lote, não do
+ * produto. Mostra a menor validade (inclusive a de após abertura) entre os
+ * lotes com saldo que ainda não saíram do estoque; lote vencido também conta,
+ * para o vencimento não sumir da lista.
+ */
+export function menorValidadePorInsumo(lotes: LoteValidade[]): Map<string, string> {
+  const mapa = new Map<string, string>();
+  for (const lote of lotes) {
+    if (lote.insumo_id == null || !(Number(lote.quantidade_atual) > 0)) continue;
+    if (lote.status === "consumido" || lote.status === "descartado") continue;
+    const validade = menorValidade({ ...lote, data_abertura: null });
+    if (!validade) continue;
+    const chave = String(lote.insumo_id);
+    const atual = mapa.get(chave);
+    if (!atual || validade < atual) mapa.set(chave, validade);
+  }
+  return mapa;
+}

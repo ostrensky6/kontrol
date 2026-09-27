@@ -32,6 +32,7 @@ import {
   excluirAnaliseAcao,
   type AnaliseFormState,
 } from "@/lib/actions/receita";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 export type AnaliseOpcao = { codigo: string; rotulo: string };
 
@@ -84,7 +85,7 @@ function NovaAnaliseDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <form action={action} className="grid gap-4">
+        <form action={action} {...formularioSemPerda(state)} className="grid gap-4">
           <div>
             <div className="flex items-center gap-0.5">
               <Label htmlFor={`${ids}-codigo`}>
@@ -246,7 +247,7 @@ function ExcluirAnaliseDialog({
             {state.message}
           </p>
         )}
-        <form action={action}>
+        <form action={action} {...formularioSemPerda(state)}>
           <input type="hidden" name="codigo" value={codigo} />
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
@@ -285,7 +286,7 @@ export function AnaliseSituacao({
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <form action={action}>
+      <form action={action} {...formularioSemPerda(state)}>
         <input type="hidden" name="codigo" value={codigo} />
         <input type="hidden" name="campo" value="ativo" />
         <input type="hidden" name="valor" value={String(!ativo)} />
@@ -293,7 +294,7 @@ export function AnaliseSituacao({
           {ativo ? "Inativar" : "Reativar"}
         </Button>
       </form>
-      <form action={action}>
+      <form action={action} {...formularioSemPerda(state)}>
         <input type="hidden" name="codigo" value={codigo} />
         <input type="hidden" name="campo" value="ofertavel" />
         <input type="hidden" name="valor" value={String(!ofertavel)} />

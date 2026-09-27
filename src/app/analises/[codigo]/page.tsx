@@ -122,6 +122,7 @@ export default async function AnaliseDetalhe({
   const codigo = decodeURIComponent(codigoRaw);
   const activeView = isViewId(view) ? view : "resumo";
   const supabase = await createClient();
+  const podeEditar = await podeEditarAnalises();
 
   const { data: analise } = await supabase
     .from("analises")
@@ -259,6 +260,7 @@ export default async function AnaliseDetalhe({
 
             <form action={atualizarCatalogoAnalise} className={`grid content-start gap-2 ${editablePanelClass}`}>
               <input type="hidden" name="codigo" value={codigo} />
+              <fieldset disabled={!podeEditar} className="contents">
               <div className="grid gap-2 sm:grid-cols-2">
                 <label className="block">
                   <span className={labelClass}>Nome curto</span>
@@ -273,16 +275,21 @@ export default async function AnaliseDetalhe({
                 <span className={labelClass}>Descrição</span>
                 <textarea name="descricao" defaultValue={analise.descricao ?? ""} className={`${inputClass} h-16 min-h-16 resize-y`} />
               </label>
-              <div className="flex flex-wrap items-center gap-2">
-                <button className={primaryButtonClass}>Salvar cadastro</button>
-              </div>
+              {podeEditar ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <button className={primaryButtonClass}>Salvar cadastro</button>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">Somente consulta: editar exige a permissão “Editar análises”.</p>
+              )}
+              </fieldset>
             </form>
             <div className="lg:col-start-2">
               <AnaliseSituacao
                 codigo={codigo}
                 ativo={analise.ativo}
                 ofertavel={analise.ofertavel}
-                podeEditar={await podeEditarAnalises()}
+                podeEditar={podeEditar}
               />
             </div>
           </div>
@@ -365,12 +372,14 @@ export default async function AnaliseDetalhe({
             titulo="Laboratório"
             etapas={etapasLaboratorio.map(toEtapaEditRowData)}
             showAddForm
+            podeEditar={podeEditar}
           />
           <EtapasEditTable
             codigo={codigo}
             titulo="Pós-análise / Bioinformática"
             etapas={etapasPosAnalise.map(toEtapaEditRowData)}
             emptyText="Nenhuma etapa pós-análise cadastrada."
+            podeEditar={podeEditar}
           />
         </Section>
         )}
@@ -391,6 +400,7 @@ export default async function AnaliseDetalhe({
             codigo={codigo}
             materiais={materiaisT.map(toMaterialEditRowData)}
             insumos={insumosOpcoes.map(toInsumoOption)}
+            podeEditar={podeEditar}
           />
         </Section>
         )}
@@ -410,6 +420,7 @@ export default async function AnaliseDetalhe({
             codigo={codigo}
             equipamentos={equipamentosT.map(toEquipamentoEditRowData)}
             opcoes={equipamentosOpcoes.map(toEquipamentoOption)}
+            podeEditar={podeEditar}
           />
         </Section>
         )}
@@ -457,7 +468,6 @@ export default async function AnaliseDetalhe({
           <Table>
             <thead>
               <tr>
-                <th className={th}>Material</th>
                 <th className={th}>Insumo</th>
                 <th className={th}>Disponível</th>
                 <th className={th}>Ponto de reposição</th>
@@ -473,8 +483,16 @@ export default async function AnaliseDetalhe({
                 const ponto = Number(material.insumos?.ponto_reposicao ?? 0);
                 return (
                   <tr key={material.id} className="border-t border-border/70">
-                    <td className={td}>{material.especificacao_insumo ?? "-"}</td>
-                    <td className={td}>{material.insumos?.especificacao ?? material.insumos?.nome_item ?? "Sem vínculo"}</td>
+                    <td className={td}>
+                      {/* com vínculo, vale o nome atual do cadastro do insumo; o texto da receita pode estar desatualizado */}
+                      {material.insumo_id && material.insumos?.especificacao
+                        ? material.insumos.especificacao
+                        : material.especificacao_insumo ?? "-"}
+                      {material.insumo_id && material.insumos?.especificacao && material.especificacao_insumo &&
+                        material.especificacao_insumo.trim() !== material.insumos.especificacao.trim() && (
+                          <span className="block text-[11px] text-muted-foreground">Na receita: {material.especificacao_insumo}</span>
+                        )}
+                    </td>
                     <td className={td}>{material.insumo_id ? `${fmt(disponivel)} ${saldo?.unidade ?? material.insumos?.unidade ?? ""}` : "-"}</td>
                     <td className={td}>{fmt(material.insumos?.ponto_reposicao)}</td>
                     <td className={td}>{fmt(material.insumos?.estoque_seguranca)}</td>

@@ -11,6 +11,8 @@ import {
 import type { FormState } from "@/lib/actions/cadastros";
 import { HelpTip } from "@/components/common/HelpTip";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 type Confirmacao = { titulo: string; mensagem: string; confirmLabel: string; destrutivo?: boolean };
@@ -29,7 +31,7 @@ function Botao({
   confirmacao?: Confirmacao;
 }) {
   const router = useRouter();
-  const [state, formAction, pending] = useActionState<FormState, FormData>(action, {
+  const [state, formAction] = useActionState<FormState, FormData>(action, {
     ok: false,
   });
   useEffect(() => {
@@ -38,16 +40,16 @@ function Botao({
 
   return (
     <div className="flex flex-col gap-1">
-      <form action={formAction}>
+      <form action={formAction} {...formularioSemPerda(state)}>
         <input type="hidden" name="planejamento_id" value={planId} />
         {confirmacao ? (
           <ConfirmSubmitButton className={cls} {...confirmacao}>
             {label}
           </ConfirmSubmitButton>
         ) : (
-          <button disabled={pending} className={cls}>
-            {pending ? "…" : label}
-          </button>
+          <SubmitButton pendingLabel="Processando…" className={cls}>
+            {label}
+          </SubmitButton>
         )}
       </form>
       {state.message && (
@@ -69,6 +71,8 @@ export function PlanoAcoes({
   contextoCompleto,
   temBloqueioEquipamentos = false,
   reservaDesatualizada = false,
+  podeExecutar = false,
+  podeEditar = false,
 }: {
   planId: number;
   status: string;
@@ -77,14 +81,24 @@ export function PlanoAcoes({
   temBloqueioEquipamentos?: boolean;
   /** Itens mudaram depois da reserva (0111): exige nova reserva antes da baixa. */
   reservaDesatualizada?: boolean;
+  /** "Executar planejamento": reservar, retirar/iniciar e concluir (mesma chave do servidor) */
+  podeExecutar?: boolean;
+  /** "Editar planejamento": liberar reservas (mesma chave do servidor) */
+  podeEditar?: boolean;
 }) {
-  const podeReservar = contextoCompleto && (status === "Rascunho" || status === "Reservado");
-  const podeIniciar = status === "Reservado" && !temFalta && !temBloqueioEquipamentos && !reservaDesatualizada;
-  const podeLiberar = status === "Reservado";
-  const podeConcluir = status === "Em execução" || status === "Iniciado";
+  const podeReservar = podeExecutar && contextoCompleto && (status === "Rascunho" || status === "Reservado");
+  const podeIniciar = podeExecutar && status === "Reservado" && !temFalta && !temBloqueioEquipamentos && !reservaDesatualizada;
+  const podeLiberar = podeEditar && status === "Reservado";
+  const podeConcluir = podeExecutar && (status === "Em execução" || status === "Iniciado");
+  const semPermissao = !podeExecutar && !podeEditar;
 
   return (
     <div className="space-y-3">
+      {semPermissao && (
+        <p className="rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+          Reservar, retirar e concluir exigem a permissão “Executar planejamento”.
+        </p>
+      )}
       {!contextoCompleto && (
         <p className="rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-strong">
           Complete projeto e período previsto para poder reservar insumos.

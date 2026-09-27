@@ -3,12 +3,18 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { conferirEscrita } from "@/lib/supabase/escrita";
+import { mensagemDoBanco } from "@/lib/erros";
+import { ehParametroVersionado, rotuloParametro } from "@/lib/cadastros/parametros";
 import type { FormState } from "./cadastros";
 
 /**
- * Salva os parâmetros globais de custeio/preço. Cada campo `valor_<chave>`
- * atualiza a linha correspondente em `parametros`, permitindo que a tela edite
- * tanto os 5 fatores comerciais quanto constantes operacionais futuras.
+ * Salva os parâmetros de custeio que não têm versão (horas-base, rateios,
+ * janelas de alerta, taxa de incubação). Cada campo `valor_<chave>` atualiza a
+ * linha correspondente em `parametros`.
+ *
+ * Margem, impostos, taxas, fundos e dias úteis são versionados e só mudam em
+ * Orçamento → Parâmetros econômicos (CAD-4): aqui são recusados, para a tela
+ * sem versão não reescrever o histórico econômico.
  */
 export async function salvarParametros(
   _prev: FormState,
@@ -20,6 +26,14 @@ export async function salvarParametros(
     .filter(Boolean);
 
   if (chaves.length === 0) return { ok: false, message: "Nada a salvar." };
+
+  const versionadas = chaves.filter(ehParametroVersionado);
+  if (versionadas.length > 0) {
+    return {
+      ok: false,
+      message: `${versionadas.map(rotuloParametro).join(", ")}: altere em Orçamento → Parâmetros econômicos, que guarda a versão anterior.`,
+    };
+  }
 
   const errors: Record<string, string> = {};
   const updates: { chave: string; valor: number }[] = [];
@@ -42,7 +56,7 @@ export async function salvarParametros(
 
   const supabase = await createClient();
   for (const u of updates) {
-    // `.select()` é obrigatório: sob RLS (perfil abaixo de gestor) o UPDATE
+    // `.select()` é obrigatório: sob RLS (perfil sem a permissão) o UPDATE
     // volta sem `error` e sem linha alguma. Só a linha devolvida comprova.
     const { data, error } = await supabase
       .from("parametros")
@@ -50,7 +64,8 @@ export async function salvarParametros(
       .eq("chave", u.chave)
       .select("chave");
 
-    const escrita = conferirEscrita(error, data, `Não foi possível salvar "${u.chave}".`);
+    if (error) return { ok: false, message: mensagemDoBanco(error) };
+    const escrita = conferirEscrita(error, data, `Não foi possível salvar "${rotuloParametro(u.chave)}".`);
     if (!escrita.ok) return { ok: false, message: escrita.message };
   }
 
@@ -69,5 +84,5 @@ export async function salvarParametros(
     revalidatePath(path);
   }
 
-  return { ok: true, message: "Parâmetros salvos. Custos e preços recalculados." };
+  return { ok: true, message: "Parâmetros salvos. Valem para novos cálculos; propostas emitidas não mudam." };
 }

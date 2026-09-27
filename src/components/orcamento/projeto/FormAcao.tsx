@@ -3,6 +3,11 @@
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
+import type { EstadoAcao } from "@/lib/erros";
+
+/** Action de formulário do editor: pode devolver a recusa em vez de lançar (item 12). */
+export type AcaoFormulario = (formData: FormData) => void | Promise<void | EstadoAcao>;
+
 /**
  * Formulário que chama uma Server Action e mostra o resultado em aviso (toast),
  * sem trocar a tela inteira pela página de erro quando a ação recusa o pedido.
@@ -17,7 +22,7 @@ export function FormAcao({
   aoConcluir,
   "aria-label": ariaLabel,
 }: {
-  action: (formData: FormData) => void | Promise<void>;
+  action: AcaoFormulario;
   children: ReactNode;
   className?: string;
   sucesso?: string;
@@ -26,7 +31,11 @@ export function FormAcao({
 }) {
   async function enviar(formData: FormData) {
     try {
-      await action(formData);
+      const resultado = await action(formData);
+      if (resultado && !resultado.ok) {
+        toast.error(resultado.message ?? "Não foi possível salvar. Tente novamente.");
+        return;
+      }
     } catch (erro) {
       const mensagem = erro instanceof Error && erro.message ? erro.message : "Tente novamente.";
       toast.error(`Não foi possível salvar. ${mensagem}`);

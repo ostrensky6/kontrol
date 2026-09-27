@@ -47,10 +47,13 @@ export function MateriaisEditTable({
   codigo,
   materiais,
   insumos,
+  podeEditar = true,
 }: {
   codigo: string;
   materiais: MaterialEditRowData[];
   insumos: InsumoOption[];
+  /** sem a permissão "Editar análises": só consulta, sem editar, remover ou adicionar */
+  podeEditar?: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -73,7 +76,7 @@ export function MateriaisEditTable({
               <th className={th}>Grupo</th>
               <th className={th}>Pref.</th>
               <th className={th}>Custo unit.</th>
-              <th className={th}>Ações</th>
+              {podeEditar && <th className={th}>Ações</th>}
             </tr>
           </thead>
           <tbody>
@@ -85,12 +88,13 @@ export function MateriaisEditTable({
                 insumos={insumos}
                 editing={editingId === material.id}
                 onEdit={() => setEditingId(material.id)}
+                podeEditar={podeEditar}
               />
             ))}
           </tbody>
         </table>
       </div>
-      <AdicionarMaterialForm codigo={codigo} insumos={insumos} />
+      {podeEditar && <AdicionarMaterialForm codigo={codigo} insumos={insumos} />}
     </>
   );
 }
@@ -101,12 +105,14 @@ function MaterialRow({
   insumos,
   editing,
   onEdit,
+  podeEditar,
 }: {
   codigo: string;
   material: MaterialEditRowData;
   insumos: InsumoOption[];
   editing: boolean;
   onEdit: () => void;
+  podeEditar: boolean;
 }) {
   const id = formId(material.id);
 
@@ -140,6 +146,7 @@ function MaterialRow({
       <td className={`${td} text-right tabular-nums`}>
         {material.custo_unitario != null ? formatCurrency(material.custo_unitario) : "-"}
       </td>
+      {podeEditar && (
       <td className={`${td} whitespace-nowrap`}>
         <div className="flex justify-center gap-1">
           {!editing ? (
@@ -169,6 +176,7 @@ function MaterialRow({
           )}
         </div>
       </td>
+      )}
     </tr>
   );
 }

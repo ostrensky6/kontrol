@@ -130,7 +130,7 @@ describe("recebimento de pedido formal de compra", () => {
     const resultado = await receberItemPedido(formRecebimento({ validade: "2026-12-31" }));
 
     expect(resultado.ok).toBe(false);
-    expect(resultado.message).toMatch(/Sem permissão/);
+    expect(resultado.message).toMatch(/não tem permissão/);
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -289,26 +289,7 @@ describe("recebimento de pedido formal de compra", () => {
         valorCompraEstimado: 50,
       },
     ]);
-    const pedidoSingleCriado = vi.fn().mockResolvedValue({ data: { id: 77 }, error: null });
-    const inserirItens = vi.fn().mockResolvedValue({ error: null });
     from.mockImplementation((table: string) => {
-      if (table === "planejamento") {
-        return {
-          select: vi.fn(() => ({
-            eq: vi.fn(() => ({
-              single: vi.fn().mockResolvedValue({
-                data: {
-                  id: 5,
-                  nome: "Execucao julho",
-                  projeto_id: 9,
-                  projetos: { coordenador: "coord@example.com" },
-                },
-                error: null,
-              }),
-            })),
-          })),
-        };
-      }
       if (table === "insumos") {
         return {
           select: vi.fn(() => ({
@@ -319,37 +300,65 @@ describe("recebimento de pedido formal de compra", () => {
           })),
         };
       }
-      if (table === "pedidos_internos") {
-        return {
-          insert: vi.fn(() => ({
-            select: vi.fn(() => ({
-              single: pedidoSingleCriado,
-            })),
-          })),
-        };
-      }
-      if (table === "pedidos_internos_itens") {
-        return { insert: inserirItens };
-      }
       return {};
+    });
+    rpc.mockResolvedValue({ data: { pedido_id: 77, itens: 1 }, error: null });
+    const { comprarFaltasDoPlano } = await import("./compras");
+    const formData = new FormData();
+    formData.set("planejamento_id", "5");
+
+    await comprarFaltasDoPlano({ ok: false }, formData);
+
+    // Uma única RPC transacional (sem INSERT solto) que desconta o já pedido.
+    expect(rpc).toHaveBeenCalledWith("criar_pedido_faltas_planejamento", {
+      p_planejamento_id: 5,
+      p_itens: [
+        expect.objectContaining({
+          insumo_id: 10,
+          quantidade: 1,
+          unidade: "L",
+          orcamento_previo: 50,
+          fornecedor_sugerido: "Fornecedor A",
+          observacao: expect.stringContaining("compra de 1 L"),
+        }),
+      ],
+    });
+    expect(redirect).toHaveBeenCalledWith("/pedido/77");
+  });
+
+  it("comprarFaltasDoPlano devolve a recusa do banco sem lançar", async () => {
+    const { computarDemandaPlano } = await import("@/lib/costing/demanda");
+    vi.mocked(computarDemandaPlano).mockResolvedValue([
+      {
+        insumo_id: 10,
+        especificacao: "Solvente",
+        unidade: "L",
+        demanda: 1,
+        disponivel: 0,
+        falta: 1,
+        custoUnitario: 50,
+        custoEstimado: 50,
+        quantidadeMinimaCompra: null,
+        quantidadeEmbalagem: null,
+        quantidadeCompra: 1,
+        valorCompraEstimado: 50,
+      },
+    ]);
+    from.mockImplementation(() => ({
+      select: vi.fn(() => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) })),
+    }));
+    rpc.mockResolvedValue({
+      data: null,
+      error: { code: "22023", message: "As faltas deste planejamento já estão em pedido interno aberto (#77). Acompanhe por lá." },
     });
     const { comprarFaltasDoPlano } = await import("./compras");
     const formData = new FormData();
     formData.set("planejamento_id", "5");
 
-    await comprarFaltasDoPlano(formData);
-
-    expect(inserirItens).toHaveBeenCalledWith([
-      expect.objectContaining({
-        pedido_interno_id: 77,
-        insumo_id: 10,
-        quantidade: 1,
-        unidade: "L",
-        orcamento_previo: 50,
-        fornecedor_sugerido: "Fornecedor A",
-        observacao: expect.stringContaining("compra de 1 L"),
-      }),
-    ]);
-    expect(redirect).toHaveBeenCalledWith("/pedido/77");
+    await expect(comprarFaltasDoPlano({ ok: false }, formData)).resolves.toEqual({
+      ok: false,
+      message: "As faltas deste planejamento já estão em pedido interno aberto (#77). Acompanhe por lá.",
+    });
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

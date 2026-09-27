@@ -60,7 +60,7 @@ function appendBits(bits: number[], value: number, length: number) {
 function encodeData(value: string): number[] {
   const bytes = Array.from(new TextEncoder().encode(value));
   if (bytes.length > 53) {
-    throw new Error("QR interno suporta ate 53 bytes nesta etiqueta minima.");
+    throw new Error("O QR interno suporta até 53 bytes nesta etiqueta mínima.");
   }
 
   const bits: number[] = [];

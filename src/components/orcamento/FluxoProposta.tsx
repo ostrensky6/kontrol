@@ -3,7 +3,7 @@ import { modalidadeExigeLaboratorio, modalidadeExigeProjeto } from "@/lib/orcame
 type EtapaFluxo = "demanda" | "laboratorio" | "projeto" | "final" | "historico";
 
 const ETAPAS: Array<{ id: EtapaFluxo; label: string }> = [
-  { id: "demanda", label: "Demanda" },
+  { id: "demanda", label: "Dados" },
   { id: "laboratorio", label: "Análises laboratoriais" },
   { id: "projeto", label: "Orçamento de projeto" },
   { id: "final", label: "Proposta final" },

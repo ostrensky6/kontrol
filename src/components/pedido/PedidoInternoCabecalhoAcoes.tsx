@@ -69,12 +69,12 @@ export function PedidoInternoCabecalhoAcoes({
         <DialogContent className="max-w-xl">
           <DialogHeader>
             <DialogTitle>Editar pedido {numero}</DialogTitle>
-            <DialogDescription>Atualize os dados gerais da demanda.</DialogDescription>
+            <DialogDescription>Atualize os dados do pedido.</DialogDescription>
           </DialogHeader>
           <FormComMensagem action={atualizarPedidoInterno} onSuccess={() => setEditando(false)} className="grid gap-3">
             <input type="hidden" name="pedido_interno_id" value={pedidoId} />
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">Demanda</label>
+              <label className="block text-xs font-medium text-muted-foreground">Título do pedido</label>
               <input name="titulo" required defaultValue={titulo} className={inputCls} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

@@ -15,7 +15,7 @@ describe("CrudShell: quantidade no cadastro de insumos", () => {
   it("mostra o campo Quantidade no formulario de criacao, antes do Salvar", () => {
     const criacao = source.indexOf('isInsumos && !registro && (');
     const campoQuantidade = source.indexOf('name="quantidade"', criacao);
-    const botaoSalvar = source.indexOf('"Salvar"', campoQuantidade);
+    const botaoSalvar = source.indexOf("<SubmitButton>Salvar</SubmitButton>", campoQuantidade);
 
     expect(criacao).toBeGreaterThan(-1);
     expect(campoQuantidade).toBeGreaterThan(criacao);

@@ -33,7 +33,7 @@ describe("planejarModulosProposta — idempotência", () => {
     expect(p.laboratorio.acao).toBe("bloqueado");
     expect(p.laboratorio.multiplos).toBe(true);
     expect(p.bloqueadoPorDuplicidade).toBe(true);
-    expect(p.erros.join(" ")).toMatch(/saneamento/i);
+    expect(p.erros.join(" ")).toMatch(/duplicados/i);
   });
 
   it("projeto associado força a etapa de projeto mesmo em modalidade só de análises", () => {

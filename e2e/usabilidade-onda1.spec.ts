@@ -28,7 +28,7 @@ test("barra de Orçamentos marca uma única aba ativa", async ({ page }) => {
   await page.goto("/orcamento/demandas/1");
   const barra = page.getByRole("navigation", { name: "Navegação de Orçamentos" });
   await expect(barra.locator('[aria-current="page"]')).toHaveCount(1);
-  await expect(barra.getByRole("link", { name: "Orçamentos não finalizados" })).toHaveAttribute("aria-current", "page");
+  await expect(barra.getByRole("link", { name: "Orçamentos", exact: true })).toHaveAttribute("aria-current", "page");
 });
 
 test("Operação mostra Custeio e Insumos por análise na barra", async ({ page }) => {

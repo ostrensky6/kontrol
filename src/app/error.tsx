@@ -33,8 +33,8 @@ export default function ErrorPage({
         </div>
         <h1 className="mt-4 text-lg font-semibold">Não foi possível concluir</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          Algo falhou ao carregar ou salvar esta tela. Nenhum dado foi perdido além da última ação.
-          Tente de novo; se continuar, avise o suporte com o código abaixo.
+          O que você digitou nesta tela não foi salvo. Tente de novo; se continuar, avise o suporte
+          com o código abaixo.
         </p>
         {mensagem && (
           <p className="mt-3 rounded-md bg-muted px-3 py-2 text-left font-mono text-xs text-foreground">

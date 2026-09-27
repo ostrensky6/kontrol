@@ -30,7 +30,7 @@ test("dar baixa pela página do lote exige motivo e reduz o saldo", async ({ pag
   await expect(dialogo.getByRole("heading", { name: "Dar baixa" })).toBeVisible();
   await expect(dialogo).toContainText("EMB-E2E-A");
 
-  await dialogo.getByLabel("Embalagens a baixar").fill("1");
+  await dialogo.getByLabel("Frascos a baixar").fill("1");
   await dialogo.getByRole("button", { name: "Registrar baixa" }).click();
   await expect(dialogo.getByText("Selecione o motivo.")).toBeVisible();
   await expect(dialogo).toBeVisible();
@@ -63,7 +63,7 @@ test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o saldo em mãos
   await expect(dialogo).toContainText("o lote EMB-E2E-A vence antes (FEFO)");
   await dialogo.getByLabel("Lote").selectOption("1");
 
-  await dialogo.getByLabel("Embalagens a baixar").fill("2");
+  await dialogo.getByLabel("Frascos a baixar").fill("2");
   await dialogo.getByLabel("Motivo").selectOption("Consumo em análise");
   await dialogo.getByRole("button", { name: "Registrar baixa" }).click();
 

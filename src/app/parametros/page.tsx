@@ -1,15 +1,17 @@
 import { createClient } from "@/lib/supabase/server";
 import { ParametrosForm } from "@/components/parametros/ParametrosForm";
 import { HelpTip } from "@/components/common/HelpTip";
+import { pode } from "@/lib/auth/permissao-efetiva";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParametrosPage() {
   const supabase = await createClient();
-  const { data: params } = await supabase
-    .from("parametros")
-    .select("chave, valor, unidade, descricao")
-    .order("chave");
+  const [{ data: params }, podeEditar] = await Promise.all([
+    supabase.from("parametros").select("chave, valor, unidade, descricao").order("chave"),
+    // mesma regra do RLS de `parametros` (kontrol_private.pode_editar_parametros)
+    pode("orcamento.parametros.editar"),
+  ]);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -28,11 +30,12 @@ export default async function ParametrosPage() {
           </HelpTip>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">
-          Alterar um fator recalcula custos e preços imediatamente.
+          Vale para novos cálculos. Propostas emitidas não mudam.
         </p>
 
         <div className="mt-8">
           <ParametrosForm
+            podeEditar={podeEditar}
             params={(params ?? []).map((p) => ({
               chave: p.chave,
               valor: Number(p.valor),

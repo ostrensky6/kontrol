@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CADASTROS } from "./config";
 import {
+  menorValidadePorInsumo,
   modeloQuantidadePorInsumo,
   projetarQuantidadeInsumos,
   projetarTotaisInsumos,
@@ -55,7 +56,7 @@ describe("totais de unidades de insumos", () => {
     expect(headers.slice(1, 5)).toEqual([
       "Item específico / SKU",
       "Marca / fabricante",
-      "Unidade",
+      "Unidade da embalagem",
       "Quantidade (embalagens fechadas)",
     ]);
     expect(headers.filter((header) => /calculado|unidades_(fechadas|abertas)/i.test(header))).toEqual([]);
@@ -114,5 +115,21 @@ describe("modelo de quantidade por insumo", () => {
   it("trata modelo nulo/desconhecido como legado por seguranca", () => {
     const mapa = modeloQuantidadePorInsumo([loteModelo({ modelo_quantidade: null })]);
     expect(mapa.get("1")).toBe("LEGADO");
+  });
+});
+
+describe("menorValidadePorInsumo", () => {
+  it("usa o lote com saldo que vence primeiro, ignorando consumidos e descartados", () => {
+    const mapa = menorValidadePorInsumo([
+      { insumo_id: 1, status: "aceito", quantidade_atual: 2, validade: "2027-05-01", validade_apos_abertura: null },
+      { insumo_id: 1, status: "em_uso", quantidade_atual: 1, validade: "2027-09-01", validade_apos_abertura: "2026-12-10" },
+      { insumo_id: 1, status: "descartado", quantidade_atual: 3, validade: "2026-01-01", validade_apos_abertura: null },
+      { insumo_id: 1, status: "aceito", quantidade_atual: 0, validade: "2026-02-01", validade_apos_abertura: null },
+      { insumo_id: 2, status: "quarentena", quantidade_atual: 5, validade: "2028-01-31", validade_apos_abertura: null },
+      { insumo_id: 3, status: "aceito", quantidade_atual: 5, validade: null, validade_apos_abertura: null },
+    ]);
+    expect(mapa.get("1")).toBe("2026-12-10");
+    expect(mapa.get("2")).toBe("2028-01-31");
+    expect(mapa.has("3")).toBe(false);
   });
 });

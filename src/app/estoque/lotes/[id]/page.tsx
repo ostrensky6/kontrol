@@ -8,6 +8,7 @@ import { QrCode } from "@/components/common/QrCode";
 import { formatNumber as fmt, formatDate as fdata, formatCurrency } from "@/lib/formatters";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { pode } from "@/lib/auth/permissao-efetiva";
+import { usuarioAtual } from "@/lib/auth/roles";
 import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
@@ -28,6 +29,19 @@ const TIPO_MOV: Record<string, { label: string; cls: string }> = {
   saida: { label: "Saída", cls: "text-danger-strong" },
   ajuste: { label: "Ajuste", cls: "text-warning-strong" },
 };
+
+const SO_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Baixas e entradas por operação gravam o id da operação (UUID) como
+ * referência: não diz nada a quem lê. O motivo já descreve a operação; o id
+ * completo fica no title da célula para rastreio.
+ */
+function referenciaLegivel(referencia: string | null): string {
+  const texto = referencia?.trim() ?? "";
+  if (!texto) return "—";
+  return SO_UUID.test(texto) ? "—" : texto;
+}
 
 function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   return (
@@ -62,6 +76,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     origem,
     vinculoCompra,
     vinculoInterno,
+    usuario,
   ] = await Promise.all([
     supabase
       .from("estoque_movimentacoes")
@@ -84,6 +99,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     origemPublicaKontrol(),
     supabase.from("pedidos_compra_item_recebimentos").select("lote_id").eq("lote_id", id).limit(1),
     supabase.from("pedidos_internos_item_recebimentos").select("lote_id").eq("lote_id", id).limit(1),
+    usuarioAtual(),
   ]);
 
   const ins = lote.insumos as {
@@ -98,6 +114,17 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     !vinculoInterno.error &&
     (vinculoCompra.data ?? []).length === 0 &&
     (vinculoInterno.data ?? []).length === 0;
+  // Lote de compra/pedido interno ainda sem consumo: estorno bilateral (EST-2).
+  const estornoRecebimento =
+    !estornoDiretoPermitido &&
+    Number(lote.quantidade_atual ?? 0) === Number(lote.quantidade_inicial ?? 0) &&
+    Number(lote.quantidade_atual ?? 0) > 0;
+  // Dupla conferência: quem registrou a chegada não aceita o próprio lote (admin isento).
+  const recebidoPorId = (lote as unknown as { recebido_por_id?: string | null }).recebido_por_id ?? null;
+  const aceiteBloqueadoMotivo =
+    usuario && recebidoPorId && recebidoPorId === usuario.id && usuario.papel !== "admin"
+      ? "Você registrou a chegada deste lote; o aceite fica com outra pessoa."
+      : null;
   // Lote de embalagens fechadas conta frascos, não a unidade física (0109/0123).
   const loteModelo = lote as unknown as {
     modelo_quantidade?: string | null;
@@ -160,6 +187,10 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
             reservado={loteBaixa.reservado}
             modeloQuantidade={loteBaixa.modeloQuantidade}
             estornoDiretoPermitido={estornoDiretoPermitido}
+            estornoRecebimento={estornoRecebimento}
+            origemRecebimento={(vinculoCompra.data ?? []).length > 0 ? "compra" : "pedido_interno"}
+            responsavelPadrao={usuario?.nome || usuario?.email || ""}
+            aceiteBloqueadoMotivo={aceiteBloqueadoMotivo}
             podeAceitar={podeAceitar}
             podeGerir={podeGerir}
             podeCorrigir={podeCorrigir}
@@ -297,7 +328,9 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
                     <td className={`px-3 py-2 font-medium ${t.cls}`}>{t.label}</td>
                     <td className="px-3 py-2 text-right tabular-nums">{fmt(m.quantidade)} {unidade}</td>
                     <td className="px-3 py-2 text-muted-foreground">{m.motivo ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{m.referencia ?? "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground" title={m.referencia ?? undefined}>
+                      {referenciaLegivel(m.referencia)}
+                    </td>
                     <td className="px-3 py-2 text-muted-foreground">{m.usuario ?? "—"}</td>
                   </tr>
                 );

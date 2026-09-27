@@ -96,29 +96,59 @@ describe("actions de orcamentos", () => {
     expect(revalidatePath).not.toHaveBeenCalledWith("/orcamento");
   });
 
-  it("remove item só dentro do próprio orçamento e propaga erro", async () => {
-    const { removerItemOrcamento } = await import("./orcamentos");
+  it("remove análise pela RPC e devolve a recusa do banco sem lançar", async () => {
+    from.mockImplementation((table: string) => {
+      if (table === "orcamentos") {
+        return { select: () => ({ eq: () => ({ single: async () => ({ data: { status: "rascunho", status_operacional: "preenchido", fonte_custo_insumos: "custo_padrao" }, error: null }) }) }) };
+      }
+      if (table === "orcamento_itens") {
+        return { select: () => ({ eq: async () => ({ data: [{ codigo_analise: "A1", n_amostras: 2, custo_unitario: 1, preco_unitario: 1, valor_snapshot: {} }], error: null }) }) };
+      }
+      throw new Error(`Tabela inesperada no teste: ${table}`);
+    });
+    rpc.mockResolvedValueOnce({ error: { code: "42501", message: "Sem permissão para esta ação (orcamentos.criar_editar). Peça ao administrador para liberar em Usuários." } });
+    const { salvarItemOrcamento } = await import("./orcamentos");
     const formData = new FormData();
     formData.set("orcamento_id", "42");
-    formData.set("item_id", "7");
-    single.mockResolvedValue({ data: { status: "rascunho", status_operacional: "preenchido" }, error: null });
-    const eqOrcamento = vi.fn(async () => ({ error: { message: "sem permissão" } }));
-    const eqItem = vi.fn(() => ({ eq: eqOrcamento }));
-    deleteRow.mockReturnValue({ eq: eqItem });
+    formData.set("codigo_analise", "A1");
+    formData.set("acao", "remover");
 
-    await expect(removerItemOrcamento(formData)).rejects.toThrow(/sem permissão/);
-    expect(eqItem).toHaveBeenCalledWith("id", 7);
-    expect(eqOrcamento).toHaveBeenCalledWith("orcamento_id", 42);
+    const estado = await salvarItemOrcamento({ ok: false }, formData);
+
+    expect(estado.ok).toBe(false);
+    expect(estado.message).toMatch(/Sem permissão/);
+    expect(rpc).toHaveBeenCalledWith("salvar_item_orcamento", expect.objectContaining({
+      p_orcamento_id: 42,
+      p_codigo_analise: "A1",
+      p_n_amostras: 0,
+    }));
   });
 
-  it("cancela orcamento preservando historico", async () => {
+  it("não chama o banco para módulo revisado", async () => {
+    from.mockImplementation(() => ({
+      select: () => ({ eq: () => ({ single: async () => ({ data: { status: "enviado", status_operacional: "revisado" }, error: null }) }) }),
+    }));
+    const { salvarItemOrcamento } = await import("./orcamentos");
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    formData.set("codigo_analise", "A1");
+    formData.set("n_amostras", "3");
+
+    const estado = await salvarItemOrcamento({ ok: false }, formData);
+    expect(estado.ok).toBe(false);
+    expect(estado.message).toMatch(/travadas/);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("cancela orcamento com o motivo digitado, preservando historico", async () => {
     const { cancelarOrcamento } = await import("./orcamentos");
     const formData = new FormData();
     formData.set("orcamento_id", "42");
     formData.set("motivo", "Cliente pediu cancelamento");
     single.mockResolvedValue({ data: { status: "aprovado" }, error: null });
-    await expect(cancelarOrcamento(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/42");
+    const estado = await cancelarOrcamento({ ok: false }, formData);
 
+    expect(estado.ok).toBe(true);
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("cancelar_documento");
     expect(rpc).toHaveBeenCalledWith("transicionar_orcamento", expect.objectContaining({
       p_orcamento_id: 42,
@@ -129,7 +159,16 @@ describe("actions de orcamentos", () => {
     expect(revalidatePath).toHaveBeenCalledWith("/orcamento");
   });
 
-  it("persiste snapshot dimensional completo ao adicionar uma analise", async () => {
+  it("não cancela sem motivo", async () => {
+    const { cancelarOrcamento } = await import("./orcamentos");
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    const estado = await cancelarOrcamento({ ok: false }, formData);
+    expect(estado).toEqual({ ok: false, message: "Informe o motivo do cancelamento." });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("inclui análise gravando item e custo congelado na mesma RPC (ORC2-1)", async () => {
     const provenienciaDimensional = {
       insumo_id: 9,
       unidade_estoque: "frasco",
@@ -157,77 +196,37 @@ describe("actions de orcamentos", () => {
         provenienciaDimensional: [provenienciaDimensional],
       }],
     });
-
-    const insertItem = vi.fn(async () => ({ error: null }));
-    const updateOrcamento = vi.fn(() => ({
-      eq: vi.fn(async () => ({ error: null })),
-    }));
-    let leituraOrcamento = 0;
-    let leituraItens = 0;
     from.mockImplementation((table: string) => {
-      if (table === "analises") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: async () => ({ data: { ativo: true, ofertavel: true }, error: null }),
-            }),
-          }),
-        };
-      }
       if (table === "orcamentos") {
-        return {
-          select: () => ({
-            eq: () => ({
-              single: async () => ({
-                data: leituraOrcamento++ === 0
-                  ? { fonte_custo_insumos: "custo_medio_ponderado" }
-                  : { status: "rascunho", status_operacional: "pendente" },
-                error: null,
-              }),
-            }),
-          }),
-          update: updateOrcamento,
-        };
+        return { select: () => ({ eq: () => ({ single: async () => ({ data: { status: "rascunho", status_operacional: "pendente", fonte_custo_insumos: "custo_medio_ponderado" }, error: null }) }) }) };
       }
       if (table === "orcamento_itens") {
-        return {
-          select: () => {
-            if (leituraItens++ === 0) {
-              return {
-                eq: () => ({
-                  eq: () => ({
-                    order: async () => ({ data: [], error: null }),
-                  }),
-                }),
-              };
-            }
-            return { eq: async () => ({ data: [{ id: 1 }], error: null }) };
-          },
-          insert: insertItem,
-        };
+        return { select: () => ({ eq: async () => ({ data: [], error: null }) }) };
       }
       throw new Error(`Tabela inesperada no teste: ${table}`);
     });
 
-    const { adicionarItemOrcamento } = await import("./orcamentos");
+    const { salvarItemOrcamento } = await import("./orcamentos");
     const formData = new FormData();
     formData.set("orcamento_id", "42");
     formData.set("codigo_analise", "A1");
     formData.set("n_amostras", "10");
+    formData.set("acao", "incluir");
 
-    await adicionarItemOrcamento(formData);
+    const estado = await salvarItemOrcamento({ ok: false }, formData);
 
-    expect.soft(insertItem).toHaveBeenCalledWith(expect.objectContaining({
-      valor_snapshot: expect.objectContaining({
+    expect(estado.ok).toBe(true);
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith("salvar_item_orcamento", expect.objectContaining({
+      p_orcamento_id: 42,
+      p_codigo_analise: "A1",
+      p_n_amostras: 10,
+      p_valor_snapshot: expect.objectContaining({
         proveniencia_dimensional: [provenienciaDimensional],
       }),
-    }));
-    expect.soft(updateOrcamento).toHaveBeenCalledWith(expect.objectContaining({
-      custo_snapshot: expect.objectContaining({
+      p_custo_snapshot: expect.objectContaining({
         linhas: expect.arrayContaining([
-          expect.objectContaining({
-            proveniencia_dimensional: [provenienciaDimensional],
-          }),
+          expect.objectContaining({ proveniencia_dimensional: [provenienciaDimensional] }),
         ]),
       }),
     }));

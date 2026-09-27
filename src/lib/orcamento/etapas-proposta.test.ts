@@ -46,7 +46,7 @@ describe("montarEtapasProposta — modelo único", () => {
 
   it("apenas análises: laboratório aplicável, projeto pulado", () => {
     expect(aplicaveis("analises")).toEqual([
-      "Dados da demanda",
+      "Dados",
       "Orçamento laboratorial",
       "Parâmetros econômicos",
       "Proposta final",
@@ -58,7 +58,7 @@ describe("montarEtapasProposta — modelo único", () => {
 
   it("apenas projeto: projeto aplicável, laboratório pulado", () => {
     expect(aplicaveis("projeto")).toEqual([
-      "Dados da demanda",
+      "Dados",
       "Custos do projeto",
       "Parâmetros econômicos",
       "Proposta final",
@@ -70,7 +70,7 @@ describe("montarEtapasProposta — modelo único", () => {
 
   it("reconhece a modalidade canônica projeto_com_analises", () => {
     expect(aplicaveis("projeto_com_analises")).toEqual([
-      "Dados da demanda",
+      "Dados",
       "Orçamento laboratorial",
       "Custos do projeto",
       "Parâmetros econômicos",

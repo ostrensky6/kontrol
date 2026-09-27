@@ -1,5 +1,6 @@
 "use server";
 
+import { mensagemDoBanco } from "@/lib/erros";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -123,19 +124,32 @@ export async function entradaInventario(
       errors: { validade: "Obrigatório para crítico" },
     };
   }
-  const { error } = await supabase.rpc("entrada_inventario", {
+  // Idempotente: o mesmo formulário enviado duas vezes não cria dois lotes.
+  const operacaoRecebida = String(formData.get("operacao_id") ?? "");
+  const operacaoId = UUID_RE.test(operacaoRecebida) ? operacaoRecebida : crypto.randomUUID();
+  const localId = Number(formData.get("local_id"));
+  const { data, error } = await supabase.rpc("entrada_inventario", {
     p_insumo_id: d.insumo_id,
     p_quantidade: d.quantidade,
+    p_operacao_id: operacaoId,
     p_validade: d.validade ?? undefined,
     p_custo: d.custo ?? undefined,
     p_codigo: d.codigo ?? undefined,
     p_fornecedor: d.fornecedor ?? undefined,
     p_motivo: d.motivo ?? undefined,
+    p_local_id: Number.isInteger(localId) && localId > 0 ? localId : undefined,
   });
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
-  return { ok: true, message: "Entrada de inventário registrada (lote em quarentena)." };
+  const resultado = data as { modelo?: string; quantidade?: number } | null;
+  const emFrascos = resultado?.modelo === "EMBALAGEM_FECHADA";
+  return {
+    ok: true,
+    message: emFrascos
+      ? `Entrada registrada: ${resultado?.quantidade ?? d.quantidade} frasco(s) em quarentena.`
+      : "Entrada de inventário registrada (lote em quarentena).",
+  };
 }
 
 async function rpcLote(
@@ -144,7 +158,7 @@ async function rpcLote(
 ): Promise<FormState> {
   const supabase = await createClient();
   const { error } = await supabase.rpc(fn as never, args as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath("/estoque");
   return { ok: true };
 }
@@ -208,9 +222,26 @@ export async function estornarRecebimentoLote(
     };
   }
   if ((recebimentoCompra.data?.length ?? 0) > 0 || (recebimentoInterno.data?.length ?? 0) > 0) {
+    // Lote de compra formal ou de pedido interno: estorno bilateral (lote,
+    // livro, item e situação da compra/pedido na mesma transação).
+    const { data, error } = await supabase.rpc("estornar_recebimento_do_lote", {
+      p_lote_id: parsed.data.lote_id,
+      p_motivo: parsed.data.motivo,
+    });
+    if (error) return { ok: false, message: mensagemDoBanco(error) };
+    const resultado = data as { pedido_compra_id?: number; pedido_interno_id?: number; repetido?: boolean } | null;
+    revalidatePath("/estoque");
+    revalidatePath(`/estoque/lotes/${parsed.data.lote_id}`);
+    revalidatePath("/recebimento");
+    revalidatePath("/compras");
+    revalidatePath("/pedido");
+    if (resultado?.pedido_compra_id) revalidatePath(`/compras/${resultado.pedido_compra_id}`);
+    if (resultado?.repetido) return { ok: true, message: "Este recebimento já estava estornado." };
     return {
-      ok: false,
-      message: "Este lote pertence a um recebimento vinculado. Faça o estorno pelo fluxo de Recebimento para reconciliar pedidos e histórico.",
+      ok: true,
+      message: resultado?.pedido_compra_id
+        ? `Recebimento estornado. A compra #${resultado.pedido_compra_id} voltou a esperar esta quantidade.`
+        : "Recebimento estornado. O pedido interno voltou a esperar esta quantidade.",
     };
   }
 
@@ -218,7 +249,7 @@ export async function estornarRecebimentoLote(
     p_lote_id: parsed.data.lote_id,
     p_motivo: parsed.data.motivo,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
   revalidatePath(`/estoque/lotes/${parsed.data.lote_id}`);
@@ -239,12 +270,14 @@ export async function baixarManualLote(
   }
 
   const supabase = await createClient();
+  const operacaoRecebida = String(formData.get("operacao_id") ?? "");
   const { error } = await supabase.rpc("baixa_manual_lote" as never, {
     p_lote_id: parsed.data.lote_id,
     p_quantidade: parsed.data.quantidade,
     p_motivo: parsed.data.motivo,
+    p_operacao_id: UUID_RE.test(operacaoRecebida) ? operacaoRecebida : crypto.randomUUID(),
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
   revalidatePath(`/estoque/lotes/${parsed.data.lote_id}`);
@@ -389,10 +422,12 @@ export async function darBaixaLote(
     const modelo = normalizarModelo((lote as { modelo_quantidade?: unknown }).modelo_quantidade);
     if (modelo === "EMBALAGEM_FECHADA") return await executarBaixaEmbalagens(supabase, dados);
 
+    // operacao_id: o mesmo envio repetido não grava duas saídas (EST-5).
     const { error } = await supabase.rpc("baixa_manual_lote" as never, {
       p_lote_id: dados.lote_id,
       p_quantidade: dados.quantidade,
       p_motivo: montarMotivoBaixa(dados.motivo_tipo, dados.motivo_detalhe),
+      p_operacao_id: dados.operacao_id,
     } as never);
     if (error) return { ok: false, message: mensagemErro(error, "Não foi possível registrar a baixa.") };
 
@@ -430,7 +465,7 @@ export async function corrigirQuantidadeEmbalagens(
     p_operacao_id: parsed.data.operacao_id,
     p_motivo: parsed.data.motivo,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
   revalidatePath("/cadastros/insumos");
@@ -456,7 +491,7 @@ export async function ajustarSaldoLote(
     p_quantidade_nova: parsed.data.quantidade_nova,
     p_motivo: parsed.data.motivo,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque");
   revalidatePath(`/estoque/lotes/${parsed.data.lote_id}`);
@@ -521,7 +556,7 @@ export async function entradaEmbalagens(
     p_fornecedor: d.fornecedor,
     p_motivo: d.motivo,
   } as never);
-  if (error) return { ok: false, message: error.message };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   for (const path of ["/estoque", "/estoque/controle", "/suprimentos", "/cadastros/insumos", "/insumos"]) {
     revalidatePath(path);

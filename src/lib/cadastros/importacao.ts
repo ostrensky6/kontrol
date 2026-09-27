@@ -148,6 +148,7 @@ export function mapaCabecalhos(cfg: CadastroConfig) {
   for (const campo of cfg.campos) {
     mapa.set(normalizarChave(campo.label), campo.name);
     mapa.set(normalizarChave(campo.name), campo.name);
+    for (const antigo of campo.rotulosAntigos ?? []) mapa.set(normalizarChave(antigo), campo.name);
     if (campo.tipo === "select" && campo.opcoesDe) {
       mapa.set(normalizarChave(`${campo.label} ID`), `${campo.name}${TECH_SUFFIX}`);
       mapa.set(normalizarChave(`${campo.name}${TECH_SUFFIX}`), `${campo.name}${TECH_SUFFIX}`);
@@ -181,11 +182,18 @@ export function erroLinha(linha: number, rotulo: string, mensagem: string) {
 
 type ResultadoValor = { ok: true; valor: unknown } | { ok: false; erro: string };
 
-/** Converte o valor bruto da célula para o formato que os schemas esperam. */
+/**
+ * Converte o valor bruto da célula para o formato que os schemas esperam.
+ * `celulaEmPercentual`: a célula está formatada como % no Excel (a planilha
+ * exportada pelo Kontrol usa "0.0%"), então o número guardado é a fração
+ * (0,5 = 50%). Sem esse formato, o número já está em pontos percentuais:
+ * "1" é 1%, nunca 100%.
+ */
 export function valorParaCampo(
   value: unknown,
   campo: Campo,
   opcoes?: Map<string, string>,
+  { celulaEmPercentual = false }: { celulaEmPercentual?: boolean } = {},
 ): ResultadoValor {
   if (value == null || value === "") return { ok: true, valor: "" };
   // Salário exportado mascarado ("XXX") equivale a célula vazia: mantém o atual.
@@ -205,10 +213,10 @@ export function valorParaCampo(
     const numero = parseNumeroBr(value);
     if (numero == null) return { ok: false, erro: "número inválido" };
     if (campo.tipo === "percent") {
-      // células formatadas como % chegam como fração (0,5 = 50%); texto com
-      // "%" ou valores acima de 1 já estão em pontos percentuais.
-      const textoComPercentual = typeof value === "string" && value.includes("%");
-      return { ok: true, valor: !textoComPercentual && numero > 0 && numero <= 1 ? numero * 100 : numero };
+      // Só a célula formatada como % guarda fração. Texto ("12,5%") e número
+      // sem formato de % já estão em pontos percentuais.
+      const fracao = celulaEmPercentual && typeof value === "number";
+      return { ok: true, valor: fracao ? numero * 100 : numero };
     }
     return { ok: true, valor: numero };
   }
@@ -225,6 +233,11 @@ export function valorParaCampo(
     };
   }
   return { ok: true, valor: typeof value === "string" ? value : String(value) };
+}
+
+/** A célula (ou a coluna) está formatada como porcentagem no Excel. */
+export function formatoPercentual(cell: Pick<ExcelJS.Cell, "numFmt">): boolean {
+  return typeof cell.numFmt === "string" && cell.numFmt.includes("%");
 }
 
 export type LinhaImportada = {
@@ -291,7 +304,9 @@ export function lerAbaCadastro(
       }
       const campo = campoPorNome.get(chave);
       if (!campo) return;
-      const convertido = valorParaCampo(bruto, campo, opcoes[chave]);
+      const convertido = valorParaCampo(bruto, campo, opcoes[chave], {
+        celulaEmPercentual: formatoPercentual(cell),
+      });
       if (convertido.ok) valores[chave] = convertido.valor;
       else erros.push(erroLinha(rowNumber, campo.label, convertido.erro));
     });
@@ -333,7 +348,7 @@ export function lerAbaCadastro(
 export function aplicarPadroesCadastro(slug: string, obj: Record<string, unknown>) {
   if (slug === "equipamentos" && !("possui" in obj)) obj.possui = "false";
   if (slug === "tipo_insumos" && !("ativo" in obj)) obj.ativo = "false";
-  if ((slug === "clientes" || slug === "fornecedores") && !("ativo" in obj)) obj.ativo = "false";
+  if ((slug === "clientes" || slug === "fornecedores" || slug === "tecnicos") && !("ativo" in obj)) obj.ativo = "false";
   if (slug === "insumos") {
     if (!("fator_conversao" in obj) || obj.fator_conversao === "" || obj.fator_conversao == null) {
       obj.fator_conversao = "1";
@@ -372,6 +387,11 @@ export function registroAtualizado(
   const obj: Record<string, unknown> = {};
   for (const [chave, valor] of Object.entries(existente)) {
     obj[chave] = valor == null ? "" : valor;
+  }
+  // checkbox ligado por padrão sem valor gravado (ex.: `ativo` antes da coluna
+  // existir) continua ligado; célula vazia não desativa o registro
+  for (const campo of cfg.campos) {
+    if (campo.tipo === "checkbox" && campo.padraoLigado && existente[campo.name] == null) obj[campo.name] = "true";
   }
   for (const [chave, valor] of Object.entries(valores)) {
     if (valor == null || valor === "") continue;

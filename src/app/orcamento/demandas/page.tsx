@@ -2,14 +2,12 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/formatters";
 import { HelpTip } from "@/components/common/HelpTip";
-import { criarDemanda } from "@/lib/actions/demandas";
 import { DemandasTable, type DemandaRow } from "@/components/orcamento/DemandasTable";
 import { avaliarCompletudeDemanda } from "@/lib/orcamento/demanda-completude";
 import { carregarLinhasOrcamentos } from "@/lib/orcamento/orcamentos-listagem";
 import { resumirFunilPropostas } from "@/lib/orcamento/funil-propostas";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
-import { SectionCard } from "@/components/app/SectionCard";
 import { StatCard } from "@/components/app/StatCard";
 
 export const dynamic = "force-dynamic";
@@ -22,13 +20,6 @@ const MODALIDADES: Record<string, string> = {
   analises_projeto: "Análises dentro de projeto",
   projeto_analises_custos: "Projeto com análises e custos próprios",
 };
-
-// Novos cadastros usam somente as três modalidades canônicas.
-const MODALIDADES_NOVAS: Array<[string, string]> = [
-  ["analises", MODALIDADES.analises],
-  ["projeto", MODALIDADES.projeto],
-  ["projeto_com_analises", MODALIDADES.projeto_com_analises],
-];
 
 const STATUS: Record<string, string> = {
   nova: "Nova",
@@ -46,13 +37,12 @@ export default async function DemandasPage({
 }) {
   const { status: statusFiltro } = await searchParams;
   const supabase = await createClient();
-  const [{ data: demandas }, { data: clientes }, { data: projetos }, linhasFunil] =
+  const [{ data: demandas }, { data: projetos }, linhasFunil] =
     await Promise.all([
       supabase
         .from("demandas_propostas")
         .select("id, titulo, cliente_id, cliente_nome, modalidade, status, prioridade, data_solicitacao, prazo_esperado, projeto_id, descricao, escopo_preliminar, matriz_amostra, quantidade_amostras_estimada, prazo_tecnico_dias, criado_em")
         .order("criado_em", { ascending: false }),
-      supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("projetos").select("id, nome").order("nome"),
       carregarLinhasOrcamentos(),
     ]);
@@ -62,7 +52,7 @@ export default async function DemandasPage({
     const completude = avaliarCompletudeDemanda(d);
     return {
       id: d.id as number,
-      titulo: d.titulo ?? "Demanda sem título",
+      titulo: d.titulo ?? "Orçamento sem título",
       cliente: d.cliente_nome ?? "—",
       modalidade: d.modalidade,
       modalidadeLabel: MODALIDADES[d.modalidade] ?? d.modalidade,
@@ -79,18 +69,15 @@ export default async function DemandasPage({
   const linhasFiltradas = statusFiltro
     ? linhas.filter((linha) => linha.status === statusFiltro)
     : linhas;
-  // §8.2: campo de entrada com texto em azul institucional.
-  const inp =
-    "rounded-md border border-input bg-background px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300";
 
   return (
     <PageShell>
       <PageHeader
-        breadcrumbs={[{ label: "Orçamento" }, { label: "Propostas" }]}
-        title="Propostas"
-        description="Crie e acompanhe propostas comerciais."
+        breadcrumbs={[{ label: "Orçamento" }, { label: "Orçamentos" }]}
+        title="Orçamentos"
+        description="Orçamentos em andamento."
         help={
-          <HelpTip title="Propostas">
+          <HelpTip title="Orçamentos">
             <p>O orçamento é o processo; a <b>proposta</b> é o documento emitido ao final para o cliente.</p>
             <p>Cada orçamento segue um caminho conforme a <b>modalidade</b>: só análises laboratoriais, só projeto, ou projeto com análises.</p>
           </HelpTip>
@@ -110,55 +97,17 @@ export default async function DemandasPage({
         ))}
       </section>
 
-      <SectionCard title="Nova demanda" description="Registre a entrada comercial antes do orçamento formal.">
-        <form action={criarDemanda} className="grid gap-3 md:grid-cols-4 2xl:grid-cols-6 md:items-end">
-          <div className="md:col-span-2">
-            <label htmlFor="titulo" className="block text-xs font-medium text-muted-foreground">Título da demanda</label>
-            <input id="titulo" name="titulo" placeholder="Ex.: Sequenciamento de amostras ambientais" className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label htmlFor="cliente_id" className="block text-xs font-medium text-muted-foreground">Cliente</label>
-            <select id="cliente_id" name="cliente_id" defaultValue="" className={`${inp} mt-1 w-full`}>
-              <option value="">Cliente livre</option>
-              {(clientes ?? []).map((c) => (
-                <option key={c.id} value={c.id}>{c.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="modalidade" className="block text-xs font-medium text-muted-foreground">Modalidade</label>
-            <select id="modalidade" name="modalidade" defaultValue="analises" className={`${inp} mt-1 w-full`}>
-              {MODALIDADES_NOVAS.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label htmlFor="cliente_nome" className="block text-xs font-medium text-muted-foreground">Cliente livre</label>
-            <input id="cliente_nome" name="cliente_nome" placeholder="Nome do cliente/instituição se não estiver cadastrado" className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label htmlFor="matriz_amostra" className="block text-xs font-medium text-muted-foreground">Matriz/amostra</label>
-            <input id="matriz_amostra" name="matriz_amostra" placeholder="Ex.: água, solo, tecido" className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label htmlFor="quantidade_amostras_estimada" className="block text-xs font-medium text-muted-foreground">Qtd. amostras</label>
-            <input id="quantidade_amostras_estimada" name="quantidade_amostras_estimada" type="number" min="1" step="1" className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label htmlFor="projeto_id" className="block text-xs font-medium text-muted-foreground">Projeto</label>
-            <select id="projeto_id" name="projeto_id" defaultValue="" className={`${inp} mt-1 w-full`}>
-              <option value="">Sem projeto</option>
-              {(projetos ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </select>
-          </div>
-          <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 md:col-start-4 2xl:col-start-auto">
-            Nova demanda
-          </button>
-        </form>
-      </SectionCard>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-muted-foreground">
+          Para começar, crie um orçamento com os dados do cliente, as amostras e as análises.
+        </p>
+        <Link
+          href="/orcamento/demandas/nova"
+          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+        >
+          Novo orçamento
+        </Link>
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <Link

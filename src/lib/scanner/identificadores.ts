@@ -50,7 +50,7 @@ export function isEntidadeTipo(value: string): value is EntidadeTipo {
 
 export function validarEntidadeTipo(value: string): EntidadeTipo {
   if (isEntidadeTipo(value)) return value;
-  throw new Error(`Tipo de entidade invalido: ${value}`);
+  throw new Error(`Tipo de entidade inválido: ${value}`);
 }
 
 export function gerarCodigoInternoKontrol(

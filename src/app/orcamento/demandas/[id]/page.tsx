@@ -15,6 +15,7 @@ import { avaliarCompletudeDemanda } from "@/lib/orcamento/demanda-completude";
 import { avaliarModuloOperacional } from "@/lib/orcamento/modulo-status";
 import { consolidarOrcamentoFinal, explicarOrigem } from "@/lib/orcamento/orcamento-final";
 import { rotuloStatusModulo, rotuloStatusOrcamento, rotuloStatusVersaoFinal } from "@/lib/orcamento/rotulos-status";
+import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
 import { HelpExample, HelpFormula, HelpTip } from "@/components/common/HelpTip";
 import { PainelParametrosEconomicos } from "@/components/orcamento/PainelParametrosEconomicos";
 import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";
@@ -306,14 +307,14 @@ export default async function DemandaDetalhe({
   });
   const pendenciasTabela = [
     {
-      etapa: "Demanda",
+      etapa: "Dados",
       obrigatoria: true,
       status: completudeDemanda.completa ? "Completo" : "Pendente",
       pendencia: completudeDemanda.completa ? "Concluída" : completudeDemanda.pendencias.join("; "),
       acao: `/orcamento/demandas/${demandaId}?etapa=demanda`,
     },
     {
-      etapa: "Laboratorio",
+      etapa: "Laboratório",
       obrigatoria: exigeAnalises,
       status: moduloAnalises.label,
       pendencia: moduloAnalises.pendencias.join("; "),
@@ -327,14 +328,14 @@ export default async function DemandaDetalhe({
       acao: `/orcamento/demandas/${demandaId}?etapa=projeto`,
     },
     {
-      etapa: "Parametros",
+      etapa: "Parâmetros",
       obrigatoria: exigeProjeto,
       status: podeConsolidar ? "Liberado" : "Bloqueado",
       pendencia: podeConsolidar ? "custos revisados" : modulosPendentes.join("; "),
       acao: `/orcamento/demandas/${demandaId}?etapa=parametros`,
     },
     {
-      etapa: "Final",
+      etapa: "Proposta",
       obrigatoria: true,
       status: orcamentoFinal.pronto ? "Pronto" : "Bloqueado",
       pendencia: orcamentoFinal.pendencias.length > 0 ? orcamentoFinal.pendencias.join("; ") : "Pronto para emissão",
@@ -357,7 +358,7 @@ export default async function DemandaDetalhe({
       <main className="app-page-container">
         <Breadcrumbs
           items={[
-            { label: "Demandas/Propostas", href: "/orcamento/demandas" },
+            { label: "Orçamentos", href: "/orcamento/demandas" },
             { label: demanda.titulo },
           ]}
         />
@@ -366,7 +367,7 @@ export default async function DemandaDetalhe({
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
-                Demanda/Proposta
+                Orçamento
               </p>
               <h1 className="mt-1 text-xl font-semibold tracking-tight">{demanda.titulo}</h1>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -378,7 +379,7 @@ export default async function DemandaDetalhe({
               <p className="text-muted-foreground">Status: {rotuloStatusOrcamento(demanda.status)}</p>
               <p className="text-muted-foreground">Prioridade: {demanda.prioridade}</p>
               <p className={`flex items-center justify-end gap-1 ${completudeDemanda.completa ? "text-brand-700 dark:text-brand-300" : "text-warning-strong"}`}>
-                {completudeDemanda.completa ? "Demanda pronta" : `${completudeDemanda.faltante}% faltante`}
+                {completudeDemanda.completa ? "Dados completos" : `${completudeDemanda.faltante}% faltante`}
                 <HelpTip title="Completude dos dados" align="end">
                   <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo e, conforme a modalidade, projeto e amostras).</p>
                   <p>Os módulos de custo só são liberados com <b>0% faltante</b>.</p>
@@ -440,11 +441,11 @@ export default async function DemandaDetalhe({
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <h2 className="text-sm font-semibold">Próximos módulos</h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              A modalidade da demanda controla quais módulos podem ser preenchidos.
+              A modalidade do orçamento controla quais módulos podem ser preenchidos.
             </p>
             {!completudeDemanda.completa && (
               <div className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
-                Complete a demanda antes de gerar módulos: {completudeDemanda.pendencias.join("; ")}.
+                Complete os dados antes de gerar módulos: {completudeDemanda.pendencias.join("; ")}.
               </div>
             )}
             {(planoModulosUi.bloqueadoPorDuplicidade || erroIntegridade) && (
@@ -492,7 +493,7 @@ export default async function DemandaDetalhe({
                 </Link>
               ))}
               {todosOrcamentosAnalises.length === 0 && todosOrcamentosProjeto.length === 0 && (
-                <p className="text-xs text-muted-foreground/80">Nenhum custo gerado a partir desta demanda.</p>
+                <p className="text-xs text-muted-foreground/80">Nenhum custo gerado a partir deste orçamento.</p>
               )}
             </div>
           </div>
@@ -500,10 +501,10 @@ export default async function DemandaDetalhe({
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <h2 className="text-sm font-semibold">Fluxo recomendado</h2>
             <ol className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
-              <li>1. Registrar demanda.</li>
+              <li>1. Registrar os dados do orçamento.</li>
               <li>2. Confirmar modalidade e projeto.</li>
               <li>3. Gerar o custo correto.</li>
-              <li>4. Planejar demanda e reservar estoque quando aprovado.</li>
+              <li>4. Planejar a execução e reservar estoque quando aprovado.</li>
             </ol>
           </div>
         </section>
@@ -518,7 +519,7 @@ export default async function DemandaDetalhe({
                 </HelpTip>
               </div>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Orçamentos de análises gerados a partir desta demanda.
+                Custos de análises gerados a partir deste orçamento.
               </p>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClasse(moduloAnalises.status)}`}>
@@ -934,7 +935,7 @@ export default async function DemandaDetalhe({
         <section id="demanda" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("demanda")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Dados da demanda</h2>
+              <h2 className="text-sm font-semibold">Dados do orçamento</h2>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">
                 Identificação, classificação e escopo inicial que liberam os módulos seguintes.
               </p>
@@ -952,7 +953,7 @@ export default async function DemandaDetalhe({
             <div>
               <label className={lbl}>Cliente cadastrado</label>
               <select {...hydrationSafe} name="cliente_id" defaultValue={demanda.cliente_id ?? ""} className={`${inp} mt-1 w-full`}>
-                <option value="">— cliente livre —</option>
+                <option value="">Sem cadastro</option>
                 {(clientes ?? []).map((c) => (
                   <option key={c.id} value={c.id}>{c.nome}</option>
                 ))}
@@ -968,7 +969,7 @@ export default async function DemandaDetalhe({
               </select>
             </div>
             <div>
-              <label className={lbl}>Cliente livre</label>
+              <label className={lbl}>Nome do cliente</label>
               <input {...hydrationSafe} name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={`${inp} mt-1 w-full`} />
             </div>
             <div>
@@ -980,14 +981,11 @@ export default async function DemandaDetalhe({
               <input {...hydrationSafe} name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={`${inp} mt-1 w-full`} />
             </div>
             <div>
-              <label className={`${lbl} flex items-center gap-1`}>
-                Instituição emissora
-                <HelpTip title="Instituição emissora">
-                  <p>Define o <b>cabeçalho</b>, o logotipo e o responsável da proposta impressa e exportada.</p>
-                  <HelpExample>Digite “GIA / UFPR” ou “ATGC”.</HelpExample>
-                </HelpTip>
-              </label>
-              <input {...hydrationSafe} name="instituicao" defaultValue={demanda.instituicao ?? ""} placeholder="GIA / UFPR ou ATGC" className={`${inp} mt-1 w-full`} />
+              <label htmlFor="orcamento-instituicao" className={lbl}>Instituição emissora (cabeçalho da proposta)</label>
+              <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={`${inp} mt-1 w-full`}>
+                <option value="">Escolha…</option>
+                {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+              </select>
             </div>
             <div>
               <label className={lbl}>Responsável interno</label>
@@ -1026,15 +1024,9 @@ export default async function DemandaDetalhe({
               </select>
             </div>
             <div>
-              <label className={lbl}>Status</label>
-              <select {...hydrationSafe} name="status" defaultValue={demanda.status ?? "nova"} className={`${inp} mt-1 w-full`}>
-                <option value="nova">Nova</option>
-                <option value="em_analise">Em análise</option>
-                <option value="orcada">Orçada</option>
-                <option value="aprovada">Aprovada</option>
-                <option value="recusada">Recusada</option>
-                <option value="cancelada">Cancelada</option>
-              </select>
+              <p className={lbl}>Situação</p>
+              <p className="mt-1 text-sm font-medium">{rotuloStatusOrcamento(demanda.status)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/80">Muda sozinha: emitir a proposta, aprovar ou cancelar.</p>
             </div>
             <div>
               <label className={lbl}>Prioridade</label>
@@ -1046,7 +1038,7 @@ export default async function DemandaDetalhe({
               </select>
             </div>
             <div>
-              <label className={lbl}>Descrição da demanda</label>
+              <label className={lbl}>Descrição</label>
               <textarea {...hydrationSafe} name="descricao" rows={4} defaultValue={demanda.descricao ?? ""} className={`${inp} mt-1 w-full`} />
             </div>
             <div>
@@ -1078,8 +1070,8 @@ export default async function DemandaDetalhe({
             vazio="Nenhum registro operacional vinculado."
             linhas={[
               [
-                `Demanda #${demanda.id}`,
-                "Demanda",
+                `Orçamento #${demanda.id}`,
+                "Orçamento",
                 rotuloStatusOrcamento(demanda.status),
                 formatDateTime(demanda.completude_atualizada_em),
                 completudeDemanda.completa ? "completa" : `${completudeDemanda.faltante}% faltante`,
@@ -1150,7 +1142,7 @@ function ModuloAcao({
   if (!demandaCompleta) {
     return (
       <span className="rounded-md border border-warning-strong/30 px-3 py-2 text-xs text-warning-strong">
-        Complete a demanda
+        Complete os dados
       </span>
     );
   }

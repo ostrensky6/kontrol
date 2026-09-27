@@ -16,9 +16,9 @@ const HISTORICAL_CODES = [
 test("admin acessa itens de Governança incluindo Privilégios", async ({ page }) => {
   await page.goto("/governanca/privilegios");
   await expect(page.getByRole("heading", { name: "Privilégios", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Papéis antigos e equivalência atual/ })).toBeVisible();
-  await expect(page.getByRole("cell", { name: "administrativo", exact: true })).toBeVisible();
-  await expect(page.getByText("sem papel dedicado")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Privilégios por papel" })).toBeVisible();
+  // UI2-13: a tabela de engenharia "Papéis antigos" saiu da tela.
+  await expect(page.getByRole("heading", { name: /Papéis antigos/ })).toHaveCount(0);
 
   await expect(page.getByRole("navigation", { name: "Navegação de Governança" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Auditoria" })).toBeVisible();

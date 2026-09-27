@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
-import { HelpTip } from "@/components/common/HelpTip";
 import {
   DemandaForm,
   type AnaliseCatalogoDemanda,
@@ -22,6 +21,7 @@ export default async function NovaDemandaPage() {
     { data: insumosAnalises },
     { data: saldoEstoque },
     { breakdowns },
+    { data: matrizes },
   ] = await Promise.all([
     supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
     supabase.from("projetos").select("id, nome").order("nome"),
@@ -53,6 +53,8 @@ export default async function NovaDemandaPage() {
       .from("v_estoque_saldo")
       .select("insumo_id, disponivel"),
     calcularTodas(),
+    // A matriz do grupo referencia o cadastro (FK): só códigos cadastrados.
+    supabase.from("matrizes_amostras").select("codigo, nome").eq("ativo", true).order("nome"),
   ]);
 
   const quantidadeBase = 1;
@@ -140,18 +142,15 @@ export default async function NovaDemandaPage() {
           <div>
             <Breadcrumbs
               items={[
-                { label: "Orçamentos não finalizados", href: "/orcamento/demandas" },
-                { label: "Novo Orçamento" },
+                { label: "Orçamentos", href: "/orcamento/demandas" },
+                { label: "Novo orçamento" },
               ]}
             />
             <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
               Entrada comercial
             </p>
             <div className="mt-1 flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Novo Orçamento</h1>
-              <HelpTip title="Novo orçamento">
-                <p>Preencha os dados <b>uma única vez</b>: eles seguem para os custos do laboratório, do projeto e para a proposta final.</p>
-              </HelpTip>
+              <h1 className="text-xl font-semibold tracking-tight">Novo orçamento</h1>
             </div>
           </div>
           <Link
@@ -170,6 +169,7 @@ export default async function NovaDemandaPage() {
             analises={analisesFormulario}
             gruposAmostras={gruposAmostras}
             analisesSelecionadas={[]}
+            matrizes={(matrizes ?? []) as { codigo: string; nome: string }[]}
             modo="completo"
           />
         </section>

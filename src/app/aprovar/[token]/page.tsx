@@ -49,8 +49,16 @@ type PayloadPublico = {
     valido_ate: string | null;
     total_final: number;
   };
+  vencida?: boolean;
   aprovado_em: string | null;
   aprovado_por: string | null;
+};
+
+const MENSAGEM_ERRO: Record<string, string> = {
+  vencida: "Esta proposta venceu e não pode mais ser aprovada. Peça uma nova versão ao responsável.",
+  outra_aprovada: "Outra versão desta proposta já foi aprovada. Fale com o responsável.",
+  versao_nova: "Existe uma versão mais nova desta proposta. Peça o link atualizado ao responsável.",
+  link_indisponivel: "Não foi possível concluir a aprovação. O link está indisponível.",
 };
 
 export default async function AprovacaoPublicaPage({
@@ -87,6 +95,8 @@ export default async function AprovacaoPublicaPage({
   const status = rotuloStatusVersaoFinal(statusEfetivoVersaoFinal(payload.versao));
   const escopo = demanda?.escopo_preliminar || demanda?.descricao || demanda?.observacoes;
   const aprovado = Boolean(payload.aprovado_em);
+  const vencida = Boolean(payload.vencida) && !aprovado;
+  const aprovadaPelaEquipe = !aprovado && payload.versao.status === "aprovado";
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-6 font-sans text-foreground sm:px-6 sm:py-8">
@@ -163,13 +173,21 @@ export default async function AprovacaoPublicaPage({
 
         <div className="mt-8 border-t border-border pt-6">
           {query.erro && (
-            <p className="mb-3 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-strong">
-              Não foi possível concluir a aprovação. O link está indisponível.
+            <p role="alert" className="mb-3 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-strong">
+              {MENSAGEM_ERRO[query.erro] ?? MENSAGEM_ERRO.link_indisponivel}
             </p>
           )}
-          {aprovado ? (
+          {vencida ? (
+            <div className="rounded-lg bg-warning-soft px-4 py-3 text-sm text-warning-strong">
+              Esta proposta venceu em {formatDate(payload.versao.valido_ate)} e não pode mais ser aprovada. Peça uma nova versão ao responsável.
+            </div>
+          ) : aprovadaPelaEquipe ? (
             <div className="rounded-lg bg-leaf-50 px-4 py-3 text-sm text-leaf-800 dark:bg-leaf-950/40 dark:text-leaf-200">
-              ✓ Orçamento aprovado{payload.aprovado_por ? ` por ${payload.aprovado_por}` : ""}
+              Esta proposta já está aprovada.
+            </div>
+          ) : aprovado ? (
+            <div className="rounded-lg bg-leaf-50 px-4 py-3 text-sm text-leaf-800 dark:bg-leaf-950/40 dark:text-leaf-200">
+              ✓ Proposta aprovada{payload.aprovado_por ? ` por ${payload.aprovado_por}` : ""}
               {payload.aprovado_em
                 ? ` em ${formatDateTime(payload.aprovado_em)}`
                 : ""}
@@ -179,17 +197,19 @@ export default async function AprovacaoPublicaPage({
             <form action={aprovarOrcamentoPublico} className="flex flex-wrap items-end gap-3">
               <input type="hidden" name="token" value={token} />
               <div className="min-w-56 flex-1">
-                <label className="block text-xs font-medium text-muted-foreground">
+                <label htmlFor="nome-aprovador" className="block text-xs font-medium text-muted-foreground">
                   Seu nome (para registro da aprovação)
                 </label>
                 <input
+                  id="nome-aprovador"
                   name="nome"
+                  required
                   placeholder="Nome de quem aprova"
                   className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
                 />
               </div>
               <button className="rounded-md bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-500">
-                Aprovar orçamento
+                Aprovar proposta
               </button>
             </form>
           )}
@@ -208,7 +228,7 @@ function LinkIndisponivel() {
       <h1 className="text-xl font-semibold text-foreground">Link indisponível</h1>
       <p className="mt-2 text-sm text-muted-foreground">
         Este link de aprovação é inválido, expirou ou foi revogado. Solicite um
-        novo link ao responsável pelo orçamento.
+        novo link ao responsável pela proposta.
       </p>
     </main>
   );

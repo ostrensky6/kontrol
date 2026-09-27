@@ -9,15 +9,33 @@ import { CrudShell } from "@/components/cadastros/CrudShell";
 import { HelpTip, TextoAjuda } from "@/components/common/HelpTip";
 import { loteBaixaDeDb, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
 import { equipCustoDia } from "@/lib/costing/engine";
-import { modeloQuantidadePorInsumo, projetarQuantidadeInsumos, type LoteInsumo, type LoteModelo } from "@/lib/cadastros/insumos";
+import {
+  menorValidadePorInsumo,
+  modeloQuantidadePorInsumo,
+  projetarQuantidadeInsumos,
+  type LoteInsumo,
+  type LoteModelo,
+  type LoteValidade,
+} from "@/lib/cadastros/insumos";
+import { nomesDosPais } from "@/lib/cadastros/locais";
 import {
   camposTecnicosParaUsuario,
   colunasCalculadasTecnico,
   lerLinhasCadastro,
 } from "@/lib/cadastros/salario";
-import { podeVerSalario } from "@/lib/auth/permissao-efetiva";
+import { pode, podeVerSalario } from "@/lib/auth/permissao-efetiva";
+import type { PermissaoUsuario } from "@/lib/auth/permissions";
 
 export const dynamic = "force-dynamic";
+
+/** Tabelas com coluna `ativo`: inativos só aparecem no seletor como valor atual. */
+const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos"]);
+
+/** Permissão que libera criar, editar e excluir em cada cadastro (mesma do RLS, 0108/0124). */
+const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {
+  insumos: "insumos.editar",
+  projetos: "projetos.editar",
+};
 
 type Row = Record<string, unknown>;
 
@@ -94,13 +112,8 @@ async function comColunasCalculadas(
         };
       });
     case "tecnicos":
-      // salário mascarado ("XXX") ⇒ derivados também mascarados (ver salario.ts)
-      return rows.map(colunasCalculadasTecnico);
-    case "insumos":
-      return rows.map((r) => ({
-        ...r,
-        tempo_para_validade: tempoParaValidade(r.data_validade),
-      }));
+      // antes da 0129 (ou no mock) a coluna não existe: técnico sem o campo é ativo
+      return rows.map((r) => colunasCalculadasTecnico({ ...r, ativo: r.ativo !== false }));
     case "overhead":
       return rows.map((r) => ({
         ...r,
@@ -128,6 +141,8 @@ export default async function CadastroPage({
   if (!cfg) notFound();
 
   const supabase = await createClientUntyped();
+  // Sem a permissão de edição, a tela vira consulta (sem Novo, Editar e Excluir).
+  const podeEditar = await pode(PERMISSAO_EDITAR[slug] ?? "cadastros.editar");
   // Salário: decidido no servidor; sem permissão o valor real nunca é lido
   // nem serializado para o CrudShell (cliente).
   const podeVerSalarioTecnicos = slug === "tecnicos" ? await podeVerSalario() : false;
@@ -160,8 +175,14 @@ export default async function CadastroPage({
       const chave = String(lote.insumo_id);
       lotesPorInsumo.set(chave, [...(lotesPorInsumo.get(chave) ?? []), lote]);
     }
+    const validadePorInsumo = menorValidadePorInsumo((lotes ?? []) as LoteValidade[]);
     linhas = linhas.map((r) => ({
       ...r,
+      // a validade é do lote: a coluna mostra o lote com saldo que vence primeiro
+      validade_lotes: validadePorInsumo.get(String(r.id)) ?? null,
+      // embalagem de R$ 0: o insumo entra sem custo nas análises (CAD2-11)
+      custo_unitario:
+        r.custo_total_embalagem != null && Number(r.custo_total_embalagem) === 0 ? "Sem custo" : r.custo_unitario,
       quantidade_modelo: modelos.get(String(r.id)) ?? null,
       lotes_resumo: (lotesPorInsumo.get(String(r.id)) ?? [])
         .sort((a, b) => String(a.validade ?? "9999").localeCompare(String(b.validade ?? "9999")))
@@ -169,18 +190,23 @@ export default async function CadastroPage({
     }));
   }
 
-  // injeta opções dinâmicas nos selects que referenciam outra tabela
+  // injeta opções dinâmicas nos selects que referenciam outra tabela. Registros
+  // inativos vêm marcados: o formulário só os oferece quando já são o valor atual.
   const fontes = [...new Set(cfg.campos.map((c) => c.opcoesDe).filter(Boolean))] as string[];
-  const opcoesPorFonte: Record<string, { value: string; label: string }[]> = {};
+  const opcoesPorFonte: Record<string, { value: string; label: string; inativo?: boolean }[]> = {};
   for (const fonte of fontes) {
+    const comAtivo = FONTES_COM_ATIVO.has(fonte);
     const { data } = await supabase
       .from(fonte)
-      .select("id, nome")
+      .select(comAtivo ? "id, nome, ativo" : "id, nome")
       .order("nome");
-    opcoesPorFonte[fonte] = (data ?? []).map((r) => ({
-      value: String((r as unknown as { id: number }).id),
-      label: String((r as unknown as { nome: string | null }).nome ?? ""),
-    }));
+    opcoesPorFonte[fonte] = ((data ?? []) as unknown as { id: number; nome: string | null; ativo?: boolean | null }[]).map(
+      (r) => ({
+        value: String(r.id),
+        label: String(r.nome ?? ""),
+        ...(comAtivo && r.ativo === false ? { inativo: true } : {}),
+      }),
+    );
   }
   const camposBase: Campo[] = cfg.campos.map((c) =>
     c.opcoesDe ? { ...c, opcoes: opcoesPorFonte[c.opcoesDe] ?? [] } : c,
@@ -210,6 +236,11 @@ export default async function CadastroPage({
         tipo_insumo_nome: tipoId ? tipoNomePorId.get(tipoId) ?? r.nome_item : r.nome_item,
       };
     });
+  }
+
+  if (slug === "locais") {
+    const pais = nomesDosPais(linhas);
+    linhas = linhas.map((r) => ({ ...r, parent_nome: pais.get(String(r.id)) ?? "—" }));
   }
 
   // projetos: resolve o nome do cliente para a coluna da tabela
@@ -251,6 +282,7 @@ export default async function CadastroPage({
             campos={campos}
             rows={linhas}
             initialFocusId={typeof query.focus === "string" ? query.focus : undefined}
+            somenteLeitura={!podeEditar}
           />
         </div>
       </main>

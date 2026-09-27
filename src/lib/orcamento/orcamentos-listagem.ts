@@ -1,6 +1,7 @@
 import { itemProjetoTotal } from "@/lib/project-budget/orcamento-projeto";
 import { criarResolvedorDeTaxas, valorLaboratorioNaProposta, valorProjetoNaProposta } from "@/lib/orcamento/valores-modulos";
 import { createClient } from "@/lib/supabase/server";
+import { hojeCalendario, statusEfetivoVersaoFinal } from "@/lib/orcamento/rotulos-status";
 import type { OrcamentoRow } from "@/components/orcamento/OrcamentosTable";
 
 const STATUS: Record<string, string> = {
@@ -94,6 +95,10 @@ export async function carregarLinhasOrcamentos(): Promise<OrcamentoFila[]> {
   const modalidadePorDemanda = new Map((demandas ?? []).map((d) => [d.id, d.modalidade]));
   // valores pela mesma regra da emissão (custo técnico + gross-up único com as taxas da proposta)
   const taxasDa = criarResolvedorDeTaxas({ projetos: orcProjetos, demandas, parametrosGlobais });
+  // ORC2-5: a situação comercial vem da versão da proposta, não do status do
+  // módulo (aprovar pela equipe não mexe nos módulos; pelo link, sim).
+  const hoje = hojeCalendario();
+  const situacaoProposta = situacaoPorProposta(versoesFinais ?? [], hoje);
 
   const linhasAnalises: OrcamentoFila[] = (orcamentos ?? []).map((o) => {
     const itens = (o.orcamento_itens as ItemAnalise[]) ?? [];
@@ -120,6 +125,7 @@ export async function carregarLinhasOrcamentos(): Promise<OrcamentoFila[]> {
       proximaAcao: proximaAcaoLaboratorio(o.status, statusOperacional),
       origem: "laboratorio",
       grupo: grupoDocumento(o.status, etapaLaboratorio(o.status, statusOperacional)),
+      ...(o.status !== "cancelado" && o.demanda_id != null ? situacaoProposta.get(o.demanda_id) : undefined),
       criadoEm: o.criado_em,
       demandaId: o.demanda_id ?? null,
     };
@@ -156,12 +162,14 @@ export async function carregarLinhasOrcamentos(): Promise<OrcamentoFila[]> {
       proximaAcao: etapaAtual === "Custos pendentes" ? "Preencher custos" : etapaAtual === "Pronto para revisão" ? "Revisar projeto" : "Abrir",
       origem: "projeto",
       grupo: grupoDocumento(o.status, etapaAtual),
+      ...(o.status !== "cancelado" && o.demanda_id != null ? situacaoProposta.get(o.demanda_id) : undefined),
       criadoEm: o.criado_em,
       demandaId: o.demanda_id ?? null,
     };
   });
 
-  const linhasFinais: OrcamentoFila[] = (versoesFinais ?? []).map((v) => {
+  const linhasFinais: OrcamentoFila[] = (versoesFinais ?? []).map((versao) => {
+    const v = { ...versao, status: statusEfetivoVersaoFinal(versao, hoje) };
     const demanda = demandaPorId.get(v.demanda_id);
     return {
       key: `final-${v.id}`,
@@ -193,6 +201,25 @@ export async function carregarLinhasOrcamentos(): Promise<OrcamentoFila[]> {
   return [...linhasAnalises, ...linhasProjeto, ...linhasFinais].sort(
     (a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime(),
   );
+}
+
+type SituacaoProposta = Pick<OrcamentoFila, "etapaAtual" | "grupo" | "proximaAcao">;
+
+/** Situação comercial de cada proposta pela versão: aprovada vigente, ou emitida viva. */
+export function situacaoPorProposta(
+  versoes: Array<{ demanda_id: number; status: string; valido_ate?: string | null }>,
+  hoje: string,
+): Map<number, SituacaoProposta> {
+  const situacao = new Map<number, SituacaoProposta>();
+  for (const versao of versoes) {
+    const status = statusEfetivoVersaoFinal(versao, hoje);
+    if (["aprovado", "convertido_projeto"].includes(status)) {
+      situacao.set(versao.demanda_id, { etapaAtual: "Proposta aprovada", grupo: "decididos", proximaAcao: "Abrir proposta" });
+    } else if (["emitido", "enviado", "alterado_reenviado"].includes(status) && !situacao.has(versao.demanda_id)) {
+      situacao.set(versao.demanda_id, { etapaAtual: "Proposta emitida", grupo: "emitidos", proximaAcao: "Acompanhar retorno" });
+    }
+  }
+  return situacao;
 }
 
 function etapaLaboratorio(status: string, statusOperacional: string) {

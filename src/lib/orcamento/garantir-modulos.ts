@@ -30,7 +30,7 @@ export type PlanoModulos = {
 };
 
 const MSG_DUPLICIDADE = (tipo: string) =>
-  `Mais de um orçamento ${tipo} ativo nesta demanda. Operação bloqueada: a demanda precisa de saneamento (preflight/deduplicação) antes de criar ou abrir módulos.`;
+  `Há orçamentos duplicados neste registro (${tipo}). Peça ao gestor para revisar antes de continuar.`;
 
 function planejarUm(aplicavel: boolean, ativos: number[]): PlanoModulo {
   if (!aplicavel) {

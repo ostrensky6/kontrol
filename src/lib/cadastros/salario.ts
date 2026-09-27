@@ -21,8 +21,8 @@ type ErroLeitura = { message: string } | null;
 export const PERMISSAO_SALARIO = "tecnicos.salario.ver" as const;
 export const CAMPO_SALARIO = "valor_mes";
 
-/** Colunas de tecnicos liberadas a authenticated (sem valor_mes). */
-export const TECNICOS_COLUNAS_PUBLICAS = "id, nome, processo, horas_mes_base, percentual_dedicado";
+/** Colunas de tecnicos liberadas a authenticated (sem valor_mes; `ativo` desde a 0129). */
+export const TECNICOS_COLUNAS_PUBLICAS = "id, nome, processo, horas_mes_base, percentual_dedicado, ativo";
 
 /** Junta o salário vindo da RPC; sem permissão (ou sem valor), "XXX". */
 export function mesclarRemuneracao(

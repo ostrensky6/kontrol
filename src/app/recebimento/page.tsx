@@ -66,7 +66,7 @@ type CompraFormalItemRaw = {
 
 export default async function RecebimentoPage() {
   const supabase = await createClient();
-  const [{ data: itensData }, { data: insumos }, { data: comprasData }, podeReceberCompra] = await Promise.all([
+  const [{ data: itensData }, { data: insumos }, { data: comprasData }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
       .select(
@@ -81,7 +81,13 @@ export default async function RecebimentoPage() {
       .is("pedido_interno_item_id", null)
       .order("id", { ascending: false }),
     pode("compras.receber"),
+    pode("recebimento.registrar"),
+    supabase.from("locais").select("id, nome").order("nome"),
   ]);
+  const locais = ((locaisData ?? []) as { id: number; nome: string | null }[]).map((local) => ({
+    id: Number(local.id),
+    nome: local.nome ?? `Local #${local.id}`,
+  }));
 
   const itens = ((itensData ?? []) as unknown as ItemRaw[]).filter(
     (item) => item.pedidos_internos && item.pedidos_internos.status !== "cancelado",
@@ -118,7 +124,10 @@ export default async function RecebimentoPage() {
       projeto: pedido.projetos?.nome ?? "—",
       status,
       statusLabel: pedidoInternoStatus(status).label,
-      podeReceber: PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(status as PedidoInternoStatus) && !pedido.pedido_compra_id,
+      podeReceber:
+        podeRegistrarRecebimento &&
+        PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(status as PedidoInternoStatus) &&
+        !pedido.pedido_compra_id,
     };
   });
 
@@ -142,6 +151,9 @@ export default async function RecebimentoPage() {
                   Tudo o que está para chegar, de pedidos internos e de compras. Cada entrega vira um{" "}
                   <b>lote em quarentena</b>; o que faltar continua na fila até chegar tudo.
                 </p>
+                <p>
+                  Quem registra a chegada não aceita o próprio lote: o aceite fica com outra pessoa.
+                </p>
                 <HelpExample>Pedido de 10 caixas, chegaram 6: recebe 6 agora e 4 ficam pendentes.</HelpExample>
               </HelpTip>
             </div>
@@ -152,7 +164,12 @@ export default async function RecebimentoPage() {
               <p className="mt-1 text-xl font-semibold tabular-nums">{rows.length + comprasFormais.length}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
-              <p className="text-muted-foreground">Prontos p/ receber</p>
+              <p className="flex items-center gap-1 text-muted-foreground">
+                Prontos para receber
+                <HelpTip title="Aguardando × prontos">
+                  <p>Aguardando: tudo que falta chegar. Prontos: pedido aprovado ou enviado, já pode registrar a chegada.</p>
+                </HelpTip>
+              </p>
               <p className="mt-1 text-xl font-semibold tabular-nums text-leaf-700 dark:text-leaf-400">
                 {prontos + (podeReceberCompra ? comprasFormais.length : 0)}
               </p>
@@ -210,9 +227,10 @@ export default async function RecebimentoPage() {
                               emFrascos: emFrascos(item),
                               conteudoEmbalagem: item.conteudo_embalagem == null ? null : Number(item.conteudo_embalagem),
                             }}
+                            locais={locais}
                           />
                         ) : (
-                          <span className="text-xs text-muted-foreground">Requer coordenação</span>
+                          <span className="text-xs text-muted-foreground">Requer a permissão “Receber compras”</span>
                         )}
                       </td>
                     </tr>

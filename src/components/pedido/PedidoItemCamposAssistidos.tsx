@@ -10,6 +10,10 @@ export type PedidoItemCatalogo = {
   tipoInsumo?: string | null;
   unidade: string | null;
   custoUnitario?: number | null;
+  /** Insumo contado em frascos fechados (0123): item em frascos, preço por frasco. */
+  emFrascos?: boolean;
+  conteudoEmbalagem?: number | null;
+  custoEmbalagem?: number | null;
   unidades?: string[];
   modelos?: string[];
   volumes?: string[];
@@ -146,10 +150,17 @@ export function PedidoItemCamposAssistidos({
     setInsumoId(String(insumo.id));
     setInsumoBusca(rotuloInsumo(insumo));
     setEspecificacao(insumo.especificacao ?? insumo.nomeItem ?? "");
-    setUnidade(insumo.unidade ?? insumo.unidades?.[0] ?? "");
     setModelo(insumo.modelos?.[0] ?? "");
-    setVolume(insumo.volumes?.[0] ?? "");
     setFornecedor(insumo.fornecedores?.[0] ?? "");
+    if (insumo.emFrascos) {
+      // O banco grava o item em frascos; quantidade e preço seguem o frasco.
+      setUnidade("frasco");
+      setVolume(`${insumo.conteudoEmbalagem} ${insumo.unidade}`);
+      setOrcamento(insumo.custoEmbalagem ?? "");
+      return;
+    }
+    setUnidade(insumo.unidade ?? insumo.unidades?.[0] ?? "");
+    setVolume(insumo.volumes?.[0] ?? "");
     setOrcamento(insumo.custoUnitario ?? "");
   }
 
@@ -300,7 +311,7 @@ export function PedidoItemCamposAssistidos({
         <datalist id={ids.fornecedores}>{fornecedorOptions.map((value) => <option key={value} value={value} />)}</datalist>
       </div>
       <div className={span.orcamento}>
-        <label htmlFor={ids.orcamento} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Orçamento prévio un.</label>
+        <label htmlFor={ids.orcamento} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Preço estimado (un.)</label>
         <input
           id={ids.orcamento}
           name="orcamento_previo"

@@ -53,31 +53,31 @@ export function validarConferenciaLote(args: {
   hoje?: string;
 }) {
   if (args.lote.insumoId !== args.insumoEsperadoId) {
-    return { ok: false as const, status: "invalido", message: "Lote nao pertence ao insumo esperado." };
+    return { ok: false as const, status: "invalido", message: "Este lote é de outro insumo." };
   }
   if (args.lote.status !== "aceito" && args.lote.status !== "em_uso") {
-    return { ok: false as const, status: "invalido", message: "Lote nao esta aceito/disponivel para conferencia." };
+    return { ok: false as const, status: "invalido", message: "Lote não liberado para uso." };
   }
   if (loteEstaVencido(args.lote, args.hoje)) {
-    return { ok: false as const, status: "invalido", message: "Lote vencido nao pode ser conferido." };
+    return { ok: false as const, status: "invalido", message: "Lote vencido não pode ser usado." };
   }
   if (args.lote.quantidadeAtual <= 0) {
-    return { ok: false as const, status: "invalido", message: "Lote sem saldo disponivel." };
+    return { ok: false as const, status: "invalido", message: "Lote sem saldo disponível." };
   }
   if (args.loteSugeridoId && args.lote.id !== args.loteSugeridoId) {
     if (!args.justificativa?.trim()) {
       return {
         ok: false as const,
         status: "excecao_fefo",
-        message: "Justificativa obrigatoria para usar lote fora do FEFO.",
+        message: "Justifique o uso de lote fora da ordem de validade.",
       };
     }
     return {
       ok: true as const,
       status: "excecao_fefo",
-      message: "Lote fora do FEFO registrado como rastreabilidade, sem alterar a baixa definitiva.",
+      message: "Lote fora da ordem de validade registrado; a retirada sai deste lote se ele tiver saldo livre.",
     };
   }
 
-  return { ok: true as const, status: "conferido", message: "Lote registrado conforme sugestao FEFO atual." };
+  return { ok: true as const, status: "conferido", message: "Lote registrado conforme a sugestão por validade." };
 }

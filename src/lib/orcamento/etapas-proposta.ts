@@ -65,7 +65,7 @@ export function montarEtapasProposta(args: EntradaEtapasProposta): EtapaProposta
   const etapas: EtapaProposta[] = [
     {
       id: "demanda",
-      label: "Dados da demanda",
+      label: "Dados",
       estado: args.demandaCompleta ? "concluido" : "ativo",
       status: args.demandaCompleta ? "Completa" : `${args.demandaFaltante}% faltante`,
       aplicavel: true,

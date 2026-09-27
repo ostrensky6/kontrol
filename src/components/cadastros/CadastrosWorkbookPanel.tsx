@@ -4,19 +4,22 @@ import { useActionState, useEffect, useRef } from "react";
 import { DownloadButton } from "@/components/common/DownloadButton";
 import { Upload } from "lucide-react";
 import { importarCadastrosWorkbook, type ImportCadastrosState } from "@/lib/actions/cadastros";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/common/HelpTip";
+import { MensagemAcao } from "@/components/common/MensagemAcao";
+import { SubmitButton } from "@/components/common/SubmitButton";
+import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initialState: ImportCadastrosState = { ok: false };
 const LIMITE_MENSAGENS = 50;
 
-export function CadastrosWorkbookPanel() {
+/** `podeImportar`: sem permissão de edição de nenhum cadastro, só o download aparece. */
+export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?: boolean }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, action, pending] = useActionState(importarCadastrosWorkbook, initialState);
+  const [state, action] = useActionState(importarCadastrosWorkbook, initialState);
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();
@@ -58,7 +61,8 @@ export function CadastrosWorkbookPanel() {
         </div>
       </CardHeader>
       <CardContent>
-        <form ref={formRef} action={action} className="flex flex-wrap items-end gap-3">
+        {podeImportar ? (
+        <form ref={formRef} action={action} {...formularioSemPerda(state)} className="flex flex-wrap items-end gap-3">
           <div className="min-w-64 flex-1">
             <Label htmlFor="cadastros-xlsx">Planilha preenchida</Label>
             <Input
@@ -70,20 +74,18 @@ export function CadastrosWorkbookPanel() {
               required
             />
           </div>
-          <Button type="submit" disabled={pending}>
+          <SubmitButton pendingLabel="Importando…">
             <Upload />
-            {pending ? "Importando..." : "Importar XLSX"}
-          </Button>
+            Importar XLSX
+          </SubmitButton>
         </form>
-
-        {state.message && (
-          <p
-            role={state.ok ? "status" : "alert"}
-            className={state.ok ? "mt-4 text-sm text-muted-foreground" : "mt-4 text-sm text-destructive"}
-          >
-            {state.message}
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            Somente consulta: importar exige permissão para editar cadastros.
           </p>
         )}
+
+        <MensagemAcao estado={state} className="mt-4" />
 
         {totais && (
           <div className="mt-4 flex flex-wrap gap-2">

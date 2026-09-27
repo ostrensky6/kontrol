@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency as brl } from "@/lib/formatters";
 import { VALOR_MASCARADO } from "@/lib/cadastros/mascara";
-import { FormAcao } from "./FormAcao";
+import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
 export type ItemCatalogo = {
   id: string;
@@ -48,7 +48,7 @@ export function AdicionarDoCatalogo({
   itens: ItemCatalogo[];
   orcamentoProjetoId: number;
   demandaId: number;
-  action: (formData: FormData) => void | Promise<void>;
+  action: AcaoFormulario;
 }) {
   const id = useId();
   const [busca, setBusca] = useState("");

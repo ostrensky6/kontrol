@@ -319,7 +319,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   // ───────────────────────────── Orçamentos ────────────────────────────
   {
     id: "orcamento-demandas",
-    titulo: "Orçamentos não finalizados",
+    titulo: "Orçamentos",
     grupo: "Orçamentos",
     href: "/orcamento/demandas",
     resumo: "Pedidos de cliente em andamento, antes da proposta emitida.",
@@ -329,7 +329,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Para que serve",
         itens: [
-          "Registrar o pedido do cliente assim que ele chega (Orçamentos → Novo Orçamento).",
+          "Registrar o pedido do cliente assim que ele chega (Orçamentos → Novo orçamento).",
           "Completar escopo, prazo e dados de contato.",
           "Servir de origem para o orçamento de Análises/Lab. ou de Projetos.",
         ],
@@ -387,7 +387,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/orcamento/demandas",
     resumo: "Custos próprios do projeto por rubrica, dentro da proposta.",
     intro:
-      "Os custos de projeto são uma etapa do orçamento: abra o orçamento em Orçamentos não finalizados e vá para a etapa \"Custos do projeto\". Lá você lança os itens por rubrica (PE Pessoal, MC Material de consumo, MP Material permanente, ST Serviços de terceiros, VD Viagens e diárias, OU Outros), marca os meses do pessoal, informa as viagens e inclui análises laboratoriais dentro do projeto. Os valores são custo técnico; os parâmetros econômicos entram na etapa seguinte.",
+      "Os custos de projeto são uma etapa do orçamento: abra o orçamento em Orçamentos e vá para a etapa \"Custos do projeto\". Lá você lança os itens por rubrica (PE Pessoal, MC Material de consumo, MP Material permanente, ST Serviços de terceiros, VD Viagens e diárias, OU Outros), marca os meses do pessoal, informa as viagens e inclui análises laboratoriais dentro do projeto. Os valores são custo técnico; os parâmetros econômicos entram na etapa seguinte.",
     secoes: [
       {
         titulo: "Para que serve",
@@ -400,7 +400,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Em Orçamentos não finalizados, abra o orçamento e vá para a etapa \"Custos do projeto\". Se ainda não houver custos de projeto, use \"Criar orçamento de projeto\".",
+          "Em Orçamentos, abra o orçamento e vá para a etapa \"Custos do projeto\". Se ainda não houver custos de projeto, use \"Criar orçamento de projeto\".",
           "Em cada rubrica, adicione itens do catálogo (com busca) ou manuais; edite e remova pela própria linha.",
           "No Pessoal, marque os meses na grade (paginada por ano) e clique em \"Salvar meses\". Em Viagens, preencha as entradas e clique em \"Salvar e recalcular\".",
           "Um coordenador (ou superior) usa \"Concluir revisão dos custos\": os custos ficam travados e a proposta libera parâmetros e emissão.",

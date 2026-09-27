@@ -9,6 +9,9 @@ const exigirPapelOrcamento = vi.fn();
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/orcamento/governanca", () => ({ exigirPapelOrcamento }));
+// A cópia das análises escolhidas para o módulo tem teste e RPC próprios (0126).
+const incluirAnalisesDaDemandaNoOrcamento = vi.fn(async () => ({ ok: true, message: "ok" }));
+vi.mock("./orcamentos", () => ({ incluirAnalisesDaDemandaNoOrcamento }));
 
 const state = {
   demanda: {} as Record<string, unknown>,
@@ -108,6 +111,8 @@ describe("idempotência de gerarOrcamentoAnalisesDaDemanda", () => {
     await expect(demandasActions.gerarOrcamentoAnalisesDaDemanda(fd)).rejects.toThrow("NEXT_REDIRECT:/orcamento/999");
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("preencher_custos");
     expect(state.inserts.some((i) => i.table === "orcamentos")).toBe(true);
+    // INT-10: o módulo nasce com as análises escolhidas no orçamento
+    expect(incluirAnalisesDaDemandaNoOrcamento).toHaveBeenCalledWith(999, 7);
     const statusUpdate = state.updates.find((u) => u.table === "demandas_propostas");
     expect(statusUpdate?.patch.status).toBe("em_analise");
     expect(state.updates.some((u) => u.patch.status === "orcada")).toBe(false);

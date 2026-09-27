@@ -19,7 +19,12 @@ const exigirPapelOrcamento = vi.fn();
 let lista: unknown[] = [];
 
 vi.mock("next/cache", () => ({ revalidatePath }));
-vi.mock("next/navigation", () => ({ redirect }));
+vi.mock("next/navigation", () => ({
+  redirect,
+  unstable_rethrow: (erro: unknown) => {
+    if (erro instanceof Error && erro.message.startsWith("NEXT_REDIRECT")) throw erro;
+  },
+}));
 vi.mock("./eventos", () => ({ registrarEvento }));
 vi.mock("@/lib/orcamento/parametros-versionamento", () => ({ registrarVersaoParametrosEconomicos }));
 vi.mock("@/lib/orcamento/governanca", () => ({ exigirPapelOrcamento }));
@@ -316,11 +321,11 @@ describe("actions de orcamento de projetos", () => {
     formData.set("descricao", "Kit");
     formData.set("quantidade", "0");
     formData.set("custo_unitario", "10");
-    await expect(atualizarCustoProjeto(formData)).rejects.toThrow("maior que zero");
+    await expect(atualizarCustoProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("maior que zero") });
 
     formData.set("quantidade", "1");
     single.mockResolvedValue({ data: { status: "enviado", demanda_id: 5 }, error: null });
-    await expect(atualizarCustoProjeto(formData)).rejects.toThrow('status "enviado"');
+    await expect(atualizarCustoProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining('status "enviado"') });
     expect(update).not.toHaveBeenCalled();
   });
 
@@ -376,7 +381,7 @@ describe("actions de orcamento de projetos", () => {
     expect(update).toHaveBeenCalledTimes(2);
 
     formData.set("project_months", "61");
-    await expect(salvarDuracaoProjeto(formData)).rejects.toThrow("1 a 60 meses");
+    await expect(salvarDuracaoProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("1 a 60 meses") });
   });
 
   it("conclui a revisão dos custos de projeto pelo RPC transacional", async () => {
@@ -409,13 +414,13 @@ describe("actions de orcamento de projetos", () => {
       data: { status: "rascunho", demanda_id: 5, orcamento_projeto_custos: [], orcamento_projeto_analises: [] },
       error: null,
     });
-    await expect(concluirRevisaoCustosProjeto(formData)).rejects.toThrow("ao menos um custo");
+    await expect(concluirRevisaoCustosProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("ao menos um custo") });
 
     single.mockResolvedValue({
       data: { status: "enviado", demanda_id: 5, orcamento_projeto_custos: [{ id: 1 }], orcamento_projeto_analises: [] },
       error: null,
     });
-    await expect(concluirRevisaoCustosProjeto(formData)).rejects.toThrow("em edição");
+    await expect(concluirRevisaoCustosProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("em edição") });
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -425,7 +430,7 @@ describe("actions de orcamento de projetos", () => {
     const formData = new FormData();
     formData.set("orcamento_projeto_id", "77");
 
-    await expect(concluirRevisaoCustosProjeto(formData)).rejects.toThrow("Sem permissão");
+    await expect(concluirRevisaoCustosProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("Sem permissão") });
     expect(createClient).not.toHaveBeenCalled();
   });
 
@@ -435,7 +440,7 @@ describe("actions de orcamento de projetos", () => {
     formData.set("orcamento_projeto_id", "77");
 
     single.mockResolvedValue({ data: { status: "enviado", demanda_id: 5 }, error: null });
-    await expect(reabrirCustosProjeto(formData)).rejects.toThrow("recusados");
+    await expect(reabrirCustosProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("recusados") });
     expect(rpc).not.toHaveBeenCalled();
 
     single.mockResolvedValue({ data: { status: "recusado", demanda_id: 5 }, error: null });

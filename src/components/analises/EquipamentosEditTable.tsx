@@ -52,10 +52,13 @@ export function EquipamentosEditTable({
   codigo,
   equipamentos,
   opcoes,
+  podeEditar = true,
 }: {
   codigo: string;
   equipamentos: EquipamentoEditRowData[];
   opcoes: EquipamentoOption[];
+  /** sem a permissão "Editar análises": só consulta */
+  podeEditar?: boolean;
 }) {
   const [editingId, setEditingId] = useState<number | null>(null);
 
@@ -76,7 +79,7 @@ export function EquipamentosEditTable({
                 <th className={th}>Vida útil</th>
                 <th className={th}>Manutenção</th>
                 <th className={th}>Disponível</th>
-                <th className={th}>Ações</th>
+                {podeEditar && <th className={th}>Ações</th>}
               </tr>
             </thead>
             <tbody>
@@ -87,6 +90,7 @@ export function EquipamentosEditTable({
                   equipamento={equipamento}
                   editing={editingId === equipamento.id}
                   onEdit={() => setEditingId(equipamento.id)}
+                  podeEditar={podeEditar}
                 />
               ))}
             </tbody>
@@ -95,7 +99,7 @@ export function EquipamentosEditTable({
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">Nenhum equipamento com peso positivo vinculado a esta análise.</p>
       )}
-      <AdicionarEquipamentoForm codigo={codigo} opcoes={opcoes} />
+      {podeEditar && <AdicionarEquipamentoForm codigo={codigo} opcoes={opcoes} />}
     </>
   );
 }
@@ -105,11 +109,13 @@ function EquipamentoRow({
   equipamento,
   editing,
   onEdit,
+  podeEditar,
 }: {
   codigo: string;
   equipamento: EquipamentoEditRowData;
   editing: boolean;
   onEdit: () => void;
+  podeEditar: boolean;
 }) {
   const id = formId(equipamento.id);
   const manutencao =
@@ -148,6 +154,7 @@ function EquipamentoRow({
       <td className={td}>{equipamento.vida_util_anos ? `${fmt(equipamento.vida_util_anos)} anos` : "-"}</td>
       <td className={td}>{manutencao}</td>
       <td className={td}>{equipamento.possui ? "Sim" : "Não informado"}</td>
+      {podeEditar && (
       <td className={`${td} whitespace-nowrap`}>
         <div className="flex justify-center gap-1">
           {!editing ? (
@@ -177,6 +184,7 @@ function EquipamentoRow({
           )}
         </div>
       </td>
+      )}
     </tr>
   );
 }

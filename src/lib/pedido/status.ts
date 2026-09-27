@@ -10,7 +10,7 @@ export const PEDIDO_INTERNO_STATUS = {
     className: "bg-warning-soft text-warning-strong",
   },
   ajuste_solicitante: {
-    label: "Ajuste solicitante",
+    label: "Devolvido ao solicitante",
     etapa: "Verificação com solicitante",
     className: "bg-warning-soft text-warning-strong",
   },
@@ -25,17 +25,17 @@ export const PEDIDO_INTERNO_STATUS = {
     className: "bg-info-soft text-info-strong",
   },
   analise_administrativa: {
-    label: "Análise adm.",
+    label: "Em análise administrativa",
     etapa: "Fonte, rubrica e conformidade",
     className: "bg-warning-soft text-warning-strong",
   },
   ajuste_compras: {
-    label: "Ajuste compras",
+    label: "Devolvido a Compras",
     etapa: "Verificação com compras/solicitante",
     className: "bg-warning-soft text-warning-strong",
   },
   aprovado_compra: {
-    label: "Aguardando orçamento",
+    label: "Aguardando cotação",
     etapa: "Aprovação administrativa",
     className: "bg-success-soft text-success-strong",
   },
@@ -45,8 +45,8 @@ export const PEDIDO_INTERNO_STATUS = {
     className: "bg-info-soft text-info-strong",
   },
   orcamentos_recebidos: {
-    label: "Orçamentos recebidos",
-    etapa: "Propostas anexadas",
+    label: "Cotações recebidas",
+    etapa: "Cotações anexadas",
     className: "bg-info-soft text-info-strong",
   },
   aguardando_aprovacao_final: {
