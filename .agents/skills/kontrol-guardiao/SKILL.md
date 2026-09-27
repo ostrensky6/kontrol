@@ -29,4 +29,4 @@ independentes e usar testes e gates proporcionais ao regime.
 
 Nunca expor segredo, usar produção como teste, alterar regra funcional, remover
 RLS/auditoria/dados sem plano aprovado, sobrescrever mudança preexistente ou
-tocar `D:\Aplicativos\Estoque`.
+tocar `G:\Aplicativos\Estoque`.

@@ -4,7 +4,7 @@
 
 **Número vinculante:** `0`
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Autoridade superior:** `00 — Supervisor`
 

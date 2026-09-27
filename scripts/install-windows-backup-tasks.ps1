@@ -1,5 +1,5 @@
 param(
-  [string]$ProjectPath = "D:\Aplicativos\Kontrol",
+  [string]$ProjectPath = "G:\Aplicativos\Kontrol",
   [string]$DestinationPath = "D:\Dropbox\Aplicativos\Kontrol\BD",
   [string]$TaskName = "Kontrol - Backup banco nuvem",
   [string]$RunAsUser = $env:USERNAME

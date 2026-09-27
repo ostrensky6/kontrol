@@ -76,8 +76,8 @@ O projeto possui dez papéis permanentes: `00 — Supervisor`, `0 — Maestro`,
   Maestro ficam em `PRONTO_AGUARDANDO_DIRETRIZ`; especialistas ficam em
   `PRONTO_PARA_DIAGNOSTICO` e não modificam o projeto.
 - Todo papel preserva mudanças preexistentes e opera somente em
-  `D:\Aplicativos\Kontrol`, salvo autorização explícita. O legado
-  `D:\Aplicativos\Estoque` não recebe alterações.
+  `G:\Aplicativos\Kontrol`, salvo autorização explícita. O legado
+  `G:\Aplicativos\Estoque` não recebe alterações.
 - Toda atividade ligada a `orcamento-projetos` permanece subordinada ao
   protocolo obrigatório desta raiz e não começa por código antes do diagnóstico
   comparativo e plano aprovados.
