@@ -1,7 +1,7 @@
 # R1 — Guardião do Kontrol
 
 **Papel:** Plataforma, Segurança, Operações e Continuidade
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 **Autoridade coordenadora:** `0 — Maestro`
 **Tarefa externa canônica:** `R1 — Guardião Kontrol`
 **ID congelado:** `019fe0e1-c62e-7923-92d4-d1d6f77e422c`
@@ -100,7 +100,7 @@ As fontes de verdade são `AGENTS.md`, `docs/agents/README.md`, esta carta,
 
 O Supabase oficial é `gkcjzwfsnoknxgpsumxi` e a produção canônica é
 `https://kontrol-atgc.vercel.app`. O ref `hhxwdcwphitfxywbgtju` e
-`D:\Aplicativos\Estoque` são somente referência histórica e nunca alvo.
+`G:\Aplicativos\Estoque` são somente referência histórica e nunca alvo.
 
 ## 6. Entregáveis
 
@@ -146,7 +146,7 @@ R1 nunca deve:
 - declarar backup restaurável sem verificação;
 - usar produção como teste ou publicar artefato diferente do validado;
 - expor segredo, token, senha ou dado pessoal/operacional;
-- sobrescrever mudanças preexistentes ou tocar `D:\Aplicativos\Estoque`;
+- sobrescrever mudanças preexistentes ou tocar `G:\Aplicativos\Estoque`;
 - criar tarefa, subagente, substituto interno ou automação;
 - contatar diretamente usuário ou outro especialista;
 - promover ausência de autoridade a autorização implícita.

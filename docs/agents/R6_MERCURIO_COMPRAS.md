@@ -1,7 +1,7 @@
 # R6 — Mercúrio, Especialista em Compras do Kontrol
 
 **Papel:** Ciclo Comercial de Compras e Recebimento Vinculado ao Pedido
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 **Autoridade coordenadora:** `0 — Maestro`
 **Tarefa externa canônica:** `R6 — Mercúrio Compras`, ID
 `019fe0e2-3a51-7440-924f-29639720f0dd`

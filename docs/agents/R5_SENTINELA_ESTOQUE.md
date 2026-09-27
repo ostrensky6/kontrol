@@ -3,7 +3,7 @@
 - **Papel:** Verdade Física, Rastreabilidade e Continuidade de Estoque
 - **Responsabilidade primária exclusiva:** estoque físico, saldos, lotes,
   movimentos, reservas e inventário
-- **Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+- **Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 - **Autoridade coordenadora:** `0 — Maestro`
 - **Tarefa externa canônica:** `019fe0e2-22ae-7582-be6a-4402bb69e475`
 - **Estado inicial:** `PRONTO_PARA_DIAGNOSTICO`

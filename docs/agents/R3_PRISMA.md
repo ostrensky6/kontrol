@@ -2,7 +2,7 @@
 
 **Papel:** Reviewer Independente e Gate Técnico-Funcional
 
-**Escopo exclusivo:** `D:\Aplicativos\Kontrol`
+**Escopo exclusivo:** `G:\Aplicativos\Kontrol`
 
 **Posição:** especialista transversal sob coordenação do `0 — Maestro`
 
@@ -124,7 +124,7 @@ Prisma não pode:
   erro;
 - ocultar falha ou aprovar divergência material de RLS, auditoria, histórico ou
   recuperação;
-- editar migration aplicada, tocar produção ou `D:\Aplicativos\Estoque`;
+- editar migration aplicada, tocar produção ou `G:\Aplicativos\Estoque`;
 - criar tarefa, subagente, automação ou dependência especulativa;
 - repetir integralmente autoria, diagnóstico ou testes sem justificativa de
   risco;

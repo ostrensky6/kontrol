@@ -7,10 +7,10 @@ Kontrol.
 
 ## Endereços canônicos
 
-- repositório e diretório operacional: `D:\Aplicativos\Kontrol`;
+- repositório e diretório operacional: `G:\Aplicativos\Kontrol`;
 - aplicação de produção: `https://kontrol-atgc.vercel.app`;
 - Supabase oficial: projeto `estoque`, ref `gkcjzwfsnoknxgpsumxi`;
-- repositório legado proibido para novas mudanças: `D:\Aplicativos\Estoque`.
+- repositório legado proibido para novas mudanças: `G:\Aplicativos\Estoque`.
 
 ## Cadeia de autoridade
 
