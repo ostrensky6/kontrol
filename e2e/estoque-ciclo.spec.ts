@@ -24,7 +24,7 @@ test("ciclo de estoque: receber lote (entra disponível), ajustar consumo e bloq
   const baixa = page.getByRole("dialog");
   await expect(baixa.getByRole("heading", { name: "Dar baixa" })).toBeVisible();
   await baixa.getByLabel(/Quantidade a baixar/).fill("5");
-  await baixa.getByLabel("Motivo").selectOption("Consumo em análise");
+  await baixa.getByLabel("Motivo").selectOption("Entrega ao laboratório");
   await baixa.locator("textarea").fill("Consumo extra E2E");
   await page.getByRole("button", { name: "Registrar baixa" }).click();
   await expect(row.getByText("Em uso")).toBeVisible();

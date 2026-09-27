@@ -9,6 +9,13 @@ import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { AjusteInventarioButton } from "@/components/estoque/ReceberLote";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
+import {
+  FILTROS_SALDO,
+  ROTULO_SALDO_EM_DIA,
+  ROTULO_SITUACAO_SALDO,
+  saldoAtendeFiltro,
+  type SituacaoSaldo,
+} from "@/lib/estoque/situacao-insumo";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatNumber as fmt } from "@/lib/formatters";
 
@@ -28,7 +35,9 @@ export type SaldoRow = {
   consumoMedioDiario: number;
   diasCobertura: number | null;
   pontoSugerido: number;
-  status: "ok" | "repor" | "sem_estoque";
+  /** todas as condições do insumo (vazio = em dia); o filtro Status casa por condição */
+  situacoes: SituacaoSaldo[];
+  /** texto da coluna Status, para busca e ordenação */
   statusLabel: string;
   /** lotes do insumo candidatos à baixa (o diálogo escolhe por FEFO) */
   lotesBaixa: LoteBaixa[];
@@ -54,15 +63,30 @@ export type LoteRow = {
   aceiteBloqueadoMotivo?: string | null;
 };
 
-function SaldoStatusBadge({ status, label }: { status: SaldoRow["status"]; label: string }) {
-  const className =
-    status === "repor"
-      ? "bg-warning-soft text-warning-strong"
-      : status === "sem_estoque"
-        ? "bg-secondary text-secondary-foreground"
-        : "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300";
+const SITUACAO_SALDO_CLASSE: Record<SituacaoSaldo, string> = {
+  sem_estoque: "bg-secondary text-secondary-foreground",
+  repor: "bg-warning-soft text-warning-strong",
+  reposicao_pendente: "bg-warning-soft text-warning-strong",
+};
 
-  return <Badge className={className}>{label}</Badge>;
+/** Um selo por condição (sem estoque e repor podem aparecer juntos); nenhuma = "Em dia". */
+function SaldoStatusBadge({ situacoes }: { situacoes: SituacaoSaldo[] }) {
+  if (situacoes.length === 0) {
+    return (
+      <Badge className="bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
+        {ROTULO_SALDO_EM_DIA}
+      </Badge>
+    );
+  }
+  return (
+    <span className="inline-flex flex-wrap justify-center gap-1">
+      {situacoes.map((situacao) => (
+        <Badge key={situacao} className={SITUACAO_SALDO_CLASSE[situacao]}>
+          {ROTULO_SITUACAO_SALDO[situacao]}
+        </Badge>
+      ))}
+    </span>
+  );
 }
 
 function LoteStatusBadge({ status, label }: { status: string; label: string }) {
@@ -80,7 +104,7 @@ function LoteStatusBadge({ status, label }: { status: string; label: string }) {
   return <Badge className={className}>{label}</Badge>;
 }
 
-const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unknown>[] => [
+const saldoColumns = (podeMovimentar: boolean, entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unknown>[] => [
   {
     accessorKey: "especificacao",
     header: "Reagente",
@@ -140,10 +164,9 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
     accessorKey: "statusLabel",
     header: "Status",
     meta: { align: "center" },
-    filterFn: "equalsString",
-    cell: ({ row }) => (
-      <SaldoStatusBadge status={row.original.status} label={row.original.statusLabel} />
-    ),
+    // por condição: insumo sem estoque que também precisa repor aparece nos dois filtros
+    filterFn: (row, _columnId, filtro) => saldoAtendeFiltro(row.original.situacoes, filtro),
+    cell: ({ row }) => <SaldoStatusBadge situacoes={row.original.situacoes} />,
   },
   {
     id: "acoes",
@@ -151,11 +174,23 @@ const saldoColumns = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unkn
     enableSorting: false,
     enableGlobalFilter: false,
     meta: { align: "right" },
-    cell: ({ row }) => <SaldoAcoes row={row.original} entradaInicialInsumoId={entradaInicialInsumoId} />,
+    cell: ({ row }) => (
+      <SaldoAcoes row={row.original} podeMovimentar={podeMovimentar} entradaInicialInsumoId={entradaInicialInsumoId} />
+    ),
   },
 ];
 
-function SaldoAcoes({ row, entradaInicialInsumoId }: { row: SaldoRow; entradaInicialInsumoId?: number }) {
+function SaldoAcoes({
+  row,
+  podeMovimentar,
+  entradaInicialInsumoId,
+}: {
+  row: SaldoRow;
+  /** permissão "estoque.movimentar": entrada e baixa */
+  podeMovimentar: boolean;
+  entradaInicialInsumoId?: number;
+}) {
+  if (!podeMovimentar) return null;
   return (
     <span className="inline-flex flex-wrap items-start justify-end gap-1">
       <AjusteInventarioButton
@@ -258,10 +293,13 @@ const lotesColumns = (permissoes: PermissoesLote): ColumnDef<LoteRow, unknown>[]
 
 export function SaldoTable({
   rows,
+  podeMovimentar,
   entradaInicialInsumoId,
   janelaDias = 90,
 }: {
   rows: SaldoRow[];
+  /** permissão "estoque.movimentar": mostra + Entrada e Dar baixa */
+  podeMovimentar: boolean;
   entradaInicialInsumoId?: number;
   janelaDias?: number;
 }) {
@@ -283,6 +321,10 @@ export function SaldoTable({
             da compra (tramitação na universidade + entrega do fornecedor), mais o estoque de segurança.
             O insumo vira <b>Repor</b> quando o disponível mais o que já está a caminho fica abaixo dele.
           </p>
+          <p>
+            <b>Reposição aguardando aprovação</b>: o que falta já foi pedido, mas o pedido ainda espera
+            aprovação. Um insumo pode ter mais de um status (ex.: sem estoque e repor).
+          </p>
           <HelpExample>
             10 em mãos, 4 reservados → 6 disponíveis. Consumo de 0,5/dia → cobertura de 12 dias.
           </HelpExample>
@@ -290,26 +332,26 @@ export function SaldoTable({
       </div>
       <DataTable
         data={rows}
-        columns={saldoColumns(entradaInicialInsumoId)}
+        columns={saldoColumns(podeMovimentar, entradaInicialInsumoId)}
         searchPlaceholder="Buscar reagente..."
         emptyText="Nenhum saldo encontrado."
         filters={[
           {
             columnId: "statusLabel",
             label: "Status",
-            options: [
-              { value: "Em dia", label: "Em dia" },
-              { value: "Repor", label: "Repor" },
-              { value: "Sem estoque", label: "Sem estoque" },
-            ],
+            options: [...FILTROS_SALDO],
           },
         ]}
         getMobileTitle={(row) => row.especificacao}
         getMobileDescription={(row) =>
           `${fmt(row.disponivel)} ${row.unidade} disponível · cobertura ${row.diasCobertura != null ? `${fmt(row.diasCobertura)} d` : "—"} · ponto sugerido ${row.pontoSugerido ? fmt(row.pontoSugerido) : "—"}`
         }
-        getMobileMeta={(row) => <SaldoStatusBadge status={row.status} label={row.statusLabel} />}
-        getMobileActions={(row) => <SaldoAcoes row={row} entradaInicialInsumoId={entradaInicialInsumoId} />}
+        getMobileMeta={(row) => <SaldoStatusBadge situacoes={row.situacoes} />}
+        getMobileActions={
+          podeMovimentar
+            ? (row) => <SaldoAcoes row={row} podeMovimentar={podeMovimentar} entradaInicialInsumoId={entradaInicialInsumoId} />
+            : undefined
+        }
       />
     </div>
   );

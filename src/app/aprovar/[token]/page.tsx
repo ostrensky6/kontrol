@@ -1,6 +1,7 @@
 import { aprovarOrcamentoPublico } from "@/lib/actions/orcamento-projetos";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { montarPropostaFinalExport } from "@/lib/orcamento/proposta-final-export";
 import { rotuloStatusVersaoFinal, statusEfetivoVersaoFinal } from "@/lib/orcamento/rotulos-status";
 
@@ -61,6 +62,26 @@ const MENSAGEM_ERRO: Record<string, string> = {
   link_indisponivel: "Não foi possível concluir a aprovação. O link está indisponível.",
 };
 
+/**
+ * O snapshot traz custos e parâmetros internos: desde a 0132 só o servidor lê
+ * (service_role) e a página entrega ao navegador apenas o que o cliente vê.
+ */
+async function lerPropostaPublica(token: string): Promise<PayloadPublico | null> {
+  try {
+    const supabase =
+      process.env.PLAYWRIGHT_MOCK_SUPABASE === "1" ? await createClient() : createAdminClient();
+    const { data, error } = await supabase.rpc("ler_orcamento_publico", { p_token: token });
+    if (error) {
+      console.error("Leitura do link público falhou:", error.message);
+      return null;
+    }
+    return data as PayloadPublico | null;
+  } catch (error) {
+    console.error("Leitura do link público falhou:", error instanceof Error ? error.message : error);
+    return null;
+  }
+}
+
 export default async function AprovacaoPublicaPage({
   params,
   searchParams,
@@ -69,11 +90,7 @@ export default async function AprovacaoPublicaPage({
   searchParams: Promise<{ erro?: string }>;
 }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
-  const supabase = await createClient();
-  const { data, error } = await supabase.rpc("ler_orcamento_publico", {
-    p_token: token,
-  });
-  const payload = !error ? (data as PayloadPublico | null) : null;
+  const payload = await lerPropostaPublica(token);
 
   if (!payload?.snapshot || !payload.versao) {
     return <LinkIndisponivel />;

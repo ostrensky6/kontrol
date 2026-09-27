@@ -64,7 +64,7 @@ test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o saldo em mãos
   await dialogo.getByLabel("Lote").selectOption("1");
 
   await dialogo.getByLabel("Frascos a baixar").fill("2");
-  await dialogo.getByLabel("Motivo").selectOption("Consumo em análise");
+  await dialogo.getByLabel("Motivo").selectOption("Entrega ao laboratório");
   await dialogo.getByRole("button", { name: "Registrar baixa" }).click();
 
   await expect(dialogo).toBeHidden();

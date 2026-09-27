@@ -11,6 +11,7 @@ const updatePedido = vi.fn();
 const updatePedidoIdEq = vi.fn();
 const updatePedidoStatusEq = vi.fn();
 const registrarEvento = vi.fn();
+const parametroMaybeSingle = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("next/navigation", () => ({ redirect }));
@@ -70,6 +71,15 @@ function configureSupabase() {
         update: updatePedido,
       };
     }
+    if (table === "parametros") {
+      return {
+        select: vi.fn(() => ({
+          eq: vi.fn(() => ({
+            maybeSingle: parametroMaybeSingle,
+          })),
+        })),
+      };
+    }
     return {};
   });
 }
@@ -87,6 +97,8 @@ describe("recebimento de pedido formal de compra", () => {
     updatePedidoIdEq.mockReset();
     updatePedidoStatusEq.mockReset();
     registrarEvento.mockReset();
+    parametroMaybeSingle.mockReset();
+    parametroMaybeSingle.mockResolvedValue({ data: null, error: null });
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-06-29T12:00:00.000Z"));
 
@@ -268,6 +280,76 @@ describe("recebimento de pedido formal de compra", () => {
 
     expect(rpc).toHaveBeenCalledWith("transicionar_pedido_compra", expect.objectContaining({
       p_data_prevista_entrega: "2026-07-05",
+    }));
+  });
+
+  it("aprovarPedido soma a tramitação na universidade ao prazo do fornecedor (0132)", async () => {
+    parametroMaybeSingle.mockResolvedValue({ data: { valor: 90 }, error: null });
+    pedidoSingle.mockResolvedValue({ data: { fornecedores: { prazo_medio_dias: 20 } }, error: null });
+    itensPedidoEq.mockResolvedValue({
+      data: [{ insumos: { lead_time_dias: 7, fornecedores: { prazo_medio_dias: 20 } } }],
+      error: null,
+    });
+    const { aprovarPedido } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+
+    await aprovarPedido({ ok: false }, formData);
+
+    // 29/06 + 90 de tramitação + 7 do fornecedor = 04/10
+    expect(rpc).toHaveBeenCalledWith("transicionar_pedido_compra", expect.objectContaining({
+      p_status_destino: "aprovado",
+      p_data_prevista_entrega: "2026-10-04",
+    }));
+  });
+
+  it("aprovarPedido sem prazo de fornecedor ainda conta a tramitação (0132)", async () => {
+    parametroMaybeSingle.mockResolvedValue({ data: { valor: 90 }, error: null });
+    pedidoSingle.mockResolvedValue({ data: { fornecedores: null }, error: null });
+    itensPedidoEq.mockResolvedValue({ data: [], error: null });
+    const { aprovarPedido } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+
+    await aprovarPedido({ ok: false }, formData);
+
+    expect(rpc).toHaveBeenCalledWith("transicionar_pedido_compra", expect.objectContaining({
+      p_data_prevista_entrega: "2026-09-27",
+    }));
+  });
+
+  it("marcarEnviado recalcula a previsão como envio + prazo do fornecedor, sem tramitação (0132)", async () => {
+    parametroMaybeSingle.mockResolvedValue({ data: { valor: 90 }, error: null });
+    pedidoSingle.mockResolvedValue({ data: { fornecedores: { prazo_medio_dias: 20 } }, error: null });
+    itensPedidoEq.mockResolvedValue({
+      data: [{ insumos: { lead_time_dias: 0, fornecedores: { prazo_medio_dias: 12 } } }],
+      error: null,
+    });
+    const { marcarEnviado } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+
+    const result = await marcarEnviado({ ok: false }, formData);
+
+    expect(result.ok).toBe(true);
+    expect(rpc).toHaveBeenCalledWith("transicionar_pedido_compra", expect.objectContaining({
+      p_status_destino: "enviado",
+      p_data_prevista_entrega: "2026-07-11",
+    }));
+  });
+
+  it("marcarEnviado sem prazo cadastrado mantém a data da aprovação (0132)", async () => {
+    pedidoSingle.mockResolvedValue({ data: { fornecedores: null }, error: null });
+    itensPedidoEq.mockResolvedValue({ data: [], error: null });
+    const { marcarEnviado } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+
+    await marcarEnviado({ ok: false }, formData);
+
+    expect(rpc).toHaveBeenCalledWith("transicionar_pedido_compra", expect.objectContaining({
+      p_status_destino: "enviado",
+      p_data_prevista_entrega: undefined,
     }));
   });
 

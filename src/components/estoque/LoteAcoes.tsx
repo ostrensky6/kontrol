@@ -45,7 +45,8 @@ export function LoteAcoes({
   podeAceitar,
   podeGerir,
   podeCorrigir = podeAceitar,
-  podeBaixar = true,
+  // sem a permissão explícita, o botão de baixa não aparece (o banco recusaria)
+  podeBaixar = false,
 }: {
   loteId: number;
   codigoLote?: string;

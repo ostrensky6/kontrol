@@ -4499,6 +4499,8 @@ export type Database = {
           ponto_reposicao_configurado: number | null
           ponto_reposicao_sugerido: number | null
           qtd_pedida_aberta: number | null
+          qtd_pedida_pendente: number | null
+          qtd_reposicao_pendente: number | null
           qtd_sugerida_compra: number | null
           reservado: number | null
           unidade: string | null

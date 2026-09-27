@@ -171,6 +171,8 @@ export function CrudShell({
   initialFocusId,
   somenteLeitura = false,
   mascarar,
+  podeMovimentarEstoque = false,
+  podeCorrigirEstoque = false,
 }: {
   slug: string;
   singular: string;
@@ -183,6 +185,10 @@ export function CrudShell({
   somenteLeitura?: boolean;
   /** colunas exibidas como "XXX" */
   mascarar?: string[];
+  /** insumos: permissão "estoque.movimentar" (+ Entrada e Dar baixa na seção Lotes) */
+  podeMovimentarEstoque?: boolean;
+  /** insumos: permissão "estoque.lote.gerir" (Corrigir quantidade na seção Lotes) */
+  podeCorrigirEstoque?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   const [editando, setEditando] = useState<Registro | null>(null);
@@ -615,6 +621,8 @@ export function CrudShell({
           onOpenChange={setAberto}
           onClose={() => setAberto(false)}
           onSalvo={setRetorno}
+          podeMovimentarEstoque={podeMovimentarEstoque}
+          podeCorrigirEstoque={podeCorrigirEstoque}
         />
       )}
     </div>
@@ -772,6 +780,8 @@ function CadastroDrawer({
   onOpenChange,
   onClose,
   onSalvo,
+  podeMovimentarEstoque,
+  podeCorrigirEstoque,
 }: {
   open: boolean;
   slug: string;
@@ -781,6 +791,8 @@ function CadastroDrawer({
   onOpenChange: (open: boolean) => void;
   onClose: () => void;
   onSalvo: (estado: FormState) => void;
+  podeMovimentarEstoque: boolean;
+  podeCorrigirEstoque: boolean;
 }) {
   const router = useRouter();
   const [state, action] = useActionState<FormState, FormData>(
@@ -821,7 +833,8 @@ function CadastroDrawer({
             especificacao={String(registro.especificacao ?? singular)}
             unidade={typeof registro.unidade === "string" ? registro.unidade : null}
             quantidadeAtual={Number(registro.quantidade ?? 0)}
-            podeCorrigirQuantidade={podeCorrigirQuantidade}
+            podeCorrigirQuantidade={podeCorrigirQuantidade && podeCorrigirEstoque}
+            podeMovimentar={podeMovimentarEstoque}
             lotes={(registro.lotes_resumo as LoteBaixa[] | undefined) ?? []}
           />
         )}
@@ -943,13 +956,17 @@ function LotesInsumoResumo({
   unidade,
   quantidadeAtual,
   podeCorrigirQuantidade,
+  podeMovimentar,
   lotes,
 }: {
   insumoId: number;
   especificacao: string;
   unidade: string | null;
   quantidadeAtual: number;
+  /** modelo de embalagens e permissão "estoque.lote.gerir" */
   podeCorrigirQuantidade: boolean;
+  /** permissão "estoque.movimentar": + Entrada e Dar baixa */
+  podeMovimentar: boolean;
   lotes: LoteBaixa[];
 }) {
   const [corrigindo, setCorrigindo] = useState(false);
@@ -971,16 +988,20 @@ function LotesInsumoResumo({
           </HelpTip>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Button asChild size="sm" variant="outline">
-            <a href={`/estoque?entrada=${insumoId}`}>+ Entrada</a>
-          </Button>
-          <DarBaixaDialog
-            lotes={lotes}
-            unidade={unidade ?? ""}
-            especificacao={especificacao}
-            mostrarIndisponivel={false}
-            triggerClassName="inline-flex h-8 items-center rounded-md border border-danger-strong/40 bg-card px-3 text-xs font-medium text-danger-strong hover:bg-danger-soft"
-          />
+          {podeMovimentar && (
+            <>
+              <Button asChild size="sm" variant="outline">
+                <a href={`/estoque?entrada=${insumoId}`}>+ Entrada</a>
+              </Button>
+              <DarBaixaDialog
+                lotes={lotes}
+                unidade={unidade ?? ""}
+                especificacao={especificacao}
+                mostrarIndisponivel={false}
+                triggerClassName="inline-flex h-8 items-center rounded-md border border-danger-strong/40 bg-card px-3 text-xs font-medium text-danger-strong hover:bg-danger-soft"
+              />
+            </>
+          )}
           {podeCorrigirQuantidade && (
             <Button type="button" size="sm" variant="ghost" onClick={() => setCorrigindo(true)}>
               Corrigir quantidade

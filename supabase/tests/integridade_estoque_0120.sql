@@ -77,7 +77,8 @@ begin
                and tablename in ('eventos_status', 'tipo_insumos') and 'anon' = any(roles)) then
     raise exception '0120: policy de leitura anonima ainda existe';
   end if;
-  if not has_function_privilege('anon', 'public.ler_orcamento_publico(text)', 'EXECUTE') then
+  -- 0132: a leitura do link passou a ser so do servidor; a aprovacao segue publica.
+  if not has_function_privilege('anon', 'public.aprovar_orcamento_publico(text, text)', 'EXECUTE') then
     raise exception '0120: aprovacao publica deixou de ser executavel por anon';
   end if;
 end $$;

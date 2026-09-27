@@ -4,6 +4,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
 import { HelpTip } from "@/components/common/HelpTip";
 import { hojeIso, loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
+import { janelaVencimentoDias, loteVenceEmBreve } from "@/lib/estoque/situacao-insumo";
 import { StockControlHub } from "./StockControlHub";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +19,8 @@ const LOTE_STATUS: Record<string, string> = {
   aceito: "Disponível",
   em_uso: "Em uso",
   bloqueado: "Bloqueado",
-  consumido: "Consumido",
+  // saldo zerado por qualquer motivo (uso, perda, vencimento); no banco segue 'consumido'
+  consumido: "Esgotado",
   descartado: "Descartado",
 };
 
@@ -35,6 +37,7 @@ export default async function EstoqueControlePage() {
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
     { data: previsaoRaw },
+    { data: parametrosRaw },
   ] = await Promise.all([
     supabase
       .from("notificacoes")
@@ -55,6 +58,8 @@ export default async function EstoqueControlePage() {
     supabase.from("pedidos_compra_item_recebimentos").select("lote_id"),
     supabase.from("pedidos_internos_item_recebimentos").select("lote_id"),
     supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, ponto_reposicao_sugerido"),
+    // janela do "vence em breve" do lote: a mesma de v_alertas_estoque (padrão 60 dias)
+    supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
   ]);
   const reservadoPorLote = somarReservasPorLote(reservasRaw ?? []);
   // estorno direto só quando é comprovado que o lote não veio de um pedido (mesma regra de /estoque)
@@ -83,6 +88,7 @@ export default async function EstoqueControlePage() {
   const dbLotes = (lotesRaw ?? []) as unknown as LoteDbRow[];
 
   const hoje = hojeIso();
+  const janelaVencimento = janelaVencimentoDias(parametrosRaw?.[0]?.valor);
   const lotesParsed = dbLotes.map((l) => {
     const baixa = loteBaixaDeDb(l, reservadoPorLote);
 
@@ -101,6 +107,8 @@ export default async function EstoqueControlePage() {
       especificacao: l.insumos?.especificacao ?? "—",
       unidade: baixa.modeloQuantidade === "EMBALAGEM_FECHADA" ? "frasco(s)" : (l.insumos?.unidade ?? ""),
       vencido: loteVencido(baixa.validade, hoje),
+      // baixa.validade já é a menor entre a do fabricante e a após abertura
+      vencendo: loteVenceEmBreve(baixa.validade, hoje, janelaVencimento),
       critico: l.insumos?.categoria_compra === "critico",
     };
   });
@@ -150,6 +158,7 @@ export default async function EstoqueControlePage() {
             podeGerir={podeGerir}
             podeCorrigir={podeCorrigir}
             podeBaixar={podeBaixar}
+            podeCriarPedido={podeCriarPedido}
           />
         </div>
       </main>

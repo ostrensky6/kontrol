@@ -68,6 +68,9 @@ jobs:
       - name: Validar claims vazios depois do commit e preservar autorização
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/claims_vazio_0131.sql
 
+      - name: Validar link público no servidor, senha provisória, validade e reposição pendente
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/link_senha_reposicao_0132.sql
+
   check:
     runs-on: ubuntu-latest
     steps:

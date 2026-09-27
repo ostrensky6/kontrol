@@ -399,14 +399,14 @@ describe("actions de estoque", () => {
 
       const result = await darBaixaLote(
         { ok: false },
-        formBaixa({ quantidade: "2,5", motivo_tipo: "Consumo em análise", motivo_detalhe: "" }),
+        formBaixa({ quantidade: "2,5", motivo_tipo: "Entrega ao laboratório", motivo_detalhe: "" }),
       );
 
       expect(result).toEqual({ ok: true, message: "Baixa registrada." });
       expect(rpc).toHaveBeenCalledWith("baixa_manual_lote", {
         p_lote_id: 12,
         p_quantidade: 2.5,
-        p_motivo: "Consumo em análise",
+        p_motivo: "Entrega ao laboratório",
         p_operacao_id: expect.stringMatching(/^[0-9a-f-]{36}$/),
       });
     });

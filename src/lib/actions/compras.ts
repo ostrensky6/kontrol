@@ -227,11 +227,10 @@ function revalidarPedidoCompra(pedidoId: number) {
   revalidatePath("/suprimentos");
 }
 
-export async function aprovarPedido(_prev: FormState, formData: FormData): Promise<FormState> {
-  if (!(await pode("compras.aprovar"))) return SEM_PERMISSAO;
-  const pedido_id = Number(formData.get("pedido_id"));
-  const supabase = await createClient();
+type ClienteServidor = Awaited<ReturnType<typeof createClient>>;
 
+/** Maior prazo de entrega do fornecedor entre os itens da compra (sem itens: fornecedor do cabeçalho). */
+async function prazoFornecedorDaCompra(supabase: ClienteServidor, pedido_id: number): Promise<number | null> {
   const [{ data: ped }, { data: itens }] = await Promise.all([
     supabase
       .from("pedidos_compra")
@@ -259,10 +258,34 @@ export async function aprovarPedido(_prev: FormState, formData: FormData): Promi
 
   const prazoFornecedorPedido = (ped?.fornecedores as unknown as { prazo_medio_dias: number | null } | null)
     ?.prazo_medio_dias;
-  const maiorPrazo = prazosItens.length > 0
+  return prazosItens.length > 0
     ? Math.max(...prazosItens)
     : leadTimeEfetivo(null, prazoFornecedorPedido);
-  const prevista = dataPrevistaPorPrazo(maiorPrazo);
+}
+
+/** Tramitação na universidade/Fundação até o pedido chegar ao fornecedor (Parâmetros, 0130). */
+async function prazoTramitacaoDias(supabase: ClienteServidor): Promise<number> {
+  const { data } = await supabase
+    .from("parametros")
+    .select("valor")
+    .eq("chave", "prazo_tramitacao_compra_dias")
+    .maybeSingle();
+  const dias = Number(data?.valor);
+  return Number.isFinite(dias) && dias > 0 ? dias : 0;
+}
+
+export async function aprovarPedido(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("compras.aprovar"))) return SEM_PERMISSAO;
+  const pedido_id = Number(formData.get("pedido_id"));
+  const supabase = await createClient();
+
+  // A aprovação vem antes da tramitação na universidade: a previsão soma a
+  // tramitação ao prazo do fornecedor, como a previsão de reposição (0132).
+  const [prazoFornecedor, tramitacao] = await Promise.all([
+    prazoFornecedorDaCompra(supabase, pedido_id),
+    prazoTramitacaoDias(supabase),
+  ]);
+  const prevista = dataPrevistaPorPrazo((prazoFornecedor ?? 0) + tramitacao);
 
   const { error } = await supabase.rpc("transicionar_pedido_compra", {
     p_pedido_id: pedido_id,
@@ -279,10 +302,14 @@ export async function marcarEnviado(_prev: FormState, formData: FormData): Promi
   if (!(await pode("compras.aprovar"))) return SEM_PERMISSAO;
   const pedido_id = Number(formData.get("pedido_id"));
   const supabase = await createClient();
+  // Saiu para o fornecedor: a tramitação acabou e a previsão passa a ser hoje +
+  // prazo do fornecedor (0132). Sem prazo cadastrado, fica a data da aprovação.
+  const prevista = dataPrevistaPorPrazo(await prazoFornecedorDaCompra(supabase, pedido_id));
   const { error } = await supabase.rpc("transicionar_pedido_compra", {
     p_pedido_id: pedido_id,
     p_status_destino: "enviado",
     p_observacao: "Pedido enviado ao fornecedor.",
+    p_data_prevista_entrega: prevista ?? undefined,
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidarPedidoCompra(pedido_id);
