@@ -11,7 +11,6 @@
 --     quarentena passam a aceitos. O bloqueio manual de lote continua
 --     existindo como ação opcional. aceitar_lote permanece (sem uso) para não
 --     quebrar chamadas antigas.
---  2. Reposição antecipada com uma regra só: prazo = tramitação interna da
 --     universidade (parâmetro novo prazo_tramitacao_compra_dias) + prazo de
 --     entrega do fornecedor (prazo do insumo; zero ou vazio cai para o prazo
 --     médio do fornecedor). A quantidade sugerida passa a considerar também o
@@ -395,11 +394,13 @@ end $function$
 
 -- 2. Reposição antecipada -----------------------------------------------------
 
--- Valor inicial 0 até o dono informar o prazo típico; a tela de reposição
--- avisa enquanto ele estiver zerado.
+-- Dono (27/09): cada compra via Fundação é um caso, mas leva pelo menos três
+-- meses até a licitação ou ordem de serviço e até uns quatro para o material
+-- chegar. Começa em 90 dias (o mínimo); a entrega do fornecedor soma o resto.
+-- Ajustável em Parâmetros; se for zerado, a tela de reposição avisa.
 insert into public.parametros (chave, valor, unidade, descricao) values
-  ('prazo_tramitacao_compra_dias', 0, 'dias',
-   'Tramitação interna da compra na universidade (requisição, cotação, empenho) até o pedido chegar ao fornecedor. Somado ao prazo de entrega do fornecedor na previsão de reposição.')
+  ('prazo_tramitacao_compra_dias', 90, 'dias',
+   'Tramitação da compra na universidade ou Fundação (licitação, ordem de serviço) até o pedido chegar ao fornecedor. Varia caso a caso; 90 dias é o mínimo usual. Somado ao prazo de entrega do fornecedor na previsão de reposição.')
 on conflict (chave) do nothing;
 
 -- Prazo de cada item de compra em aberto. Sem data prevista (compra ainda não
