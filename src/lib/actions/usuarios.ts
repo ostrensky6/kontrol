@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { temPapel, usuarioAtual } from "@/lib/auth/roles";
-import { APP_METADATA_SENHA_PROVISORIA, SENHA_PROVISORIA } from "@/lib/auth/senha-provisoria";
+import {
+  PRAZO_SENHA_PROVISORIA_DIAS,
+  appMetadataSenhaProvisoria,
+  gerarSenhaProvisoria,
+  validadeSenhaProvisoria,
+} from "@/lib/auth/senha-provisoria";
 import {
   PAPEIS,
   normalizePermissions,
@@ -12,6 +17,9 @@ import {
   type PapelUsuario,
 } from "@/lib/auth/permissions";
 import type { FormState } from "./cadastros";
+
+/** Resultado que carrega a senha provisória gerada, mostrada uma única vez ao administrador. */
+export type UsuarioFormState = FormState & { senhaProvisoria?: string };
 
 const PAPEIS_VALIDOS = PAPEIS.map((papel) => papel.value);
 const BUCKET_ASSINATURAS = "user-signatures";
@@ -74,12 +82,14 @@ async function permissoesDoUsuario(papel: string, formData?: FormData) {
 // ban "permanente" para suspensão; o GoTrue aceita uma duração em horas.
 const BAN_SUSPENSO = "876000h"; // ~100 anos
 
+const AVISO_SENHA_PROVISORIA = `Copie a senha provisória e passe para a pessoa: ela não será mostrada de novo e vale por ${PRAZO_SENHA_PROVISORIA_DIAS} dias.`;
+
 /**
- * Cadastra um usuário diretamente. Cria a conta no Auth com senha
- * provisória e marca senha_provisoria=true; o trigger cria o perfil e o
- * próprio usuário define a senha definitiva no primeiro acesso.
+ * Cadastra um usuário diretamente. Cria a conta no Auth com uma senha
+ * provisória gerada só para ele e marca senha_provisoria=true; o trigger cria
+ * o perfil e o próprio usuário define a senha definitiva no primeiro acesso.
  */
-export async function criarUsuario(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function criarUsuario(_prev: UsuarioFormState, formData: FormData): Promise<UsuarioFormState> {
   try {
     if (!(await temPapel("admin"))) {
       return { ok: false, message: "Sem permissão para cadastrar usuários." };
@@ -92,13 +102,14 @@ export async function criarUsuario(_prev: FormState, formData: FormData): Promis
     if (!isPapelValido(papel)) return { ok: false, message: "Papel inválido." };
     const permissoes = await permissoesDoUsuario(papel, formData);
 
+    const senhaProvisoria = gerarSenhaProvisoria();
     const admin = createAdminClient();
     const { data, error } = await admin.auth.admin.createUser({
       email,
-      password: SENHA_PROVISORIA,
+      password: senhaProvisoria,
       email_confirm: true,
       user_metadata: { nome, senha_provisoria: true },
-      app_metadata: APP_METADATA_SENHA_PROVISORIA,
+      app_metadata: appMetadataSenhaProvisoria(),
     });
 
     if (error || !data.user) {
@@ -125,7 +136,8 @@ export async function criarUsuario(_prev: FormState, formData: FormData): Promis
     revalidatePath("/usuarios");
     return {
       ok: true,
-      message: `Usuário ${email} criado com senha provisória. Ele definirá a senha definitiva no primeiro acesso.`,
+      message: `Usuário ${email} criado. ${AVISO_SENHA_PROVISORIA}`,
+      senhaProvisoria,
     };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
@@ -206,6 +218,7 @@ export async function alterarSenhaUsuario(_prev: FormState, formData: FormData):
             app_metadata: {
               cadastrado_pelo_admin: true,
               senha_provisoria: exigirTroca,
+              senha_provisoria_expira_em: exigirTroca ? validadeSenhaProvisoria() : null,
             },
           });
     if (error) return { ok: false, message: mensagemErroAdminSupabase(error) };
@@ -215,6 +228,7 @@ export async function alterarSenhaUsuario(_prev: FormState, formData: FormData):
         app_metadata: {
           cadastrado_pelo_admin: true,
           senha_provisoria: exigirTroca,
+          senha_provisoria_expira_em: exigirTroca ? validadeSenhaProvisoria() : null,
         },
       });
       if (metadataError) return { ok: false, message: mensagemErroAdminSupabase(metadataError) };
@@ -233,6 +247,49 @@ export async function alterarSenhaUsuario(_prev: FormState, formData: FormData):
         ? "Senha atualizada. O usuário deverá definir uma nova senha no próximo acesso."
         : "Senha atualizada.",
     };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/**
+ * Gera uma nova senha provisória para outra pessoa (esqueceu a senha, a
+ * provisória venceu ou ainda estava com a senha fixa antiga). A senha volta
+ * uma única vez para o administrador, e a pessoa troca no primeiro acesso.
+ */
+export async function gerarNovaSenhaProvisoria(
+  _prev: UsuarioFormState,
+  formData: FormData,
+): Promise<UsuarioFormState> {
+  try {
+    if (!(await temPapel("admin"))) {
+      return { ok: false, message: "Sem permissão para alterar senhas." };
+    }
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { ok: false, message: "Usuário inválido." };
+
+    const eu = await usuarioAtual();
+    if (eu?.id === id) {
+      return { ok: false, message: "Para a sua própria conta, use Alterar senha." };
+    }
+
+    const senhaProvisoria = gerarSenhaProvisoria();
+    const admin = createAdminClient();
+    const { error } = await admin.auth.admin.updateUserById(id, {
+      password: senhaProvisoria,
+      user_metadata: { senha_provisoria: true },
+      app_metadata: appMetadataSenhaProvisoria(),
+    });
+    if (error) return { ok: false, message: mensagemErroAdminSupabase(error) };
+
+    const { error: updateError } = await admin
+      .from("perfis")
+      .update({ senha_provisoria: true })
+      .eq("id", id);
+    if (updateError) return { ok: false, message: updateError.message };
+
+    revalidatePath("/usuarios");
+    return { ok: true, message: `Nova senha provisória gerada. ${AVISO_SENHA_PROVISORIA}`, senhaProvisoria };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
   }
@@ -261,7 +318,10 @@ export async function salvarPermissoesCategoria(_prev: FormState, formData: Form
   }
 }
 
-export async function criarUsuarioPreAprovado(_prev: FormState, formData: FormData): Promise<FormState> {
+export async function criarUsuarioPreAprovado(
+  _prev: UsuarioFormState,
+  formData: FormData,
+): Promise<UsuarioFormState> {
   try {
     if (!(await temPapel("admin"))) {
       return { ok: false, message: "Sem permissão para cadastrar usuários." };
@@ -283,13 +343,14 @@ export async function criarUsuarioPreAprovado(_prev: FormState, formData: FormDa
     const nome = String(pre.nome ?? "").trim();
     const papel = isPapelValido(String(pre.papel)) ? String(pre.papel) : "tecnico";
     const admin = createAdminClient();
+    const senhaProvisoria = gerarSenhaProvisoria();
 
     const { data, error } = await admin.auth.admin.createUser({
       email,
-      password: SENHA_PROVISORIA,
+      password: senhaProvisoria,
       email_confirm: true,
       user_metadata: { nome, senha_provisoria: true },
-      app_metadata: APP_METADATA_SENHA_PROVISORIA,
+      app_metadata: appMetadataSenhaProvisoria(),
     });
 
     if (error || !data.user) {
@@ -317,7 +378,8 @@ export async function criarUsuarioPreAprovado(_prev: FormState, formData: FormDa
     revalidatePath("/usuarios");
     return {
       ok: true,
-      message: `Acesso de ${email} criado com senha provisória.`,
+      message: `Acesso de ${email} criado. ${AVISO_SENHA_PROVISORIA}`,
+      senhaProvisoria,
     };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };

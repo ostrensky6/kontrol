@@ -3,7 +3,6 @@
 import { useActionState } from "react";
 import { KontrolLogo } from "@/components/brand/KontrolLogo";
 import { entrar, solicitarRedefinicaoSenha } from "@/lib/actions/auth";
-import { SENHA_PROVISORIA } from "@/lib/auth/senha-provisoria";
 import type { FormState } from "@/lib/actions/cadastros";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
@@ -49,11 +48,8 @@ export default function LoginPage() {
           >
             <p className="text-xs font-semibold">Primeiro acesso</p>
             <p className="mt-1 text-sm leading-5">
-              Se o administrador cadastrou seu usuário, entre com a senha provisória{" "}
-              <code className="rounded bg-card px-1.5 py-0.5 font-mono font-semibold">
-                {SENHA_PROVISORIA}
-              </code>
-              . Ela deixa de valer depois que você define sua senha pessoal.
+              Entre com a senha provisória que o administrador passou para você. Em seguida, você
+              cria a sua senha pessoal.
             </p>
           </div>
 

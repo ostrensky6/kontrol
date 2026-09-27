@@ -3,7 +3,15 @@
 import { useActionState, useState, useTransition } from "react";
 import { MoreHorizontal } from "lucide-react";
 
-import { alterarSenhaUsuario, alternarSuspensao, criarUsuarioPreAprovado, editarUsuario, excluirUsuario } from "@/lib/actions/usuarios";
+import {
+  alterarSenhaUsuario,
+  alternarSuspensao,
+  criarUsuarioPreAprovado,
+  editarUsuario,
+  excluirUsuario,
+  gerarNovaSenhaProvisoria,
+  type UsuarioFormState,
+} from "@/lib/actions/usuarios";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -29,8 +37,10 @@ import { AssinaturaUsuarioForm } from "./AssinaturaUsuarioForm";
 import { HelpTip } from "@/components/common/HelpTip";
 import type { UsuarioRow } from "./UsuariosTable";
 import { enviarSemReset, formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { SenhaProvisoriaGerada } from "./SenhaProvisoriaGerada";
 
 const initial: FormState = { ok: false, message: "" };
+const initialUsuario: UsuarioFormState = { ok: false, message: "" };
 
 const permissoesPorModulo = new Map<string, typeof PERMISSOES>();
 for (const permissao of PERMISSOES) {
@@ -38,7 +48,7 @@ for (const permissao of PERMISSOES) {
 }
 const GRUPOS_PERMISSOES = Array.from(permissoesPorModulo.entries());
 
-type DialogAberto = "editar" | "assinatura" | "senha" | "apagar" | "pre_aprovar" | null;
+type DialogAberto = "editar" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | null;
 
 function permissoesEfetivasDaLinha(row: UsuarioRow, papel: string) {
   const base = row.categorias?.[papel] ?? normalizePermissions(papel, {});
@@ -239,7 +249,7 @@ function PreAprovarDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
-  const [state, action, pending] = useActionState(criarUsuarioPreAprovado, initial);
+  const [state, action, pending] = useActionState(criarUsuarioPreAprovado, initialUsuario);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -247,7 +257,8 @@ function PreAprovarDialog({
         <DialogHeader>
           <DialogTitle>Cadastrar acesso pré-aprovado</DialogTitle>
           <DialogDescription>
-            Cria a conta de {row.email} no Auth com senha provisória e categoria {row.papelLabel}.
+            Cria a conta de {row.email} com categoria {row.papelLabel} e uma senha provisória gerada
+            só para essa pessoa.
           </DialogDescription>
         </DialogHeader>
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
@@ -257,6 +268,7 @@ function PreAprovarDialog({
               {state.message}
             </p>
           )}
+          {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
           <DialogFooter>
             <Button type="submit" disabled={pending || state.ok}>
               {pending ? "Cadastrando..." : state.ok ? "Acesso criado" : "Cadastrar acesso"}
@@ -331,6 +343,46 @@ function AlterarSenhaDialog({
           <DialogFooter>
             <Button type="submit" disabled={pending || state.ok}>
               {pending ? "Salvando…" : state.ok ? "Senha atualizada" : "Alterar senha"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SenhaProvisoriaDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: UsuarioRow;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [state, action, pending] = useActionState(gerarNovaSenhaProvisoria, initialUsuario);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Gerar senha provisória</DialogTitle>
+          <DialogDescription>
+            Cria uma senha provisória nova para {row.email}. A senha atual deixa de valer, e a pessoa
+            define a senha pessoal no próximo acesso.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={action} {...formularioSemPerda(state)} className="space-y-4">
+          <input type="hidden" name="id" value={row.id} />
+          {state.message && (
+            <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
+              {state.message}
+            </p>
+          )}
+          {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
+          <DialogFooter>
+            <Button type="submit" disabled={pending || state.ok}>
+              {pending ? "Gerando…" : state.ok ? "Senha gerada" : "Gerar senha provisória"}
             </Button>
           </DialogFooter>
         </form>
@@ -419,6 +471,9 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
               <DropdownMenuItem onSelect={() => setDialog("editar")}>Editar</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog("assinatura")}>Upload assinatura</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog("senha")}>Alterar senha</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("senha_provisoria")}>
+                Gerar senha provisória
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={suspender}>
                 {row.suspenso ? "Reativar" : "Suspender"}
               </DropdownMenuItem>
@@ -439,6 +494,11 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
           <EditarDialog row={row} open={dialog === "editar"} onOpenChange={(v) => setDialog(v ? "editar" : null)} />
           <AssinaturaDialog row={row} open={dialog === "assinatura"} onOpenChange={(v) => setDialog(v ? "assinatura" : null)} />
           <AlterarSenhaDialog row={row} open={dialog === "senha"} onOpenChange={(v) => setDialog(v ? "senha" : null)} />
+          <SenhaProvisoriaDialog
+            row={row}
+            open={dialog === "senha_provisoria"}
+            onOpenChange={(v) => setDialog(v ? "senha_provisoria" : null)}
+          />
           <ExcluirDialog row={row} open={dialog === "apagar"} onOpenChange={(v) => setDialog(v ? "apagar" : null)} />
         </>
       )}
