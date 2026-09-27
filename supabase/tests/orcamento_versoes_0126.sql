@@ -383,6 +383,11 @@ begin
   if (v_res->>'aprovado')::boolean or v_res->>'motivo' <> 'vencida' then
     raise exception '0126: proposta vencida aprovada pelo link: %', v_res;
   end if;
+end $$;
+-- 0132: a leitura do link e feita pelo servidor do app (service_role).
+set local role service_role;
+do $$
+begin
   if not (public.ler_orcamento_publico('ts-0126-token-venc')->>'vencida')::boolean then
     raise exception '0126: leitura publica nao indica proposta vencida';
   end if;

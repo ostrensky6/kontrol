@@ -1,11 +1,19 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Camera, Keyboard, Loader2, ScanLine } from "lucide-react";
 
 import { HelpTip } from "@/components/common/HelpTip";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { receberItemPedido } from "@/lib/actions/compras";
 import {
   resolverCodigoRecebimentoInterno,
@@ -40,8 +48,13 @@ export function ScannerRecebimentoCompra({
   locais?: { id: number; nome: string }[];
 }) {
   const router = useRouter();
+  const uid = useId();
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<ScannerCameraControls | null>(null);
+  // Muda a cada parada: uma câmera que termina de iniciar depois de o diálogo
+  // fechar (permissão concedida tarde) é desligada em vez de ficar ligada.
+  const sessaoCameraRef = useRef(0);
+  const codigoScannerRef = useRef<HTMLInputElement>(null);
   const [aberto, setAberto] = useState(false);
   const [operacaoId, setOperacaoId] = useState("");
   const [recebimentoPending, startRecebimentoTransition] = useTransition();
@@ -63,6 +76,7 @@ export function ScannerRecebimentoCompra({
   const [localId, setLocalId] = useState("");
 
   function pararCamera(status: StatusCamera = "parada") {
+    sessaoCameraRef.current += 1;
     controlsRef.current?.stop();
     controlsRef.current = null;
     setCameraStatus(status);
@@ -80,6 +94,7 @@ export function ScannerRecebimentoCompra({
 
   useEffect(() => {
     return () => {
+      sessaoCameraRef.current += 1;
       controlsRef.current?.stop();
       controlsRef.current = null;
     };
@@ -89,6 +104,12 @@ export function ScannerRecebimentoCompra({
     if (recebimentoPending || scanPending) return;
     pararCamera();
     setAberto(false);
+  }
+
+  // Esc, clique fora, "Fechar" e "Cancelar" passam por aqui: a câmera sempre para.
+  function alternar(abrirDialogo: boolean) {
+    if (abrirDialogo) abrir();
+    else fechar();
   }
 
   function aplicarResultadoScan(resultado: ResultadoScannerRecebimento) {
@@ -132,16 +153,24 @@ export function ScannerRecebimentoCompra({
     if (!video) return;
 
     pararCamera();
+    const sessao = sessaoCameraRef.current;
     setCameraStatus("iniciando");
     setCameraMessage(null);
 
     try {
-      controlsRef.current = await iniciarLeitorCamera(video, (codigoLido) => {
+      const controles = await iniciarLeitorCamera(video, (codigoLido) => {
         setCodigoScanner(codigoLido);
         resolverScanner(codigoLido);
       });
+      if (sessao !== sessaoCameraRef.current) {
+        // o diálogo fechou (ou a câmera foi parada) enquanto iniciava
+        controles.stop();
+        return;
+      }
+      controlsRef.current = controles;
       setCameraStatus("ativa");
     } catch (error) {
+      if (sessao !== sessaoCameraRef.current) return;
       setCameraStatus("erro");
       setCameraMessage(
         error instanceof Error
@@ -175,236 +204,271 @@ export function ScannerRecebimentoCompra({
   const scanInput =
     "h-9 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500";
 
+  function focoInicial(event: Event) {
+    // Leitor de código USB/Bluetooth "digita" no campo focado. Em tela de toque
+    // não abre o teclado por cima da câmera: fica o foco padrão do diálogo.
+    if (!codigoScannerRef.current || !window.matchMedia?.("(pointer: fine)").matches) return;
+    event.preventDefault();
+    codigoScannerRef.current.focus();
+  }
+
   return (
-    <>
-      <button
-        type="button"
-        onClick={abrir}
-        className="inline-flex items-center gap-1.5 rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500"
+    <Dialog open={aberto} onOpenChange={alternar}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="inline-flex items-center gap-1.5 rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500"
+        >
+          <ScanLine className="h-3.5 w-3.5" />
+          Receber
+        </button>
+      </DialogTrigger>
+
+      <DialogContent
+        className="max-h-[92dvh] max-w-2xl gap-0 overflow-y-auto rounded-xl text-left"
+        onOpenAutoFocus={focoInicial}
       >
-        <ScanLine className="h-3.5 w-3.5" />
-        Receber
-      </button>
-
-      {aberto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 text-left">
-          <button
-            type="button"
-            aria-label="Fechar recebimento"
-            className="absolute inset-0 bg-black/40"
-            onClick={fechar}
-          />
-          <div className="relative max-h-[92dvh] w-full max-w-2xl overflow-y-auto rounded-xl bg-card p-5 shadow-xl">
-            <div className="flex items-center gap-1">
-              <h3 className="text-base font-semibold">Receber item de compra</h3>
-              <HelpTip title="Recebimento com leitor">
-                <p>
-                  A leitura do código só preenche ou confere os campos. O item é recebido quando você
-                  clica em <b>Confirmar recebimento</b>.
-                </p>
-                <p>Ao confirmar, o lote já fica disponível no estoque.</p>
-              </HelpTip>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {item.insumoDescricao ?? `Insumo #${item.insumoId ?? "-"}`}
-              {item.emFrascos
-                ? ` · frascos${item.conteudoEmbalagem ? ` de ${item.conteudoEmbalagem} ${item.unidade ?? ""}` : ""}`
-                : item.unidade ? ` · ${item.unidade}` : ""}
-            </p>
-
-            <section className="mt-4 rounded-lg border border-border p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h4 className="inline-flex items-center gap-2 text-sm font-semibold">
-                  <ScanLine className="h-4 w-4 text-brand-600 dark:text-brand-300" />
-                  Ler código
-                </h4>
-                <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
-                  {cameraStatus === "ativa"
-                    ? "Câmera ativa"
-                    : cameraStatus === "iniciando"
-                      ? "Iniciando câmera"
-                      : "Digitação disponível"}
-                </span>
-              </div>
-
-              <div className="mt-3 overflow-hidden rounded-md border border-border bg-card">
-                <video ref={videoRef} muted playsInline className="aspect-video w-full bg-card object-cover" />
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={iniciarCamera}
-                  disabled={cameraStatus === "iniciando" || scanPending || recebimentoPending}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  {cameraStatus === "iniciando" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <Camera className="h-3.5 w-3.5" />
-                  )}
-                  Usar câmera
-                </button>
-                <button
-                  type="button"
-                  onClick={() => pararCamera()}
-                  disabled={cameraStatus === "parada" || recebimentoPending}
-                  className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
-                >
-                  Parar câmera
-                </button>
-              </div>
-
-              {cameraMessage && (
-                <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
-                  <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                  {cameraMessage}
-                </p>
-              )}
-
-              <div className="mt-3 flex gap-2">
-                <div className="relative min-w-0 flex-1">
-                  <Keyboard className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80" />
-                  <input
-                    value={codigoScanner}
-                    onChange={(event) => setCodigoScanner(event.target.value)}
-                    className={`${scanInput} pl-8`}
-                    placeholder="Código da etiqueta ou do fornecedor"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => resolverScanner(codigoScanner)}
-                  disabled={scanPending || recebimentoPending || codigoScanner.trim().length === 0}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
-                >
-                  {scanPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  Resolver
-                </button>
-              </div>
-
-              {resultadoScanner && (
-                <div
-                  className={`mt-3 rounded-md px-3 py-2 text-xs ${
-                    resultadoScanner.ok && resultadoScanner.encontrado && !aplicacaoMessage?.startsWith("Código aponta")
-                      ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
-                      : "bg-warning-soft text-warning-strong"
-                  }`}
-                >
-                  <p>{aplicacaoMessage ?? resultadoScanner.message}</p>
-                  {resultadoScanner.ok && resultadoScanner.encontrado && (
-                    <p className="mt-1 font-medium">
-                      {resultadoScanner.insumoDescricao ?? `Insumo #${resultadoScanner.insumoId}`}
-                      {resultadoScanner.loteCodigo ? ` · lote ${resultadoScanner.loteCodigo}` : ""}
-                    </p>
-                  )}
-                  {resultadoScanner.ok && !resultadoScanner.encontrado && (
-                    <Link href={resultadoScanner.triagemUrl} className="mt-1 inline-block font-medium underline">
-                      Abrir triagem
-                    </Link>
-                  )}
-                </div>
-              )}
-            </section>
-
-            <form action={action} className="mt-4 grid grid-cols-2 gap-3">
-              <input type="hidden" name="item_id" value={item.id} />
-              <input type="hidden" name="pedido_id" value={item.pedidoId} />
-              <input type="hidden" name="operacao_id" value={operacaoId} />
-              <div className="col-span-1">
-                <label className="block text-xs font-medium text-muted-foreground">
-                  {item.emFrascos ? "Frascos recebidos" : "Quantidade"}
-                </label>
-                <input
-                  name="quantidade_recebida"
-                  type="number"
-                  step={item.emFrascos ? "1" : "any"}
-                  min={item.emFrascos ? "1" : "0.0000001"}
-                  max={saldoPendente}
-                  value={quantidade}
-                  onChange={(event) => setQuantidade(event.target.value)}
-                  className={inp}
-                />
-              </div>
-              <div className="col-span-1">
-                <label className="block text-xs font-medium text-muted-foreground">Validade</label>
-                <input
-                  name="validade"
-                  type="date"
-                  value={validade}
-                  onChange={(event) => setValidade(event.target.value)}
-                  className={inp}
-                />
-              </div>
-              {item.emFrascos && (
-                <div className="col-span-2">
-                  <label className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                    Volume de cada frasco ({item.unidade ?? "unidade do cadastro"})
-                    <HelpTip title="Volume do frasco">
-                      <p>Preencha só se o frasco veio diferente do cadastro.</p>
-                      <p>O volume vale só para este lote; a compra continua com o volume pedido.</p>
-                    </HelpTip>
-                  </label>
-                  <input
-                    name="conteudo_embalagem"
-                    type="number"
-                    step="any"
-                    min="0.0000001"
-                    value={conteudo}
-                    onChange={(event) => setConteudo(event.target.value)}
-                    className={inp}
-                  />
-                  <p className="mt-1 text-xs text-muted-foreground">Altere só se a embalagem chegou diferente do cadastro.</p>
-                </div>
-              )}
-              {locais.length > 0 && (
-                <div className="col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground">Local de guarda (opcional)</label>
-                  <select name="local_id" value={localId} onChange={(event) => setLocalId(event.target.value)} className={inp}>
-                    <option value="">Definir depois</option>
-                    {locais.map((local) => (
-                      <option key={local.id} value={local.id}>{local.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground">Código do lote</label>
-                <input
-                  name="codigo"
-                  type="text"
-                  value={codigoLote}
-                  onChange={(event) => setCodigoLote(event.target.value)}
-                  className={inp}
-                />
-              </div>
-
-              {erroRecebimento && (
-                <p role="alert" className="col-span-2 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">
-                  {erroRecebimento}
-                </p>
-              )}
-
-              <div className="col-span-2 mt-1 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={fechar}
-                  className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-                >
-                  Cancelar
-                </button>
-                <button
-                  disabled={recebimentoPending || scanPending}
-                  className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
-                >
-                  {recebimentoPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-                  {recebimentoPending ? "Registrando…" : "Confirmar recebimento"}
-                </button>
-              </div>
-            </form>
+        <DialogHeader className="gap-0 pr-6">
+          <div className="flex items-center gap-1">
+            <DialogTitle>Receber item de compra</DialogTitle>
+            <HelpTip title="Recebimento com leitor">
+              <p>
+                A leitura do código só preenche ou confere os campos. O item é recebido quando você
+                clica em <b>Confirmar recebimento</b>.
+              </p>
+              <p>Ao confirmar, o lote já fica disponível no estoque.</p>
+            </HelpTip>
           </div>
-        </div>
-      )}
-    </>
+          <DialogDescription className="mt-1 text-xs">
+            {item.insumoDescricao ?? `Insumo #${item.insumoId ?? "-"}`}
+            {item.emFrascos
+              ? ` · frascos${item.conteudoEmbalagem ? ` de ${item.conteudoEmbalagem} ${item.unidade ?? ""}` : ""}`
+              : item.unidade ? ` · ${item.unidade}` : ""}
+          </DialogDescription>
+        </DialogHeader>
+
+        <section aria-labelledby={`${uid}-ler-codigo`} className="mt-4 rounded-lg border border-border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 id={`${uid}-ler-codigo`} className="inline-flex items-center gap-2 text-sm font-semibold">
+              <ScanLine className="h-4 w-4 text-brand-600 dark:text-brand-300" />
+              Ler código
+            </h3>
+            <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
+              {cameraStatus === "ativa"
+                ? "Câmera ativa"
+                : cameraStatus === "iniciando"
+                  ? "Iniciando câmera"
+                  : "Digitação disponível"}
+            </span>
+          </div>
+
+          <div className="mt-3 overflow-hidden rounded-md border border-border bg-card">
+            <video ref={videoRef} muted playsInline className="aspect-video w-full bg-card object-cover" />
+          </div>
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={iniciarCamera}
+              disabled={cameraStatus === "iniciando" || scanPending || recebimentoPending}
+              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+            >
+              {cameraStatus === "iniciando" ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Camera className="h-3.5 w-3.5" />
+              )}
+              Usar câmera
+            </button>
+            <button
+              type="button"
+              onClick={() => pararCamera()}
+              disabled={cameraStatus === "parada" || recebimentoPending}
+              className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+            >
+              Parar câmera
+            </button>
+          </div>
+
+          {cameraMessage && (
+            <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
+              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              {cameraMessage}
+            </p>
+          )}
+
+          <div className="mt-3 flex gap-2">
+            <div className="relative min-w-0 flex-1">
+              <label htmlFor={`${uid}-codigo-scanner`} className="sr-only">
+                Código da etiqueta ou do fornecedor
+              </label>
+              <Keyboard
+                aria-hidden
+                className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/80"
+              />
+              <input
+                ref={codigoScannerRef}
+                id={`${uid}-codigo-scanner`}
+                autoComplete="off"
+                value={codigoScanner}
+                onChange={(event) => setCodigoScanner(event.target.value)}
+                className={`${scanInput} pl-8`}
+                placeholder="Código da etiqueta ou do fornecedor"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => resolverScanner(codigoScanner)}
+              disabled={scanPending || recebimentoPending || codigoScanner.trim().length === 0}
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50"
+            >
+              {scanPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              Resolver
+            </button>
+          </div>
+
+          {resultadoScanner && (
+            <div
+              className={`mt-3 rounded-md px-3 py-2 text-xs ${
+                resultadoScanner.ok && resultadoScanner.encontrado && !aplicacaoMessage?.startsWith("Código aponta")
+                  ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
+                  : "bg-warning-soft text-warning-strong"
+              }`}
+            >
+              <p>{aplicacaoMessage ?? resultadoScanner.message}</p>
+              {resultadoScanner.ok && resultadoScanner.encontrado && (
+                <p className="mt-1 font-medium">
+                  {resultadoScanner.insumoDescricao ?? `Insumo #${resultadoScanner.insumoId}`}
+                  {resultadoScanner.loteCodigo ? ` · lote ${resultadoScanner.loteCodigo}` : ""}
+                </p>
+              )}
+              {resultadoScanner.ok && !resultadoScanner.encontrado && (
+                <Link href={resultadoScanner.triagemUrl} className="mt-1 inline-block font-medium underline">
+                  Abrir triagem
+                </Link>
+              )}
+            </div>
+          )}
+        </section>
+
+        <form action={action} className="mt-4 grid grid-cols-2 gap-3">
+          <input type="hidden" name="item_id" value={item.id} />
+          <input type="hidden" name="pedido_id" value={item.pedidoId} />
+          <input type="hidden" name="operacao_id" value={operacaoId} />
+          <div className="col-span-1">
+            <label htmlFor={`${uid}-quantidade`} className="block text-xs font-medium text-muted-foreground">
+              {item.emFrascos ? "Frascos recebidos" : "Quantidade"}
+            </label>
+            <input
+              id={`${uid}-quantidade`}
+              name="quantidade_recebida"
+              type="number"
+              step={item.emFrascos ? "1" : "any"}
+              min={item.emFrascos ? "1" : "0.0000001"}
+              max={saldoPendente}
+              value={quantidade}
+              onChange={(event) => setQuantidade(event.target.value)}
+              className={inp}
+            />
+          </div>
+          <div className="col-span-1">
+            <label htmlFor={`${uid}-validade`} className="block text-xs font-medium text-muted-foreground">
+              Validade
+            </label>
+            <input
+              id={`${uid}-validade`}
+              name="validade"
+              type="date"
+              value={validade}
+              onChange={(event) => setValidade(event.target.value)}
+              className={inp}
+            />
+          </div>
+          {item.emFrascos && (
+            <div className="col-span-2">
+              {/* o "?" fica ao lado do rótulo, fora do <label>: botão dentro de rótulo confunde leitor de tela */}
+              <div className="flex items-center gap-1">
+                <label htmlFor={`${uid}-conteudo`} className="text-xs font-medium text-muted-foreground">
+                  Volume de cada frasco ({item.unidade ?? "unidade do cadastro"})
+                </label>
+                <HelpTip title="Volume do frasco">
+                  <p>Preencha só se o frasco veio diferente do cadastro.</p>
+                  <p>O volume vale só para este lote; a compra continua com o volume pedido.</p>
+                </HelpTip>
+              </div>
+              <input
+                id={`${uid}-conteudo`}
+                name="conteudo_embalagem"
+                type="number"
+                step="any"
+                min="0.0000001"
+                value={conteudo}
+                onChange={(event) => setConteudo(event.target.value)}
+                aria-describedby={`${uid}-conteudo-ajuda`}
+                className={inp}
+              />
+              <p id={`${uid}-conteudo-ajuda`} className="mt-1 text-xs text-muted-foreground">
+                Altere só se a embalagem chegou diferente do cadastro.
+              </p>
+            </div>
+          )}
+          {locais.length > 0 && (
+            <div className="col-span-2">
+              <label htmlFor={`${uid}-local`} className="block text-xs font-medium text-muted-foreground">
+                Local de guarda (opcional)
+              </label>
+              <select
+                id={`${uid}-local`}
+                name="local_id"
+                value={localId}
+                onChange={(event) => setLocalId(event.target.value)}
+                className={inp}
+              >
+                <option value="">Definir depois</option>
+                {locais.map((local) => (
+                  <option key={local.id} value={local.id}>{local.nome}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="col-span-2">
+            <label htmlFor={`${uid}-codigo-lote`} className="block text-xs font-medium text-muted-foreground">
+              Código do lote
+            </label>
+            <input
+              id={`${uid}-codigo-lote`}
+              name="codigo"
+              type="text"
+              value={codigoLote}
+              onChange={(event) => setCodigoLote(event.target.value)}
+              className={inp}
+            />
+          </div>
+
+          {erroRecebimento && (
+            <p role="alert" className="col-span-2 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">
+              {erroRecebimento}
+            </p>
+          )}
+
+          <div className="col-span-2 mt-1 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={fechar}
+              className="rounded-md px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
+            >
+              Cancelar
+            </button>
+            <button
+              disabled={recebimentoPending || scanPending}
+              className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
+            >
+              {recebimentoPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+              {recebimentoPending ? "Registrando…" : "Confirmar recebimento"}
+            </button>
+          </div>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

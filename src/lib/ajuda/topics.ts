@@ -170,7 +170,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Baixa avulsa (Dar baixa)",
         itens: [
-          "Use para material que sai fora de um plano: consumo em análise, perda ou quebra, vencimento ou outro motivo.",
+          "Use para material que sai fora de um plano: entrega ao laboratório, perda ou quebra, vencimento ou outro motivo.",
           "Onde: Estoque → 'Dar baixa' na linha do insumo, ou nas ações de um lote específico.",
           "Sem escolher o lote, a baixa sai do lote que vence antes (FEFO); escolhendo o lote, sai só dele.",
           "Lote vencido só pode sair com o motivo Vencimento.",

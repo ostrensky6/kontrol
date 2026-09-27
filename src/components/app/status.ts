@@ -13,7 +13,7 @@ const STATUS: Record<string, StatusInfo> = {
   nova: { label: "Nova", tone: "neutral" },
   arquivado: { label: "Arquivado", tone: "neutral" },
   arquivada: { label: "Arquivada", tone: "neutral" },
-  consumido: { label: "Consumido", tone: "neutral" },
+  consumido: { label: "Esgotado", tone: "neutral" },
   inativo: { label: "Inativo", tone: "neutral" },
   inativa: { label: "Inativa", tone: "neutral" },
   nao_exigido: { label: "Não exigido", tone: "neutral" },

@@ -82,7 +82,7 @@ repita o procedimento.
 - Chave anon/public: configurar como `NEXT_PUBLIC_SUPABASE_ANON_KEY` no host. Pode usar o formato novo `sb_publishable_...` (Settings -> API Keys -> Publishable key) ou o legacy anon JWT.
 - Chave service/secret: configurar como `SUPABASE_SERVICE_ROLE_KEY` no host. Pode usar o formato novo `sb_secret_...` (Settings -> API Keys -> Secret keys) ou o legacy service_role JWT.
 - Status CLI esperado: linkado com `supabase link --project-ref gkcjzwfsnoknxgpsumxi`.
-- Historico de migrations em producao: conferir sempre com `supabase migration list --linked` antes de qualquer operacao; nao assumir um intervalo fixo a partir da documentacao.
+- Historico de migrations em producao: conferir sempre com `psql` em `supabase_migrations.schema_migrations` antes de qualquer operacao (ver "Como aplicar uma migration" abaixo); nao assumir um intervalo fixo a partir da documentacao. `supabase migration list --linked` e `supabase db push` NAO servem enquanto a `0109` estiver registrada como `20260922185946`.
 - Senha Postgres: armazenada no gerenciador de senhas. Nunca versionar.
 
 Nota operacional (2026-07-05): `gkcjzwfsnoknxgpsumxi` e o Supabase atual
@@ -100,8 +100,8 @@ usado como alvo de producao, homologacao, migrations ou exemplos ativos.
 
 ## Checklist operacional
 
-1. Rode `npm run prod:check` antes de deploy ou `supabase db push`; ele bloqueia projeto Vercel errado, Supabase linkado no ref errado e migrations com prefixo duplicado.
-2. Antes de features que dependam de schema novo, aplicar as migrations pendentes no Supabase producao (`gkcjzwfsnoknxgpsumxi`) somente depois de revisar `supabase migration list --linked`.
+1. Rode `npm run prod:check` antes de deploy ou de migration; ele bloqueia projeto Vercel errado, Supabase linkado no ref errado e migrations com prefixo duplicado.
+2. Antes de features que dependam de schema novo, aplicar as migrations pendentes no Supabase producao (`gkcjzwfsnoknxgpsumxi`) pelo procedimento abaixo, **antes** do merge em `main`.
 3. No projeto Vercel (`kontrol`), manter configurado:
    - `NEXT_PUBLIC_SUPABASE_URL=https://gkcjzwfsnoknxgpsumxi.supabase.co`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY=<publishable key do Supabase>`
@@ -109,6 +109,34 @@ usado como alvo de producao, homologacao, migrations ou exemplos ativos.
 4. No Supabase Auth, manter Site URL/Redirect URLs para `https://kontrol-atgc.vercel.app`.
 5. Para publicar, usar o fluxo GitHub/Vercel em `main`; `npm run prod:deploy` e API Vercel ficam para excecoes controladas.
 6. Validar login admin, `/`, `/analises`, `/orcamento`, `/orcamento/demandas`, `/estoque`, `/compras`, `/governanca/privilegios`, `/usuarios`, `/auditoria` e `/governanca/backups`.
+
+## Como aplicar uma migration em producao
+
+Procedimento usado de fato desde a 0125 (26-27/09/2026). Cada migration so vai
+para producao com autorizacao explicita do dono, na hora.
+
+1. `npm run prod:check`.
+2. Conferir o que ja esta aplicado, com `psql` pela porta **5432** do pooler
+   (sessao; a 6543 e de transacao e nao serve para migration):
+   `select version, name from supabase_migrations.schema_migrations order by version desc limit 10;`
+3. Backup antes, em `D:\Dropbox\Aplicativos\Kontrol\HISTORICO\deploy-NNNN-AAAA-MM-DD`:
+   `pg_dump -Fc` do banco e as definicoes atuais (`pg_get_functiondef`,
+   `pg_get_viewdef`, grants) de tudo que a migration recria, ja no formato de
+   rollback.
+4. Aplicar uma por vez, sempre com UTF8 (sem isso os acentos das funcoes
+   estragam):
+   `PGCLIENTENCODING=UTF8 psql "<url 5432>" -v ON_ERROR_STOP=1 -f supabase/migrations/NNNN_nome.sql`
+   Guardar a saida no mesmo diretorio do backup.
+5. Registrar a versao em `supabase_migrations.schema_migrations` com a mesma
+   versao e nome do arquivo.
+6. Conferir: definicoes iguais as testadas no banco local (md5 de
+   `pg_get_functiondef`), nenhuma funcao com acento estragado (`chr(195)`), e os
+   `supabase/tests/*.sql` da migration rodando em transacao revertida.
+7. So entao fazer o merge do PR em `main` (a Vercel publica) e abrir as rotas
+   principais.
+
+Nunca usar `supabase db push` neste projeto enquanto o historico da `0109` nao
+for conciliado.
 
 ## Observacoes de seguranca
 

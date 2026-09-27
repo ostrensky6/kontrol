@@ -146,6 +146,11 @@ export default async function CadastroPage({
   // Salário: decidido no servidor; sem permissão o valor real nunca é lido
   // nem serializado para o CrudShell (cliente).
   const podeVerSalarioTecnicos = slug === "tecnicos" ? await podeVerSalario() : false;
+  // Seção "Lotes" da edição do insumo: só mostra o que o banco aceitaria.
+  const [podeMovimentarEstoque, podeCorrigirEstoque] =
+    slug === "insumos"
+      ? await Promise.all([pode("estoque.movimentar"), pode("estoque.lote.gerir")])
+      : [false, false];
   const [{ data: rows, error: rowsError }, { data: parametros }] = await Promise.all([
     lerLinhasCadastro(supabase, cfg.tabela, { podeVerSalario: podeVerSalarioTecnicos }),
     supabase.from("parametros").select("chave, valor").eq("chave", "dias_uteis_ano"),
@@ -283,6 +288,8 @@ export default async function CadastroPage({
             rows={linhas}
             initialFocusId={typeof query.focus === "string" ? query.focus : undefined}
             somenteLeitura={!podeEditar}
+            podeMovimentarEstoque={podeMovimentarEstoque}
+            podeCorrigirEstoque={podeCorrigirEstoque}
           />
         </div>
       </main>

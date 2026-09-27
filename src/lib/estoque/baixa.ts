@@ -22,7 +22,7 @@ export type LoteBaixa = {
   status: string;
 };
 
-export const MOTIVOS_BAIXA = ["Consumo em análise", "Perda/quebra", "Vencimento", "Outro"] as const;
+export const MOTIVOS_BAIXA = ["Entrega ao laboratório", "Perda/quebra", "Vencimento", "Outro"] as const;
 export type MotivoBaixa = (typeof MOTIVOS_BAIXA)[number];
 
 export function normalizarModelo(value: unknown): ModeloQuantidadeLote {

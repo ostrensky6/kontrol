@@ -9,6 +9,7 @@ import {
   type LoteBaixa,
   type LoteDbBaixa,
 } from "@/lib/estoque/baixa";
+import { rotuloDoSaldo, situacoesDoSaldo } from "@/lib/estoque/situacao-insumo";
 import Link from "next/link";
 import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/formatters";
 import { DownloadButton } from "@/components/common/DownloadButton";
@@ -27,7 +28,8 @@ const LOTE_STATUS: Record<string, string> = {
   aceito: "Disponível",
   em_uso: "Em uso",
   bloqueado: "Bloqueado",
-  consumido: "Consumido",
+  // saldo zerado por qualquer motivo (uso, perda, vencimento); no banco segue 'consumido'
+  consumido: "Esgotado",
   descartado: "Descartado",
 };
 
@@ -61,6 +63,7 @@ type CustoEstoque = {
 
 const ALERTA_META: Record<string, { label: string; cls: string }> = {
   reposicao: { label: "Repor", cls: "bg-warning-soft text-warning-strong" },
+  reposicao_pendente: { label: "Reposição aguardando aprovação", cls: "bg-warning-soft text-warning-strong" },
   vencimento: { label: "Vence em breve", cls: "bg-warning-soft text-warning-strong" },
   vencido: { label: "Vencido", cls: "bg-danger-soft text-danger-strong" },
   sem_validade: { label: "Sem validade", cls: "bg-danger-soft text-danger-strong" },
@@ -117,11 +120,14 @@ export default async function EstoquePage({
   const al = (alertas ?? []) as Alerta[];
   const porTipo = {
     reposicao: al.filter((a) => a.tipo === "reposicao"),
+    // a necessidade já está coberta, mas só por pedido que ainda espera aprovação
+    reposicao_pendente: al.filter((a) => a.tipo === "reposicao_pendente"),
     vencimento: al.filter((a) => a.tipo === "vencimento"),
     vencido: al.filter((a) => a.tipo === "vencido"),
     sem_validade: al.filter((a) => a.tipo === "sem_validade"),
     compra_atrasada: al.filter((a) => a.tipo === "compra_atrasada"),
   };
+  const insumosAguardandoAprovacao = new Set(porTipo.reposicao_pendente.map((a) => Number(a.insumo_id)));
   const previsaoMap = new Map((previsao ?? []).map((p) => [p.insumo_id, p]));
   const custosDivergentes = ((custos ?? []) as CustoEstoque[])
     .filter((custo) => custo.situacao === "divergente" || custo.situacao === "sem_custo_padrao")
@@ -147,8 +153,12 @@ export default async function EstoquePage({
     // Uma regra só (0130): "Repor" quando a previsão sugere comprar, isto é, o
     // disponível mais o que está a caminho não cobre o prazo total da compra.
     const repor = Number(prev?.qtd_sugerida_compra ?? 0) > 0;
-    const semEstoque = emMaos <= 0;
-    const status = repor ? "repor" : semEstoque ? "sem_estoque" : "ok";
+    // Todas as condições (sem estoque e repor podem valer juntas): o filtro Status casa por condição.
+    const situacoes = situacoesDoSaldo({
+      emMaos,
+      repor,
+      reposicaoPendente: insumosAguardandoAprovacao.has(Number(s.insumo_id)),
+    });
     return {
       insumoId: s.insumo_id as number,
       especificacao: s.especificacao ?? "—",
@@ -163,8 +173,8 @@ export default async function EstoquePage({
       consumoMedioDiario: Number(prev?.consumo_medio_diario ?? 0),
       diasCobertura: prev?.dias_cobertura == null ? null : Number(prev.dias_cobertura),
       pontoSugerido,
-      status,
-      statusLabel: status === "repor" ? "Repor" : status === "sem_estoque" ? "Sem estoque" : "Em dia",
+      situacoes,
+      statusLabel: rotuloDoSaldo(situacoes),
       lotesBaixa: lotesBaixaPorInsumo.get(Number(s.insumo_id)) ?? [],
     };
   });
@@ -228,6 +238,7 @@ export default async function EstoquePage({
             <HelpLegend
               items={[
                 { tom: "atencao", rotulo: "Repor", texto: "é hora de pedir: o disponível mais o que já está a caminho não cobre as saídas previstas durante o prazo da compra (tramitação na universidade + entrega), mais o estoque de segurança" },
+                { tom: "atencao", rotulo: "Reposição aguardando aprovação", texto: "o que falta já foi pedido, mas o pedido ainda espera aprovação (compra solicitada, inclusive o rascunho automático do dia, ou pedido interno em rascunho): aprove ou recuse o pedido" },
                 { tom: "critico", rotulo: "Compra atrasada", texto: "o estoque já está no ponto e a compra que viria passou da data prevista: cobre o fornecedor ou encerre a compra e dê outro destino ao que falta" },
                 { tom: "atencao", rotulo: "Vence em breve", texto: "lote perto do fim da validade" },
                 { tom: "critico", rotulo: "Vencido", texto: "só pode sair com o motivo Vencimento; a reserva do lote é liberada" },
@@ -240,13 +251,13 @@ export default async function EstoquePage({
             </p>
           </HelpTip>
         </div>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {(["reposicao", "compra_atrasada", "vencimento", "vencido", "sem_validade"] as const).map((t) => (
+        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {(["reposicao", "reposicao_pendente", "compra_atrasada", "vencimento", "vencido", "sem_validade"] as const).map((t) => (
             <div
               key={t}
               className="rounded-xl border border-border bg-card p-4 shadow-sm"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ALERTA_META[t].cls}`}>
                   {ALERTA_META[t].label}
                 </span>
@@ -256,7 +267,7 @@ export default async function EstoquePage({
                 {porTipo[t].slice(0, 4).map((a, i) => (
                   <li key={i} className="truncate" title={a.especificacao ?? ""}>
                     {a.especificacao}
-                    {a.validade
+                    {a.validade && (t === "compra_atrasada" || t === "vencido" || t === "vencimento")
                       ? ` · ${t === "compra_atrasada" ? "chegaria em" : t === "vencido" ? "venceu" : "vence"} ${formatDate(a.validade)}`
                       : ""}
                     {a.lote_id ? (
@@ -325,6 +336,7 @@ export default async function EstoquePage({
         <div className="mt-8">
           <SaldoTable
             rows={saldoRows}
+            podeMovimentar={podeBaixar}
             entradaInicialInsumoId={entradaInicialInsumoId}
             janelaDias={Number(previsao?.[0]?.janela_dias ?? 90)}
           />

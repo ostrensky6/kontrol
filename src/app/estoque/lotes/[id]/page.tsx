@@ -19,7 +19,7 @@ const LOTE_STATUS: Record<string, { label: string; cls: string }> = {
   quarentena: { label: "Quarentena", cls: "bg-warning-soft text-warning-strong" },
   aceito: { label: "Disponível", cls: "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" },
   em_uso: { label: "Em uso", cls: "bg-info-soft text-info-strong" },
-  consumido: { label: "Consumido", cls: "bg-muted text-muted-foreground" },
+  consumido: { label: "Esgotado", cls: "bg-muted text-muted-foreground" },
   bloqueado: { label: "Bloqueado", cls: "bg-danger-soft text-danger-strong" },
   descartado: { label: "Descartado", cls: "bg-muted text-muted-foreground" },
 };
@@ -288,10 +288,10 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
         </div>
         <div className="mt-3 rounded-lg border border-border bg-card p-4 text-sm shadow-sm">
           {planosConsumo.length === 0 ? (
-            <p className="text-muted-foreground/80">Este lote ainda não foi consumido por nenhum plano.</p>
+            <p className="text-muted-foreground/80">Nenhum plano retirou material deste lote.</p>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-muted-foreground">Consumido pelos planos:</span>
+              <span className="text-muted-foreground">Retirado pelos planos:</span>
               {planosConsumo.map((p) => (
                 <Link
                   key={p}

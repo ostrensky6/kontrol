@@ -38,6 +38,19 @@ import type { FormState } from "@/lib/actions/cadastros";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
+import {
+  FILTROS_INSUMO,
+  FILTROS_LOTE,
+  META_SINAL,
+  ROTULO_ESTOQUE_OK,
+  contarComSinal,
+  contarSemSinal,
+  filtroValidoNaVisao,
+  insumoAtendeFiltro,
+  loteAtendeFiltro,
+  situacaoDoInsumo,
+  type SinalInsumo,
+} from "@/lib/estoque/situacao-insumo";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
@@ -95,10 +108,13 @@ type LoteDbRow = {
   especificacao: string;
   unidade: string;
   vencido: boolean;
+  /** não venceu, mas vence dentro de janela_vencimento_dias (mesma regra de v_alertas_estoque) */
+  vencendo: boolean;
   critico: boolean;
 };
 
 type AlertTone = "red" | "amber" | "blue" | "emerald" | "slate";
+type ViewMode = "insumo" | "lote" | "grafica";
 
 type StockControlHubProps = {
   initialNotifications: Notificacao[];
@@ -108,7 +124,10 @@ type StockControlHubProps = {
   podeAceitar: boolean;
   podeGerir: boolean;
   podeCorrigir?: boolean;
-  podeBaixar?: boolean;
+  /** permissão "estoque.movimentar": dar baixa */
+  podeBaixar: boolean;
+  /** permissão "pedido.criar": abrir pedido de reposição */
+  podeCriarPedido: boolean;
 };
 
 export function StockControlHub({
@@ -120,13 +139,21 @@ export function StockControlHub({
   podeGerir,
   podeCorrigir,
   podeBaixar,
+  podeCriarPedido,
 }: StockControlHubProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedAlertType, setSelectedAlertType] = useState<string>("todos");
   const [selectedCriticidade, setSelectedCriticidade] = useState<string>("todos");
   const [selectedStatus, setSelectedStatus] = useState<string>("todos");
-  const [viewMode, setViewMode] = useState<"insumo" | "lote" | "grafica">("insumo");
+  const [viewMode, setViewMode] = useState<ViewMode>("insumo");
   const [isPending, startTransition] = useTransition();
+
+  // Cada visão tem as suas opções de alerta: a que não existe na nova volta a "Todos".
+  function trocarVisao(nova: ViewMode) {
+    setViewMode(nova);
+    if (!filtroValidoNaVisao(selectedAlertType, nova)) setSelectedAlertType("todos");
+  }
+  const filtrosAlerta = viewMode === "lote" ? FILTROS_LOTE : FILTROS_INSUMO;
 
   // Lotes com saldo por insumo, para o "Dar baixa" do cartão (FEFO no diálogo).
   const lotesBaixaPorInsumo = useMemo(() => {
@@ -157,66 +184,24 @@ export function StockControlHub({
     });
   }, [initialNotifications]);
 
-  // Enriquecer dados dos insumos com status de estoque e alertas correspondentes
+  // Enriquecer dados dos insumos com os sinais de estoque (todos, não só o mais grave)
   const items = useMemo(() => {
     return saldo.map((s) => {
       const itemAlerts = alertas.filter((a) => a.insumo_id === s.insumo_id);
       const itemNotifications = getNotificationsForInsumo(s.insumo_id, s.especificacao);
-
-      let status = "ok";
-      let statusLabel = "Estoque OK";
-      let tone: AlertTone = "slate";
-      const badges: { label: string; tone: AlertTone }[] = [];
-
-      const disponivel = s.disponivel ?? 0;
-      const temReposicao = (s.qtd_sugerida_compra ?? 0) > 0;
-
-      const temVencido = itemAlerts.some((a) => a.tipo === "vencido");
-      const temSemValidade = itemAlerts.some((a) => a.tipo === "sem_validade");
-      const temVencendo = itemAlerts.some((a) => a.tipo === "vencimento");
-      const temCompraAtrasada = itemAlerts.some((a) => a.tipo === "compra_atrasada");
-
-      if (temVencido) badges.push({ label: "Lote vencido", tone: "red" });
-      if (temSemValidade) badges.push({ label: "Sem validade", tone: "red" });
-      if (disponivel <= 0) badges.push({ label: "Sem estoque", tone: "red" });
-      if (temCompraAtrasada) badges.push({ label: "Compra atrasada", tone: "red" });
-      if (temReposicao) badges.push({ label: "Reposição", tone: "amber" });
-      if (temVencendo) badges.push({ label: "Vence em breve", tone: "amber" });
-
-      if (temVencido) {
-        status = "vencido";
-        statusLabel = "Lote Vencido";
-        tone = "red";
-      } else if (temSemValidade) {
-        status = "sem_validade";
-        statusLabel = "Sem Validade";
-        tone = "red";
-      } else if (disponivel <= 0) {
-        status = "sem_disponivel";
-        statusLabel = "Sem Estoque";
-        tone = "red";
-      } else if (temCompraAtrasada) {
-        status = "compra_atrasada";
-        statusLabel = "Compra atrasada";
-        tone = "red";
-      } else if (temReposicao) {
-        status = "reposicao";
-        statusLabel = "Reposição";
-        tone = "amber";
-      } else if (temVencendo) {
-        status = "vencendo";
-        statusLabel = "Vence em breve";
-        tone = "amber";
-      }
+      const situacao = situacaoDoInsumo(s, itemAlerts);
+      // Em ordem de gravidade: o primeiro selo é a situação principal.
+      const badges: { label: string; tone: AlertTone }[] = situacao.sinais.length
+        ? situacao.sinais.map((sinal) => ({ label: META_SINAL[sinal].rotulo, tone: META_SINAL[sinal].tom }))
+        : [{ label: ROTULO_ESTOQUE_OK, tone: "slate" }];
 
       return {
         ...s,
         // Saldo, reserva e ponto vêm na unidade do saldo (frascos no modelo atual).
         unidade: s.unidade_saldo ?? s.unidade,
-        status,
-        statusLabel,
-        tone,
-        badges: badges.length ? badges : [{ label: statusLabel, tone: "slate" }],
+        sinais: situacao.sinais,
+        principal: situacao.principal,
+        badges,
         alerts: itemAlerts,
         notifications: itemNotifications,
       };
@@ -234,13 +219,8 @@ export function StockControlHub({
         return false;
       }
 
-      if (selectedAlertType !== "todos") {
-        if (selectedAlertType === "reposicao" && item.status !== "reposicao") return false;
-        if (selectedAlertType === "vencido_vencendo" && item.status !== "vencido" && item.status !== "vencendo") return false;
-        if (selectedAlertType === "compra_atrasada" && item.status !== "compra_atrasada") return false;
-        if (selectedAlertType === "sem_disponivel" && item.status !== "sem_disponivel") return false;
-        if (selectedAlertType === "ok" && item.status !== "ok") return false;
-      }
+      // Pelo sinal: um insumo sem estoque que também precisa de compra aparece nos dois filtros.
+      if (!insumoAtendeFiltro(item.sinais, selectedAlertType)) return false;
 
       if (selectedCriticidade !== "todos") {
         if (item.categoria_compra !== selectedCriticidade) return false;
@@ -268,31 +248,48 @@ export function StockControlHub({
         return false;
       }
 
-      // Filtro de situação física do lote
-      if (selectedAlertType !== "todos") {
-        if (selectedAlertType === "vencido_vencendo" && !lote.vencido) return false;
-      }
+      // Filtro de validade do lote (as opções da visão por lote)
+      if (!loteAtendeFiltro(lote, selectedAlertType)) return false;
 
       return true;
     });
   }, [lotes, searchTerm, selectedAlertType]);
 
-  // Contagem para gráficos e KPIs baseados em TODOS os itens
+  // Contagem para gráficos e KPIs baseados em TODOS os itens. Cada cartão conta
+  // os insumos que têm aquele sinal (um insumo pode contar em mais de um).
   const totalInsumos = items.length;
-  const countSemEstoque = items.filter((i) => i.status === "sem_disponivel").length;
-  const countRepor = items.filter((i) => i.status === "reposicao").length;
-  const countVencidos = items.filter((i) => i.status === "vencido" || i.status === "sem_validade").length;
-  const countVencendo = items.filter((i) => i.status === "vencendo").length;
-  const countCompraAtrasada = items.filter((i) => i.status === "compra_atrasada").length;
-  const countOk = items.filter((i) => i.status === "ok").length;
+  const countSemEstoque = contarComSinal(items, "sem_disponivel");
+  const countRepor = contarComSinal(items, "reposicao");
+  const countReposicaoPendente = contarComSinal(items, "reposicao_pendente");
+  const countVencido = contarComSinal(items, "vencido");
+  const countSemValidade = contarComSinal(items, "sem_validade");
+  const countVencidoOuSemValidade = contarComSinal(items, "vencido", "sem_validade");
+  const countVencendo = contarComSinal(items, "vencendo");
+  const countValidade = contarComSinal(items, "vencido", "sem_validade", "vencendo");
+  const countCompraAtrasada = contarComSinal(items, "compra_atrasada");
+  const countOk = contarSemSinal(items);
   const saudePct = totalInsumos > 0 ? Math.round((countOk / totalInsumos) * 100) : 0;
 
+  // Barras: insumos por alerta (um insumo com dois alertas entra nas duas barras).
   const chartData = [
     { name: "Sem Estoque", value: countSemEstoque, color: "#ef4444" },
-    { name: "Vencido/Sem Val.", value: countVencidos, color: "#f87171" },
+    { name: "Vencido/Sem Val.", value: countVencidoOuSemValidade, color: "#f87171" },
     { name: "Reposição", value: countRepor, color: "#f59e0b" },
+    { name: "Aguard. aprovação", value: countReposicaoPendente, color: "#b45309" },
     { name: "Vencendo", value: countVencendo, color: "#fbbf24" },
     { name: "Compra atrasada", value: countCompraAtrasada, color: "#dc2626" },
+  ].filter((d) => d.value > 0);
+
+  // Pizza: cada insumo uma vez, na situação mais grave (as fatias somam o total).
+  const contarPrincipal = (...sinais: SinalInsumo[]) =>
+    items.filter((i) => i.principal != null && sinais.includes(i.principal)).length;
+  const pieData = [
+    { name: "Sem Estoque", value: contarPrincipal("sem_disponivel"), color: "#ef4444" },
+    { name: "Vencido/Sem Val.", value: contarPrincipal("vencido", "sem_validade"), color: "#f87171" },
+    { name: "Reposição", value: contarPrincipal("reposicao"), color: "#f59e0b" },
+    { name: "Aguard. aprovação", value: contarPrincipal("reposicao_pendente"), color: "#b45309" },
+    { name: "Vencendo", value: contarPrincipal("vencendo"), color: "#fbbf24" },
+    { name: "Compra atrasada", value: contarPrincipal("compra_atrasada"), color: "#dc2626" },
     { name: "Estoque OK", value: countOk, color: "#3b82f6" },
   ].filter((d) => d.value > 0);
 
@@ -327,6 +324,11 @@ export function StockControlHub({
           </div>
           <p className="mt-2 text-3xl font-bold tracking-tight text-warning-strong">{countRepor}</p>
           <p className="mt-1 text-xs text-muted-foreground">precisam de compra</p>
+          {countReposicaoPendente > 0 && (
+            <p className="mt-0.5 text-xs font-medium text-warning-strong">
+              {countReposicaoPendente} aguardando aprovação
+            </p>
+          )}
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -335,8 +337,11 @@ export function StockControlHub({
               <CalendarClock className="h-4 w-4" />
             </span>
           </div>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-warning-strong">{countVencidos + countVencendo}</p>
-          <p className="mt-1 text-xs text-muted-foreground">{countVencidos} lotes vencidos</p>
+          <p className="mt-2 text-3xl font-bold tracking-tight text-warning-strong">{countValidade}</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {countVencido} com lote vencido
+            {countSemValidade > 0 && ` · ${countSemValidade} sem validade`}
+          </p>
         </div>
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -354,8 +359,11 @@ export function StockControlHub({
               <p className="text-xs font-semibold uppercase text-muted-foreground">Saúde do Estoque</p>
               <HelpTip title="Saúde do estoque">
                 <p>
-                  Percentual de insumos <b>sem nenhum alerta</b>. Cada insumo conta uma vez, na
-                  situação mais grave: vencido, sem estoque, compra atrasada, repor ou vence em breve.
+                  Percentual de insumos <b>sem nenhum alerta</b> (vencido, sem validade, sem estoque,
+                  compra atrasada, reposição, reposição aguardando aprovação ou vence em breve).
+                </p>
+                <p>
+                  Nos outros cartões, um insumo com mais de um alerta conta em cada um deles.
                 </p>
                 <HelpExample>40 insumos, 30 sem alerta → saúde de 75%.</HelpExample>
               </HelpTip>
@@ -381,7 +389,7 @@ export function StockControlHub({
               {/* Toggles de Visualização */}
               <div className="inline-flex rounded-md shadow-sm" role="group">
                 <button
-                  onClick={() => setViewMode("insumo")}
+                  onClick={() => trocarVisao("insumo")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-l-md border ${
                     viewMode === "insumo"
                       ? "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-950/20 dark:border-brand-900 dark:text-brand-300"
@@ -391,7 +399,7 @@ export function StockControlHub({
                   <span className="flex items-center gap-1"><Boxes className="h-3.5 w-3.5" /> Por Insumo</span>
                 </button>
                 <button
-                  onClick={() => setViewMode("lote")}
+                  onClick={() => trocarVisao("lote")}
                   className={`px-3 py-1.5 text-xs font-medium border-t border-b ${
                     viewMode === "lote"
                       ? "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-950/20 dark:border-brand-900 dark:text-brand-300"
@@ -401,7 +409,7 @@ export function StockControlHub({
                   <span className="flex items-center gap-1"><Layers className="h-3.5 w-3.5" /> Por Lote</span>
                 </button>
                 <button
-                  onClick={() => setViewMode("grafica")}
+                  onClick={() => trocarVisao("grafica")}
                   className={`px-3 py-1.5 text-xs font-medium rounded-r-md border ${
                     viewMode === "grafica"
                       ? "bg-brand-50 border-brand-200 text-brand-700 dark:bg-brand-950/20 dark:border-brand-900 dark:text-brand-300"
@@ -429,21 +437,23 @@ export function StockControlHub({
                 </div>
               </div>
 
-              {/* Alerta de Estoque */}
+              {/* Alerta de Estoque (na visão por lote, só o que vale para um lote: a validade) */}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground mb-1">Estado Físico / Alerta</label>
+                <label htmlFor="controle-filtro-alerta" className="block text-xs font-medium text-muted-foreground mb-1">
+                  {viewMode === "lote" ? "Validade do Lote" : "Estado Físico / Alerta"}
+                </label>
                 <select
+                  id="controle-filtro-alerta"
                   value={selectedAlertType}
                   onChange={(e) => setSelectedAlertType(e.target.value)}
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-brand-500"
                   disabled={viewMode === "grafica"}
                 >
-                  <option value="todos">Todos</option>
-                  <option value="sem_disponivel">Sem Estoque</option>
-                  <option value="reposicao">Abaixo do Ponto (Repor)</option>
-                  <option value="vencido_vencendo">Vencido/Vencendo</option>
-                  <option value="compra_atrasada">Compra atrasada</option>
-                  <option value="ok" disabled={viewMode === "lote"}>Estoque OK</option>
+                  {filtrosAlerta.map((opcao) => (
+                    <option key={opcao.valor} value={opcao.valor}>
+                      {opcao.rotulo}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -514,7 +524,7 @@ export function StockControlHub({
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm flex flex-col justify-between">
           <div>
             <h3 className="text-xs font-bold uppercase text-muted-foreground">Alertas Ativos</h3>
-            <p className="text-[10px] text-muted-foreground/80">Total de eventos operacionais críticos</p>
+            <p className="text-[10px] text-muted-foreground/80">Insumos por alerta (um insumo pode ter mais de um)</p>
           </div>
           <div className="h-24 mt-2">
             {chartData.length > 0 ? (
@@ -584,8 +594,8 @@ export function StockControlHub({
                           <span className="text-xs font-mono text-muted-foreground/80 bg-muted px-1.5 py-0.5 rounded">
                             #{item.insumo_id ?? "—"}
                           </span>
-                          {item.badges.slice(0, 3).map((badge) => (
-                            <span key={badge.label} className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${TONE_CLASSES[badge.tone as AlertTone]}`}>
+                          {item.badges.map((badge) => (
+                            <span key={badge.label} className={`rounded-md border px-2 py-0.5 text-[10px] font-bold ${TONE_CLASSES[badge.tone]}`}>
                               {badge.label}
                             </span>
                           ))}
@@ -615,9 +625,9 @@ export function StockControlHub({
                         <div className="h-2 w-full rounded-full bg-muted relative">
                           <div
                             className={`h-full rounded-full ${
-                              item.status === "sem_disponivel"
+                              item.sinais.includes("sem_disponivel")
                                 ? "bg-danger-strong"
-                                : item.status === "reposicao"
+                                : item.sinais.includes("reposicao")
                                   ? "bg-warning-strong"
                                   : "bg-brand-600"
                             }`}
@@ -700,13 +710,15 @@ export function StockControlHub({
                           >
                             <ExternalLink className="h-3.5 w-3.5" /> Ficha
                           </Link>
-                          <DarBaixaDialog
-                            lotes={lotesBaixaPorInsumo.get(Number(item.insumo_id)) ?? []}
-                            unidade={item.unidade ?? ""}
-                            especificacao={item.especificacao ?? undefined}
-                            triggerClassName="inline-flex items-center gap-1 rounded-md border border-danger-strong/30 bg-card px-2.5 py-1.5 text-xs font-semibold text-danger-strong shadow-sm hover:bg-danger-soft"
-                          />
-                          {(item.qtd_sugerida_compra ?? 0) > 0 && (
+                          {podeBaixar && (
+                            <DarBaixaDialog
+                              lotes={lotesBaixaPorInsumo.get(Number(item.insumo_id)) ?? []}
+                              unidade={item.unidade ?? ""}
+                              especificacao={item.especificacao ?? undefined}
+                              triggerClassName="inline-flex items-center gap-1 rounded-md border border-danger-strong/30 bg-card px-2.5 py-1.5 text-xs font-semibold text-danger-strong shadow-sm hover:bg-danger-soft"
+                            />
+                          )}
+                          {podeCriarPedido && (item.qtd_sugerida_compra ?? 0) > 0 && (
                             <GerarPedidoInsumoButton insumoId={item.insumo_id} />
                           )}
                         </div>
@@ -763,9 +775,10 @@ export function StockControlHub({
                       <td className="px-6 py-4 tabular-nums">
                         {formatNumber(lote.quantidadeAtual)} {lote.unidade}
                       </td>
-                      <td className={`px-6 py-4 text-xs font-semibold ${lote.vencido ? "text-danger-strong" : ""}`}>
+                      <td className={`px-6 py-4 text-xs font-semibold ${lote.vencido ? "text-danger-strong" : lote.vencendo ? "text-warning-strong" : ""}`}>
                         {formatDate(lote.validade)}
                         {lote.vencido && " (Vencido)"}
+                        {lote.vencendo && " (Vence em breve)"}
                       </td>
                       <td className="px-6 py-4 text-right">
                         <LoteAcoes
@@ -799,12 +812,13 @@ export function StockControlHub({
           <div className="grid gap-5 p-5 md:grid-cols-2">
             {/* Gráfico 1: Situação Geral */}
             <div className="rounded-lg border border-border/70 bg-muted/50 p-5">
-              <h3 className="text-sm font-semibold text-foreground mb-4">Situação Física dos Insumos</h3>
+              <h3 className="text-sm font-semibold text-foreground">Situação Física dos Insumos</h3>
+              <p className="mb-4 text-xs text-muted-foreground">Cada insumo aparece uma vez, no alerta mais grave.</p>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={chartData}
+                      data={pieData}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -813,7 +827,7 @@ export function StockControlHub({
                       outerRadius={85}
                       paddingAngle={3}
                     >
-                      {chartData.map((entry) => (
+                      {pieData.map((entry) => (
                         <Cell key={entry.name} fill={entry.color} />
                       ))}
                     </Pie>
@@ -822,7 +836,7 @@ export function StockControlHub({
                 </ResponsiveContainer>
               </div>
               <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                {chartData.map((d) => (
+                {pieData.map((d) => (
                   <div key={d.name} className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full shrink-0" style={{ backgroundColor: d.color }} />
                     <span className="text-muted-foreground truncate">{d.name}:</span>
@@ -847,6 +861,12 @@ export function StockControlHub({
                     <span className="h-1.5 w-1.5 rounded-full bg-warning-strong mt-1.5 shrink-0" />
                     <span><b>{countRepor} insumos para repor</b>: o disponível mais o que está a caminho não cobre o prazo da compra.</span>
                   </li>
+                  {countReposicaoPendente > 0 && (
+                    <li className="flex items-start gap-2">
+                      <span className="h-1.5 w-1.5 rounded-full bg-warning-strong mt-1.5 shrink-0" />
+                      <span><b>{countReposicaoPendente} insumos com reposição aguardando aprovação</b>: o pedido já existe, mas ainda não foi aprovado.</span>
+                    </li>
+                  )}
                   <li className="flex items-start gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-danger-strong mt-1.5 shrink-0" />
                     <span><b>{countCompraAtrasada} insumos no ponto com compra atrasada</b>: cobre o fornecedor ou encerre a compra.</span>
