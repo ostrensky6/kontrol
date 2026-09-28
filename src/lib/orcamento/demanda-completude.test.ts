@@ -19,7 +19,7 @@ describe("avaliarCompletudeDemanda", () => {
     });
   });
 
-  it("exige projeto vinculado para modalidades com projeto", () => {
+  it("não exige projeto vinculado: o orçamento vem antes de o projeto existir", () => {
     const resultado = avaliarCompletudeDemanda({
       titulo: "Projeto ambiental",
       cliente_nome: "Cliente",
@@ -27,9 +27,19 @@ describe("avaliarCompletudeDemanda", () => {
       descricao: "Escopo inicial",
     });
 
+    expect(resultado).toEqual({ completa: true, faltante: 0, pendencias: [] });
+  });
+
+  it("apenas projeto sem escopo nem descrição continua incompleto", () => {
+    const resultado = avaliarCompletudeDemanda({
+      titulo: "Projeto ambiental",
+      cliente_nome: "Cliente",
+      modalidade: "projeto",
+    });
+
     expect(resultado.completa).toBe(false);
-    expect(resultado.faltante).toBe(20);
-    expect(resultado.pendencias).toContain("vincular um projeto para modalidades com projeto");
+    expect(resultado.faltante).toBe(25);
+    expect(resultado.pendencias).toEqual(["descrever o escopo ou a descrição"]);
   });
 
   it("calcula percentual proporcional aos criterios pendentes", () => {

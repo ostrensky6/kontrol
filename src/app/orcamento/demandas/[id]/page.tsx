@@ -386,6 +386,13 @@ export default async function DemandaDetalhe({
     "float-left mb-2 w-full border-b border-foreground/15 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300";
   const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
+  const obrigatorio = <span className="text-danger-strong">*</span>;
+  // Depois de salvar, a barra aponta a próxima etapa de custo (laboratório antes de projeto).
+  const etapaCusto = etapas.find((e) => e.aplicavel && (e.id === "laboratorio" || e.id === "projeto"));
+  const proximaEtapaCusto = completudeDemanda.completa && etapaCusto
+    ? { href: etapaCusto.href, rotulo: etapaCusto.label }
+    : null;
+  const hrefDados = `/orcamento/demandas/${demandaId}?etapa=demanda`;
   const operacaoEmissaoId = randomUUID();
 
   // --- Etapa Proposta (28/09): as mesmas abas da proposta emitida, com valores vivos ---
@@ -464,7 +471,7 @@ export default async function DemandaDetalhe({
             >
               {completudeDemanda.completa ? "Dados completos" : `${completudeDemanda.faltante}% faltante`}
               <HelpTip title="Completude dos dados" align="end">
-                <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo e, conforme a modalidade, projeto e amostras).</p>
+                <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo ou descrição e, com laboratório, matriz e quantidade de amostras). Vincular um projeto é opcional.</p>
                 <p>Os módulos de custo só são liberados com <b>0% faltante</b>.</p>
                 <p className="text-xs">Atualizado em {formatDateTime(demanda.completude_atualizada_em)}.</p>
               </HelpTip>
@@ -513,7 +520,7 @@ export default async function DemandaDetalhe({
               {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
             </span>
           </div>
-          <SalvarDemandaForm>
+          <SalvarDemandaForm pendencias={completudeDemanda.pendencias} proximaEtapa={proximaEtapaCusto}>
             <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
             {/* Grupos lado a lado em telas largas (3 colunas), campos aos pares. */}
             <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
@@ -521,7 +528,7 @@ export default async function DemandaDetalhe({
                 <legend className={legenda}>Identificação</legend>
                 <div className={grade}>
                   <div className="col-span-6">
-                    <label htmlFor="d-titulo" className={lbl}>Título</label>
+                    <label htmlFor="d-titulo" className={lbl}>Título {obrigatorio}</label>
                     <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
                   </div>
                   <div className="col-span-4">
@@ -549,7 +556,7 @@ export default async function DemandaDetalhe({
                     </select>
                   </div>
                   <div className="col-span-3">
-                    <label htmlFor="d-projeto" className={lbl}>Projeto</label>
+                    <label htmlFor="d-projeto" className={lbl}>Projeto <span className="font-normal">(se já existir)</span></label>
                     <select {...hydrationSafe} id="d-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
                       <option value="">—</option>
                       {(projetos ?? []).map((p) => (
@@ -582,7 +589,7 @@ export default async function DemandaDetalhe({
                     />
                   </div>
                   <div className="col-span-4">
-                    <label htmlFor="d-cliente-nome" className={lbl}>Razão social / nome</label>
+                    <label htmlFor="d-cliente-nome" className={lbl}>Razão social / nome {obrigatorio}</label>
                     <input {...hydrationSafe} id="d-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
                   </div>
                   <div className="col-span-2">
@@ -612,11 +619,11 @@ export default async function DemandaDetalhe({
                 <legend className={legenda}>Amostras e prazos</legend>
                 <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
                   <div className="col-span-6 lg:col-span-4 2xl:col-span-6">
-                    <label htmlFor="d-matriz" className={lbl}>Matriz ou tipo de amostra</label>
+                    <label htmlFor="d-matriz" className={lbl}>Matriz ou tipo de amostra {exigeAnalises && obrigatorio}</label>
                     <input {...hydrationSafe} id="d-matriz" name="matriz_amostra" defaultValue={demanda.matriz_amostra ?? ""} className={campo} />
                   </div>
                   <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
-                    <label htmlFor="d-qtd" className={lbl}>Qtd. de amostras</label>
+                    <label htmlFor="d-qtd" className={lbl}>Qtd. de amostras {exigeAnalises && obrigatorio}</label>
                     <input {...hydrationSafe} id="d-qtd" name="quantidade_amostras_estimada" type="number" min="1" step="1" defaultValue={demanda.quantidade_amostras_estimada ?? ""} className={`${campo} text-right tabular-nums`} />
                   </div>
                   <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
@@ -638,12 +645,12 @@ export default async function DemandaDetalhe({
                 <legend className={legenda}>Textos</legend>
                 <div className="clear-both grid gap-x-2.5 gap-y-1.5 md:grid-cols-3">
                   <div>
-                    <label htmlFor="d-descricao" className={lbl}>Descrição</label>
+                    <label htmlFor="d-descricao" className={lbl}>Descrição {obrigatorio} <span className="font-normal">(esta ou o escopo)</span></label>
                     <textarea {...hydrationSafe} id="d-descricao" name="descricao" rows={2} defaultValue={demanda.descricao ?? ""} className={areaTexto} />
                   </div>
                   <div>
                     <label htmlFor="d-escopo" className={lbl}>
-                      Escopo preliminar <span className="font-normal">(texto inicial da proposta)</span>
+                      Escopo preliminar {obrigatorio} <span className="font-normal">(texto inicial da proposta)</span>
                     </label>
                     <textarea {...hydrationSafe} id="d-escopo" name="escopo_preliminar" rows={2} defaultValue={demanda.escopo_preliminar ?? ""} className={areaTexto} />
                   </div>
@@ -724,7 +731,7 @@ export default async function DemandaDetalhe({
             <h2 className="text-sm font-semibold">Fluxo recomendado</h2>
             <ol className="mt-3 space-y-2 text-xs leading-5 text-muted-foreground">
               <li>1. Registrar os dados do orçamento.</li>
-              <li>2. Confirmar modalidade e projeto.</li>
+              <li>2. Confirmar a modalidade.</li>
               <li>3. Gerar o custo correto.</li>
               <li>4. Planejar a execução e reservar estoque quando aprovado.</li>
             </ol>
@@ -751,6 +758,23 @@ export default async function DemandaDetalhe({
             <div className="mt-4 rounded-md bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
               Esta modalidade não exige orçamento laboratorial.
             </div>
+          ) : planoModulosUi.laboratorio.acao === "criar" && todosOrcamentosAnalises.length === 0 ? (
+            // Sem orçamento laboratorial ainda: a etapa diz o que falta ou oferece criar (antes era só uma tabela vazia).
+            !completudeDemanda.completa ? (
+              <PendenciasDados pendencias={completudeDemanda.pendencias} hrefDados={hrefDados} etapa="O orçamento laboratorial abre" />
+            ) : (
+              <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
+                <span>Dados completos. Comece o orçamento laboratorial:</span>
+                <ModuloAcao
+                  plano={planoModulosUi.laboratorio}
+                  rotulo="laboratorial"
+                  demandaCompleta={completudeDemanda.completa}
+                  demandaId={demandaId}
+                  acaoCriar={gerarOrcamentoAnalisesDaDemanda}
+                  hrefBase="/orcamento"
+                />
+              </div>
+            )
           ) : (
             <>
               {/* Resumo numa linha (28/09): os cartões repetiam a tabela logo abaixo. */}
@@ -810,9 +834,11 @@ export default async function DemandaDetalhe({
             <p role="alert" className="mt-4 rounded-md border border-danger-strong/30 bg-danger-soft px-3 py-2 text-xs leading-5 text-danger-strong">
               {planoModulosUi.erros.join(" ")}
             </p>
+          ) : !completudeDemanda.completa ? (
+            <PendenciasDados pendencias={completudeDemanda.pendencias} hrefDados={hrefDados} etapa="Os custos do projeto abrem" />
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
-              <span>Nenhum orçamento de projeto ativo nesta proposta.</span>
+              <span>Dados completos. Comece a planilha de custos do projeto:</span>
               <ModuloAcao
                 plano={planoModulosUi.projeto}
                 rotulo="de projeto"
@@ -1180,10 +1206,14 @@ function ModuloAcao({
     );
   }
   if (!demandaCompleta) {
+    // Antes era um rótulo morto; agora leva à etapa Dados, onde a barra de salvar diz o que falta.
     return (
-      <span className="rounded-md border border-warning-strong/30 px-3 py-2 text-xs text-warning-strong">
+      <a
+        href={`/orcamento/demandas/${demandaId}?etapa=demanda`}
+        className="rounded-md border border-warning-strong/30 px-3 py-2 text-xs text-warning-strong hover:bg-warning-soft"
+      >
         Complete os dados
-      </span>
+      </a>
     );
   }
   if (plano.acao === "abrir" && plano.moduloId) {
@@ -1203,6 +1233,20 @@ function ModuloAcao({
         Criar orçamento {rotulo}
       </button>
     </form>
+  );
+}
+
+/** Etapa de custo ainda fechada: diz exatamente o que falta nos Dados e leva até lá. */
+function PendenciasDados({ pendencias, hrefDados, etapa }: { pendencias: string[]; hrefDados: string; etapa: string }) {
+  return (
+    <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-warning-soft px-3 py-3 text-sm text-warning-strong">
+      <span>
+        {etapa} quando os Dados estiverem completos. Falta: <b className="font-semibold">{pendencias.join("; ")}</b>.
+      </span>
+      <a href={hrefDados} className="rounded-md border border-warning-strong/40 bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted">
+        Ir para Dados
+      </a>
+    </div>
   );
 }
 
