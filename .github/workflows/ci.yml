@@ -71,6 +71,12 @@ jobs:
       - name: Validar link público no servidor, senha provisória, validade e reposição pendente
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/link_senha_reposicao_0132.sql
 
+      - name: Validar quantidades conferidas no pedido de faltas e embalagem na compra
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/quantidades_conferidas_0133.sql
+
+      - name: Validar registro dos backups e aviso de atraso
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_backups_0134.sql
+
   check:
     runs-on: ubuntu-latest
     steps:
@@ -106,6 +112,8 @@ jobs:
       - name: Validar incremento da versao
         run: |
           npm run version:test
+          npm run db:migration:test
+          npm run backup:test
           npm run version:check -- "$APP_VERSION_BASE_REF"
 
       - name: Install Playwright browser

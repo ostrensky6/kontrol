@@ -241,12 +241,15 @@ export function PlanejamentoConferenciaLotes({
             </button>
           </div>
 
-          {cameraMessage && (
-            <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {cameraMessage}
-            </p>
-          )}
+          {/* regiões fixas: aviso da câmera e resultado da leitura são anunciados */}
+          <div aria-live="polite">
+            {cameraMessage && (
+              <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {cameraMessage}
+              </p>
+            )}
+          </div>
 
           <div className="mt-3 flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -255,6 +258,7 @@ export function PlanejamentoConferenciaLotes({
                 value={codigoScanner}
                 onChange={(event) => setCodigoScanner(event.target.value)}
                 className={`${inputCls} mt-0 pl-8`}
+                aria-label="Código do lote (etiqueta ou código interno)"
                 placeholder="/s/lote/123 ou código interno"
               />
             </div>
@@ -269,6 +273,7 @@ export function PlanejamentoConferenciaLotes({
             </button>
           </div>
 
+          <div role="status" aria-live="polite" aria-atomic="true">
           {resultadoScanner && (
             <div
               className={`mt-3 rounded-md px-3 py-2 text-xs ${
@@ -298,6 +303,7 @@ export function PlanejamentoConferenciaLotes({
               )}
             </div>
           )}
+          </div>
 
           <form onSubmit={enviarSemReset(salvarConferencia)} className="mt-4 grid gap-3">
             <input type="hidden" name="planejamento_id" value={planId} />
@@ -341,17 +347,19 @@ export function PlanejamentoConferenciaLotes({
               )}
             </div>
 
-            {state.message && (
-              <p
-                className={`rounded-md px-3 py-2 text-sm ${
-                  state.ok
-                    ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
-                    : "bg-danger-soft text-danger-strong"
-                }`}
-              >
-                {state.message}
-              </p>
-            )}
+            <div role="status" aria-live="polite">
+              {state.message && (
+                <p
+                  className={`rounded-md px-3 py-2 text-sm ${
+                    state.ok
+                      ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
+                      : "bg-danger-soft text-danger-strong"
+                  }`}
+                >
+                  {state.message}
+                </p>
+              )}
+            </div>
 
             <button
               disabled={submitPending || !podeSalvar}

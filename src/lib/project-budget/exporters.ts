@@ -16,6 +16,7 @@ import {
 } from "docx";
 import { saveAs } from "file-saver";
 import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
 import {
   RUBRICAS_PROJETO,
   calcularOrcamentoProjeto,
@@ -43,6 +44,8 @@ export type ProjetoExportInfo = {
   escopo: string | null;
   cronograma: string | null;
   observacoes: string | null;
+  /** Instituição do orçamento (GIA / UFPR ou ATGC); define o título e o criador. */
+  instituicao?: string | null;
 };
 
 export type ProjetoExportItem = {
@@ -66,8 +69,10 @@ const SOFT_FILL = "F4FBFB";
 const HEADER_FILL = "E8F4F3";
 const LINE = "D9E7E4";
 
+// Documento de trabalho da equipe (custos, parâmetros e margem): o nome diz
+// que é interno, para não seguir por engano no lugar da proposta.
 const arquivoBase = (info: ProjetoExportInfo) =>
-  `orcamento-projeto-${(info.numero || info.titulo || "atgc").replace(/[^\w-]+/g, "_")}`;
+  `orcamento-projeto-interno-${(info.numero || info.titulo || "kontrol").replace(/[^\w-]+/g, "_")}`;
 
 const rubricaLabel = (code: string) =>
   RUBRICAS_PROJETO[code as keyof typeof RUBRICAS_PROJETO] ?? code;
@@ -83,7 +88,7 @@ export async function exportProjetoXlsx(
   calculo: ProjetoCalculo,
 ) {
   const wb = new ExcelJS.Workbook();
-  wb.creator = "Kontrol — ATGC";
+  wb.creator = resolverIdentidadeComAviso(info.instituicao).identidade.creator;
 
   const projeto = wb.addWorksheet("Projeto");
   projeto.addRows([
@@ -162,8 +167,9 @@ export async function exportProjetoDocx(
   itens: ProjetoExportItem[],
   calculo: ProjetoCalculo,
 ) {
+  const { identidade } = resolverIdentidadeComAviso(info.instituicao);
   const doc = new Document({
-    creator: "Kontrol — ATGC",
+    creator: identidade.creator,
     styles: {
       default: {
         document: {
@@ -176,11 +182,15 @@ export async function exportProjetoDocx(
       {
         properties: { page: { margin: { top: 900, right: 720, bottom: 900, left: 720 } } },
         children: [
-          docParagraph("Orçamento de projeto — ATGC Genética Ambiental", {
+          docParagraph(`Orçamento de projeto — ${identidade.nomeCurto}`, {
             heading: HeadingLevel.TITLE,
             bold: true,
             color: BLUE,
             size: 34,
+          }),
+          docParagraph("Uso interno — traz custos e parâmetros; não enviar ao cliente (a proposta é o documento do cliente).", {
+            bold: true,
+            color: "9A6700",
           }),
           docParagraph(`Título: ${info.titulo || "-"}`, { bold: true }),
           docParagraph(`Número: ${info.numero || "-"}`),

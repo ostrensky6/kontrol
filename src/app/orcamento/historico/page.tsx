@@ -1,5 +1,8 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
+import { Search, SlidersHorizontal } from "lucide-react";
+import { LinhaExpansivel } from "@/components/common/LinhaExpansivel";
+import { SubmitButton } from "@/components/common/SubmitButton";
 
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { DownloadButton } from "@/components/common/DownloadButton";
@@ -114,17 +117,6 @@ const statusOptions = [
   ["convertido_projeto", "Convertido em projeto"],
 ] as const;
 
-const atalhosStatus = [
-  ["", "Todos"],
-  ["emitido", "Emitidos"],
-  ["enviado", "Enviados"],
-  ["alterado_reenviado", "Alterados e reenviados"],
-  ["aprovado", "Aprovados"],
-  ["rejeitado", "Rejeitados"],
-  ["cancelado", "Cancelados"],
-  ["substituido", "Substituídos"],
-  ["convertido_projeto", "Convertidos em projeto"],
-] as const;
 
 
 export default async function HistoricoOrcamentosPage({
@@ -164,6 +156,11 @@ export default async function HistoricoOrcamentosPage({
   }));
   const versoes = filtrarVersoes(todas, filtros);
   const comparada = todas.find((item) => item.id === Number(filtros.comparar));
+  const filtrosAvancados = [
+    filtros.responsavel, filtros.modalidade, filtros.emitido_de, filtros.emitido_ate,
+    filtros.validade_de, filtros.validade_ate, filtros.valor_min, filtros.valor_max,
+  ].filter(Boolean).length;
+  const temFiltro = filtrosAvancados > 0 || Boolean(filtros.texto || filtros.status || filtros.cliente);
   const exportHref = `/orcamento/historico/export?${new URLSearchParams(limparFiltros(filtros)).toString()}`;
 
   const emitidos = versoes.filter((item) => ["emitido", "enviado", "alterado_reenviado"].includes(item.status)).length;
@@ -186,7 +183,7 @@ export default async function HistoricoOrcamentosPage({
       <main className="app-page-container">
         <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento" }, { label: "Histórico de Orçamentos" }]} />
 
-        <div className="mt-4 flex flex-wrap items-end justify-between gap-3">
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Histórico de Orçamentos</h1>
@@ -197,251 +194,261 @@ export default async function HistoricoOrcamentosPage({
                 </p>
               </HelpTip>
             </div>
+            {/* resumo em uma linha: os números do filtro atual, sem cartões ocupando a tela */}
+            <p className="mt-1 text-sm text-muted-foreground">
+              <b className="font-semibold text-foreground tabular-nums">{versoes.length}</b> {versoes.length === 1 ? "versão" : "versões"}
+              {" · "}<b className="font-semibold text-foreground tabular-nums">{emitidos}</b> aguardando o cliente
+              {" · "}<b className="font-semibold text-foreground tabular-nums">{aprovados}</b> {aprovados === 1 ? "aprovada" : "aprovadas"}
+              {" · "}<b className="font-semibold text-foreground tabular-nums">{cancelados}</b> {cancelados === 1 ? "cancelada" : "canceladas"}
+              {" · "}<b className="font-semibold text-foreground tabular-nums">{brl(totalHistorico)}</b> no total
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <DownloadButton href={exportHref} fileName="historico-orcamentos.csv">
               Exportar CSV
             </DownloadButton>
-            <Link href="/orcamento/demandas/nova" className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500">
+            <Link href="/orcamento/demandas/nova" className="inline-flex h-9 items-center rounded-md bg-brand-600 px-3 text-sm font-medium text-white hover:bg-brand-500">
               + Novo orçamento
             </Link>
           </div>
         </div>
 
-        <section className="mt-6 grid gap-3 sm:grid-cols-4">
-          <Resumo titulo="Emitidos/enviados" valor={emitidos} />
-          <Resumo titulo="Aprovados" valor={aprovados} />
-          <Resumo titulo="Cancelados" valor={cancelados} />
-          <Resumo titulo="Total filtrado" valor={totalHistorico} moeda />
-        </section>
-
-        <nav className="mt-6 flex flex-wrap gap-2" aria-label="Status do histórico">
-          {atalhosStatus.map(([value, label]) => (
-            <Link
-              key={value || "todos"}
-              href={value ? `/orcamento/historico?status=${value}` : "/orcamento/historico"}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
-                (filtros.status ?? "") === value
-                  ? "border-brand-600 bg-brand-50 text-brand-700 dark:border-brand-700 dark:bg-brand-950/30 dark:text-brand-300"
-                  : "border-input text-muted-foreground hover:bg-muted"
-              }`}
-            >
-              {label}
-            </Link>
-          ))}
-        </nav>
-
-        <form className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-4 xl:grid-cols-8">
-            <CampoFiltro label="Texto livre">
-              <input name="texto" defaultValue={filtros.texto ?? ""} className={inputCls} placeholder="Número, título ou cliente" />
-            </CampoFiltro>
-            <CampoFiltro label="Status">
-              <select name="status" defaultValue={filtros.status ?? ""} className={inputCls}>
-                {statusOptions.map(([value, label]) => (
-                  <option key={value || "todos"} value={value}>{label}</option>
-                ))}
-              </select>
-            </CampoFiltro>
-            <CampoFiltro label="Cliente">
-              <input name="cliente" defaultValue={filtros.cliente ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Responsável">
-              <input name="responsavel" defaultValue={filtros.responsavel ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Modalidade">
-              <input name="modalidade" defaultValue={filtros.modalidade ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Emitido de">
-              <input name="emitido_de" type="date" defaultValue={filtros.emitido_de ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Emitido até">
-              <input name="emitido_ate" type="date" defaultValue={filtros.emitido_ate ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Validade de">
-              <input name="validade_de" type="date" defaultValue={filtros.validade_de ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Validade até">
-              <input name="validade_ate" type="date" defaultValue={filtros.validade_ate ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Valor mínimo">
-              <input name="valor_min" type="number" step="0.01" defaultValue={filtros.valor_min ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Valor máximo">
-              <input name="valor_max" type="number" step="0.01" defaultValue={filtros.valor_max ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <div className="flex items-end gap-2 md:col-span-2">
-              <button className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500">
-                Filtrar
-              </button>
-              <Link href="/orcamento/historico" className="rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-muted">
-                Limpar
-              </Link>
-            </div>
+        {/* Barra de filtros: campos de largura fixa, ação logo ao lado; o resto num painel. */}
+        <form role="search" aria-label="Filtrar o histórico" className="mt-5 flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <label htmlFor="historico-texto" className="sr-only">Buscar por número, título ou cliente</label>
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input
+              id="historico-texto"
+              type="search"
+              name="texto"
+              defaultValue={filtros.texto ?? ""}
+              placeholder="Número, título ou cliente"
+              className={`${campoCls} w-full pl-8`}
+            />
           </div>
+          <label htmlFor="historico-status" className="sr-only">Situação</label>
+          <select id="historico-status" name="status" defaultValue={filtros.status ?? ""} className={`${campoCls} w-full sm:w-48`}>
+            {statusOptions.map(([value, label]) => (
+              <option key={value || "todos"} value={value}>{value ? label : "Todas as situações"}</option>
+            ))}
+          </select>
+          <label htmlFor="historico-cliente" className="sr-only">Cliente</label>
+          <input
+            id="historico-cliente"
+            name="cliente"
+            defaultValue={filtros.cliente ?? ""}
+            placeholder="Cliente"
+            className={`${campoCls} w-full sm:w-48`}
+          />
+          <details className="relative">
+            <summary className={`${campoCls} flex cursor-pointer list-none items-center gap-1.5 font-medium hover:bg-accent [&::-webkit-details-marker]:hidden`}>
+              <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
+              Mais filtros
+              {filtrosAvancados > 0 && (
+                <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground tabular-nums">
+                  {filtrosAvancados}
+                </span>
+              )}
+            </summary>
+            <div className="absolute left-0 top-full z-20 mt-2 grid w-[min(34rem,calc(100vw-2rem))] grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 shadow-lg">
+              <CampoFiltro label="Responsável">
+                <input name="responsavel" defaultValue={filtros.responsavel ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Modalidade">
+                <input name="modalidade" defaultValue={filtros.modalidade ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Emitida de">
+                <input name="emitido_de" type="date" defaultValue={filtros.emitido_de ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Emitida até">
+                <input name="emitido_ate" type="date" defaultValue={filtros.emitido_ate ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Válida de">
+                <input name="validade_de" type="date" defaultValue={filtros.validade_de ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Válida até">
+                <input name="validade_ate" type="date" defaultValue={filtros.validade_ate ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Valor mínimo (R$)">
+                <input name="valor_min" type="number" step="0.01" defaultValue={filtros.valor_min ?? ""} className={inputCls} />
+              </CampoFiltro>
+              <CampoFiltro label="Valor máximo (R$)">
+                <input name="valor_max" type="number" step="0.01" defaultValue={filtros.valor_max ?? ""} className={inputCls} />
+              </CampoFiltro>
+            </div>
+          </details>
+          <button className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-500">
+            Filtrar
+          </button>
+          {temFiltro && (
+            <Link href="/orcamento/historico" className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
+              Limpar
+            </Link>
+          )}
         </form>
 
         {comparada && (
           <ComparacaoLadoALado atual={comparada} anterior={comparada.anterior} />
         )}
 
-        <section className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <table className="w-full min-w-[1900px] text-left text-sm">
-            <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-3 py-3">Número</th>
-                <th className="px-3 py-3">Título</th>
-                <th className="px-3 py-3">Cliente</th>
-                <th className="px-3 py-3">Modalidade</th>
-                <th className="px-3 py-3">Responsável</th>
-                <th className="px-3 py-3">Emitida em</th>
-                <th className="px-3 py-3">Conclusão</th>
-                <th className="px-3 py-3">Validade</th>
-                <th className="px-3 py-3">
-                  <span className="flex items-center gap-1">
-                    Status
-                    <HelpTip title="Status da proposta">
-                      <HelpLegend
-                        items={[
-                          { tom: "info", rotulo: "Emitida", texto: "documento gerado, ainda sem retorno do cliente." },
-                          { tom: "ok", rotulo: "Aprovada", texto: "o cliente aceitou a proposta." },
-                          { tom: "atencao", rotulo: "Vencida", texto: "passou da validade sem resposta." },
-                          { tom: "critico", rotulo: "Recusada", texto: "recusada pelo cliente ou cancelada; o registro fica no histórico." },
-                          { tom: "neutro", rotulo: "Substituída", texto: "uma versão mais nova tomou o lugar." },
-                        ]}
-                      />
-                      <p>Use <b>Classificar</b> para registrar o retorno do cliente.</p>
-                    </HelpTip>
-                  </span>
-                </th>
-                <th className="px-3 py-3 text-right">Custo análises</th>
-                <th className="px-3 py-3 text-right">Custo projeto</th>
-                <th className="px-3 py-3 text-right">Subtotal custos</th>
-                <th className="px-3 py-3 text-right">Taxas/impostos</th>
-                <th className="px-3 py-3 text-right">
-                  <span className="inline-flex items-center gap-1">
-                    Margem/lucro
-                    <HelpTip title="Valores dos parâmetros">
-                      <p>As colunas <b>Taxas/impostos</b>, <b>Margem/lucro</b> e <b>Fundos/equip.</b> somam, em R$, os parâmetros de cada proposta: impostos e incubação; lucro; reserva e investimentos.</p>
-                    </HelpTip>
-                  </span>
-                </th>
-                <th className="px-3 py-3 text-right">Fundos/equip.</th>
-                <th className="px-3 py-3 text-right">Preço final</th>
-                <th className="px-3 py-3 text-right">
-                  Variação vs. versão anterior
-                </th>
-                <th className="px-3 py-3 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {versoes.map((item) => {
-                const snapshot = normalizarSnapshot(item.snapshot);
-                const composicao = composicaoEconomica(item, snapshot);
-                return (
-                  <tr key={item.id}>
-                    <td className="px-3 py-3">
-                      <Link href={`/orcamento/final/${item.id}`} className="font-medium text-primary hover:underline">
-                        {item.numero}
-                      </Link>
-                      <p className="text-xs text-muted-foreground">v{item.versao}{item.duplicada_de_id ? ` · duplicada de #${item.duplicada_de_id}` : ""}</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <Link href={`/orcamento/demandas/${item.demanda_id}`} className="font-medium hover:underline">
-                        {snapshot.demanda?.titulo ?? item.demandas_propostas?.titulo ?? `Orçamento ${item.demanda_id}`}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-3">{snapshot.demanda?.cliente_nome ?? item.demandas_propostas?.cliente_nome ?? "Cliente não informado"}</td>
-                    <td className="px-3 py-3"><Badge>{rotuloModalidade(snapshot.demanda?.modalidade ?? item.demandas_propostas?.modalidade)}</Badge></td>
-                    <td className="px-3 py-3">
-                      <p>{snapshot.demanda?.responsavel_interno ?? item.demandas_propostas?.responsavel_interno ?? item.criado_por ?? "—"}</p>
-                      <p className="text-xs text-muted-foreground">{item.criado_por ? `usuário ${item.criado_por}` : "sem usuário registrado"}</p>
-                    </td>
-                    <td className="px-3 py-3">{formatDateTime(item.criado_em)}</td>
-                    <td className="px-3 py-3">{formatDateTime(item.classificado_em ?? item.cancelado_em)}</td>
-                    <td className="px-3 py-3">
-                      <p>{formatDate(item.valido_ate)}</p>
-                      <p className="text-xs text-muted-foreground">{item.validade_dias} dias</p>
-                    </td>
-                    <td className="px-3 py-3">
-                      <Status status={item.status} />
-                      {item.cancelado_motivo && <p className="mt-1 max-w-40 text-xs text-muted-foreground">{item.cancelado_motivo}</p>}
-                      {item.classificacao_motivo && <p className="mt-1 max-w-48 text-xs text-muted-foreground">{item.classificacao_motivo}</p>}
-                      {podeClassificar && (
-                        <ClassificarVersao
-                          versaoId={item.id}
-                          numero={item.numero}
-                          action={classificarVersaoFinal}
-                          opcoes={classificacoesPermitidas({
-                            status: item.status,
-                            valido_ate: item.valido_ate,
-                            hoje,
-                            outraAprovada: propostasAprovadas.has(item.demanda_id) && !(STATUS_APROVADOS as readonly string[]).includes(item.status),
-                          })}
-                        />
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.custoAnalises)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.custoProjeto)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.subtotalCustos)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.taxasImpostos)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.margemLucro)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">{brl(composicao.fundosInvestimentos)}</td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums">{brl(Number(item.total_final ?? 0))}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">
-                      {item.anterior ? (
-                        <Comparacao atual={Number(item.total_final ?? 0)} anterior={Number(item.anterior.total_final ?? 0)} />
-                      ) : (
-                        <span className="text-muted-foreground/80">primeira versão</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        <Link href={`/orcamento/final/${item.id}`} className="text-xs text-brand-700 hover:underline dark:text-brand-300">
-                          Detalhes/PDF
-                        </Link>
-                        <Link href={`/orcamento/historico?${new URLSearchParams({ ...limparFiltros(filtros), comparar: String(item.id) }).toString()}`} className="text-xs text-brand-700 hover:underline dark:text-brand-300">
-                          Comparar
-                        </Link>
-                        {podeDuplicar && !propostasAprovadas.has(item.demanda_id) && (
-                        <form action={duplicarVersaoFinal}>
-                          <input type="hidden" name="versao_id" value={item.id} />
-                          <input type="hidden" name="validade_dias" value={item.validade_dias || 30} />
-                          <input type="hidden" name="operacao_id" value={operacoesDuplicacao.get(item.id)} />
-                          <button className="text-xs text-brand-700 hover:underline dark:text-brand-300">Duplicar</button>
-                        </form>
-                        )}
-                        {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(item.status) && (
-                          <CancelarComMotivo
-                            action={cancelarVersaoFinal}
-                            fields={{ versao_id: item.id }}
-                            trigger="Cancelar"
-                            titulo="Cancelar versão final"
-                            mensagem={item.status === "aprovado"
-                              ? `Cancelar a versão aprovada ${item.numero}? O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas.`
-                              : `Cancelar a versão ${item.numero}? O registro continuará no histórico.`}
-                            confirmLabel="Cancelar versão"
-                          />
-                        )}
+        {/* Lista: título ocupa o espaço livre; data, situação e preço em colunas fixas, juntos. */}
+        <section className="mt-5" aria-label="Versões emitidas">
+          <div className={`hidden gap-x-4 px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid ${COLUNAS_LISTA}`}>
+            <span>Proposta</span>
+            <span>Emissão</span>
+            <span className="flex items-center gap-1">
+              Situação
+              <HelpTip title="Situação da proposta">
+                <HelpLegend
+                  items={[
+                    { tom: "info", rotulo: "Emitida", texto: "documento gerado, ainda sem retorno do cliente." },
+                    { tom: "ok", rotulo: "Aprovada", texto: "o cliente aceitou a proposta." },
+                    { tom: "atencao", rotulo: "Vencida", texto: "passou da validade sem resposta." },
+                    { tom: "critico", rotulo: "Recusada", texto: "recusada pelo cliente ou cancelada; o registro fica no histórico." },
+                    { tom: "neutro", rotulo: "Substituída", texto: "uma versão mais nova tomou o lugar." },
+                  ]}
+                />
+                <p>Use <b>Registrar retorno do cliente</b> para anotar a resposta.</p>
+              </HelpTip>
+            </span>
+            <span className="text-right">Preço final</span>
+            <span className="sr-only">Detalhes</span>
+          </div>
+          <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            {versoes.map((item) => {
+              const snapshot = normalizarSnapshot(item.snapshot);
+              const composicao = composicaoEconomica(item, snapshot);
+              const titulo = snapshot.demanda?.titulo ?? item.demandas_propostas?.titulo ?? `Orçamento ${item.demanda_id}`;
+              const cliente = snapshot.demanda?.cliente_nome ?? item.demandas_propostas?.cliente_nome ?? "Cliente não informado";
+              return (
+                <li key={item.id}>
+                  <LinhaExpansivel
+                    colunas={COLUNAS_LISTA}
+                    linha={
+                      <>
+                        <div className="min-w-0">
+                          <div className="flex items-baseline gap-1.5">
+                            <Link href={`/orcamento/final/${item.id}`} className="font-semibold text-primary hover:underline">
+                              {item.numero}
+                            </Link>
+                            <span className="text-xs text-muted-foreground">v{item.versao}</span>
+                          </div>
+                          <Link href={`/orcamento/demandas/${item.demanda_id}`} className="block truncate text-sm hover:underline">
+                            {titulo}
+                          </Link>
+                          <p className="truncate text-xs text-muted-foreground">{cliente}</p>
+                        </div>
+                        <div className="text-sm">
+                          <p className="tabular-nums">{formatDate(item.criado_em)}</p>
+                          <p className="text-xs text-muted-foreground">até {formatDate(item.valido_ate)}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <Status status={item.status} />
+                          {podeClassificar && (
+                            <ClassificarVersao
+                              recolhido
+                              versaoId={item.id}
+                              numero={item.numero}
+                              action={classificarVersaoFinal}
+                              opcoes={classificacoesPermitidas({
+                                status: item.status,
+                                valido_ate: item.valido_ate,
+                                hoje,
+                                outraAprovada: propostasAprovadas.has(item.demanda_id) && !(STATUS_APROVADOS as readonly string[]).includes(item.status),
+                              })}
+                            />
+                          )}
+                        </div>
+                        <div className="md:text-right">
+                          <p className="font-semibold tabular-nums">{brl(Number(item.total_final ?? 0))}</p>
+                          <p className="text-xs tabular-nums">
+                            {item.anterior ? (
+                              <Comparacao atual={Number(item.total_final ?? 0)} anterior={Number(item.anterior.total_final ?? 0)} />
+                            ) : (
+                              <span className="text-muted-foreground/80">primeira versão</span>
+                            )}
+                          </p>
+                        </div>
+                      </>
+                    }
+                    detalhe={
+                      <div className="grid gap-4 bg-muted/30 px-4 py-3 lg:grid-cols-[minmax(0,1fr)_20rem]">
+                        <div>
+                          <p className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                            Composição (interno)
+                            <HelpTip title="Valores dos parâmetros">
+                              <p><b>Taxas/impostos</b>, <b>Margem/lucro</b> e <b>Fundos/equip.</b> somam, em R$, os parâmetros da proposta: impostos e incubação; lucro; reserva e investimentos.</p>
+                            </HelpTip>
+                          </p>
+                          <dl className="mt-2 grid max-w-3xl grid-cols-2 gap-2 text-sm sm:grid-cols-3">
+                            <Valor rotulo="Custo análises" valor={composicao.custoAnalises} />
+                            <Valor rotulo="Custo projeto" valor={composicao.custoProjeto} />
+                            <Valor rotulo="Subtotal custos" valor={composicao.subtotalCustos} />
+                            <Valor rotulo="Taxas/impostos" valor={composicao.taxasImpostos} />
+                            <Valor rotulo="Margem/lucro" valor={composicao.margemLucro} />
+                            <Valor rotulo="Fundos/equip." valor={composicao.fundosInvestimentos} />
+                          </dl>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p><span className="text-muted-foreground">Modalidade: </span>{rotuloModalidade(snapshot.demanda?.modalidade ?? item.demandas_propostas?.modalidade)}</p>
+                          <p><span className="text-muted-foreground">Responsável: </span>{snapshot.demanda?.responsavel_interno ?? item.demandas_propostas?.responsavel_interno ?? item.criado_por ?? "—"}</p>
+                          <p><span className="text-muted-foreground">Emitida em: </span>{formatDateTime(item.criado_em)} ({item.validade_dias} dias)</p>
+                          {(item.classificado_em || item.cancelado_em) && (
+                            <p><span className="text-muted-foreground">Conclusão: </span>{formatDateTime(item.classificado_em ?? item.cancelado_em)}</p>
+                          )}
+                          {item.duplicada_de_id && <p className="text-xs text-muted-foreground">Duplicada da versão #{item.duplicada_de_id}</p>}
+                          {item.cancelado_motivo && <p className="text-xs text-muted-foreground">Motivo do cancelamento: {item.cancelado_motivo}</p>}
+                          {item.classificacao_motivo && <p className="text-xs text-muted-foreground">Retorno do cliente: {item.classificacao_motivo}</p>}
+                          <div className="flex flex-wrap items-center gap-3 pt-2">
+                            <Link href={`/orcamento/final/${item.id}`} className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                              Abrir / PDF
+                            </Link>
+                            <Link href={`/orcamento/historico?${new URLSearchParams({ ...limparFiltros(filtros), comparar: String(item.id) }).toString()}`} className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">
+                              Comparar com a anterior
+                            </Link>
+                            {podeDuplicar && !propostasAprovadas.has(item.demanda_id) && (
+                              <form action={duplicarVersaoFinal}>
+                                <input type="hidden" name="versao_id" value={item.id} />
+                                <input type="hidden" name="validade_dias" value={item.validade_dias || 30} />
+                                <input type="hidden" name="operacao_id" value={operacoesDuplicacao.get(item.id)} />
+                                <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
+                              </form>
+                            )}
+                            {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(item.status) && (
+                              <CancelarComMotivo
+                                action={cancelarVersaoFinal}
+                                fields={{ versao_id: item.id }}
+                                trigger="Cancelar"
+                                titulo="Cancelar versão final"
+                                mensagem={item.status === "aprovado"
+                                  ? `Cancelar a versão aprovada ${item.numero}? O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas.`
+                                  : `Cancelar a versão ${item.numero}? O registro continuará no histórico.`}
+                                confirmLabel="Cancelar versão"
+                              />
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-              {versoes.length === 0 && (
-                <tr>
-                  <td colSpan={18} className="px-3 py-6 text-left text-muted-foreground/80">
-                    <p className="sticky left-3 inline-block">Nenhuma versão final encontrada para os filtros atuais.</p>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                    }
+                  />
+                </li>
+              );
+            })}
+            {versoes.length === 0 && (
+              <li className="px-4 py-6 text-sm text-muted-foreground/80">Nenhuma versão final encontrada para os filtros atuais.</li>
+            )}
+          </ul>
         </section>
       </main>
     </div>
   );
 }
+
+/** Título flexível; emissão, situação, preço e o botão Detalhes em larguras fixas. */
+const COLUNAS_LISTA = "md:grid-cols-[minmax(0,1fr)_7.5rem_13rem_9rem_6.5rem]";
+
+const campoCls = "h-9 rounded-md border border-input bg-card px-3 text-sm";
 
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-card px-2 py-2 text-sm";
@@ -557,14 +564,6 @@ function CampoFiltro({ label, children }: { label: string; children: React.React
   );
 }
 
-function Resumo({ titulo, valor, moeda = false }: { titulo: string; valor: number; moeda?: boolean }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">{moeda ? brl(valor) : valor.toLocaleString("pt-BR")}</p>
-    </div>
-  );
-}
 
 function Comparacao({ atual, anterior }: { atual: number; anterior: number }) {
   const diferenca = atual - anterior;
@@ -656,10 +655,6 @@ function Info({ label, value, wide = false }: { label: string; value: string; wi
   );
 }
 
-function Badge({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{children}</span>;
-}
-
 
 function Status({ status }: { status: string }) {
   const cls =
@@ -673,4 +668,13 @@ function Status({ status }: { status: string }) {
           ? "bg-danger-soft text-danger-strong"
           : "bg-muted text-muted-foreground";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{rotuloStatusVersaoFinal(status)}</span>;
+}
+
+function Valor({ rotulo, valor }: { rotulo: string; valor: number }) {
+  return (
+    <div className="rounded-md bg-muted/50 px-2 py-1.5">
+      <dt className="text-xs text-muted-foreground">{rotulo}</dt>
+      <dd className="font-medium tabular-nums">{brl(valor)}</dd>
+    </div>
+  );
 }

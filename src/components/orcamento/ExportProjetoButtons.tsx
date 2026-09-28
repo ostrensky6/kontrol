@@ -48,7 +48,7 @@ export function ExportProjetoButtons({ info, itens, calculo }: Props) {
         onClick={() => exportar("xlsx")}
       >
         <FileSpreadsheet aria-hidden />
-        {carregando === "xlsx" ? "Gerando…" : "XLSX"}
+        {carregando === "xlsx" ? "Gerando…" : "Planilha interna (XLSX)"}
       </Button>
       <Button
         type="button"
@@ -58,7 +58,7 @@ export function ExportProjetoButtons({ info, itens, calculo }: Props) {
         onClick={() => exportar("docx")}
       >
         <FileText aria-hidden />
-        {carregando === "docx" ? "Gerando…" : "DOCX"}
+        {carregando === "docx" ? "Gerando…" : "Documento interno (DOCX)"}
       </Button>
     </div>
   );
