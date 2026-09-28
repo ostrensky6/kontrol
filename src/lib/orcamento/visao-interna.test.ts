@@ -5,6 +5,7 @@ import {
   descreverMeses,
   entradaDoSnapshot,
   formatarQuantidade,
+  mascararPessoalVisao,
   montarFundos,
   montarVisaoInterna,
   type EntradaVisaoInterna,
@@ -220,5 +221,27 @@ describe("formatação", () => {
     expect(descreverMeses([3, 1, 5])).toBe("meses 1, 3 e 5");
     expect(descreverMeses([7])).toBe("mês 7");
     expect(descreverMeses([])).toBeNull();
+  });
+});
+
+describe("mascararPessoalVisao (DC8)", () => {
+  it("zera e marca só o pessoal; o total da proposta continua", () => {
+    const visao = montarVisaoInterna(
+      entrada({
+        custosProjeto: [
+          { id: 1, rubrica: "PE", descricao: "Bolsista", quantidade: 1, custo_unitario: 4000, meses_selecionados: [1, 2] },
+          { id: 2, rubrica: "MC", descricao: "Reagente", quantidade: 2, custo_unitario: 100 },
+        ],
+      }),
+    );
+    const mascarada = mascararPessoalVisao(visao);
+    const pe = mascarada.grupos.find((g) => g.id === "PE")!;
+    expect(pe).toMatchObject({ mascarado: true, custoTotal: 0, naProposta: 0 });
+    expect(pe.itens[0]).toMatchObject({ mascarado: true, custoUnitario: 0, custoTotal: 0, naProposta: 0, descricao: "Bolsista" });
+    expect(JSON.stringify(pe)).not.toContain("4000");
+    expect(mascarada.grupos.find((g) => g.id === "MC")).toEqual(visao.grupos.find((g) => g.id === "MC"));
+    expect(mascarada.total).toBe(visao.total);
+    const semPessoal = montarVisaoInterna(entrada({ custosProjeto: [{ rubrica: "MC", quantidade: 1, custo_unitario: 10 }] }));
+    expect(mascararPessoalVisao(semPessoal)).toBe(semPessoal);
   });
 });

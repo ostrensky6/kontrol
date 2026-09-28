@@ -29,7 +29,8 @@ import { salvarTextosDemanda } from "@/lib/actions/orcamento-textos";
 import { carregarComplementosDocumento } from "@/lib/orcamento/complementos-documento";
 import { montarDocumentoProposta } from "@/lib/orcamento/documento-proposta";
 import { resolverTextosDemanda } from "@/lib/orcamento/textos-proposta";
-import { montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
+import { mascararPessoalVisao, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/orcamento/parametros-proposta";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
@@ -91,6 +92,7 @@ type OrcamentoAnalisesResumo = {
 type OrcamentoProjetoResumo = {
   id: number;
   status: string;
+  reformulacao_de_versao_id?: number | null;
   data_orcamento: string | null;
   titulo: string | null;
   projeto_sem_custo_justificativa?: string | null;
@@ -161,7 +163,7 @@ export default async function DemandaDetalhe({
         .order("id"),
       supabase
         .from("orcamento_projetos")
-        .select("id, status, data_orcamento, titulo, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, descricao, unidade, categoria, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
+        .select("id, status, reformulacao_de_versao_id, data_orcamento, titulo, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, descricao, unidade, categoria, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
         .eq("demanda_id", demandaId)
         .order("id"),
       supabase
@@ -210,6 +212,9 @@ export default async function DemandaDetalhe({
     pendenciaSemItens: "adicionar ao menos um custo, análise de projeto ou justificativa",
   });
   const projetoReferencia = orcamentosProjeto.at(-1);
+  // Reformulação (0139): a revisão foi reaberta com a proposta aprovada.
+  const reformulacaoDeId = orcamentosProjeto.find((o) => o.reformulacao_de_versao_id)?.reformulacao_de_versao_id ?? null;
+  const versaoReformulada = reformulacaoDeId ? (versoesFinais ?? []).find((v) => v.id === reformulacaoDeId) ?? null : null;
   // com projeto: percentuais do projeto; sem projeto: os da proposta ou os padrões (0118)
   const { data: parametrosGlobais } = await supabase.from("parametros").select("chave, valor");
   const parametrosProposta = resolverParametrosProposta({
@@ -307,10 +312,14 @@ export default async function DemandaDetalhe({
     versoesEmitidas: versoesFinais?.length ?? 0,
     ultimaVersaoStatus: ultimaVersaoFinal?.status ?? null,
   });
-  const [autorizadoEmitir, autorizadoParametros] = await Promise.all([
+  const [autorizadoEmitir, autorizadoParametros, podePessoalOrcamento, podeSalarioTecnicos] = await Promise.all([
     podeOrcamento("emitir_final"),
     podeOrcamento("editar_parametros"),
+    temPermissao("orcamentos.pessoal"),
+    temPermissao("tecnicos.salario.ver"),
   ]);
+  // DC8: sem a permissão de pessoal, os valores de PE da visão interna aparecem como XXX.
+  const podeVerPessoal = podePessoalOrcamento || podeSalarioTecnicos;
   const podeEmitir = orcamentoFinal.pronto && !temCustoZeroSemJustificativa;
   // Σ% = 0 (ex.: "Apenas análises", sem módulo de projeto para guardar parâmetros).
   const semParametros = orcamentoFinal.somaPercentual <= 0;
@@ -935,6 +944,12 @@ export default async function DemandaDetalhe({
                 )}
               </div>
             </div>
+            {versaoReformulada && (
+              <p role="note" className="mt-2 rounded-md bg-warning-soft px-3 py-1.5 text-xs text-warning-strong">
+                Reformulação da proposta {versaoReformulada.numero}: a versão emitida agora, quando aprovada, substitui a{" "}
+                {versaoReformulada.numero}, que fica no histórico.
+              </p>
+            )}
             {!podeEmitir && (
               <p className="mt-2 text-right text-xs text-warning-strong">
                 Emissão bloqueada:{" "}
@@ -1001,7 +1016,7 @@ export default async function DemandaDetalhe({
                   <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-sm text-success-strong">Percentuais salvos.</p>
                 )}
                 <PainelInterno
-                  visao={visaoViva}
+                  visao={podeVerPessoal ? visaoViva : mascararPessoalVisao(visaoViva)}
                   fundos={{ ...montarFundos(visaoViva, null), hrefFundos: "/orcamento/fundos" }}
                   subInicial={subParam}
                   motivoSemPercentuais={autorizadoParametros ? null : "Alterar os percentuais exige o perfil de gestor do orçamento."}

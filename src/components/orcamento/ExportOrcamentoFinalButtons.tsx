@@ -8,8 +8,8 @@ import type { ModeloDocumentoProposta } from "@/lib/orcamento/documento-proposta
 import type { PropostaFinalExport } from "@/lib/orcamento/proposta-final-export";
 
 type Props = {
-  /** planilha interna (custos e parâmetros) */
-  dados: PropostaFinalExport;
+  /** planilha interna (custos e parâmetros); null = sem a permissão de pessoal (DC8), só o documento */
+  dados: PropostaFinalExport | null;
   /** documento do cliente, o mesmo da folha A4 */
   documento: ModeloDocumentoProposta;
 };
@@ -23,7 +23,7 @@ export function ExportOrcamentoFinalButtons({ dados, documento }: Props) {
     try {
       const mod = await import("@/lib/orcamento/final-exporters");
       if (formato === "xlsx") {
-        await mod.exportOrcamentoFinalXlsx(dados);
+        if (dados) await mod.exportOrcamentoFinalXlsx(dados);
       } else {
         await mod.exportOrcamentoFinalDocx(documento);
       }
@@ -38,15 +38,17 @@ export function ExportOrcamentoFinalButtons({ dados, documento }: Props) {
 
   return (
     <div className="flex items-center gap-2">
-      <Button
-        type="button"
-        variant="outline"
-        disabled={carregando !== null}
-        onClick={() => exportar("xlsx")}
-      >
-        <FileSpreadsheet aria-hidden />
-        {carregando === "xlsx" ? "Gerando…" : "Planilha interna (XLSX)"}
-      </Button>
+      {dados && (
+        <Button
+          type="button"
+          variant="outline"
+          disabled={carregando !== null}
+          onClick={() => exportar("xlsx")}
+        >
+          <FileSpreadsheet aria-hidden />
+          {carregando === "xlsx" ? "Gerando…" : "Planilha interna (XLSX)"}
+        </Button>
+      )}
       <Button
         type="button"
         variant="outline"

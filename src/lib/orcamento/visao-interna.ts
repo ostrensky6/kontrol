@@ -34,6 +34,8 @@ export type ItemInterno = {
   precoReferencia: number | null;
   naProposta: number;
   descricaoAusente: boolean;
+  /** Pessoal sem a permissão (DC8): os valores vêm zerados e a tela mostra XXX. */
+  mascarado?: boolean;
 };
 
 export type GrupoInterno = {
@@ -44,6 +46,7 @@ export type GrupoInterno = {
   custoTotal: number;
   naProposta: number;
   percentualDoTotal: number;
+  mascarado?: boolean;
 };
 
 export type TipoOperacional = "imposto" | "taxa" | "fundo" | "margem";
@@ -405,4 +408,28 @@ export function montarFundos(
     }];
   });
   return { linhas, percentualRecebido: calculo ? calculo.percentualRecebido : null };
+}
+
+/**
+ * Esconde os valores de pessoal (PE) de quem não tem "Valores de pessoal no orçamento" (DC8):
+ * zera os números do grupo antes de irem para o navegador e marca para a tela mostrar XXX.
+ * Total da proposta, custos efetivos e percentuais continuam (são o preço da proposta).
+ */
+export function mascararPessoalVisao(visao: VisaoInterna): VisaoInterna {
+  if (!visao.grupos.some((grupo) => grupo.id === "PE")) return visao;
+  return {
+    ...visao,
+    grupos: visao.grupos.map((grupo) =>
+      grupo.id !== "PE"
+        ? grupo
+        : {
+            ...grupo,
+            mascarado: true,
+            custoTotal: 0,
+            naProposta: 0,
+            percentualDoTotal: 0,
+            itens: grupo.itens.map((item) => ({ ...item, mascarado: true, custoUnitario: 0, custoTotal: 0, naProposta: 0 })),
+          },
+    ),
+  };
 }

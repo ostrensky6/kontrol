@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 
 import { formatCurrency as brl } from "@/lib/formatters";
+import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import {
   ROTULO_TIPO_OPERACIONAL,
   formatarQuantidade,
@@ -19,6 +20,11 @@ const thBase = "px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text
 const th = `${thBase} text-right`;
 const thEsq = `${thBase} text-left`;
 const td = "px-2 py-1.5 text-right tabular-nums";
+
+/** Valor de pessoal sem a permissão (DC8). */
+function valor(numero: number, mascarado?: boolean) {
+  return mascarado ? <span title={NOTA_VALOR_MASCARADO}>{VALOR_MASCARADO}</span> : brl(numero);
+}
 
 function Moldura({ children }: { children: React.ReactNode }) {
   return <div className="overflow-x-auto rounded-md border border-border">{children}</div>;
@@ -36,6 +42,8 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
     });
   const custo = grupos.reduce((acc, g) => acc + g.custoTotal, 0);
   const naProposta = grupos.reduce((acc, g) => acc + g.naProposta, 0);
+  // Com pessoal mascarado, a soma das linhas não fecha: o rodapé também fica oculto.
+  const rodapeMascarado = grupos.some((g) => g.mascarado);
 
   return (
     <Moldura>
@@ -78,8 +86,8 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
                   </td>
                   <td className={td} />
                   <td className={td} />
-                  <td className={`${td} font-medium`}>{brl(grupo.custoTotal)}</td>
-                  <td className={`${td} font-medium`}>{brl(grupo.naProposta)}</td>
+                  <td className={`${td} font-medium`}>{valor(grupo.custoTotal, grupo.mascarado)}</td>
+                  <td className={`${td} font-medium`}>{valor(grupo.naProposta, grupo.mascarado)}</td>
                 </tr>
               )}
               {!recolhido &&
@@ -104,9 +112,9 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
                       )}
                     </td>
                     <td className={td}>{formatarQuantidade(item.quantidade, item.unidade)}</td>
-                    <td className={td}>{brl(item.custoUnitario)}</td>
-                    <td className={td}>{brl(item.custoTotal)}</td>
-                    <td className={td}>{brl(item.naProposta)}</td>
+                    <td className={td}>{valor(item.custoUnitario, item.mascarado)}</td>
+                    <td className={td}>{valor(item.custoTotal, item.mascarado)}</td>
+                    <td className={td}>{valor(item.naProposta, item.mascarado)}</td>
                   </tr>
                 ))}
             </tbody>
@@ -117,8 +125,8 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
             <td className="px-2 py-1.5">{grupos.length > 1 ? "Custos efetivos" : "Subtotal"}</td>
             <td className={td} />
             <td className={td} />
-            <td className={td}>{brl(custo)}</td>
-            <td className={td}>{brl(naProposta)}</td>
+            <td className={td}>{valor(custo, rodapeMascarado)}</td>
+            <td className={td}>{valor(naProposta, rodapeMascarado)}</td>
           </tr>
         </tfoot>
       </table>

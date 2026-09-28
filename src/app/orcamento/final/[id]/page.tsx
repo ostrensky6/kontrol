@@ -40,7 +40,7 @@ import {
 } from "@/lib/orcamento/rotulos-status";
 import { textosDaVersao } from "@/lib/orcamento/textos-proposta";
 import { STATUS_APROVADOS, STATUS_VIVOS, estaVencida } from "@/lib/orcamento/transicoes-versao";
-import { entradaDoSnapshot, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
+import { entradaDoSnapshot, mascararPessoalVisao, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
 
@@ -109,13 +109,18 @@ export default async function OrcamentoFinalPage({
   const versaoId = Number(id);
   const operacaoDuplicacaoId = randomUUID();
   const operacaoReemissaoId = randomUUID();
-  const [podeDuplicar, podeCancelar, podeEmitir, podeParametros, podePlanejar] = await Promise.all([
-    podeOrcamento("duplicar_final"),
-    podeOrcamento("cancelar_documento"),
-    podeOrcamento("emitir_final"),
-    podeOrcamento("editar_parametros"),
-    temPermissao("planejamento.editar"),
-  ]);
+  const [podeDuplicar, podeCancelar, podeEmitir, podeParametros, podePlanejar, podePessoalOrcamento, podeSalarioTecnicos] =
+    await Promise.all([
+      podeOrcamento("duplicar_final"),
+      podeOrcamento("cancelar_documento"),
+      podeOrcamento("emitir_final"),
+      podeOrcamento("editar_parametros"),
+      temPermissao("planejamento.editar"),
+      temPermissao("orcamentos.pessoal"),
+      temPermissao("tecnicos.salario.ver"),
+    ]);
+  // DC8: sem a permissão de pessoal, PE aparece como XXX e a planilha interna não é oferecida.
+  const podeVerPessoal = podePessoalOrcamento || podeSalarioTecnicos;
   const supabase = await createClient();
 
   const { data: versao } = await supabase.from("orcamento_final_versoes").select("*").eq("id", versaoId).single();
@@ -161,7 +166,13 @@ export default async function OrcamentoFinalPage({
   const vencida = estaVencida(versao.valido_ate, hoje);
   const aprovada = (STATUS_APROVADOS as readonly string[]).includes(versao.status);
   const viva = (STATUS_VIVOS as readonly string[]).includes(versao.status);
-  const outraAprovada = (outrasVersoes ?? []).find((v) => (STATUS_APROVADOS as readonly string[]).includes(v.status));
+  // A reformulação (0139) de uma versão aprovada pode ser enviada e aprovada: aprovada, substitui a anterior.
+  const outraAprovada = (outrasVersoes ?? []).find(
+    (v) => (STATUS_APROVADOS as readonly string[]).includes(v.status) && v.id !== versao.reformulacao_de,
+  );
+  const reformulaAprovada = versao.reformulacao_de
+    ? (outrasVersoes ?? []).find((v) => v.id === versao.reformulacao_de && (STATUS_APROVADOS as readonly string[]).includes(v.status))
+    : undefined;
   const versaoMaisNova = (outrasVersoes ?? []).find(
     (v) => v.versao > versao.versao && (STATUS_VIVOS as readonly string[]).includes(v.status),
   );
@@ -272,6 +283,14 @@ export default async function OrcamentoFinalPage({
                 <h1 className="text-lg font-semibold tracking-tight">Proposta {versao.numero}</h1>
                 <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{statusLabel}</span>
                 <span className="text-lg font-semibold tabular-nums text-brand-800 dark:text-brand-200">{brl(total)}</span>
+                {reformulaAprovada && (
+                  <span
+                    className="rounded-full bg-warning-soft px-2.5 py-0.5 text-xs font-medium text-warning-strong"
+                    title={`Quando aprovada, esta versão substitui a ${reformulaAprovada.numero}, que fica no histórico.`}
+                  >
+                    Reformulação da {reformulaAprovada.numero}
+                  </span>
+                )}
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {[
@@ -324,7 +343,10 @@ export default async function OrcamentoFinalPage({
                   triggerClassName="inline-flex h-8 items-center rounded-md border border-danger-strong/30 px-3 text-xs font-medium text-danger-strong hover:bg-danger-soft"
                 />
               )}
-              <ExportOrcamentoFinalButtons dados={dadosExport} documento={documento} />
+              <ExportOrcamentoFinalButtons
+                dados={podeVerPessoal || !visao.grupos.some((grupo) => grupo.id === "PE") ? dadosExport : null}
+                documento={documento}
+              />
               <PrintButton destaque />
             </div>
           </div>
@@ -429,7 +451,7 @@ export default async function OrcamentoFinalPage({
             )}
 
             <PainelInterno
-              visao={visao}
+              visao={podeVerPessoal ? visao : mascararPessoalVisao(visao)}
               fundos={{ ...fundos, hrefFundos: "/orcamento/fundos" }}
               subInicial={sub}
               motivoSemPercentuais={motivoSemPercentuais}

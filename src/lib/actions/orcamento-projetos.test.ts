@@ -576,7 +576,7 @@ describe("actions de orcamento de projetos", () => {
     // Pessoal vai sem valor para o modelo (quem lê modelos pode não ver pessoal).
     expect(insert).toHaveBeenCalledWith(expect.objectContaining({
       nome: "Monitoramento padrão",
-      itens: [lista[0], { ...lista[1], custo_unitario: null, preco_unitario: null }],
+      itens: [lista[0], { ...(lista[1] as object), custo_unitario: null, preco_unitario: null }],
     }));
   });
 

@@ -2041,6 +2041,91 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         Object.assign(item, { substituido_por: args.p_manter, ativo: false });
         return { data: null, error: null };
       }
+      // 0139: versões simples de reabrir, modelo, pendências e importação (regras completas no teste SQL).
+      if (fn === "reabrir_revisao_custos_projeto") {
+        const projeto = (store.orcamento_projetos ?? []).find((row) => Number(row.id) === Number(args.p_orcamento_projeto_id));
+        if (!projeto) return { data: null, error: { code: "P0002", message: "Orçamento de projeto não encontrado." } };
+        const origem = String(projeto.status ?? "rascunho");
+        if (origem === "rascunho" || origem === "cancelado") {
+          return { data: null, error: { code: "22023", message: "Os custos já estão em edição ou o orçamento foi cancelado." } };
+        }
+        const aprovada = (store.orcamento_final_versoes ?? []).find(
+          (row) => Number(row.demanda_id) === Number(projeto.demanda_id) && ["aprovado", "convertido_projeto"].includes(String(row.status)),
+        );
+        const motivo = String(args.p_motivo ?? "").trim();
+        if (aprovada && motivo.length < 5) {
+          return { data: null, error: { code: "22023", message: `A proposta ${aprovada.numero} está aprovada: informe o motivo da reformulação.` } };
+        }
+        projeto.status = "rascunho";
+        projeto.reformulacao_de_versao_id = aprovada ? aprovada.id : null;
+        return {
+          data: { status_origem: origem, reformulacao: Boolean(aprovada), versao_aprovada: aprovada?.numero ?? null },
+          error: null,
+        };
+      }
+      if (fn === "aplicar_modelo_orcamento_projeto") {
+        const modelo = (store.orcamento_projeto_templates ?? []).find((row) => Number(row.id) === Number(args.p_template_id));
+        if (!modelo) return { data: null, error: { code: "P0002", message: "Modelo não encontrado." } };
+        const catalogo = store.orcamento_projeto_catalogo ?? [];
+        let doCatalogo = 0;
+        const itens = Array.isArray(modelo.itens) ? (modelo.itens as Row[]) : [];
+        for (const item of itens) {
+          const doItem = catalogo.find((row) => row.id === item.catalogo_item_id && row.ativo !== false);
+          if (doItem) doCatalogo += 1;
+          const valor = Number(doItem?.preco_unitario ?? item.custo_unitario ?? 0);
+          (store.orcamento_projeto_custos ??= []).push({
+            id: nextId("orcamento_projeto_custos"),
+            orcamento_projeto_id: Number(args.p_orcamento_projeto_id),
+            rubrica: item.rubrica ?? "OU",
+            categoria: item.categoria ?? "outros",
+            descricao: doItem?.descricao ?? item.descricao,
+            unidade: doItem?.unidade ?? item.unidade ?? null,
+            quantidade: Number(item.quantidade ?? 1),
+            custo_unitario: valor,
+            preco_unitario: valor,
+            meses_selecionados: [],
+            catalogo_item_id: doItem?.id ?? null,
+            origem: "template",
+          });
+        }
+        return { data: { itens: itens.length, do_catalogo: doCatalogo, sem_catalogo: itens.length - doCatalogo, pessoal_ignorado: 0 }, error: null };
+      }
+      if (fn === "catalogo_projeto_pendencias") return { data: [], error: null };
+      if (fn === "catalogo_projeto_resolver_pendencia") {
+        return { data: null, error: { code: "22023", message: "Pendência não encontrada ou já resolvida." } };
+      }
+      if (fn === "catalogo_projeto_importar") {
+        const catalogo = (store.orcamento_projeto_catalogo ??= []);
+        const chave = (texto: unknown) => String(texto ?? "").trim().toLowerCase();
+        const linhas = (Array.isArray(args.p_itens) ? args.p_itens : []) as Row[];
+        const data = linhas.map((linha, indice) => {
+          const existente = catalogo.find(
+            (row) => row.rubrica === linha.rubrica && chave(row.descricao) === chave(linha.descricao) && chave(row.unidade) === chave(linha.unidade),
+          );
+          const preco = typeof linha.preco === "number" ? linha.preco : null;
+          const acao = preco == null || !linha.descricao ? "erro" : !existente ? "novo" : Number(existente.preco_unitario) === preco ? "igual" : "atualizar";
+          let itemId = existente?.id ?? null;
+          if (args.p_aplicar === true && acao === "novo") {
+            itemId = `${String(linha.rubrica)}-${900 + catalogo.length}`;
+            catalogo.push({ id: itemId, rubrica: linha.rubrica, descricao: linha.descricao, unidade: linha.unidade ?? null, categoria: linha.categoria ?? null, preco_unitario: preco, ativo: true, origem: "importacao_planilha" });
+          } else if (args.p_aplicar === true && acao === "atualizar" && existente) {
+            existente.preco_unitario = preco;
+          }
+          return {
+            linha: indice + 1,
+            rubrica: linha.rubrica,
+            descricao: linha.descricao ?? null,
+            unidade: linha.unidade ?? null,
+            preco,
+            categoria: linha.categoria ?? null,
+            acao,
+            catalogo_item_id: itemId,
+            preco_atual: existente?.preco_unitario ?? null,
+            mensagem: acao === "erro" ? "Valor ausente ou negativo." : null,
+          };
+        });
+        return { data, error: null };
+      }
       if (fn === "transicionar_orcamento_projeto") {
         try {
           return { data: transicionarOrcamentoProjeto(args), error: null };
