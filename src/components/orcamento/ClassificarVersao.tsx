@@ -17,11 +17,14 @@ export function ClassificarVersao({
   numero,
   opcoes,
   action,
+  recolhido = false,
 }: {
   versaoId: number;
   numero: string;
   opcoes: ClassificacaoVersao[];
   action: (estado: EstadoAcao, formData: FormData) => Promise<EstadoAcao>;
+  /** Em listas: o formulário fica atrás de "Registrar retorno do cliente". */
+  recolhido?: boolean;
 }) {
   const idStatus = useId();
   const idObs = useId();
@@ -29,7 +32,7 @@ export function ClassificarVersao({
   const outras = opcoes.filter((opcao) => opcao !== "aprovado");
   if (opcoes.length === 0) return null;
 
-  return (
+  const formularios = (
     <div className="mt-2 grid min-w-48 gap-2">
       {outras.length > 0 && (
         <FormEstado action={action} className="grid gap-1" mensagemClassName="text-xs">
@@ -62,5 +65,15 @@ export function ClassificarVersao({
         </FormEstado>
       )}
     </div>
+  );
+
+  if (!recolhido) return formularios;
+  return (
+    <details className="w-full">
+      <summary className="flex min-h-9 cursor-pointer items-center text-xs font-medium text-primary">
+        Registrar retorno do cliente
+      </summary>
+      {formularios}
+    </details>
   );
 }

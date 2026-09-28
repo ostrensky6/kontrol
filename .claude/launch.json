@@ -24,6 +24,17 @@
         "NEXT_PUBLIC_SUPABASE_URL": "http://127.0.0.1:54321",
         "NEXT_PUBLIC_SUPABASE_ANON_KEY": "playwright-anon-key"
       }
+    },
+    {
+      "name": "kontrol-simulado-build",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["next", "start", "-p", "3108"],
+      "port": 3108,
+      "env": {
+        "PLAYWRIGHT_MOCK_SUPABASE": "1",
+        "NEXT_PUBLIC_SUPABASE_URL": "http://127.0.0.1:54321",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY": "playwright-anon-key"
+      }
     }
   ]
 }

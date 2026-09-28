@@ -7,7 +7,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { formatCurrency as brl } from "@/lib/formatters";
-import type { FaseOrcamento } from "@/lib/orcamento/fase-orcamento";
+import { FASES, type FaseOrcamento } from "@/lib/orcamento/fase-orcamento";
 
 /** Tom do selo de cada fase (dicionário de status do app). */
 const TOM_FASE: Record<FaseOrcamento, string> = {
@@ -95,8 +95,11 @@ const columns: ColumnDef<DemandaRow, unknown>[] = [
   {
     accessorKey: "faseLabel",
     header: "Fase",
+    filterFn: "equalsString",
     meta: { align: "center" },
-    cell: ({ row }) => <StatusBadge status={TOM_FASE[row.original.fase]} label={row.original.faseLabel} />,
+    cell: ({ row }) => (
+      <StatusBadge status={TOM_FASE[row.original.fase]} label={row.original.faseLabel} className="whitespace-nowrap" />
+    ),
   },
 ];
 
@@ -108,6 +111,11 @@ export function DemandasTable({ rows }: { rows: DemandaRow[] }) {
       searchPlaceholder="Buscar orçamento, cliente ou projeto…"
       emptyText="Nenhum orçamento ainda."
       filters={[
+        {
+          columnId: "faseLabel",
+          label: "Fase",
+          options: FASES.filter((f) => rows.some((row) => row.fase === f.id)).map((f) => ({ value: f.item, label: f.item })),
+        },
         {
           columnId: "modalidadeLabel",
           label: "Modalidade",
@@ -132,26 +140,34 @@ export function DemandasTable({ rows }: { rows: DemandaRow[] }) {
           {row.titulo}
         </Link>
       )}
-      getMobileDescription={(row) => `${row.cliente} · ${row.modalidadeLabel} · ${row.projeto}`}
+      getMobileDescription={(row) =>
+        [row.cliente, row.modalidadeLabel, row.projeto !== "—" ? row.projeto : null].filter(Boolean).join(" · ")
+      }
       getMobileMeta={(row) => (
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge status={TOM_FASE[row.fase]} label={row.faseLabel} />
-          {row.valor != null && (
-            <span className="text-xs font-semibold tabular-nums">
-              {brl(row.valor)}
-              {row.valorEstimado ? " (estimativa)" : ""}
-            </span>
-          )}
+        <StatusBadge status={TOM_FASE[row.fase]} label={row.faseLabel} className="whitespace-nowrap" />
+      )}
+      getMobileActions={(row) => (
+        <>
+          <span className="text-sm">
+            {row.valor != null ? (
+              <>
+                <span className="font-semibold tabular-nums">{brl(row.valor)}</span>
+                {row.valorEstimado && <span className="ml-1 text-xs text-muted-foreground">estimativa</span>}
+              </>
+            ) : (
+              <span className="text-muted-foreground">Sem valor ainda</span>
+            )}
+          </span>
           <Badge
             className={
               row.completa
-                ? "bg-success-soft text-success-strong"
-                : "bg-warning-soft text-warning-strong"
+                ? "ml-auto bg-success-soft text-success-strong"
+                : "ml-auto bg-warning-soft text-warning-strong"
             }
           >
             {row.completudeLabel}
           </Badge>
-        </div>
+        </>
       )}
     />
   );

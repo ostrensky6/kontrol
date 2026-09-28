@@ -7,13 +7,14 @@ import type { OrcamentoFila } from "./orcamentos-listagem";
 
 export type FaseOrcamento = "em_elaboracao" | "revisao" | "emitida" | "aprovada" | "recusada" | "cancelada";
 
-export const FASES: { id: FaseOrcamento; rotulo: string }[] = [
-  { id: "em_elaboracao", rotulo: "Em elaboração" },
-  { id: "revisao", rotulo: "Em revisão" },
-  { id: "emitida", rotulo: "Emitidas" },
-  { id: "aprovada", rotulo: "Aprovadas" },
-  { id: "recusada", rotulo: "Recusadas" },
-  { id: "cancelada", rotulo: "Canceladas" },
+/** `rotulo`: o grupo no funil; `item`: o selo de um orçamento na lista. */
+export const FASES: { id: FaseOrcamento; rotulo: string; item: string }[] = [
+  { id: "em_elaboracao", rotulo: "Em elaboração", item: "Em elaboração" },
+  { id: "revisao", rotulo: "Em revisão", item: "Em revisão" },
+  { id: "emitida", rotulo: "Emitidas", item: "Emitida" },
+  { id: "aprovada", rotulo: "Aprovadas", item: "Aprovada" },
+  { id: "recusada", rotulo: "Recusadas", item: "Recusada" },
+  { id: "cancelada", rotulo: "Canceladas", item: "Cancelada" },
 ];
 
 export type LinhaFase = Pick<OrcamentoFila, "origem" | "status" | "grupo" | "total" | "criadoEm">;
