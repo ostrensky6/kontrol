@@ -597,8 +597,12 @@ export async function EditorCustosProjeto({
       {/* Exportação e conclusão da revisão */}
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-md border border-border p-3">
         <div>
-          <h4 className="text-sm font-semibold">Exportar custos do projeto</h4>
-          <p className="mt-1 text-xs text-muted-foreground">Itens, rubricas e demonstrativo com os parâmetros deste orçamento de projeto.</p>
+          <div className="flex items-center gap-1">
+            <h4 className="text-sm font-semibold">Exportar custos do projeto</h4>
+            <HelpTip title="Exportar custos">
+              <p>Itens, rubricas e demonstrativo com os parâmetros deste orçamento de projeto.</p>
+            </HelpTip>
+          </div>
           <div className="mt-2">
             <ExportProjetoButtons info={exportInfo} itens={exportItens} calculo={calculoExport} />
           </div>

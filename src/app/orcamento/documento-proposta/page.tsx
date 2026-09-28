@@ -73,8 +73,12 @@ export default async function DocumentoPropostaPage({
 
         <div className="mt-4 grid gap-6 xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <section aria-labelledby="dados-empresa" className="h-fit rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 id="dados-empresa" className="text-sm font-semibold">Dados cadastrais</h2>
-            <p className="mt-0.5 text-xs text-muted-foreground">Cabeçalho, rodapé e assinatura da proposta.</p>
+            <div className="flex items-center gap-1">
+              <h2 id="dados-empresa" className="text-sm font-semibold">Dados cadastrais</h2>
+              <HelpTip title="Dados cadastrais">
+                <p>Aparecem no cabeçalho, no rodapé e na assinatura da proposta.</p>
+              </HelpTip>
+            </div>
             {!empresa ? (
               <p className="mt-3 text-sm text-warning-strong">Cadastro da empresa não encontrado: a migration 0135 ainda não foi aplicada neste banco.</p>
             ) : (
@@ -117,11 +121,15 @@ export default async function DocumentoPropostaPage({
 
           <section aria-labelledby="secoes-padrao" className="space-y-3">
             <div>
-              <h2 id="secoes-padrao" className="text-sm font-semibold">Seções padrão do texto</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Entram depois de Objeto, Escopo técnico e Serviços e valores, na ordem abaixo. Seção inativa ou vazia não sai no documento.
-                {!podeTextos && " Alterar exige a permissão “Orçamentos: Emitir proposta”."}
-              </p>
+              <div className="flex items-center gap-1">
+                <h2 id="secoes-padrao" className="text-sm font-semibold">Seções padrão do texto</h2>
+                <HelpTip title="Seções padrão">
+                  <p>Entram depois de Objeto, Escopo técnico e Serviços e valores, na ordem abaixo. Seção inativa ou vazia não sai no documento.</p>
+                </HelpTip>
+              </div>
+              {!podeTextos && (
+                <p className="mt-0.5 text-xs text-muted-foreground">Somente consulta: alterar exige a permissão “Orçamentos: Emitir proposta”.</p>
+              )}
             </div>
             {(secoes ?? []).map((s) => (
               <EditorSecaoPadrao

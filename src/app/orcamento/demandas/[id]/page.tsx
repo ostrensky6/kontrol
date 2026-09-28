@@ -493,9 +493,11 @@ export default async function DemandaDetalhe({
         </nav>
 
         <section id="demanda" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card px-4 pb-4 pt-3 shadow-sm ${passo("demanda")}`}>
-          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
             <h2 className="text-sm font-semibold">Dados do orçamento</h2>
-            <p className="text-xs text-muted-foreground">Com tudo preenchido, as etapas de custo são liberadas.</p>
+            <HelpTip title="Dados do orçamento">
+              <p>Com tudo preenchido, as etapas de custo são liberadas.</p>
+            </HelpTip>
             <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
             </span>
@@ -646,10 +648,12 @@ export default async function DemandaDetalhe({
 
         <section id="acoes" className={`mt-3 scroll-mt-20 grid gap-3 lg:grid-cols-3 ${passo("demanda")}`}>
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">Próximos módulos</h2>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              A modalidade do orçamento controla quais módulos podem ser preenchidos.
-            </p>
+            <div className="flex items-center gap-1">
+              <h2 className="text-sm font-semibold">Próximos módulos</h2>
+              <HelpTip title="Próximos módulos">
+                <p>A modalidade do orçamento controla quais módulos podem ser preenchidos.</p>
+              </HelpTip>
+            </div>
             {!completudeDemanda.completa && (
               <div className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
                 Complete os dados antes de gerar módulos: {completudeDemanda.pendencias.join("; ")}.
@@ -722,12 +726,10 @@ export default async function DemandaDetalhe({
               <div className="flex items-center gap-1">
                 <h2 className="text-sm font-semibold">Orçamento laboratorial</h2>
                 <HelpTip title="Custo × preço recebidos">
+                  <p>Custos das análises gerados a partir deste orçamento.</p>
                   <p>O <b>custo</b> das análises é o que entra na proposta. O <b>preço</b> é o de tabela, mostrado só como referência.</p>
                 </HelpTip>
               </div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Custos de análises gerados a partir deste orçamento.
-              </p>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClasse(moduloAnalises.status)}`}>
               {exigeAnalises ? `${moduloAnalises.label} · ${moduloAnalises.faltante}% faltante` : "Não se aplica"}
@@ -833,10 +835,12 @@ export default async function DemandaDetalhe({
         <section id="parametros" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Leitura dos custos recebidos e dos percentuais usados na consolidação final.
-              </p>
+              <div className="flex items-center gap-1">
+                <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
+                <HelpTip title="Parâmetros econômicos">
+                  <p>Custos recebidos e percentuais usados na consolidação final. Também dá para alterá-los na etapa Proposta, aba Interno.</p>
+                </HelpTip>
+              </div>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${podeConsolidar ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {podeConsolidar ? "Liberado" : "Aguardando revisão"}

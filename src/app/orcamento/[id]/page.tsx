@@ -504,7 +504,6 @@ export default async function OrcamentoDetalhe({
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5">
                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
                 <span className="font-medium">Como cada bloco é calculado</span>
-                <span className="text-xs text-muted-foreground">composição técnica por bloco</span>
               </summary>
             <TabelaResumoTecnico
               colunas={["Bloco", "Como é calculado", "Subtotal"]}
@@ -642,13 +641,14 @@ export default async function OrcamentoDetalhe({
         <section id="revisao-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 className="text-sm font-semibold">Revisão técnica dos custos</h2>
+            <HelpTip title="Revisão técnica">
+              <p>Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.</p>
+            </HelpTip>
             <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {revisaoPendencias.length === 0 ? "Liberado" : `${revisaoPendencias.length} pendência(s)`}
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.
-          </p>
+
           {revisaoPendencias.length > 0 ? (
             <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-warning-strong">
               {revisaoPendencias.map((pendencia) => {
@@ -707,10 +707,7 @@ export default async function OrcamentoDetalhe({
         </section>
 
         <section id="historico-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
-            <h2 className="text-sm font-semibold">Linha do tempo</h2>
-            <p className="text-xs text-muted-foreground">Mudanças de status aparecem aqui.</p>
-          </div>
+          <h2 className="mb-2 text-sm font-semibold">Linha do tempo</h2>
           <Timeline eventos={eventos} />
         </section>
         </div>

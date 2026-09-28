@@ -537,8 +537,10 @@ function Cabecalho({
 }) {
   return (
     <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 ${semBorda ? "" : "border-b border-border"}`}>
-      <h2 id={id} className="text-sm font-semibold">{titulo}</h2>
-      {subtitulo && <p className="min-w-0 text-xs text-muted-foreground">{subtitulo}</p>}
+      <div className="flex items-center gap-0.5">
+        <h2 id={id} className="text-sm font-semibold">{titulo}</h2>
+        {subtitulo && <HelpTip title={titulo}><p>{subtitulo}</p></HelpTip>}
+      </div>
       {extra}
     </div>
   );
