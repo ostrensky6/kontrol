@@ -441,21 +441,136 @@ describe("actions de orcamento de projetos", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
-  it("reabre somente custos recusados", async () => {
+  it("reabre a revisão pela RPC e avisa quando é reformulação da proposta aprovada", async () => {
     const { reabrirCustosProjeto } = await import("./orcamento-projetos");
     const formData = new FormData();
     formData.set("orcamento_projeto_id", "77");
+    formData.set("demanda_id", "5");
+    formData.set("motivo", "Órgão pediu ajuste");
 
-    single.mockResolvedValue({ data: { status: "enviado", demanda_id: 5 }, error: null });
-    await expect(reabrirCustosProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("recusados") });
-    expect(rpc).not.toHaveBeenCalled();
+    rpc.mockResolvedValue({ data: { status_origem: "aprovado", reformulacao: true, versao_aprovada: "OF-2026-0005-v1" }, error: null });
+    expect(await reabrirCustosProjeto(formData)).toEqual({
+      ok: true,
+      message: "Revisão reaberta como reformulação da proposta OF-2026-0005-v1. Ao concluir, emita a nova versão: aprovada, ela substitui a atual.",
+    });
+    expect(exigirPapelOrcamento).toHaveBeenCalledWith("revisar_modulo");
+    expect(rpc).toHaveBeenCalledWith("reabrir_revisao_custos_projeto", { p_orcamento_projeto_id: 77, p_motivo: "Órgão pediu ajuste" });
+    expect(revalidatePath).toHaveBeenCalledWith("/orcamento/demandas/5");
 
-    single.mockResolvedValue({ data: { status: "recusado", demanda_id: 5 }, error: null });
-    await reabrirCustosProjeto(formData);
-    expect(rpc).toHaveBeenCalledWith("transicionar_orcamento_projeto", expect.objectContaining({
-      p_orcamento_projeto_id: 77,
-      p_status_destino: "rascunho",
+    rpc.mockResolvedValue({ data: { status_origem: "enviado", reformulacao: false, versao_aprovada: null }, error: null });
+    expect(await reabrirCustosProjeto(formData)).toEqual({ ok: true, message: "Revisão dos custos reaberta para edição." });
+
+    rpc.mockResolvedValue({ data: null, error: { code: "22023", message: "A proposta OF-1 está aprovada: informe o motivo da reformulação." } });
+    expect(await reabrirCustosProjeto(formData)).toMatchObject({ ok: false, message: expect.stringContaining("motivo") });
+  });
+
+  it("troca a rubrica da linha e desfaz o vínculo com o catálogo", async () => {
+    const { atualizarCustoProjeto } = await import("./orcamento-projetos");
+    single
+      .mockResolvedValueOnce({ data: { status: "rascunho", demanda_id: 5, project_months: 12 }, error: null })
+      .mockResolvedValueOnce({ data: { rubrica: "MC" }, error: null });
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("item_id", "9");
+    formData.set("descricao", "EPI");
+    formData.set("unidade", "un");
+    formData.set("quantidade", "1");
+    formData.set("custo_unitario", "3000");
+    formData.set("rubrica", "MP");
+
+    await expect(atualizarCustoProjeto(formData)).resolves.toBeUndefined();
+    expect(update).toHaveBeenCalledWith(expect.objectContaining({
+      rubrica: "MP",
+      categoria: "equipamentos",
+      catalogo_item_id: null,
+      catalogo_valor_base: null,
+      meses_selecionados: [],
     }));
+
+    formData.set("rubrica", "XX");
+    await expect(atualizarCustoProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("Rubrica") });
+  });
+
+  it("análises dentro do projeto não aceitam lançamento novo (vão para a etapa Laboratório)", async () => {
+    const { adicionarAnaliseProjeto } = await import("./orcamento-projetos");
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("codigo_analise", "DNA-01");
+    formData.set("n_amostras", "10");
+
+    await expect(adicionarAnaliseProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("Laboratório") });
+    expect(insert).not.toHaveBeenCalled();
+  });
+
+  it("adiciona item do catálogo com valor digitado e guarda a base do catálogo", async () => {
+    const { adicionarItemProjeto } = await import("./orcamento-projetos");
+    rpc.mockResolvedValue({
+      data: [{ id: "MC-6", rubrica: "MC", descricao: "Papel toalha", unidade: "fardo", preco_unitario: 50, preco_mascarado: false, categoria: "Geral", ativo: true }],
+      error: null,
+    });
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("rubrica", "MC");
+    formData.set("catalogo_item_id", "MC-6");
+    formData.set("descricao", "Papel toalha");
+    formData.set("quantidade", "2");
+    formData.set("custo_unitario", "55");
+
+    await expect(adicionarItemProjeto(formData)).resolves.toBeUndefined();
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      catalogo_item_id: "MC-6",
+      custo_unitario: 55,
+      catalogo_valor_base: 50,
+      quantidade: 2,
+      origem: "catalogo",
+    }));
+  });
+
+  it("item digitado sem catálogo entra como manual", async () => {
+    const { adicionarItemProjeto } = await import("./orcamento-projetos");
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("rubrica", "ST");
+    formData.set("descricao", "Frete refrigerado");
+    formData.set("unidade", "un");
+    formData.set("quantidade", "1");
+    formData.set("custo_unitario", "300");
+
+    await expect(adicionarItemProjeto(formData)).resolves.toBeUndefined();
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ descricao: "Frete refrigerado", rubrica: "ST", origem: "manual", custo_unitario: 300 }));
+  });
+
+  it("aplica modelo pela RPC e resume o que veio do catálogo", async () => {
+    const { aplicarModeloProjeto } = await import("./orcamento-projetos");
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("demanda_id", "5");
+    formData.set("template_id", "4");
+
+    rpc.mockResolvedValue({ data: { itens: 3, do_catalogo: 2, sem_catalogo: 1, pessoal_ignorado: 0 }, error: null });
+    expect(await aplicarModeloProjeto(formData)).toEqual({ ok: true, message: "Modelo aplicado: 3 itens (2 com o valor atual do catálogo)." });
+    expect(exigirPapelOrcamento).toHaveBeenCalledWith("preencher_custos");
+    expect(rpc).toHaveBeenCalledWith("aplicar_modelo_orcamento_projeto", { p_orcamento_projeto_id: 77, p_template_id: 4 });
+
+    rpc.mockResolvedValue({ data: { itens: 1, do_catalogo: 1, sem_catalogo: 0, pessoal_ignorado: 1 }, error: null });
+    expect(await aplicarModeloProjeto(formData)).toEqual({
+      ok: true,
+      message: "Modelo aplicado: 1 item (1 com o valor atual do catálogo). 1 item de pessoal ficou de fora (sem a permissão de valores de pessoal).",
+    });
+  });
+
+  it("salva o orçamento como modelo guardando o vínculo com o catálogo", async () => {
+    const { salvarComoTemplate } = await import("./orcamento-projetos");
+    single.mockResolvedValue({ data: { demanda_id: 5, project_months: 12, lucro: 10 }, error: null });
+    lista = [{ rubrica: "MC", descricao: "Papel toalha", catalogo_item_id: "MC-6", quantidade: 2, custo_unitario: 55 }];
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("nome", "Monitoramento padrão");
+
+    expect(await salvarComoTemplate(formData)).toEqual({ ok: true, message: "Modelo “Monitoramento padrão” salvo." });
+    expect(exigirPapelOrcamento).toHaveBeenCalledWith("gerir_modelos");
+    expect(select).toHaveBeenCalledWith(expect.stringContaining("catalogo_item_id"));
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ nome: "Monitoramento padrão", itens: lista }));
   });
 
   it("salva viagens, recalcula linhas VD e cria as linhas padrão que faltam", async () => {

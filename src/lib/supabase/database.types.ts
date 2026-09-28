@@ -1780,6 +1780,7 @@ export type Database = {
           numero: string
           operacao_id: string | null
           operacao_payload: Json | null
+          reformulacao_de: number | null
           snapshot: Json
           status: string
           textos_proposta: Json | null
@@ -1806,6 +1807,7 @@ export type Database = {
           numero: string
           operacao_id?: string | null
           operacao_payload?: Json | null
+          reformulacao_de?: number | null
           snapshot?: Json
           status?: string
           textos_proposta?: Json | null
@@ -1832,6 +1834,7 @@ export type Database = {
           numero?: string
           operacao_id?: string | null
           operacao_payload?: Json | null
+          reformulacao_de?: number | null
           snapshot?: Json
           status?: string
           textos_proposta?: Json | null
@@ -2219,6 +2222,9 @@ export type Database = {
           preco_anterior: number | null
           preco_unitario: number
           registrado_em: string
+          resolucao: string | null
+          resolvido_em: string | null
+          resolvido_por: string | null
           rubrica: string
           unidade: string | null
           usuario: string | null
@@ -2235,6 +2241,9 @@ export type Database = {
           preco_anterior?: number | null
           preco_unitario: number
           registrado_em?: string
+          resolucao?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
           rubrica: string
           unidade?: string | null
           usuario?: string | null
@@ -2251,6 +2260,9 @@ export type Database = {
           preco_anterior?: number | null
           preco_unitario?: number
           registrado_em?: string
+          resolucao?: string | null
+          resolvido_em?: string | null
+          resolvido_por?: string | null
           rubrica?: string
           unidade?: string | null
           usuario?: string | null
@@ -2451,6 +2463,7 @@ export type Database = {
           projeto_id: number | null
           projeto_sem_custo_justificativa: string | null
           proprietario: string | null
+          reformulacao_de_versao_id: number | null
           reserva: number
           responsavel: string | null
           status: string
@@ -2486,6 +2499,7 @@ export type Database = {
           projeto_id?: number | null
           projeto_sem_custo_justificativa?: string | null
           proprietario?: string | null
+          reformulacao_de_versao_id?: number | null
           reserva?: number
           responsavel?: string | null
           status?: string
@@ -2521,6 +2535,7 @@ export type Database = {
           projeto_id?: number | null
           projeto_sem_custo_justificativa?: string | null
           proprietario?: string | null
+          reformulacao_de_versao_id?: number | null
           reserva?: number
           responsavel?: string | null
           status?: string
@@ -4744,6 +4759,10 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      aplicar_modelo_orcamento_projeto: {
+        Args: { p_orcamento_projeto_id: number; p_template_id: number }
+        Returns: Json
+      }
       catalogo_projeto_definir_ativo: {
         Args: { p_ativo: boolean; p_id: string }
         Returns: undefined
@@ -4761,6 +4780,40 @@ export type Database = {
           registrado_em: string
           usuario: string | null
         }[]
+      }
+      catalogo_projeto_importar: {
+        Args: { p_aplicar?: boolean; p_itens: Json }
+        Returns: {
+          acao: string
+          catalogo_item_id: string | null
+          categoria: string | null
+          descricao: string | null
+          linha: number
+          mensagem: string | null
+          preco: number | null
+          preco_atual: number | null
+          rubrica: string
+          unidade: string | null
+        }[]
+      }
+      catalogo_projeto_pendencias: {
+        Args: never
+        Returns: {
+          catalogo_item_id: string | null
+          demanda_titulo: string | null
+          descricao: string
+          pendencia_id: number
+          preco_atual: number | null
+          preco_unitario: number
+          registrado_em: string
+          rubrica: string
+          unidade: string | null
+          usuario: string | null
+        }[]
+      }
+      catalogo_projeto_resolver_pendencia: {
+        Args: { p_aplicar: boolean; p_pendencia_id: number }
+        Returns: string | null
       }
       catalogo_projeto_salvar_item: {
         Args: {
@@ -4933,6 +4986,10 @@ export type Database = {
           valor_catalogo: number | null
           valor_catalogo_em: string | null
         }[]
+      }
+      reabrir_revisao_custos_projeto: {
+        Args: { p_motivo?: string | null; p_orcamento_projeto_id: number }
+        Returns: Json
       }
       recalcular_orcamento_transacional: {
         Args: {

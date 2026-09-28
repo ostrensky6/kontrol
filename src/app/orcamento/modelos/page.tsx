@@ -10,7 +10,7 @@ import { ItemCatalogoDialog } from "@/components/orcamento/catalogo/ItemCatalogo
 import { UnificarItemDialog } from "@/components/orcamento/catalogo/UnificarItemDialog";
 import { buttonVariants } from "@/components/ui/button";
 import {
-  criarProjetoDeTemplate,
+
   duplicarTemplateProjeto,
   excluirTemplate,
 } from "@/lib/actions/orcamento-projetos";
@@ -30,11 +30,6 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 
 export const dynamic = "force-dynamic";
-
-// "Usar" criava um orçamento de projeto sem vínculo com proposta e voltava à
-// lista em ciclo. Fica oculto até a migração do editor de projeto (protocolo
-// docs/migracao-orcamento-projetos-protocolo.md); o código segue preservado.
-const USO_DIRETO_DE_TEMPLATE = false;
 
 type SearchParams = {
   origem?: string;
@@ -86,11 +81,6 @@ type HistoricoValor = {
   observacao: string | null;
 };
 
-type ProjetoOpcao = {
-  id: number;
-  nome: string;
-};
-
 /** Rubricas na ordem e com os rótulos da visão interna da proposta. */
 const RUBRICAS = [
   { id: "PE", rotulo: "PE · Pessoal" },
@@ -112,7 +102,6 @@ export default async function OrcamentoModelosPage({
   const [
     { data: templates },
     { data: catalogoCompleto },
-    { data: projetos },
     podeEditarCatalogo,
     podePessoal,
     podeSalario,
@@ -124,7 +113,6 @@ export default async function OrcamentoModelosPage({
     // Preço de PE (pessoas nominais) vem mascarado (NULL) do banco para quem
     // não tem "Valores de pessoal no orçamento" (0137). Já vem ordenado.
     supabase.rpc("orcamento_projeto_catalogo_listar"),
-    supabase.from("projetos").select("id, nome").order("nome").limit(100),
     // Editar o catálogo: "Modelos e catálogos" (0138, mesma regra da RLS da 0124).
     podeOrcamento("gerir_modelos"),
     temPermissao("orcamentos.pessoal"),
@@ -184,11 +172,6 @@ export default async function OrcamentoModelosPage({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {USO_DIRETO_DE_TEMPLATE && (
-              <Link href="/orcamento/projetos" className={buttonVariants({ size: "sm" })}>
-                Usar em orçamento
-              </Link>
-            )}
             <Link href="/orcamento" className={buttonVariants({ variant: "outline", size: "sm" })}>
               Orçamentos
             </Link>
@@ -271,11 +254,9 @@ export default async function OrcamentoModelosPage({
                 {templatesFiltrados.length === 0 && (
                   <p className="text-xs text-muted-foreground/80">Nenhum template encontrado.</p>
                 )}
-                {USO_DIRETO_DE_TEMPLATE && (
-                  <Link href="/orcamento/projetos" className="ml-auto text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
-                    Criar a partir de template
-                  </Link>
-                )}
+                <p className="ml-auto text-xs text-muted-foreground">
+                  Salve e use modelos dentro da proposta, na etapa Custos do projeto.
+                </p>
               </>
             }
           />
@@ -316,18 +297,6 @@ export default async function OrcamentoModelosPage({
                       <td className="px-3 py-1.5">{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</td>
                       <td className="px-3 py-1.5">
                         <div className="flex justify-end gap-1">
-                          {USO_DIRETO_DE_TEMPLATE && !isArquivado(template) && (
-                            <form action={criarProjetoDeTemplate} className="flex items-center gap-1">
-                              <input type="hidden" name="template_id" value={template.id} />
-                              <select name="projeto_id" defaultValue="" className="rounded-md border border-input bg-card px-2 py-1 text-xs">
-                                <option value="">Sem projeto</option>
-                                {((projetos ?? []) as ProjetoOpcao[]).map((projeto) => (
-                                  <option key={projeto.id} value={projeto.id}>{projeto.nome}</option>
-                                ))}
-                              </select>
-                              <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Criando…">Usar</SubmitButton>
-                            </form>
-                          )}
                           <form action={duplicarTemplateProjeto}>
                             <input type="hidden" name="template_id" value={template.id} />
                             <SubmitButton variant="ghost" size="icon" className={CLASSE_BOTAO_ICONE} pendingLabel="…">
