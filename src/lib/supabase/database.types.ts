@@ -345,8 +345,11 @@ export type Database = {
         Row: {
           cliente_cnpj: string | null
           cliente_contato: string | null
+          cliente_email: string | null
+          cliente_endereco: string | null
           cliente_id: number | null
           cliente_nome: string | null
+          cliente_telefone: string | null
           completude_atualizada_em: string | null
           completude_snapshot: Json
           criado_em: string
@@ -371,13 +374,17 @@ export type Database = {
           quantidade_amostras_estimada: number | null
           responsavel_interno: string | null
           status: string
+          textos_proposta: Json | null
           titulo: string
         }
         Insert: {
           cliente_cnpj?: string | null
           cliente_contato?: string | null
+          cliente_email?: string | null
+          cliente_endereco?: string | null
           cliente_id?: number | null
           cliente_nome?: string | null
+          cliente_telefone?: string | null
           completude_atualizada_em?: string | null
           completude_snapshot?: Json
           criado_em?: string
@@ -402,13 +409,17 @@ export type Database = {
           quantidade_amostras_estimada?: number | null
           responsavel_interno?: string | null
           status?: string
+          textos_proposta?: Json | null
           titulo: string
         }
         Update: {
           cliente_cnpj?: string | null
           cliente_contato?: string | null
+          cliente_email?: string | null
+          cliente_endereco?: string | null
           cliente_id?: number | null
           cliente_nome?: string | null
+          cliente_telefone?: string | null
           completude_atualizada_em?: string | null
           completude_snapshot?: Json
           criado_em?: string
@@ -433,6 +444,7 @@ export type Database = {
           quantidade_amostras_estimada?: number | null
           responsavel_interno?: string | null
           status?: string
+          textos_proposta?: Json | null
           titulo?: string
         }
         Relationships: [
@@ -451,6 +463,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      empresas_emissoras: {
+        Row: {
+          atualizado_em: string
+          cnpj: string | null
+          codigo: string
+          email: string | null
+          endereco: string | null
+          id: number
+          nome_legal: string
+          site: string | null
+          telefone: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          cnpj?: string | null
+          codigo: string
+          email?: string | null
+          endereco?: string | null
+          id?: never
+          nome_legal: string
+          site?: string | null
+          telefone?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          cnpj?: string | null
+          codigo?: string
+          email?: string | null
+          endereco?: string | null
+          id?: never
+          nome_legal?: string
+          site?: string | null
+          telefone?: string | null
+        }
+        Relationships: []
       }
       equipamento_analise: {
         Row: {
@@ -1734,6 +1782,7 @@ export type Database = {
           operacao_payload: Json | null
           snapshot: Json
           status: string
+          textos_proposta: Json | null
           total_final: number
           total_laboratorio_custo: number
           total_laboratorio_preco: number
@@ -1759,6 +1808,7 @@ export type Database = {
           operacao_payload?: Json | null
           snapshot?: Json
           status?: string
+          textos_proposta?: Json | null
           total_final?: number
           total_laboratorio_custo?: number
           total_laboratorio_preco?: number
@@ -1784,6 +1834,7 @@ export type Database = {
           operacao_payload?: Json | null
           snapshot?: Json
           status?: string
+          textos_proposta?: Json | null
           total_final?: number
           total_laboratorio_custo?: number
           total_laboratorio_preco?: number
@@ -3814,6 +3865,47 @@ export type Database = {
           },
         ]
       }
+      proposta_secoes_padrao: {
+        Row: {
+          ativo: boolean
+          atualizado_em: string
+          chave: string
+          empresa_codigo: string
+          id: number
+          ordem: number
+          texto: Json
+          titulo: string
+        }
+        Insert: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave: string
+          empresa_codigo: string
+          id?: never
+          ordem?: number
+          texto?: Json
+          titulo: string
+        }
+        Update: {
+          ativo?: boolean
+          atualizado_em?: string
+          chave?: string
+          empresa_codigo?: string
+          id?: never
+          ordem?: number
+          texto?: Json
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proposta_secoes_padrao_empresa_codigo_fkey"
+            columns: ["empresa_codigo"]
+            isOneToOne: false
+            referencedRelation: "empresas_emissoras"
+            referencedColumns: ["codigo"]
+          },
+        ]
+      }
       reservas_estoque: {
         Row: {
           consumido_em: string | null
@@ -4537,6 +4629,10 @@ export type Database = {
       }
       aprovar_orcamento_publico: {
         Args: { p_nome: string; p_token: string }
+        Returns: Json
+      }
+      atualizar_textos_versao_final: {
+        Args: { p_textos: Json; p_versao_id: number }
         Returns: Json
       }
       baixa_manual_lote:

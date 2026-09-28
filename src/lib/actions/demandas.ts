@@ -11,6 +11,11 @@ import { modalidadeExigeLaboratorio, modalidadeExigeProjeto } from "@/lib/orcame
 import { detectarCustosZero } from "@/lib/orcamento/proposta-final";
 import { planejarModulosProposta, type PlanoModulos } from "@/lib/orcamento/garantir-modulos";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
+import { gravarPercentuaisDaDemanda, lerPercentuais } from "@/lib/orcamento/gravar-percentuais";
+import { carregarComplementosDocumento } from "@/lib/orcamento/complementos-documento";
+import { empresaParaSnapshot } from "@/lib/orcamento/empresas-emissoras";
+import { resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
+import { resolverTextosDemanda } from "@/lib/orcamento/textos-proposta";
 import { mensagemDoBanco } from "@/lib/erros";
 import { incluirAnalisesDaDemandaNoOrcamento } from "./orcamentos";
 import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/orcamento/parametros-proposta";
@@ -94,7 +99,7 @@ async function clienteSnapshot(clienteId: number | null) {
   const supabase = await createClient();
   const { data } = await supabase
     .from("clientes")
-    .select("nome, cnpj, contato, email, telefone")
+    .select("nome, cnpj, contato, email, telefone, endereco")
     .eq("id", clienteId)
     .single();
   return data;
@@ -273,6 +278,25 @@ export async function salvarDemanda(
     throw new Error(message);
   }
 
+  // E-mail, telefone e endereço do cliente (0135) ficam fora da RPC de grupos,
+  // que tem colunas fixas. Só grava quando o formulário traz os campos.
+  if (formData.has("cliente_email") || formData.has("cliente_telefone") || formData.has("cliente_endereco")) {
+    const { data: contatos, error: erroContatos } = await supabase
+      .from("demandas_propostas")
+      .update({
+        cliente_email: texto(formData, "cliente_email") ?? cliente?.email ?? null,
+        cliente_telefone: texto(formData, "cliente_telefone") ?? cliente?.telefone ?? null,
+        cliente_endereco: texto(formData, "cliente_endereco") ?? cliente?.endereco ?? null,
+      })
+      .eq("id", id)
+      .select("id");
+    if (erroContatos || !contatos?.length) {
+      const message = `Orçamento salvo, mas e-mail, telefone e endereço do cliente não foram gravados${erroContatos ? `: ${mensagemDoBanco(erroContatos)}` : "."}`;
+      if (retornaEstado) return { ok: false, message };
+      throw new Error(message);
+    }
+  }
+
   revalidatePath(listaPath);
   revalidatePath(`${listaPath}/${id}`);
   if (retornaEstado) {
@@ -431,7 +455,7 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
       .order("id"),
     supabase
       .from("orcamento_projetos")
-      .select("id, status, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
+      .select("id, status, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, descricao, unidade, categoria, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
       .eq("demanda_id", id)
       .order("id"),
   ]);
@@ -568,6 +592,23 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
   }
   const economia = consolidado.economia;
 
+  // Documento do cliente (0135): nomes das análises, empresa emissora e textos
+  // ficam congelados com a versão, como os valores.
+  const { identidade } = resolverIdentidadeComAviso(demanda.instituicao);
+  const complementos = await carregarComplementosDocumento(supabase, {
+    identidade,
+    codigosAnalises: [
+      ...(orcamentos ?? []).flatMap((o) => (o.orcamento_itens ?? []).map((i) => i.codigo_analise)),
+      ...(orcProjetos ?? []).flatMap((o) => (o.orcamento_projeto_analises ?? []).map((i) => i.codigo_analise)),
+    ],
+    comSecoes: true,
+  });
+  const textosProposta = resolverTextosDemanda({
+    salvos: demanda.textos_proposta,
+    padroes: complementos.secoesPadrao,
+    escopoLegado: demanda.escopo_preliminar || demanda.descricao || null,
+  });
+
   const snapshot = {
     demanda,
     orcamentos_analises: (orcamentos ?? []).map((orcamento) => ({
@@ -577,6 +618,9 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
     })),
     orcamentos_projeto: orcProjetos ?? [],
     consolidado,
+    nomes_analises: complementos.nomesAnalises,
+    empresa_emissora: empresaParaSnapshot(complementos.empresa),
+    textos_proposta: textosProposta as unknown as Json,
   } satisfies Json;
 
   const parametrosPayload: Json | null = economia.valido
@@ -680,54 +724,27 @@ export async function salvarParametrosEconomicosDaDemanda(formData: FormData) {
   const demandaId = numero(formData, "demanda_id");
   if (!demandaId) return;
   await exigirPapelOrcamento("editar_parametros");
+  // A etapa Proposta também edita os percentuais (abas do modo interno, 28/09).
+  const etapa = formData.get("retorno") === "final" ? "final" : "parametros";
+  const voltar = (extra: string) => `${listaPath}/${demandaId}?etapa=${etapa}&${extra}`;
 
-  const patch = {
-    impostos_legacy: numero(formData, "impostos_legacy"),
-    incubacao: numero(formData, "incubacao"),
-    reserva: numero(formData, "reserva"),
-    investimentos: numero(formData, "investimentos"),
-    lucro: numero(formData, "lucro"),
-  };
-
-  const supabase = await createClient();
-  const { data: projeto } = await supabase
-    .from("orcamento_projetos")
-    .select("id")
-    .eq("demanda_id", demandaId)
-    .order("id", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  const soma = Object.values(patch).reduce<number>((total, valor) => total + Math.max(0, Number(valor ?? 0)), 0);
-  if (Object.values(patch).some((valor) => valor != null && valor < 0) || soma >= 100) {
-    redirect(`${listaPath}/${demandaId}?etapa=parametros&erro_parametros=${encodeURIComponent("Use percentuais positivos com soma menor que 100%.")}`);
+  const valores = lerPercentuais(formData);
+  if (!valores) {
+    redirect(voltar(`erro_parametros=${encodeURIComponent("Use percentuais positivos com soma menor que 100%.")}`));
   }
 
   // Com orçamento de projeto, os percentuais continuam no projeto; sem ele
   // (proposta "Apenas análises"), ficam na própria proposta (migration 0118).
-  const { data: gravado, error } = projeto?.id
-    ? await supabase.from("orcamento_projetos").update(patch).eq("id", projeto.id).select("id")
-    : await supabase
-        .from("demandas_propostas")
-        .update({
-          param_impostos: patch.impostos_legacy ?? 0,
-          param_incubacao: patch.incubacao ?? 0,
-          param_reserva: patch.reserva ?? 0,
-          param_investimentos: patch.investimentos ?? 0,
-          param_lucro: patch.lucro ?? 0,
-        } as never)
-        .eq("id", demandaId)
-        .select("id");
-  if (error || !gravado?.length) {
-    const msg = error
-      ? /param_/.test(error.message) && /column|schema cache/i.test(error.message)
-        ? "Parâmetros da proposta ainda não disponíveis no banco (migration 0118 pendente)."
-        : error.message
-      : "Nada foi salvo: seu perfil não tem permissão para alterar esta proposta.";
-    redirect(`${listaPath}/${demandaId}?etapa=parametros&erro_parametros=${encodeURIComponent(msg)}`);
+  const supabase = await createClient();
+  const erro = await gravarPercentuaisDaDemanda(supabase, demandaId, valores);
+  if (erro) {
+    const msg = /param_/.test(erro) && /column|schema cache/i.test(erro)
+      ? "Parâmetros da proposta ainda não disponíveis no banco (migration 0118 pendente)."
+      : erro;
+    redirect(voltar(`erro_parametros=${encodeURIComponent(msg)}`));
   }
 
   revalidatePath(listaPath);
   revalidatePath(`${listaPath}/${demandaId}`);
-  redirect(`${listaPath}/${demandaId}?etapa=parametros&parametros_salvos=1`);
+  redirect(voltar("parametros_salvos=1"));
 }

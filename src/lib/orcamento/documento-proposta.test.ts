@@ -131,7 +131,7 @@ describe("montarDocumentoProposta", () => {
       email: "contato@cliente.com.br",
       telefone: null,
     });
-    expect(doc.empresa.nomeLegal).toBe("ATGC Genética Ambiental Limitada");
+    expect(doc.empresa.nomeLegal).toBe("ATGC Genética Ambiental Ltda.");
     expect(doc.avisos.join(" ")).toMatch(/Empresas emissoras/);
   });
 

@@ -29,7 +29,7 @@ const IDENTIDADES: Record<IdentidadeInstitucionalId, IdentidadeInstitucional> = 
   ATGC: {
     id: "ATGC",
     nomeCurto: "ATGC Genética Ambiental",
-    nomeLegal: "ATGC Genética Ambiental Limitada",
+    nomeLegal: "ATGC Genética Ambiental Ltda.",
     tituloDocumento: "Proposta comercial - ATGC Genética Ambiental",
     responsavel: "ATGC Genética Ambiental",
     logoSrc: "/logos/atgc.svg",

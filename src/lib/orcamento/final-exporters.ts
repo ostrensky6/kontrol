@@ -19,8 +19,9 @@ import {
 import { saveAs } from "file-saver";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { rotuloModalidade } from "./orcamento-economico";
+import type { ModeloDocumentoProposta } from "./documento-proposta";
 import type { PropostaFinalExport } from "./proposta-final-export";
-import { rotuloStatusVersaoFinal } from "./rotulos-status";
+import type { DocTexto, NoInline, NoParagrafo } from "./texto-rico";
 
 const FONT_FAMILY = "Helvetica";
 const INK = "1B3530";
@@ -121,42 +122,72 @@ export async function exportOrcamentoFinalXlsx(dados: PropostaFinalExport) {
 }
 
 /**
- * DOCX que vai ao cliente: o mesmo conteúdo da folha impressa. Custos técnicos,
- * parâmetros e margem ficam só no app (modo interno) e na planilha interna.
+ * DOCX que vai ao cliente: o mesmo modelo da folha A4 (documento-proposta.ts).
+ * Custos técnicos, parâmetros e margem ficam só no app e na planilha interna;
+ * o nome do Kontrol não aparece (é ferramenta interna).
  */
-export async function exportOrcamentoFinalDocx(dados: PropostaFinalExport) {
-  const { info, economico } = dados;
-  const cor = info.identidade.corPrincipal.slice(1);
-  const secao = (titulo: string) =>
-    docParagraph(titulo, { heading: HeadingLevel.HEADING_2, bold: true, color: cor, size: 24 });
-  const linhasCliente = [
-    info.clienteNome || "-",
-    info.clienteCnpj ? `CNPJ/CPF: ${info.clienteCnpj}` : null,
-    info.clienteContato ? `Contato: ${info.clienteContato}` : null,
-  ].filter((linha): linha is string => Boolean(linha));
-  const dias = Number(info.validadeDias ?? 0);
+export async function exportOrcamentoFinalDocx(modelo: ModeloDocumentoProposta) {
+  const { empresa, cliente } = modelo;
+  const cor = modelo.identidade.corPrincipal.slice(1);
+  const cinza = "475569";
+  const secao = (numero: number | null, titulo: string) =>
+    new Paragraph({
+      heading: HeadingLevel.HEADING_2,
+      spacing: { before: 240, after: 100 },
+      children: [
+        new TextRun({
+          text: `${numero != null ? `${numero}. ` : ""}${titulo}`,
+          font: FONT_FAMILY,
+          bold: true,
+          allCaps: true,
+          color: cor,
+          size: 20,
+        }),
+      ],
+    });
+  const dado = (rotulo: string, valor: string | null | undefined) =>
+    valor
+      ? [
+          new Paragraph({
+            spacing: { after: 40 },
+            children: [
+              new TextRun({ text: `${rotulo}: `, font: FONT_FAMILY, color: cinza, size: 20 }),
+              new TextRun({ text: valor, font: FONT_FAMILY, color: INK, size: 20 }),
+            ],
+          }),
+        ]
+      : [];
   const assinatura = (titulo: string, nome: string) => [
     docParagraph(" "),
     docParagraph("______________________________________________"),
-    docParagraph(titulo, { size: 18, color: "475569" }),
     docParagraph(nome, { bold: true }),
-    docParagraph("Data: ____/____/________", { size: 18, color: "475569" }),
+    docParagraph(titulo, { size: 18, color: cinza }),
+    docParagraph("Data: ____/____/________", { size: 18, color: cinza }),
   ];
+  const identificacao = [empresa.nomeLegal, empresa.cnpj ? `CNPJ ${empresa.cnpj}` : null, `Proposta ${modelo.numero}`]
+    .filter(Boolean)
+    .join(" · ");
+  const servicos = modelo.servicos.grupos.flatMap((grupo) => [
+    tableRow([grupo.titulo, "", "", formatCurrency(grupo.subtotal)], "grupo"),
+    ...grupo.itens.map((item) =>
+      tableRow([item.descricao, item.quantidade, formatCurrency(item.valorUnitario), formatCurrency(item.valorTotal)]),
+    ),
+  ]);
 
   const doc = new Document({
-    creator: info.identidade.creator,
-    title: `${info.identidade.tituloDocumento} ${info.numero}`,
+    creator: empresa.nomeLegal,
+    title: `Proposta comercial ${modelo.numero} - ${empresa.nomeLegal}`,
     styles: {
       default: {
         document: {
-          run: { font: FONT_FAMILY, color: INK, size: 22 },
-          paragraph: { alignment: AlignmentType.JUSTIFIED, spacing: { after: 120 } },
+          run: { font: FONT_FAMILY, color: INK, size: 21 },
+          paragraph: { alignment: AlignmentType.JUSTIFIED, spacing: { after: 100 } },
         },
       },
     },
     sections: [
       {
-        properties: { page: { margin: { top: 900, right: 720, bottom: 900, left: 720 } } },
+        properties: { page: { margin: { top: 850, right: 850, bottom: 1000, left: 850 } } },
         footers: {
           default: new Footer({
             children: [
@@ -165,14 +196,9 @@ export async function exportOrcamentoFinalDocx(dados: PropostaFinalExport) {
                 children: [
                   new TextRun({
                     font: FONT_FAMILY,
-                    size: 16,
-                    color: "475569",
-                    children: [
-                      `${info.identidade.nomeLegal} · Proposta ${info.numero} · Página `,
-                      PageNumber.CURRENT,
-                      " de ",
-                      PageNumber.TOTAL_PAGES,
-                    ],
+                    size: 15,
+                    color: cinza,
+                    children: [`${identificacao} · Página `, PageNumber.CURRENT, " de ", PageNumber.TOTAL_PAGES],
                   }),
                 ],
               }),
@@ -180,60 +206,128 @@ export async function exportOrcamentoFinalDocx(dados: PropostaFinalExport) {
           }),
         },
         children: [
-          docParagraph(info.identidade.nomeLegal, { color: "475569" }),
+          docParagraph(empresa.nomeLegal, { bold: true, size: 24 }),
+          ...[
+            empresa.cnpj ? `CNPJ ${empresa.cnpj}` : null,
+            empresa.endereco,
+            [empresa.telefone, empresa.email, empresa.site].filter(Boolean).join(" · ") || null,
+          ]
+            .filter((linha): linha is string => Boolean(linha))
+            .map((linha) => docParagraph(linha, { size: 18, color: cinza })),
           docParagraph("Proposta comercial", { heading: HeadingLevel.TITLE, bold: true, color: cor, size: 36 }),
-          docParagraph(`Proposta nº ${info.numero} · Versão ${info.versao} · ${rotuloStatusVersaoFinal(info.status)}`),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            layout: TableLayoutType.FIXED,
-            borders: tableBorders(),
-            rows: [
-              tableRow(["Valor total", "Emissão", "Válida até"], true),
-              tableRow([formatCurrency(economico.totalFinal), formatDate(info.emitidoEm), formatDate(info.validade)]),
-            ],
-          }),
-
-          secao("Proponente"),
-          docParagraph(info.identidade.nomeLegal, { bold: true }),
-          secao("Cliente"),
-          ...linhasCliente.map((linha, i) => docParagraph(linha, { bold: i === 0 })),
-
-          secao("Objeto"),
-          docParagraph(info.demandaTitulo || "-", { bold: true }),
-          ...(info.modalidade ? [docParagraph(rotuloModalidade(info.modalidade), { color: "475569" })] : []),
-          docParagraph(info.escopo || "-"),
-
-          secao("Serviços e valores"),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            layout: TableLayoutType.FIXED,
-            borders: tableBorders(),
-            rows: [
-              tableRow(["Componente", "Descrição", "Qtd.", "Valor"], true),
-              ...dados.composicaoComercial.map((l) =>
-                tableRow([l.componente, l.descricao, String(l.quantidade), formatCurrency(l.valorComercial)]),
-              ),
-              tableRow(["", "", "Total", formatCurrency(economico.totalFinal)], true),
-            ],
-          }),
-
-          secao("Condições comerciais"),
           docParagraph(
-            dias > 0
-              ? `Valores válidos por ${dias} dias a partir da emissão.`
-              : `Valores válidos até ${formatDate(info.validade)}.`,
+            modelo.rascunho
+              ? "Prévia, ainda não emitida"
+              : `Proposta nº ${modelo.numero} · Versão ${modelo.versao} · ${modelo.statusRotulo}`,
           ),
-          docParagraph("Alterações de escopo, quantidade de amostras, premissas técnicas ou cronograma podem exigir nova versão da proposta."),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            borders: tableBorders(),
+            rows: [
+              tableRow(["Valor total (impostos inclusos)", "Emissão", "Válida até"], "cabecalho"),
+              tableRow([formatCurrency(modelo.resumo.total), formatDate(modelo.emitidoEm), formatDate(modelo.validoAte)]),
+            ],
+          }),
 
-          ...assinatura("Pela proponente", info.identidade.nomeLegal),
-          ...assinatura("De acordo, pelo cliente", info.clienteNome || "Nome e cargo"),
+          secao(null, "Cliente"),
+          docParagraph(cliente.nome, { bold: true }),
+          ...dado("CNPJ/CPF", cliente.documento),
+          ...dado("Endereço", cliente.endereco),
+          ...dado("Contato", cliente.contato),
+          ...dado("E-mail", cliente.email),
+          ...dado("Telefone", cliente.telefone),
+
+          secao(modelo.numeracao.objeto, "Objeto"),
+          docParagraph(modelo.objeto.titulo, { bold: true }),
+          ...(modelo.objeto.modalidade ? [docParagraph(modelo.objeto.modalidade, { color: cinza, size: 18 })] : []),
+          ...paragrafosTexto(modelo.objeto.descricao),
+
+          ...(modelo.escopo && modelo.numeracao.escopo
+            ? [
+                secao(modelo.numeracao.escopo, "Escopo técnico"),
+                ...dado("Matriz", modelo.escopo.matriz),
+                ...dado("Amostras", modelo.escopo.amostras ? `${modelo.escopo.amostras} amostras` : null),
+                ...dado("Análises", modelo.escopo.analises.join(" · ") || null),
+                ...dado(
+                  "Prazo técnico",
+                  modelo.escopo.prazoDias ? `${modelo.escopo.prazoDias} dias a partir do recebimento das amostras` : null,
+                ),
+              ]
+            : []),
+
+          secao(modelo.numeracao.servicos, "Serviços e valores"),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            borders: tableBorders(),
+            columnWidths: [4700, 1500, 1700, 1700],
+            rows: [
+              tableRow(["Item", "Qtd.", "Valor unit.", "Valor total"], "cabecalho"),
+              ...servicos,
+              tableRow(["Total (impostos inclusos)", "", "", formatCurrency(modelo.servicos.total)], "cabecalho"),
+            ],
+          }),
+
+          ...modelo.secoes.flatMap((s) => [
+            secao(s.numero, s.titulo),
+            ...s.linhasAutomaticas.map((linha) => docParagraph(linha)),
+            ...paragrafosTexto(s.texto),
+          ]),
+
+          secao(modelo.numeracao.aceite, "Aceite"),
+          docParagraph("De acordo com os termos desta proposta."),
+          ...assinatura("Pela proponente", empresa.nomeLegal),
+          ...assinatura("De acordo, pelo cliente", cliente.nome === "—" ? "Nome e cargo" : cliente.nome),
         ],
       },
     ],
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `proposta-${arquivoNumero(info.numero)}.docx`);
+  saveAs(blob, `proposta-${arquivoNumero(modelo.numero)}.docx`);
+}
+
+/** Texto formatado (texto-rico.ts) em parágrafos do Word. */
+function paragrafosTexto(doc: DocTexto | null | undefined): Paragraph[] {
+  if (!doc) return [];
+  const runs = (nos: NoInline[] | undefined, extra: { bold?: boolean } = {}) =>
+    (nos ?? []).map((no) =>
+      no.type === "hardBreak"
+        ? new TextRun({ break: 1 })
+        : new TextRun({
+            text: no.text,
+            font: FONT_FAMILY,
+            color: INK,
+            size: 21,
+            bold: extra.bold || no.marks?.some((m) => m.type === "bold"),
+          }),
+    );
+  return doc.content.flatMap((bloco): Paragraph[] => {
+    if (bloco.type === "heading") {
+      return [new Paragraph({ spacing: { before: 120, after: 60 }, children: runs(bloco.content, { bold: true }) })];
+    }
+    if (bloco.type === "bulletList" || bloco.type === "orderedList") {
+      return bloco.content.flatMap((item, i) =>
+        item.content.map(
+          (p, j) =>
+            new Paragraph({
+              indent: { left: 400, hanging: 260 },
+              spacing: { after: 60 },
+              children: [
+                new TextRun({
+                  text: j === 0 ? (bloco.type === "bulletList" ? "•\t" : `${i + 1}.\t`) : "\t",
+                  font: FONT_FAMILY,
+                  size: 21,
+                }),
+                ...runs(p.content),
+              ],
+            }),
+        ),
+      );
+    }
+    return [new Paragraph({ children: runs((bloco as NoParagrafo).content) })];
+  });
 }
 
 function styleWorkbook(wb: ExcelJS.Workbook) {
@@ -290,25 +384,25 @@ function docParagraph(
   });
 }
 
-function tableRow(values: string[], header = false) {
+function tableRow(values: string[], tipo: boolean | "cabecalho" | "grupo" = false) {
+  const cabecalho = tipo === true || tipo === "cabecalho";
+  const fill = cabecalho ? HEADER_FILL : tipo === "grupo" ? SOFT_FILL : "FFFFFF";
   return new TableRow({
     children: values.map(
-      (value) =>
+      (value, i) =>
         new TableCell({
-          shading: header
-            ? { type: ShadingType.CLEAR, fill: HEADER_FILL, color: "auto" }
-            : { type: ShadingType.CLEAR, fill: SOFT_FILL, color: "auto" },
-          margins: { top: 90, bottom: 90, left: 120, right: 120 },
+          shading: { type: ShadingType.CLEAR, fill, color: "auto" },
+          margins: { top: 70, bottom: 70, left: 110, right: 110 },
           children: [
             new Paragraph({
-              alignment: AlignmentType.JUSTIFIED,
+              alignment: i > 0 && values.length === 4 ? AlignmentType.RIGHT : AlignmentType.LEFT,
               children: [
                 new TextRun({
                   text: value,
                   font: FONT_FAMILY,
-                  bold: header,
-                  color: header ? BLUE : INK,
-                  size: 20,
+                  bold: cabecalho || tipo === "grupo",
+                  color: cabecalho ? BLUE : INK,
+                  size: 19,
                 }),
               ],
             }),

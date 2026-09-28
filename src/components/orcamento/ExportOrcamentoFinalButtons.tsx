@@ -4,13 +4,17 @@ import { useState } from "react";
 import { FileSpreadsheet, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import type { ModeloDocumentoProposta } from "@/lib/orcamento/documento-proposta";
 import type { PropostaFinalExport } from "@/lib/orcamento/proposta-final-export";
 
 type Props = {
+  /** planilha interna (custos e parâmetros) */
   dados: PropostaFinalExport;
+  /** documento do cliente, o mesmo da folha A4 */
+  documento: ModeloDocumentoProposta;
 };
 
-export function ExportOrcamentoFinalButtons({ dados }: Props) {
+export function ExportOrcamentoFinalButtons({ dados, documento }: Props) {
   const [carregando, setCarregando] = useState<"xlsx" | "docx" | null>(null);
 
   async function exportar(formato: "xlsx" | "docx") {
@@ -21,9 +25,9 @@ export function ExportOrcamentoFinalButtons({ dados }: Props) {
       if (formato === "xlsx") {
         await mod.exportOrcamentoFinalXlsx(dados);
       } else {
-        await mod.exportOrcamentoFinalDocx(dados);
+        await mod.exportOrcamentoFinalDocx(documento);
       }
-      toast.success(`Orçamento final exportado em ${formato.toUpperCase()}.`);
+      toast.success(formato === "xlsx" ? "Planilha interna gerada." : "Proposta gerada em DOCX.");
     } catch (erro) {
       console.error(erro);
       toast.error("Não foi possível gerar o arquivo. Tente novamente.");

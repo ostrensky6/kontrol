@@ -55,6 +55,31 @@ const from = vi.fn((table: string) => {
   if (table === "orcamento_parametros_aplicados") {
     return { insert: async () => { state.inserts.push(table); return { error: null }; } };
   }
+  // Documento do cliente (0135): catálogo, empresa emissora e seções padrão.
+  if (table === "analises") {
+    return { select: () => ({ in: async () => ({ data: [{ codigo: "A1", nome: "Análise um" }], error: null }) }) };
+  }
+  if (table === "empresas_emissoras") {
+    return {
+      select: () => ({
+        eq: () => ({
+          maybeSingle: async () => ({ data: { codigo: "ATGC", nome_legal: "ATGC Genética Ambiental Ltda.", cnpj: "12.345.678/0001-90" }, error: null }),
+        }),
+      }),
+    };
+  }
+  if (table === "proposta_secoes_padrao") {
+    return {
+      select: () => ({
+        eq: () => ({
+          order: async () => ({
+            data: [{ chave: "prazos", titulo: "Prazos e entregas", texto: "Relatório em 30 dias.", ordem: 10, ativo: true }],
+            error: null,
+          }),
+        }),
+      }),
+    };
+  }
   return {};
 });
 
@@ -143,6 +168,22 @@ describe("emissão transacional", () => {
     expect(state.inserts).not.toContain("orcamento_parametros_aplicados");
     expect(state.updates).not.toContain("orcamento_final_versoes"); // sem "substituir" fora da RPC
     expect(state.updates).not.toContain("demandas_propostas"); // "orcada" só pela RPC
+  });
+
+  it("congela no snapshot o documento do cliente: nomes, empresa e textos (0135)", async () => {
+    state.demanda = { ...demandaCompleta, instituicao: "ATGC" };
+    state.orcamentos = [{ ...orcamentoRevisado, orcamento_itens: [{ ...orcamentoRevisado.orcamento_itens[0], codigo_analise: "A1" }] }];
+    await expect(emitir()).rejects.toThrow(/NEXT_REDIRECT/);
+    const snapshot = rpcCall(0)[1].p_snapshot as {
+      nomes_analises: Record<string, string>;
+      empresa_emissora: { codigo: string; cnpj: string };
+      textos_proposta: { descricao: unknown; secoes: Array<{ chave: string }> };
+    };
+    expect(snapshot.nomes_analises).toEqual({ A1: "Análise um" });
+    expect(snapshot.empresa_emissora).toMatchObject({ codigo: "ATGC", cnpj: "12.345.678/0001-90" });
+    expect(snapshot.textos_proposta.secoes.map((s) => s.chave)).toEqual(["prazos"]);
+    // sem texto salvo, a descrição nasce do escopo preliminar
+    expect(JSON.stringify(snapshot.textos_proposta.descricao)).toContain("Escopo");
   });
 
   it("envia snapshot com engine/fórmula/totais e payload de parâmetros", async () => {
