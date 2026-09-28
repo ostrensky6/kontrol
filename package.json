@@ -13,6 +13,8 @@
     "version:bump": "node scripts/bump-app-version.mjs",
     "version:test": "node --test scripts/app-version.test.mjs",
     "version:check": "node scripts/check-app-version-changed.mjs",
+    "db:migration": "node scripts/aplicar-migration.mjs",
+    "db:migration:test": "node --test scripts/aplicar-migration.test.mjs",
     "test:e2e": "next build && npm run test:e2e:run",
     "test:e2e:run": "playwright test",
     "lab:import": "node scripts/import-laboratorio1.mjs",

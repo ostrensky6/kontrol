@@ -123,12 +123,17 @@ para producao com autorizacao explicita do dono, na hora.
    `pg_dump -Fc` do banco e as definicoes atuais (`pg_get_functiondef`,
    `pg_get_viewdef`, grants) de tudo que a migration recria, ja no formato de
    rollback.
-4. Aplicar uma por vez, sempre com UTF8 (sem isso os acentos das funcoes
-   estragam):
-   `PGCLIENTENCODING=UTF8 psql "<url 5432>" -v ON_ERROR_STOP=1 -f supabase/migrations/NNNN_nome.sql`
-   Guardar a saida no mesmo diretorio do backup.
-5. Registrar a versao em `supabase_migrations.schema_migrations` com a mesma
-   versao e nome do arquivo.
+4. Ver o que falta: `npm run db:migration -- --situacao --env-file G:\Aplicativos\Kontrol\.env.local`.
+5. Ensaiar e aplicar uma por vez com o script, que aplica **e registra na mesma
+   transação** (se cair no meio, nada fica aplicado nem registrado), sempre em
+   UTF8 e na porta 5432 (a 6543 do `.env.local` e trocada sozinha):
+   - ensaio (termina em rollback): `npm run db:migration -- --arquivo supabase/migrations/NNNN_nome.sql --env-file G:\Aplicativos\Kontrol\.env.local --ensaio`
+   - aplicar: o mesmo comando sem `--ensaio` e com `--log <pasta do backup>`, que guarda a saida sem a senha.
+   - migration ja registrada: o script avisa e nao faz nada.
+   - migration aplicada a mao e nao registrada (o caso antigo, antes do
+     script): se ela e idempotente (`create or replace`) e o ensaio passa,
+     aplicar pelo script de novo; se o ensaio falhar porque os objetos ja
+     existem, conferir as definicoes (passo 6) e so entao usar `--somente-registrar`.
 6. Conferir: definicoes iguais as testadas no banco local (md5 de
    `pg_get_functiondef`), nenhuma funcao com acento estragado (`chr(195)`), e os
    `supabase/tests/*.sql` da migration rodando em transacao revertida.
