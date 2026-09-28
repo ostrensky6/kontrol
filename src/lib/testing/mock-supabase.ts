@@ -293,6 +293,17 @@ const baseStore = (): Store => {
   demanda_grupos_amostras: [],
   projetos: [{ id: 1, nome: "Projeto E2E" }],
   clientes: [{ id: 1, nome: "Cliente Cadastrado", ativo: true }],
+  // Documento da proposta (0135)
+  empresas_emissoras: [
+    { id: 1, codigo: "ATGC", nome_legal: "ATGC Genética Ambiental Ltda.", cnpj: null, endereco: null, telefone: null, email: null, site: null },
+    { id: 2, codigo: "GIA", nome_legal: "Grupo Integrado de Aquicultura e Estudos Ambientais", cnpj: null, endereco: null, telefone: null, email: null, site: null },
+  ],
+  proposta_secoes_padrao: ["ATGC", "GIA"].flatMap((empresa, i) => [
+    { id: 10 + i * 2, empresa_codigo: empresa, chave: "prazos", titulo: "Prazos e entregas", ordem: 10, ativo: true,
+      texto: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Relatório técnico no prazo técnico informado." }] }] } },
+    { id: 11 + i * 2, empresa_codigo: empresa, chave: "condicoes", titulo: "Condições comerciais", ordem: 30, ativo: true,
+      texto: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Pagamento conforme combinado." }] }] } },
+  ]),
   analises: HISTORICAL_ANALISES,
   insumos,
   etapas: HISTORICAL_ANALISE_CODES.map((codigo) => ({
@@ -1802,6 +1813,8 @@ function emitirOrcamentoFinalTransacional(args: Row) {
     criado_por: args.p_criado_por,
     criado_em: criadoEm,
     valido_ate: validoAte,
+    validade_dias: validadeDias,
+    textos_proposta: null,
   };
   store.orcamento_final_versoes.push(versaoFinal);
 
@@ -1958,6 +1971,15 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         }
       }
       if (fn === "emitir_orcamento_final_transacional") return { data: emitirOrcamentoFinalTransacional(args), error: null };
+      if (fn === "atualizar_textos_versao_final") {
+        const versao = (store.orcamento_final_versoes ?? []).find((row) => Number(row.id) === Number(args.p_versao_id));
+        if (!versao) return { data: null, error: { message: "Proposta não encontrada.", code: "P0002" } };
+        if (!["emitido", "enviado", "alterado_reenviado"].includes(String(versao.status))) {
+          return { data: null, error: { message: "Só dá para editar os textos de proposta emitida ou enviada, ainda não aprovada.", code: "22023" } };
+        }
+        versao.textos_proposta = args.p_textos;
+        return { data: { id: versao.id, status: versao.status }, error: null };
+      }
       if (fn === "transicionar_orcamento_projeto") {
         try {
           return { data: transicionarOrcamentoProjeto(args), error: null };
