@@ -2,7 +2,9 @@ import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
+import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { buttonVariants } from "@/components/ui/button";
 import { calcularTodas, type FonteCustoInsumos } from "@/lib/costing/loader";
 import { PrintButton } from "@/components/orcamento/PrintButton";
 import { FluxoProposta } from "@/components/orcamento/FluxoProposta";
@@ -185,11 +187,12 @@ export default async function OrcamentoDetalhe({
     itens.length === 0 ? "adicionar ao menos uma análise" : null,
     desatualizado ? "recalcular preços após mudança de parâmetros" : null,
   ].filter(Boolean) as string[];
+  const custoResumo = Number(totaisOperacionais.custo ?? totalCusto);
   const tabs = [
     { href: "#identificacao-tecnica", label: "Identificação", meta: orc.responsavel ? "preenchida" : "pendente" },
     { href: "#analises-quantidades", label: "Análises", meta: `${itens.length} linha(s)` },
     { href: "#composicao-tecnica", label: "Composição", meta: `${totalAmostras} amostra(s)` },
-    { href: "#totais-tecnicos", label: "Totais", meta: brl(Number(totaisOperacionais.custo ?? totalCusto)) },
+    { href: "#totais-tecnicos", label: "Totais", meta: brl(custoResumo) },
     { href: "#revisao-laboratorio", label: "Revisão", meta: revisaoPendencias.length === 0 ? "liberada" : `${revisaoPendencias.length} pendência(s)` },
     { href: "#historico-laboratorio", label: "Histórico", meta: `${eventos.length} evento(s)` },
   ];
@@ -205,8 +208,10 @@ export default async function OrcamentoDetalhe({
       : null;
 
   const inp =
-    "rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
+    "rounded-md border border-input bg-card px-2.5 py-1.5 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
+  const campo = `${inp} mt-0.5 h-8 w-full py-0`; // campos de uma linha: 32 px, como em Dados do orçamento
   const lbl = "block text-xs font-medium text-muted-foreground";
+  const botaoSecundario = buttonVariants({ variant: "outline" });
   const operacaoRecalculoId = randomUUID();
   // Proposta aprovada gera o plano sozinha (0122); aqui só o link para ele.
   const { data: planoGerado } = await supabase
@@ -238,18 +243,25 @@ export default async function OrcamentoDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="print-area app-page-container">
-        <div className="no-print flex flex-wrap items-center justify-between gap-3">
-          <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento/demandas" }, { label: `Custos laboratoriais #${orc.id}` }]} />
+        <div className="no-print flex flex-wrap items-center justify-between gap-2">
+          <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento/demandas" }, { label: `Custos laboratoriais nº ${orc.id}` }]} />
           <div className="flex flex-wrap items-center gap-2">
-            <PrintButton />
+            {demanda && (
+              <span className="inline-flex items-center gap-0.5">
+                <Link href={`/orcamento/demandas/${demanda.id}#demanda`} className={botaoSecundario}>
+                  Editar dados do orçamento
+                </Link>
+                <HelpTip title="Dados comerciais herdados">
+                  <p>Cliente, documento e contato vêm dos <b>dados do orçamento</b>; altere-os por lá. A proposta emitida guarda uma cópia própria desses dados.</p>
+                </HelpTip>
+              </span>
+            )}
             {planoGerado && (
-              <Link
-                href={`/planejamento/${planoGerado.id}`}
-                className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-muted"
-              >
-                Planejamento #{planoGerado.id}
+              <Link href={`/planejamento/${planoGerado.id}`} className={botaoSecundario}>
+                Planejamento nº {planoGerado.id}
               </Link>
             )}
+            <PrintButton />
             {podeRecalcular && (
               <RecalcularOrcamentoForm
                 orcamentoId={orcId}
@@ -262,99 +274,89 @@ export default async function OrcamentoDetalhe({
 
         {demanda && <FluxoProposta modalidade={demanda.modalidade} atual="laboratorio" />}
 
+        {desatualizado && (
+          <p className="no-print mt-3 rounded-md bg-warning-soft px-3 py-1.5 text-sm text-warning-strong">
+            Os parâmetros de custo mudaram desde a emissão. Use “Recalcular
+            preços” para atualizar os valores deste orçamento.
+          </p>
+        )}
+        {erroExclusao && (
+          <p className="no-print mt-3 rounded-md bg-danger-soft px-3 py-1.5 text-sm text-danger-strong">
+            {erroExclusao}
+          </p>
+        )}
+        {aviso && (
+          <p role="status" className="no-print mt-3 rounded-md bg-amber-500/10 px-3 py-1.5 text-sm text-amber-800 dark:text-amber-200">
+            {aviso}
+          </p>
+        )}
+
         {/* Documento imprimível */}
-        <div className="mt-4 rounded-2xl border border-border bg-card p-5 shadow-sm print:border-0 print:shadow-none">
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-xl font-semibold tracking-tight">
-                Custos laboratoriais
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Laboratório ATGC — Biologia Molecular
-              </p>
+        <div className="mt-3 rounded-xl border border-border bg-card p-4 shadow-sm print:border-0 print:shadow-none">
+          {/* div, não <header>: a regra de impressão esconde todo header (cabeçalho do app). */}
+          <div>
+            <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
+              <h1 className="text-lg font-semibold tracking-tight">Custos laboratoriais nº {orc.id}</h1>
+              <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{rotuloStatusModulo(orc.status)}</span>
+              <span className="text-lg font-semibold tabular-nums text-brand-800 dark:text-brand-200">{brl(custoResumo)}</span>
+              <span className="text-xs text-muted-foreground">de custo</span>
             </div>
-            <div className="text-right text-sm">
-              <p className="font-medium">Nº {orc.id}</p>
-              <p className="text-muted-foreground">Data: {formatDate(orc.data_orcamento)}</p>
-              {validade && (
-                <p className="text-muted-foreground">Válido até: {validade}</p>
-              )}
-            </div>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {["Laboratório ATGC — Biologia Molecular", `Data: ${formatDate(orc.data_orcamento)}`, validade ? `Válido até: ${validade}` : null]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
           </div>
 
-          <dl className="mt-5 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Orçamento lab:</dt>
-              <dd className="font-medium">#{orc.id} · {rotuloStatusModulo(orc.status)}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Orçamento:</dt>
-              <dd>
-                {demanda ? (
-                  <Link href={`/orcamento/demandas/${demanda.id}`} className="font-medium text-primary hover:underline">
-                    {demanda.titulo}
-                  </Link>
-                ) : (
-                  "—"
-                )}
-              </dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Cliente:</dt>
-              <dd className="font-medium">{orc.cliente_nome}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Matriz/amostra:</dt>
-              <dd>{demanda?.matriz_amostra ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">CNPJ:</dt>
-              <dd>{orc.cliente_cnpj ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2 sm:col-span-2">
-              <dt className="text-muted-foreground">Endereço:</dt>
-              <dd>{orc.cliente_endereco ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Contato:</dt>
-              <dd>{orc.cliente_contato ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Responsável:</dt>
-              <dd>{orc.responsavel ?? "—"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Custo calculado em:</dt>
-              <dd>{formatDateTime(snapshotGeradoEm)}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Fonte dos insumos:</dt>
-              <dd>{orc.fonte_custo_insumos === "custo_medio_ponderado" ? "Média ponderada dos lotes liberados" : "Custo padrão aprovado"}</dd>
-            </div>
-            <div className="flex gap-2">
-              <dt className="text-muted-foreground">Projeto:</dt>
-              <dd>{projetoNome ?? "—"}</dd>
-            </div>
+          {/* Dados comerciais vêm do orçamento (demanda); editar pelo botão do topo. */}
+          {/* 3 colunas (4 em telas muito largas); os dois campos longos ocupam 2 e o dense fecha as lacunas. */}
+          <dl className="mt-3 grid grid-flow-row-dense grid-cols-1 gap-x-6 gap-y-1 border-t border-border pt-3 text-sm sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+            <Campo rotulo="Cliente">
+              <span className="font-medium">{orc.cliente_nome ?? "—"}</span>
+            </Campo>
+            <Campo rotulo="CNPJ">{orc.cliente_cnpj ?? "—"}</Campo>
+            <Campo rotulo="Contato">{orc.cliente_contato ?? "—"}</Campo>
+            <Campo rotulo="Orçamento" className="lg:col-span-2">
+              {demanda ? (
+                <Link href={`/orcamento/demandas/${demanda.id}`} className="font-medium text-primary hover:underline">
+                  nº {demanda.id} · {demanda.titulo}
+                </Link>
+              ) : (
+                "—"
+              )}
+            </Campo>
+            <Campo rotulo="Responsável">{orc.responsavel ?? "—"}</Campo>
+            <Campo rotulo="Endereço" className="lg:col-span-2">{orc.cliente_endereco ?? "—"}</Campo>
+            <Campo rotulo="Matriz/amostra">{demanda?.matriz_amostra ?? "—"}</Campo>
+            <Campo rotulo="Projeto">{projetoNome ?? "—"}</Campo>
+            <Campo rotulo="Fonte dos insumos">
+              {orc.fonte_custo_insumos === "custo_medio_ponderado" ? "Média ponderada dos lotes liberados" : "Custo padrão aprovado"}
+            </Campo>
+            <Campo rotulo="Custo calculado em">{formatDateTime(snapshotGeradoEm)}</Campo>
           </dl>
 
-          <nav className="no-print sticky top-[57px] z-10 mt-6 overflow-x-auto md:top-0 border-y border-border bg-card/95 py-2 shadow-sm backdrop-blur">
-            <div className="flex min-w-max gap-2">
+          <nav aria-label="Seções da página" className="no-print sticky top-[57px] z-10 mt-3 overflow-x-auto border-y border-border bg-card/95 py-1.5 backdrop-blur md:top-0">
+            <div className="flex min-w-max gap-1.5">
               {tabs.map((tab) => (
                 <a
                   key={tab.href}
                   href={tab.href}
-                  className="app-nav-level-3 rounded-md border border-primary/20 px-3 py-2 text-left text-xs text-brand-800 shadow-xs transition hover:border-primary/40 hover:text-brand-900 dark:text-brand-300"
+                  className="inline-flex items-baseline gap-1.5 rounded-md border border-primary/20 px-2.5 py-1 text-xs text-brand-800 transition hover:border-primary/40 hover:bg-primary/5 hover:text-brand-900 dark:text-brand-300"
                 >
-                  <span className="block font-semibold">{tab.label}</span>
-                  <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-muted-foreground">{tab.meta}</span>
+                  <span className="font-semibold">{tab.label}</span>
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{tab.meta}</span>
                 </a>
               ))}
             </div>
           </nav>
 
-          <section id="totais-tecnicos" className="no-print mt-6 scroll-mt-24 rounded-lg border border-border bg-muted/50 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-1">
+          <section
+            id="totais-tecnicos"
+            aria-label="Preenchimento interno"
+            className="no-print mt-3 scroll-mt-24 rounded-lg border border-border bg-muted/30 px-3 py-2"
+          >
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+              <div className="flex items-center gap-1.5">
                 <h2 className="text-sm font-semibold">Preenchimento interno</h2>
                 <HelpTip title="Custo técnico">
                   <p>Tudo aqui é <b>custo</b>: insumos, equipamentos, mão de obra e overhead. O preço da proposta só é formado depois, nos parâmetros econômicos.</p>
@@ -369,28 +371,28 @@ export default async function OrcamentoDetalhe({
                     ]}
                   />
                 </HelpTip>
+                <span className="rounded-full bg-card px-2 py-0.5 text-[11px] font-medium text-foreground ring-1 ring-border">
+                  {rotuloStatusModulo(statusOperacional)}
+                </span>
               </div>
-              <span className="rounded-full bg-card px-2.5 py-1 text-xs font-medium text-foreground ring-1 ring-border">
-                {rotuloStatusModulo(statusOperacional)}
-              </span>
+              <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:ml-auto">
+                <ResumoOperacional titulo="Amostras" valor={Number(totaisOperacionais.amostras ?? totalAmostras)} numero />
+                <ResumoOperacional titulo="Preço preservado" valor={Number(totaisOperacionais.preco ?? totalPreco)} discreto />
+                <ResumoOperacional titulo="Subtotal custo" valor={custoResumo} destaque />
+              </dl>
             </div>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-              <ResumoOperacional titulo="Reagentes" valor={Number(totaisOperacionais.reagentes ?? 0)} />
-              <ResumoOperacional titulo="Materiais" valor={Number(totaisOperacionais.materiais ?? 0)} />
-              <ResumoOperacional titulo="Equipamentos" valor={Number(totaisOperacionais.equipamentos ?? 0)} />
-              <ResumoOperacional titulo="Mão de obra" valor={Number(totaisOperacionais.mao_obra ?? 0)} />
-              <ResumoOperacional titulo="Terceiros" valor={Number(totaisOperacionais.terceiros ?? 0)} />
-              <ResumoOperacional titulo="Overhead" valor={Number(totaisOperacionais.overhead ?? 0)} />
-            </div>
-            <div className="mt-3 grid gap-3 sm:grid-cols-3">
-              <ResumoOperacional titulo="Subtotal custo" valor={Number(totaisOperacionais.custo ?? totalCusto)} destaque />
-              <ResumoOperacional titulo="Amostras" valor={Number(totaisOperacionais.amostras ?? totalAmostras)} numero />
-              <ResumoOperacional titulo="Preço preservado" valor={Number(totaisOperacionais.preco ?? totalPreco)} discreto />
-            </div>
+            <dl className="mt-2 grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-3 lg:grid-cols-6">
+              <ResumoOperacional titulo="Reagentes" valor={Number(totaisOperacionais.reagentes ?? 0)} bloco />
+              <ResumoOperacional titulo="Materiais" valor={Number(totaisOperacionais.materiais ?? 0)} bloco />
+              <ResumoOperacional titulo="Equipamentos" valor={Number(totaisOperacionais.equipamentos ?? 0)} bloco />
+              <ResumoOperacional titulo="Mão de obra" valor={Number(totaisOperacionais.mao_obra ?? 0)} bloco />
+              <ResumoOperacional titulo="Terceiros" valor={Number(totaisOperacionais.terceiros ?? 0)} bloco />
+              <ResumoOperacional titulo="Overhead" valor={Number(totaisOperacionais.overhead ?? 0)} bloco />
+            </dl>
           </section>
 
           {/* Análises solicitadas */}
-          <section id="analises-quantidades" className="mt-6 scroll-mt-24">
+          <section id="analises-quantidades" className="mt-4 scroll-mt-24">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Análises e quantidades
@@ -496,16 +498,14 @@ export default async function OrcamentoDetalhe({
           </div>
           </section>
 
-          <section id="composicao-tecnica" className="no-print mt-6 scroll-mt-24">
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Composição técnica por bloco</h2>
-                <HelpTip title="Overhead técnico">
-                  <p>São os <b>custos indiretos</b> do laboratório (limpeza, energia, gestão), repartidos pelas <b>horas de bancada</b> de cada amostra.</p>
-                  <HelpExample>0,5 h por amostra × R$ 40/h de overhead = R$ 20 por amostra.</HelpExample>
-                </HelpTip>
-              </div>
-            </div>
+          <section id="composicao-tecnica" className="no-print mt-3 scroll-mt-24">
+            <details className="group rounded-md border border-border px-3 py-1.5 text-sm">
+              {/* summary vira botão para leitores de tela: só texto aqui; a ajuda fica na linha do overhead. */}
+              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5">
+                <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
+                <span className="font-medium">Como cada bloco é calculado</span>
+                <span className="text-xs text-muted-foreground">composição técnica por bloco</span>
+              </summary>
             <TabelaResumoTecnico
               colunas={["Bloco", "Como é calculado", "Subtotal"]}
               vazio="Sem composição técnica calculada."
@@ -515,13 +515,24 @@ export default async function OrcamentoDetalhe({
                 ["Equipamentos", "Custo diário do equipamento (depreciação e manutenção) dividido pela capacidade da análise.", brl(Number(totaisOperacionais.equipamentos ?? 0))],
                 ["Mão de obra", "Horas de bancada por amostra × valor-hora da equipe.", brl(Number(totaisOperacionais.mao_obra ?? 0))],
                 ["Terceiros", "Serviços de terceiros (nenhum lançado).", brl(Number(totaisOperacionais.terceiros ?? 0))],
-                ["Overhead técnico", "Horas de bancada por amostra × custo-hora de overhead.", brl(Number(totaisOperacionais.overhead ?? 0))],
+                [
+                  <span key="overhead" className="inline-flex items-center gap-1">
+                    Overhead técnico
+                    <HelpTip title="Overhead técnico">
+                      <p>São os <b>custos indiretos</b> do laboratório (limpeza, energia, gestão), repartidos pelas <b>horas de bancada</b> de cada amostra.</p>
+                      <HelpExample>0,5 h por amostra × R$ 40/h de overhead = R$ 20 por amostra.</HelpExample>
+                    </HelpTip>
+                  </span>,
+                  "Horas de bancada por amostra × custo-hora de overhead.",
+                  brl(Number(totaisOperacionais.overhead ?? 0)),
+                ],
               ]}
             />
+            </details>
           </section>
 
           {orc.observacoes && (
-            <div className="mt-4 text-sm">
+            <div className="mt-3 text-sm">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Observações
               </p>
@@ -532,26 +543,8 @@ export default async function OrcamentoDetalhe({
           )}
         </div>
 
-        {desatualizado && (
-          <p className="no-print mt-4 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-strong">
-            Os parâmetros de custo mudaram desde a emissão. Use “Recalcular
-            preços” para atualizar os valores deste orçamento.
-          </p>
-        )}
-
-        {erroExclusao && (
-          <p className="no-print mt-4 rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">
-            {erroExclusao}
-          </p>
-        )}
-        {aviso && (
-          <p role="status" className="no-print mt-4 rounded-md bg-amber-500/10 px-3 py-2 text-sm text-amber-800 dark:text-amber-200">
-            {aviso}
-          </p>
-        )}
-
         {/* Catálogo visível de análises */}
-        <section id="identificacao-tecnica" className="no-print mt-6 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <section id="identificacao-tecnica" className="no-print mt-3 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Catálogo de análises laboratoriais</h2>
@@ -575,49 +568,26 @@ export default async function OrcamentoDetalhe({
           />
         </section>
 
-        {demanda ? (
-          <section className="no-print mt-6 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold">Dados comerciais herdados</h2>
-                <HelpTip title="Dados comerciais herdados">
-                  <p>Cliente, documento e contato vêm dos <b>dados do orçamento</b>; altere-os por lá. A proposta emitida guarda uma cópia própria desses dados.</p>
-                </HelpTip>
-              </div>
-              <Link
-                href={`/orcamento/demandas/${demanda.id}#demanda`}
-                className="app-nav-level-3 rounded-md border border-primary/20 px-3 py-2 text-xs font-medium text-brand-800 shadow-xs transition hover:border-primary/40 hover:text-brand-900 dark:text-brand-300"
-              >
-                Editar dados do orçamento
-              </Link>
-            </div>
-            <dl className="mt-3 grid gap-2 text-sm sm:grid-cols-2">
-              <div><dt className="text-xs text-muted-foreground">Cliente</dt><dd className="font-medium">{orc.cliente_nome ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Documento</dt><dd>{orc.cliente_cnpj ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Contato</dt><dd>{orc.cliente_contato ?? "—"}</dd></div>
-              <div><dt className="text-xs text-muted-foreground">Origem</dt><dd>Orçamento nº {demanda.id}</dd></div>
-            </dl>
-          </section>
-        ) : (
-        <section className="no-print mt-6 rounded-xl border border-border bg-card p-4 shadow-sm">
+        {!demanda && (
+        <section className="no-print mt-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold">Dados do cliente e do orçamento</h2>
-          <FormEstado action={salvarCabecalho} className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2" mensagemClassName="sm:col-span-2">
+          <FormEstado action={salvarCabecalho} className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4" mensagemClassName="sm:col-span-2 lg:col-span-4">
             <input type="hidden" name="orcamento_id" value={orcId} />
-            <div>
+            <div className="lg:col-span-2">
               <label className={lbl}>Cliente cadastrado</label>
-              <select aria-label="Cliente cadastrado" name="cliente_id" defaultValue={orc.cliente_id ?? ""} className={`${inp} mt-1 w-full`}>
+              <select aria-label="Cliente cadastrado" name="cliente_id" defaultValue={orc.cliente_id ?? ""} className={campo}>
                 <option value="">— (preencher manualmente abaixo)</option>
                 {(clientes ?? []).map((c) => (
                   <option key={c.id} value={c.id}>{c.nome}</option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-muted-foreground/80">
+              <p className="mt-0.5 text-[11px] text-muted-foreground/80">
                 Ao vincular, os dados do documento são preenchidos a partir do cadastro.
               </p>
             </div>
-            <div>
+            <div className="lg:col-span-2">
               <label className={lbl}>Projeto</label>
-              <select aria-label="Projeto" name="projeto_id" defaultValue={orc.projeto_id ?? ""} className={`${inp} mt-1 w-full`}>
+              <select aria-label="Projeto" name="projeto_id" defaultValue={orc.projeto_id ?? ""} className={campo}>
                 <option value="">—</option>
                 {(projetos ?? []).map((p) => (
                   <option key={p.id} value={p.id}>{p.nome}</option>
@@ -626,62 +596,61 @@ export default async function OrcamentoDetalhe({
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>Cliente (texto livre, se não cadastrado)</label>
-              <input id="cabecalho-cliente" aria-label="Cliente (texto livre, se não cadastrado)" name="cliente_nome" defaultValue={orc.cliente_nome ?? ""} className={`${inp} mt-1 w-full scroll-mt-28`} />
+              <input id="cabecalho-cliente" aria-label="Cliente (texto livre, se não cadastrado)" name="cliente_nome" defaultValue={orc.cliente_nome ?? ""} className={`${campo} scroll-mt-28`} />
             </div>
             <div>
               <label className={lbl}>CNPJ</label>
-              <input aria-label="CNPJ" name="cliente_cnpj" defaultValue={orc.cliente_cnpj ?? ""} className={`${inp} mt-1 w-full`} />
+              <input aria-label="CNPJ" name="cliente_cnpj" defaultValue={orc.cliente_cnpj ?? ""} className={campo} />
             </div>
             <div>
               <label className={lbl}>Contato (e-mail / telefone)</label>
-              <input aria-label="Contato (e-mail / telefone)" name="cliente_contato" defaultValue={orc.cliente_contato ?? ""} className={`${inp} mt-1 w-full`} />
+              <input aria-label="Contato (e-mail / telefone)" name="cliente_contato" defaultValue={orc.cliente_contato ?? ""} className={campo} />
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>Endereço</label>
-              <input aria-label="Endereço" name="cliente_endereco" defaultValue={orc.cliente_endereco ?? ""} className={`${inp} mt-1 w-full`} />
+              <input aria-label="Endereço" name="cliente_endereco" defaultValue={orc.cliente_endereco ?? ""} className={campo} />
             </div>
             <div>
               <label className={lbl}>Data do orçamento</label>
-              <input aria-label="Data do orçamento" name="data_orcamento" type="date" defaultValue={orc.data_orcamento ?? ""} className={`${inp} mt-1 w-full`} />
+              <input aria-label="Data do orçamento" name="data_orcamento" type="date" defaultValue={orc.data_orcamento ?? ""} className={campo} />
             </div>
             <div>
               <label className={lbl}>Validade (dias)</label>
-              <input aria-label="Validade (dias)" name="validade_dias" type="number" min="0" step="1" defaultValue={orc.validade_dias ?? 30} className={`${inp} mt-1 w-full`} />
+              <input aria-label="Validade (dias)" name="validade_dias" type="number" min="0" step="1" defaultValue={orc.validade_dias ?? 30} className={campo} />
             </div>
             <div>
               <label className={lbl}>Responsável (laboratório)</label>
-              <input id="cabecalho-responsavel" aria-label="Responsável (laboratório)" name="responsavel" defaultValue={orc.responsavel ?? ""} className={`${inp} mt-1 w-full scroll-mt-28`} />
+              <input id="cabecalho-responsavel" aria-label="Responsável (laboratório)" name="responsavel" defaultValue={orc.responsavel ?? ""} className={`${campo} scroll-mt-28`} />
             </div>
             <div>
               <p className={lbl}>Situação</p>
               <p className="mt-1 text-sm font-medium">{rotuloStatusModulo(orc.status)}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80">Muda pelas ações da página (revisar, cancelar), não por aqui.</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground/80">Muda pelas ações da página (revisar, cancelar), não por aqui.</p>
             </div>
             <div className="sm:col-span-2">
               <label className={lbl}>Observações</label>
-              <textarea aria-label="Observações" name="observacoes" rows={3} defaultValue={orc.observacoes ?? ""} className={`${inp} mt-1 w-full`} />
+              <textarea aria-label="Observações" name="observacoes" rows={2} defaultValue={orc.observacoes ?? ""} className={`${inp} mt-0.5 w-full`} />
             </div>
-            <div className="sm:col-span-2">
-              <SubmitButton>Salvar dados</SubmitButton>
+            <div className="sm:col-span-2 lg:col-span-4">
+              <SubmitButton size="sm">Salvar dados</SubmitButton>
             </div>
           </FormEstado>
         </section>
         )}
 
-        <section id="revisao-laboratorio" className="no-print mt-6 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Revisão técnica dos custos</h2>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.
-              </p>
-            </div>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
+        <div className="no-print mt-3 grid items-start gap-3 lg:grid-cols-2">
+        <section id="revisao-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="text-sm font-semibold">Revisão técnica dos custos</h2>
+            <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {revisaoPendencias.length === 0 ? "Liberado" : `${revisaoPendencias.length} pendência(s)`}
             </span>
           </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.
+          </p>
           {revisaoPendencias.length > 0 ? (
-            <ul className="mt-3 list-disc space-y-1 pl-4 text-xs leading-5 text-warning-strong">
+            <ul className="mt-2 list-disc space-y-1 pl-4 text-xs leading-5 text-warning-strong">
               {revisaoPendencias.map((pendencia) => {
                 const alvo = alvoPendencia[pendencia] ?? null;
                 return (
@@ -701,17 +670,17 @@ export default async function OrcamentoDetalhe({
               })}
             </ul>
           ) : (
-            <p className="mt-3 rounded-md bg-brand-50 px-3 py-2 text-xs leading-5 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200">
+            <p className="mt-2 rounded-md bg-brand-50 px-3 py-1.5 text-xs leading-5 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200">
               Tudo certo. Marque como revisado para liberar a proposta final.
             </p>
           )}
           {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && !podeRevisar && (
-            <p className="mt-4 text-xs text-muted-foreground">
+            <p className="mt-3 text-xs text-muted-foreground">
               A revisão dos custos é feita por coordenador ou superior, ou por quem tem a permissão “Orçamentos: Emitir proposta”.
             </p>
           )}
           {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar && (
-            <FormEstado action={revisarOrcamentoLaboratorio} className="mt-4 grid gap-3 rounded-md border border-border bg-muted/50 p-3 text-sm sm:grid-cols-[1fr_auto]" mensagemClassName="sm:col-span-2">
+            <FormEstado action={revisarOrcamentoLaboratorio} className="mt-3 grid gap-2 rounded-md border border-border bg-muted/50 p-2.5 text-sm sm:grid-cols-[1fr_auto]" mensagemClassName="sm:col-span-2">
               <input type="hidden" name="orcamento_id" value={orcId} />
               <div>
                 <label htmlFor="revisao-responsavel" className={lbl}>Responsável técnico</label>
@@ -719,13 +688,13 @@ export default async function OrcamentoDetalhe({
                   id="revisao-responsavel"
                   name="responsavel"
                   defaultValue={orc.responsavel ?? demanda.responsavel_interno ?? ""}
-                  className={`${inp} mt-1 w-full scroll-mt-28`}
+                  className={`${campo} scroll-mt-28`}
                   required
                 />
               </div>
               <div className="flex items-end gap-1">
                 <ConfirmSubmitButton
-                  className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500"
+                  className="h-8 rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-500"
                   titulo="Marcar custos como revisados?"
                   mensagem="Os custos laboratoriais ficam congelados para a proposta final. Depois disso, a edição direta fica bloqueada."
                   confirmLabel="Marcar revisado"
@@ -737,15 +706,16 @@ export default async function OrcamentoDetalhe({
           )}
         </section>
 
-        <section id="historico-laboratorio" className="no-print mt-6 scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">Linha do tempo</h2>
-          <p className="mt-1 mb-3 text-xs text-muted-foreground">
-            Mudanças de status aparecem aqui.
-          </p>
+        <section id="historico-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <div className="mb-2 flex flex-wrap items-baseline gap-x-2">
+            <h2 className="text-sm font-semibold">Linha do tempo</h2>
+            <p className="text-xs text-muted-foreground">Mudanças de status aparecem aqui.</p>
+          </div>
           <Timeline eventos={eventos} />
         </section>
+        </div>
 
-        <div className="no-print mt-6 flex flex-wrap gap-3">
+        <div className="no-print mt-3 flex flex-wrap gap-3">
           {!podeCancelar ? null : ["enviado", "aprovado"].includes(orc.status) || cancelamentoIncompleto ? (
             <CancelarComMotivo
               action={cancelarOrcamento}
@@ -772,25 +742,53 @@ export default async function OrcamentoDetalhe({
   );
 }
 
+/** Par rótulo: valor do cabeçalho (dl denso em colunas). */
+function Campo({ rotulo, children, className = "" }: { rotulo: string; children: ReactNode; className?: string }) {
+  return (
+    <div className={`flex min-w-0 gap-1.5 ${className}`}>
+      <dt className="shrink-0 text-muted-foreground">{rotulo}:</dt>
+      <dd className="min-w-0 break-words">{children}</dd>
+    </div>
+  );
+}
+
+/**
+ * Item da faixa de totais: rótulo e valor na mesma linha; zero fica apagado.
+ * `bloco` = célula da grade de blocos de custo; `destaque` = subtotal de custo.
+ */
 function ResumoOperacional({
   titulo,
   valor,
   destaque = false,
   discreto = false,
   numero = false,
+  bloco = false,
 }: {
   titulo: string;
   valor: number;
   destaque?: boolean;
   discreto?: boolean;
   numero?: boolean;
+  bloco?: boolean;
 }) {
+  const zerado = Math.abs(valor) < 0.005;
+  // No celular o bloco empilha rótulo e valor (duas colunas estreitas não cabem lado a lado).
+  const caixa = bloco
+    ? "max-sm:flex-col max-sm:items-start max-sm:gap-0 justify-between rounded-md bg-card px-2 py-1 ring-1 ring-border/70"
+    : destaque
+      ? "rounded-md bg-brand-50 px-2 py-0.5 ring-1 ring-brand-200 dark:bg-brand-950/30 dark:ring-brand-900"
+      : "";
+  const tomValor = destaque
+    ? "font-semibold text-brand-800 dark:text-brand-200"
+    : zerado
+      ? "text-muted-foreground"
+      : discreto
+        ? "font-medium text-muted-foreground"
+        : "font-semibold";
   return (
-    <div className={`rounded-lg border p-3 ${destaque ? "border-brand-200 bg-brand-50 dark:border-brand-900 dark:bg-brand-950/30" : "border-border bg-card"} ${discreto ? "opacity-80" : ""}`}>
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-sm font-semibold tabular-nums">
-        {numero ? valor.toLocaleString("pt-BR") : brl(valor)}
-      </p>
+    <div className={`flex min-w-0 items-baseline gap-2 ${caixa}`}>
+      <dt className={`min-w-0 text-xs leading-tight ${destaque ? "font-medium text-brand-800 dark:text-brand-200" : "text-muted-foreground"}`}>{titulo}</dt>
+      <dd className={`shrink-0 tabular-nums ${tomValor}`}>{numero ? valor.toLocaleString("pt-BR") : brl(valor)}</dd>
     </div>
   );
 }
@@ -826,19 +824,19 @@ function TabelaCatalogoAnalises({
     <div className="mt-3 rounded-lg border border-border md:overflow-x-auto">
       {/* No celular cada análise vira um cartão (mesma tabela, só CSS): código e nome em cima. */}
       <table className="w-full text-sm md:min-w-[980px] md:text-right">
-        <thead className="hidden bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground md:table-header-group">
+        <thead className="hidden bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground md:table-header-group min-[1400px]:whitespace-nowrap">
           <tr>
-            <th className="px-3 py-2 text-left">Incluir</th>
-            <th className="px-3 py-2 text-left">Código</th>
-            <th className="px-3 py-2 text-left">Nome</th>
-            <th className="px-3 py-2">Lote</th>
-            <th className="px-3 py-2">Custo unit.</th>
-            <th className="px-3 py-2" title="R reagentes · E equipamentos · P pessoal · O overhead">
+            <th className="px-2 py-2 text-left">Incluir</th>
+            <th className="px-2 py-2 text-left">Código</th>
+            <th className="px-2 py-2 text-left">Nome</th>
+            <th className="px-2 py-2">Lote</th>
+            <th className="px-2 py-2">Custo unit.</th>
+            <th className="px-2 py-2" title="R reagentes · E equipamentos · P pessoal · O overhead">
               Composição (R · E · P · O)
             </th>
-            <th className="px-3 py-2">Amostras</th>
-            <th className="px-3 py-2">Subtotal</th>
-            <th className="px-3 py-2"></th>
+            <th className="px-2 py-2">Amostras</th>
+            <th className="px-2 py-2">Subtotal</th>
+            <th className="px-2 py-2"></th>
           </tr>
         </thead>
         <tbody className="block divide-y divide-border/70 md:table-row-group">
@@ -853,7 +851,7 @@ function TabelaCatalogoAnalises({
                 key={analise.codigo}
                 className={`grid grid-cols-2 gap-x-3 gap-y-2 p-3 md:table-row md:p-0 ${selecionada ? "bg-brand-50/40 dark:bg-brand-950/10" : ""}`}
               >
-                <td data-label="Incluir" className="order-6 self-end md:order-none md:table-cell md:px-3 md:py-2 md:text-left">
+                <td data-label="Incluir" className="order-6 self-end md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left">
                   {bloqueado ? (
                     <span className="text-xs text-muted-foreground">{selecionada ? "Incluída" : "—"}</span>
                   ) : (
@@ -877,14 +875,14 @@ function TabelaCatalogoAnalises({
                   </FormEstado>
                   )}
                 </td>
-                <td className="order-1 col-span-2 font-semibold md:order-none md:table-cell md:px-3 md:py-2 md:text-left">{analise.codigo}</td>
-                <td className="order-2 col-span-2 -mt-2 text-foreground md:order-none md:mt-0 md:table-cell md:max-w-xs md:px-3 md:py-2 md:text-left">{analise.nome ?? "—"}</td>
-                <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
-                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
-                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                <td className="order-1 col-span-2 font-semibold md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left">{analise.codigo}</td>
+                <td className="order-2 col-span-2 -mt-2 text-foreground md:order-none md:mt-0 md:table-cell md:max-w-xs md:px-2 md:py-1.5 md:text-left">{analise.nome ?? "—"}</td>
+                <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
+                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
+                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 min-[1400px]:whitespace-nowrap max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   R {brl(Number(analise.breakdown?.reagentes ?? 0))} · E {brl(Number(analise.breakdown?.equipamento ?? 0))} · P {brl(Number(analise.breakdown?.pessoal ?? 0))} · O {brl(Number(analise.breakdown?.overhead ?? 0))}
                 </td>
-                <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   {selecionada && bloqueado ? (
                     <span className="tabular-nums">{amostras}</span>
                   ) : selecionada ? (
@@ -909,8 +907,8 @@ function TabelaCatalogoAnalises({
                     <span className="text-muted-foreground/80">—</span>
                   )}
                 </td>
-                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
-                <td className="order-8 self-center text-xs text-muted-foreground md:order-none md:table-cell md:px-3 md:py-2 md:text-left">
+                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
+                <td className="order-8 self-center text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left min-[1400px]:whitespace-nowrap">
                   {selecionada ? "No orçamento" : "Fora do subtotal"}
                 </td>
               </tr>
@@ -932,7 +930,7 @@ function TabelaResumoTecnico({
   vazio: string;
 }) {
   return (
-    <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+    <div className="mb-1.5 mt-2 overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-left text-sm">
         <thead className="text-xs uppercase tracking-wide text-muted-foreground">
           <tr>

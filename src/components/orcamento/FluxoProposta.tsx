@@ -22,9 +22,9 @@ export function FluxoProposta({
   const atualIndex = ETAPAS.findIndex((etapa) => etapa.id === atual);
 
   return (
-    <nav className="no-print mt-4 rounded-lg border border-border bg-card p-3 shadow-sm" aria-label="Fluxo da proposta">
-      <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Fluxo da proposta</p>
-      <div className="mt-2 grid gap-2 md:grid-cols-3 xl:grid-cols-5">
+    // Uma linha de etapas (número, nome e estado lado a lado); o título fica no aria-label.
+    <nav className="no-print mt-3" aria-label="Fluxo da proposta">
+      <ol className="grid grid-cols-1 gap-1.5 md:grid-cols-5">
         {ETAPAS.map((etapa, index) => {
           const aplicavel =
             (etapa.id !== "laboratorio" || exigeLaboratorio) &&
@@ -32,16 +32,18 @@ export function FluxoProposta({
           const estado = !aplicavel ? "Não aplicável" : etapa.id === atual ? "Atual" : index < atualIndex ? "Concluída" : "Pendente";
 
           return (
-            <div key={etapa.id} className={`rounded-md border px-2 py-2 text-xs ${classeEstado(estado)}`}>
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-semibold">{index + 1}</span>
-                <span className="rounded border px-1.5 py-0.5 text-[10px]">{estado}</span>
-              </div>
-              <p className="mt-1 font-medium">{etapa.label}</p>
-            </div>
+            <li
+              key={etapa.id}
+              aria-current={estado === "Atual" ? "step" : undefined}
+              className={`flex min-w-0 items-center gap-1.5 rounded-md border px-2 py-1 text-xs ${classeEstado(estado)}`}
+            >
+              <span className="font-semibold">{index + 1}</span>
+              <span className="min-w-0 break-words font-medium leading-tight">{etapa.label}</span>
+              <span className="ml-auto shrink-0 rounded border px-1 text-[10px] leading-4">{estado}</span>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </nav>
   );
 }
