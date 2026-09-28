@@ -200,6 +200,18 @@ export default async function CadastroPage({
   const fontes = [...new Set(cfg.campos.map((c) => c.opcoesDe).filter(Boolean))] as string[];
   const opcoesPorFonte: Record<string, { value: string; label: string; inativo?: boolean }[]> = {};
   for (const fonte of fontes) {
+    if (fonte === "perfis") {
+      // usuários: nome (ou e-mail); suspenso só aparece quando já é o valor atual
+      const { data } = await supabase.from("perfis").select("id, nome, email, suspenso").order("nome");
+      opcoesPorFonte[fonte] = ((data ?? []) as { id: string; nome: string | null; email: string | null; suspenso: boolean | null }[]).map(
+        (r) => ({
+          value: r.id,
+          label: r.nome?.trim() || r.email || r.id,
+          ...(r.suspenso ? { inativo: true } : {}),
+        }),
+      );
+      continue;
+    }
     const comAtivo = FONTES_COM_ATIVO.has(fonte);
     const { data } = await supabase
       .from(fonte)

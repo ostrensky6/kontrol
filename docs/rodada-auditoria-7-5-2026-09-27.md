@@ -115,3 +115,14 @@ de largura foram vistas falhando contra o layout antigo).
 D2 (quem solicita pode validar/aprovar a própria compra?), D3 (coordenador do
 projeto como usuário), D5 (descarte e bloqueio de lote com o coordenador) e D7
 (inventário: fechamento de campanha e segunda aprovação acima de um limite).
+
+## Terceira parte — decisões D2, D3, D5 e D7 (28/09/2026, 1.2.1)
+
+Migration `0136_decisoes_d2_d3_d5_d7` (a 0135 é da reorganização da proposta, feita em outra frente).
+
+- **D2:** quem pediu não valida nem aprova o próprio pedido interno nem a própria compra; o **coordenador do projeto** pode, e o administrador fica isento. A compra de pendência herda quem pediu a original.
+- **D3:** projeto ganha "Coordenador (usuário)" no cadastro (`projetos.coordenador_id`, preenchido pelo e-mail antigo quando bate com um usuário). O aviso de validação vai para ele; sem coordenador, para quem aprova.
+- **D5:** coordenador passa a bloquear e descartar lotes (padrão da categoria e banco).
+- **D7:** campanha de inventário pode ser **fechada** (só com as diferenças ajustadas) e deixa de receber contagens; ajuste acima de **R$ 500** (parâmetro `limite_ajuste_inventario_valor`, editável em Parâmetros; 0 desliga) é aplicado por outra pessoa, não por quem contou.
+
+Teste SQL `decisoes_d2_d3_d5_d7_0136.sql`; os testes 0120, 0127 e 0134 foram ajustados (montagens que aprovavam o próprio pedido; avisos de backup já existentes).

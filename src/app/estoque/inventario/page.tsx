@@ -1,10 +1,11 @@
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import { criarCicloInventario } from "@/lib/actions/inventario";
+import { criarCicloInventario, fecharCicloInventario } from "@/lib/actions/inventario";
+import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
-import { formatDate, formatNumber } from "@/lib/formatters";
+import { formatCurrency, formatDate, formatNumber } from "@/lib/formatters";
 import {
   InventarioScannerPanel,
   type InventarioCicloOpcao,
@@ -25,11 +26,14 @@ type ContagemRow = {
   justificativa: string | null;
   ajuste_aplicado: boolean;
   contado_em: string;
+  contado_por: string | null;
+  segunda_aprovacao: boolean | null;
   inventario_ciclos: { nome: string | null } | null;
   locais: { nome: string | null } | null;
   lotes_estoque: {
     codigo_lote: string | null;
-    insumos: { especificacao: string | null; unidade: string | null } | null;
+    custo_unitario: number | null;
+    insumos: { especificacao: string | null; unidade: string | null; custo_unitario: number | null } | null;
   } | null;
 };
 
@@ -42,7 +46,7 @@ export default async function InventarioPage() {
   const podeCriar = await pode("estoque.lote.gerir");
   const podeAjustar = await pode("estoque.lote.gerir");
 
-  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }] = await Promise.all([
+  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }, { data: limiteRow }] = await Promise.all([
     supabase
       .from("inventario_ciclos")
       .select("id, nome")
@@ -56,10 +60,33 @@ export default async function InventarioPage() {
       .order("id", { ascending: false }),
     supabase
       .from("inventario_contagens")
-      .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, inventario_ciclos(nome), locais(nome), lotes_estoque(codigo_lote, insumos(especificacao, unidade))")
+      .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, contado_por, segunda_aprovacao, inventario_ciclos(nome), locais(nome), lotes_estoque(codigo_lote, custo_unitario, insumos(especificacao, unidade, custo_unitario))")
       .order("contado_em", { ascending: false })
       .limit(25),
+    supabase.from("parametros").select("valor").eq("chave", "limite_ajuste_inventario_valor").maybeSingle(),
   ]);
+  // D7 (0136): ajuste acima do limite é aplicado por outra pessoa, não por quem contou
+  const limiteAjuste = Number((limiteRow as { valor?: number | null } | null)?.valor ?? 0);
+
+  // campanhas abertas: quantas contagens e quantas diferenças ainda sem ajuste
+  const idsAbertos = (ciclos ?? []).map((ciclo) => Number(ciclo.id));
+  const { data: contagensAbertas } = idsAbertos.length
+    ? await supabase
+        .from("inventario_contagens")
+        .select("ciclo_id, divergencia, ajuste_aplicado")
+        .in("ciclo_id", idsAbertos)
+    : { data: [] as { ciclo_id: number; divergencia: number; ajuste_aplicado: boolean }[] };
+  const resumoCiclos = (ciclos ?? []).map((ciclo) => {
+    const doCiclo = ((contagensAbertas ?? []) as { ciclo_id: number; divergencia: number; ajuste_aplicado: boolean }[]).filter(
+      (c) => Number(c.ciclo_id) === Number(ciclo.id),
+    );
+    return {
+      id: Number(ciclo.id),
+      nome: ciclo.nome ? String(ciclo.nome) : `Inventário #${ciclo.id}`,
+      contagens: doCiclo.length,
+      pendentes: doCiclo.filter((c) => !c.ajuste_aplicado && Math.abs(Number(c.divergencia ?? 0)) > 0.000001).length,
+    };
+  });
 
   const ciclosOpcoes: InventarioCicloOpcao[] = (ciclos ?? []).map((ciclo) => ({
     id: Number(ciclo.id),
@@ -104,8 +131,15 @@ export default async function InventarioPage() {
                 </p>
                 <p>
                   A contagem não muda o saldo sozinha: a diferença fica registrada e o saldo só é
-                  corrigido quando um gestor clica em <b>Aplicar ajuste</b>.
+                  corrigido quando alguém com <b>Corrigir estoque</b> clica em <b>Aplicar ajuste</b>.
                 </p>
+                {limiteAjuste > 0 && (
+                  <p>
+                    Ajuste acima de <b>{formatCurrency(limiteAjuste)}</b> (diferença × custo) é aplicado por
+                    <b> outra pessoa</b>, não por quem contou. O limite fica em Parâmetros.
+                  </p>
+                )}
+                <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
                 <HelpExample>Sistema diz 12, você contou 10: diferença −2, com justificativa.</HelpExample>
               </HelpTip>
             </div>
@@ -142,6 +176,45 @@ export default async function InventarioPage() {
           )}
         </div>
 
+        {resumoCiclos.length > 0 && (
+          <section aria-label="Campanhas abertas" className="mt-6">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Campanhas abertas
+            </h2>
+            <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+              {resumoCiclos.map((ciclo) => (
+                <li key={ciclo.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 text-sm">
+                  <span className="min-w-0 flex-1 font-medium">{ciclo.nome}</span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {ciclo.contagens} {ciclo.contagens === 1 ? "contagem" : "contagens"}
+                  </span>
+                  {ciclo.pendentes > 0 ? (
+                    <span className="text-warning-strong">
+                      {ciclo.pendentes} com diferença sem ajuste
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">sem pendências</span>
+                  )}
+                  {podeAjustar && (
+                    <FormComMensagem action={fecharCicloInventario} className="flex items-center gap-2">
+                      <input type="hidden" name="ciclo_id" value={ciclo.id} />
+                      <ConfirmSubmitButton
+                        titulo="Fechar campanha?"
+                        mensagem={`A campanha “${ciclo.nome}” deixa de receber contagens. As ${ciclo.contagens} contagens e os ajustes ficam no histórico.`}
+                        confirmLabel="Fechar campanha"
+                        disabled={ciclo.pendentes > 0}
+                        className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        Fechar campanha
+                      </ConfirmSubmitButton>
+                    </FormComMensagem>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
         <div className="mt-8">
           <InventarioScannerPanel ciclos={ciclosOpcoes} locais={locaisOpcoes} lotes={lotesOpcoes} />
         </div>
@@ -171,6 +244,9 @@ export default async function InventarioPage() {
                   const lote = firstRelation(contagem.lotes_estoque);
                   const insumo = firstRelation(lote?.insumos);
                   const divergente = Math.abs(Number(contagem.divergencia ?? 0)) > 0.000001;
+                  const custo = Number(lote?.custo_unitario || insumo?.custo_unitario || 0);
+                  const valorAjuste = Math.abs(Number(contagem.divergencia ?? 0)) * custo;
+                  const pedeSegunda = limiteAjuste > 0 && valorAjuste > limiteAjuste;
                   return (
                     <tr key={contagem.id}>
                       <td className="px-4 py-3">
@@ -194,10 +270,20 @@ export default async function InventarioPage() {
                       <td className="px-4 py-3 text-right">
                         {contagem.ajuste_aplicado ? (
                           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-                            Ajustado
+                            {contagem.segunda_aprovacao ? "Ajustado · 2ª aprovação" : "Ajustado"}
                           </span>
                         ) : divergente && podeAjustar ? (
-                          <InventarioAjusteButton contagemId={contagem.id} />
+                          <span className="inline-flex flex-col items-end gap-1">
+                            <InventarioAjusteButton contagemId={contagem.id} />
+                            {pedeSegunda && (
+                              <span
+                                className="text-[11px] text-warning-strong"
+                                title={`Ajuste de ${formatCurrency(valorAjuste)}, acima de ${formatCurrency(limiteAjuste)}: outra pessoa aplica, não quem contou (${contagem.contado_por ?? "—"}).`}
+                              >
+                                2ª aprovação: não quem contou
+                              </span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-xs text-muted-foreground/80">—</span>
                         )}

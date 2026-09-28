@@ -182,3 +182,32 @@ export async function aplicarAjusteContagemInventario(
   revalidatePath("/estoque/inventario");
   return { ok: true, message: "Ajuste auditado aplicado ao lote." };
 }
+
+const fecharCicloSchema = z.object({
+  ciclo_id: z.coerce.number().int().positive(),
+});
+
+/**
+ * Fecha a campanha (D7, 0136). O banco recusa se ainda houver contagem com
+ * diferença sem ajuste; campanha fechada não recebe contagem nova.
+ */
+export async function fecharCicloInventario(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("estoque.lote.gerir"))) {
+    return { ok: false, message: "Fechar campanha exige a permissão “Corrigir estoque”." };
+  }
+  const parsed = fecharCicloSchema.safeParse({ ciclo_id: formData.get("ciclo_id") });
+  if (!parsed.success) return { ok: false, message: "Campanha inválida." };
+
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase.rpc("fechar_ciclo_inventario" as never, {
+    p_ciclo_id: parsed.data.ciclo_id,
+  } as never);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+
+  const resumo = (data ?? {}) as { contagens?: number; ajustes?: number };
+  revalidatePath("/estoque/inventario");
+  return {
+    ok: true,
+    message: `Campanha fechada: ${resumo.contagens ?? 0} contagem(ns), ${resumo.ajustes ?? 0} ajuste(s) aplicado(s).`,
+  };
+}
