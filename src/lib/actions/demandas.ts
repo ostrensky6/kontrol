@@ -65,7 +65,7 @@ function snapshotCompletude(demanda: Parameters<typeof avaliarCompletudeDemanda>
 // plano idempotente (criar/abrir/bloquear).
 async function planoModulos(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  demanda: { id: number; modalidade?: string | null; projeto_id?: number | null },
+  demanda: { id: number; modalidade?: string | null },
 ): Promise<PlanoModulos> {
   const [{ data: labs }, { data: projs }] = await Promise.all([
     supabase.from("orcamentos").select("id, status, status_operacional").eq("demanda_id", demanda.id),
@@ -77,7 +77,6 @@ async function planoModulos(
   const projetoAtivos = (projs ?? []).filter((o) => o.status !== "cancelado").map((o) => o.id);
   return planejarModulosProposta({
     modalidade: demanda.modalidade,
-    projetoAssociado: Boolean(demanda.projeto_id),
     laboratorioAtivos,
     projetoAtivos,
   });

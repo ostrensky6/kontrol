@@ -47,12 +47,12 @@ function planejarUm(aplicavel: boolean, ativos: number[]): PlanoModulo {
 
 export function planejarModulosProposta(args: {
   modalidade?: string | null;
-  projetoAssociado?: boolean;
   laboratorioAtivos: number[];
   projetoAtivos: number[];
 }): PlanoModulos {
   const exigeLab = modalidadeExigeLaboratorio(args.modalidade);
-  const exigeProj = modalidadeExigeProjeto(args.modalidade) || Boolean(args.projetoAssociado);
+  // O tipo do orçamento decide (dono, 28/09): ligação com projeto não cria módulo de projeto.
+  const exigeProj = modalidadeExigeProjeto(args.modalidade);
 
   const laboratorio = planejarUm(exigeLab, args.laboratorioAtivos);
   const projeto = planejarUm(exigeProj, args.projetoAtivos);

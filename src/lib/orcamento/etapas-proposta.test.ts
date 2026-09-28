@@ -98,8 +98,9 @@ describe("montarEtapasProposta — modelo único", () => {
     ).toMatchObject({ obrigatoria: true, estado: "ativo" });
   });
 
-  it("projeto associado força a etapa de projeto mesmo em modalidade só de análises", () => {
-    expect(etapa("analises", "projeto", { projetoAssociado: true })).toMatchObject({ aplicavel: true });
+  it("o tipo decide: orçamento só de análises não ganha etapa de projeto por estar ligado a um projeto", () => {
+    expect(etapa("analises", "projeto")).toMatchObject({ aplicavel: false });
+    expect(etapa("projeto_com_analises", "projeto")).toMatchObject({ aplicavel: true });
   });
 
   it("parâmetros e final ficam bloqueados até liberação", () => {

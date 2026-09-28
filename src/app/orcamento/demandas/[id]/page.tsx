@@ -173,7 +173,8 @@ export default async function DemandaDetalhe({
 
   const modalidadeCanonica = normalizarModalidadeOrcamento(demanda.modalidade);
   const exigeAnalises = modalidadeExigeLaboratorio(demanda.modalidade);
-  const exigeProjeto = modalidadeExigeProjeto(demanda.modalidade) || Boolean(demanda.projeto_id);
+  // O tipo do orçamento decide (dono, 28/09); ligação com projeto não cria etapa de custos.
+  const exigeProjeto = modalidadeExigeProjeto(demanda.modalidade);
   const completudeDemanda = avaliarCompletudeDemanda(demanda);
   // Todos os módulos aparecem nas listas; só os ativos (não cancelados) entram nos totais.
   const todosOrcamentosAnalises = ((orcamentos ?? []) as OrcamentoAnalisesResumo[]);
@@ -248,7 +249,6 @@ export default async function DemandaDetalhe({
   const etapas = montarEtapasProposta({
     demandaId,
     modalidade: demanda.modalidade,
-    projetoAssociado: Boolean(demanda.projeto_id),
     demandaCompleta: completudeDemanda.completa,
     demandaFaltante: completudeDemanda.faltante,
     laboratorioStatus: moduloAnalises.status === "nao_exigido" ? "nao_exigido" : moduloAnalises.status,
@@ -319,7 +319,6 @@ export default async function DemandaDetalhe({
   // --- Idempotência/UI dos módulos (Fase 5) ---
   const planoModulosUi = planejarModulosProposta({
     modalidade: demanda.modalidade,
-    projetoAssociado: Boolean(demanda.projeto_id),
     laboratorioAtivos: orcamentosAnalises.filter((o) => o.status !== "cancelado").map((o) => o.id),
     projetoAtivos: orcamentosProjeto.filter((o) => o.status !== "cancelado").map((o) => o.id),
   });
