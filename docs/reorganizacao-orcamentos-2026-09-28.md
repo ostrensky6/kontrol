@@ -63,8 +63,9 @@ textos. Teste: `supabase/tests/proposta_documento_textos_0135.sql`.
 
 - Unitários: `npx vitest run` — 810 testes passando (após a junção do PR #50).
 - `tsc` e `eslint` limpos; `next build` sem erros.
-- E2E (Supabase simulado): 49 de 50 passando; o que falha é do PR #50
-  (`e2e/orcamento-onda-c.spec.ts`, expressão `/d+ orçamentos?/` sem a barra
-  invertida) — correção pendente de autorização do dono.
+- E2E (Supabase simulado): 50 de 50 passando, numa cópia limpa da branch sem
+  `.env.local`. O teste da onda C (`e2e/orcamento-onda-c.spec.ts`, vindo do
+  PR #50) usava `/d+ orçamentos?/` sem a barra invertida e nunca passava;
+  corrigido com autorização do dono, e agora também confere o "Mais filtros".
 - Conferência visual no app local e PDF em A4 (2 páginas, rodapé com empresa
   e "Página X de Y").
