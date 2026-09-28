@@ -36,9 +36,9 @@ describe("planejarModulosProposta — idempotência", () => {
     expect(p.erros.join(" ")).toMatch(/duplicados/i);
   });
 
-  it("projeto associado força a etapa de projeto mesmo em modalidade só de análises", () => {
-    const p = planejarModulosProposta({ ...base, modalidade: "analises", projetoAssociado: true });
-    expect(p.projeto.acao).toBe("criar");
+  it("o tipo decide: orçamento só de análises não cria módulo de projeto", () => {
+    const p = planejarModulosProposta({ ...base, modalidade: "analises" });
+    expect(p.projeto.acao).toBe("nao_aplicavel");
   });
 
   it("modalidades legadas são reconhecidas (projeto + laboratório)", () => {

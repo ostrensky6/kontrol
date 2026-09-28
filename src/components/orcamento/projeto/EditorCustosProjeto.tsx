@@ -1,22 +1,24 @@
 import type { ReactNode } from "react";
-import { Lock, Trash2 } from "lucide-react";
+import { Lock, RefreshCcw, Trash2 } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import {
-  adicionarAnaliseProjeto,
-  adicionarCustoCatalogoProjeto,
-  adicionarCustoProjeto,
+  adicionarItemProjeto,
+  aplicarModeloProjeto,
   atualizarCustoProjeto,
   concluirRevisaoCustosProjeto,
   reabrirCustosProjeto,
   removerAnaliseProjeto,
   removerCustoProjeto,
+  salvarComoTemplate,
   salvarDuracaoProjeto,
   salvarMesesPessoalProjeto,
   salvarViagensProjeto,
 } from "@/lib/actions/orcamento-projetos";
 import {
+  conferenciaRevisao,
   estadoEdicaoProjeto,
   ORDEM_RUBRICAS,
   resumirRubricas,
@@ -28,16 +30,29 @@ import { calcularOrcamentoProjeto, roundMoney, RUBRICAS_PROJETO } from "@/lib/pr
 import { normalizarViagemInputs, type ViagemInputs } from "@/lib/project-budget/travel";
 import type { ProjetoExportItem } from "@/lib/project-budget/exporters";
 import { formatCurrency as brl } from "@/lib/formatters";
+import { MESES_VALOR_VELHO, valorDesatualizado } from "@/lib/orcamento/catalogo-custos";
+import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
+import { CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { HelpTip } from "@/components/common/HelpTip";
 import { ExportProjetoButtons } from "@/components/orcamento/ExportProjetoButtons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AdicionarDoCatalogo, type ItemCatalogo } from "./AdicionarDoCatalogo";
+import { AdicionarItemProjeto, type ItemCatalogo } from "./AdicionarItemProjeto";
 import { EditarCustoDialog } from "./EditarCustoDialog";
+import { SalvarModeloDialog, UsarModeloDialog, type ModeloResumo } from "./ModelosProjetoDialogs";
+import { ReabrirRevisaoDialog } from "./ReabrirRevisaoDialog";
 import { FormAcao } from "./FormAcao";
 import { GradeMesesPessoal } from "./GradeMesesPessoal";
+import {
+  frasesPreviaCatalogo,
+  lerPlanoCatalogo,
+  resumirPlanoCatalogo,
+  seloLinhaCatalogo,
+  type LinhaPlanoCatalogo,
+  type SeloCatalogo,
+} from "@/lib/project-budget/catalogo-vivo";
 
 type Custo = {
   id: number;
@@ -88,10 +103,56 @@ const inp = "mt-1 h-9 w-full rounded-md border border-input bg-background px-3 t
 const lbl = "block text-xs font-medium text-muted-foreground";
 const botaoPrimario = "rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-60";
 
+const TOM_SELO: Record<SeloCatalogo["tom"], string> = {
+  novo: "bg-info-soft text-info-strong",
+  atualiza: "bg-success-soft text-success-strong",
+  aviso: "bg-warning-soft text-warning-strong",
+};
+
+/** Selo do catálogo vivo na linha (novo, atualiza, catálogo hoje, repetido, pessoal pendente). */
+function SeloCatalogoLinha({ linha }: { linha?: LinhaPlanoCatalogo }) {
+  const selo = linha ? seloLinhaCatalogo(linha) : null;
+  // DC7: valor do catálogo parado há mais de 8 meses, em amarelo (só nas linhas ligadas a ele).
+  const velho =
+    linha && (linha.acao === "inalterado" || linha.acao === "vincular") && valorDesatualizado(linha.valorCatalogoEm);
+  if (!selo && !velho) return null;
+  return (
+    <>
+      {selo && (
+        <span
+          className={`mt-1 block w-fit rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${TOM_SELO[selo.tom]}`}
+          title={selo.detalhe}
+        >
+          {selo.rotulo}
+        </span>
+      )}
+      {velho && (
+        <span
+          className="mt-1 block w-fit rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-strong"
+          title="O valor deste item no catálogo não é atualizado há mais de 8 meses. Confira antes de concluir."
+        >
+          Catálogo +{MESES_VALOR_VELHO} meses
+        </span>
+      )}
+    </>
+  );
+}
+
+function Mascarado() {
+  return (
+    <span title={NOTA_VALOR_MASCARADO}>
+      {VALOR_MASCARADO}
+      <span className="sr-only"> — {NOTA_VALOR_MASCARADO}</span>
+    </span>
+  );
+}
+
 /**
  * Editor da etapa "Custos do projeto" da proposta (Etapa A da migração do app antigo):
  * rubricas PE/MC/MP/ST/VD/OU, grade de meses do pessoal, viagens com cálculo automático,
- * análises dentro do projeto, exportação e conclusão da revisão (RPC transicionar_orcamento_projeto).
+ * um campo único para lançar itens (catálogo ou novo), modelos, exportação, conferência e
+ * conclusão da revisão (RPC concluir_revisao_custos_projeto, que alimenta o catálogo vivo) e
+ * reabertura/reformulação (0139). Pessoal sem a permissão aparece como XXX (DC8, 0140).
  */
 export async function EditorCustosProjeto({
   orcamentoProjetoId,
@@ -101,7 +162,20 @@ export async function EditorCustosProjeto({
   demandaId: number;
 }) {
   const supabase = await createClient();
-  const [{ data: orc }, { data: custosData }, { data: analisesData }, { data: catalogoData }, { data: analisesDisponiveis }, podeRevisar, { data: demandaInst }] =
+  const [
+    { data: orc },
+    { data: custosData },
+    { data: analisesData },
+    { data: catalogoData },
+    podeRevisar,
+    { data: demandaInst },
+    podePreencher,
+    podeModelos,
+    podePessoal,
+    podeSalario,
+    { data: modelosData },
+    { data: aprovadaData },
+  ] =
     await Promise.all([
       supabase.from("orcamento_projetos").select("*").eq("id", orcamentoProjetoId).single(),
       supabase
@@ -118,15 +192,42 @@ export async function EditorCustosProjeto({
       // Leitura pela RPC da 0112: preço de pessoal (PE) vem mascarado sem a
       // permissão "Ver salário dos técnicos"; o SELECT direto do preço é negado.
       supabase.rpc("orcamento_projeto_catalogo_listar"),
-      supabase.from("analises").select("codigo, nome").eq("ativo", true).eq("ofertavel", true).order("codigo"),
       podeOrcamento("revisar_modulo"),
       // instituição do orçamento: título e criador dos arquivos exportados
       supabase.from("demandas_propostas").select("instituicao").eq("id", demandaId).maybeSingle(),
+      podeOrcamento("preencher_custos"),
+      podeOrcamento("gerir_modelos"),
+      temPermissao("orcamentos.pessoal"),
+      temPermissao("tecnicos.salario.ver"),
+      supabase.from("orcamento_projeto_templates").select("id, nome, descricao, itens").order("nome"),
+      // Proposta aprovada: reabrir vira reformulação (0139).
+      supabase
+        .from("orcamento_final_versoes")
+        .select("numero")
+        .eq("demanda_id", demandaId)
+        .in("status", ["aprovado", "convertido_projeto"])
+        .order("versao", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
 
   if (!orc) {
     return <p className="mt-4 text-sm text-muted-foreground">Orçamento de projeto não encontrado.</p>;
   }
+
+  // DC8 (0137/0140): pessoal só para quem tem "Valores de pessoal no orçamento" (ou vê salário).
+  const podeVerPessoal = podePessoal || podeSalario;
+  const modelos: ModeloResumo[] = (
+    (modelosData ?? []) as Array<{ id: number; nome: string; descricao: string | null; itens: unknown }>
+  )
+    .filter((modelo) => !modelo.nome.startsWith("[ARQUIVADO]"))
+    .map((modelo) => ({
+      id: modelo.id,
+      nome: modelo.nome,
+      descricao: modelo.descricao,
+      itens: Array.isArray(modelo.itens) ? modelo.itens.length : 0,
+    }));
+  const versaoAprovada = (aprovadaData as { numero: string } | null)?.numero ?? null;
 
   const custos = ((custosData ?? []) as Custo[]).map((item) => ({
     ...item,
@@ -149,14 +250,25 @@ export async function EditorCustosProjeto({
     }));
   const estado = estadoEdicaoProjeto(orc.status);
   const editavel = estado.editavel;
+  // Catálogo vivo (0137): o que a conclusão faria com cada linha. Só interessa em edição.
+  const { data: previaData } = editavel
+    ? await supabase.rpc("previa_catalogo_revisao_projeto", { p_orcamento_projeto_id: orcamentoProjetoId })
+    : { data: null };
+  const planoCatalogo = lerPlanoCatalogo(previaData);
+  const planoPorLinha = new Map(planoCatalogo.map((linha) => [linha.linhaId, linha]));
+  const frasesCatalogo = frasesPreviaCatalogo(resumirPlanoCatalogo(planoCatalogo));
   const mesesProjeto = Math.max(1, Number(orc.project_months ?? 12));
   const viagem = normalizarViagemInputs((orc.travel_inputs ?? null) as Partial<ViagemInputs> | null);
 
-  const rubricas = resumirRubricas(custos);
-  const totalCustos = roundMoney(rubricas.reduce((soma, r) => soma + r.total, 0));
   const totalAnalises = roundMoney(analises.reduce((soma, a) => soma + a.custo_unitario * a.n_amostras, 0));
-  const totalProjeto = roundMoney(totalCustos + totalAnalises);
+  // As análises antigas lançadas no projeto (DC3) entram em MC, como no total e na planilha.
+  const rubricas = resumirRubricas(custos, { total: totalAnalises, itens: analises.length });
+  const totalProjeto = roundMoney(rubricas.reduce((soma, r) => soma + r.total, 0));
   const quantidadeItens = custos.length + analises.length;
+  const temPessoal = custos.some((item) => item.rubrica === "PE");
+  // Sem a permissão, o total também revelaria o pessoal por subtração.
+  const mascararPessoal = !podeVerPessoal && temPessoal;
+  const avisosConferencia = editavel ? conferenciaRevisao({ custos, viagem, plano: planoCatalogo }) : [];
 
   // Exportação: mesma base mostrada na tela (custo técnico; análises entram pelo custo).
   const exportItens: ProjetoExportItem[] = [
@@ -217,13 +329,16 @@ export async function EditorCustosProjeto({
 
   function acoesItem(item: (typeof custos)[number]): ReactNode {
     if (!editavel) return null;
+    // Pessoal sem a permissão: só leitura (o banco também recusa, 0140).
+    if (item.rubrica === "PE" && !podeVerPessoal) return null;
     return (
-      <span className="inline-flex items-center gap-1">
+      <span className="inline-flex items-center gap-0.5">
         <EditarCustoDialog
           item={item}
           orcamentoProjetoId={orcamentoProjetoId}
           demandaId={demandaId}
           action={atualizarCustoProjeto}
+          podePessoal={podeVerPessoal}
         />
         <ConfirmActionButton
           action={removerCustoProjeto}
@@ -231,88 +346,31 @@ export async function EditorCustosProjeto({
           titulo="Remover item?"
           mensagem={`"${item.descricao}" sai dos custos do projeto (${brl(subtotalCusto(item))}).`}
           confirmLabel="Remover"
-          triggerClassName="rounded-md p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger-strong"
-          trigger={
-            <>
-              <Trash2 className="size-4" aria-hidden />
-              <span className="sr-only">Remover {item.descricao}</span>
-            </>
-          }
+          triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
+          trigger={<IconeAcao icone={Trash2} rotulo={`Remover ${item.descricao}`} />}
         />
       </span>
     );
   }
 
-  function formManual(rubrica: string) {
-    const pessoal = rubrica === "PE";
-    const prefixo = `novo-${rubrica}`;
-    return (
-      <FormAcao
-        action={adicionarCustoProjeto}
-        sucesso="Item adicionado."
-        aria-label={`Adicionar item manual em ${rubrica}`}
-        className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,2fr)_7rem_7rem_9rem_auto] lg:items-end"
-      >
-        {campos}
-        <input type="hidden" name="rubrica" value={rubrica} />
-        <div>
-          <label htmlFor={`${prefixo}-descricao`} className={lbl}>{pessoal ? "Profissional / função" : "Descrição"}</label>
-          <input id={`${prefixo}-descricao`} name="descricao" required className={inp} />
-        </div>
-        <div>
-          <label htmlFor={`${prefixo}-unidade`} className={lbl}>Unidade</label>
-          <input id={`${prefixo}-unidade`} name="unidade" defaultValue={pessoal ? "mês" : ""} className={inp} />
-        </div>
-        {pessoal ? (
-          <input type="hidden" name="quantidade" value="1" />
-        ) : (
-          <div>
-            <label htmlFor={`${prefixo}-quantidade`} className={lbl}>Quantidade</label>
-            <input id={`${prefixo}-quantidade`} name="quantidade" type="number" min="0.01" step="0.01" defaultValue="1" required className={inp} />
-          </div>
-        )}
-        <div>
-          <label htmlFor={`${prefixo}-custo`} className={lbl}>{pessoal ? "Valor mensal (R$)" : "Custo unitário (R$)"}</label>
-          <input id={`${prefixo}-custo`} name="custo_unitario" type="number" min="0" step="0.01" required className={inp} />
-        </div>
-        <button type="submit" className={botaoPrimario}>Adicionar item</button>
-        <details className="sm:col-span-2 lg:col-span-5">
-          <summary className="cursor-pointer text-xs font-medium text-muted-foreground">Etapa, atividade e entrega (opcional)</summary>
-          <div className="mt-2 grid gap-3 sm:grid-cols-3">
-            {(["etapa", "atividade", "entrega"] as const).map((campo) => (
-              <div key={campo}>
-                <label htmlFor={`${prefixo}-${campo}`} className={lbl}>
-                  {campo === "etapa" ? "Etapa" : campo === "atividade" ? "Atividade" : "Entrega"}
-                </label>
-                <input id={`${prefixo}-${campo}`} name={campo} className={inp} />
-              </div>
-            ))}
-          </div>
-        </details>
-      </FormAcao>
-    );
-  }
-
   function blocoAdicionar(rubrica: string) {
     if (!editavel) return null;
+    if (rubrica === "PE" && !podeVerPessoal) {
+      return (
+        <p className="mt-3 rounded-md border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+          Pessoal é lançado por quem tem a permissão “Valores de pessoal no orçamento”.
+        </p>
+      );
+    }
     return (
-      <div className="mt-4 space-y-4 rounded-md border border-dashed border-border p-3">
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Do catálogo</h4>
-          <div className="mt-2">
-            <AdicionarDoCatalogo
-              rubrica={rubrica}
-              itens={catalogo.filter((item) => item.rubrica === rubrica)}
-              orcamentoProjetoId={orcamentoProjetoId}
-              demandaId={demandaId}
-              action={adicionarCustoCatalogoProjeto}
-            />
-          </div>
-        </div>
-        <div>
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Item manual</h4>
-          <div className="mt-2">{formManual(rubrica)}</div>
-        </div>
+      <div className="mt-3 rounded-md border border-dashed border-foreground/20 p-3">
+        <AdicionarItemProjeto
+          rubrica={rubrica}
+          itens={catalogo.filter((item) => item.rubrica === rubrica)}
+          orcamentoProjetoId={orcamentoProjetoId}
+          demandaId={demandaId}
+          action={adicionarItemProjeto}
+        />
       </div>
     );
   }
@@ -372,7 +430,10 @@ export async function EditorCustosProjeto({
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{brl(item.custo_unitario)}</td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums">{brl(subtotalCusto(item))}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{ORIGEM[item.origem ?? "manual"] ?? item.origem}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {ORIGEM[item.origem ?? "manual"] ?? item.origem}
+                    <SeloCatalogoLinha linha={planoPorLinha.get(item.id)} />
+                  </td>
                   {editavel && <td className="px-3 py-2 text-right whitespace-nowrap">{acoesItem(item)}</td>}
                 </tr>
               );
@@ -384,6 +445,49 @@ export async function EditorCustosProjeto({
   }
 
   const linhasPessoal = custos.filter((item) => item.rubrica === "PE");
+
+  // DC3: a caixa de análises do projeto saiu; as já lançadas aparecem em MC para conferir ou remover.
+  const analisesAntigas =
+    analises.length === 0 ? null : (
+      <div className="rounded-md border border-border">
+        <div className="flex items-center gap-1 border-b border-border bg-muted/50 px-3 py-1.5">
+          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Análises lançadas no projeto</h4>
+          <HelpTip title="Análises lançadas no projeto">
+            <p>
+              Lançadas antes da mudança: entram em MC pelo <b>custo técnico</b> e continuam valendo. Análises novas entram pela
+              etapa <b>Laboratório</b>, com o tipo “Projeto com análises laboratoriais”.
+            </p>
+          </HelpTip>
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground">{brl(totalAnalises)}</span>
+        </div>
+        <table className="min-w-full text-sm">
+          <caption className="sr-only">Análises lançadas no projeto</caption>
+          <tbody className="divide-y divide-border/70">
+            {analises.map((item) => (
+              <tr key={item.id}>
+                <th scope="row" className="px-3 py-1.5 text-left font-medium">{item.codigo_analise}</th>
+                <td className="px-3 py-1.5 text-right tabular-nums">{item.n_amostras.toLocaleString("pt-BR")} amostras</td>
+                <td className="px-3 py-1.5 text-right tabular-nums">{brl(item.custo_unitario)}</td>
+                <td className="px-3 py-1.5 text-right font-medium tabular-nums">{brl(item.custo_unitario * item.n_amostras)}</td>
+                {editavel && (
+                  <td className="px-2 py-1 text-right">
+                    <ConfirmActionButton
+                      action={removerAnaliseProjeto}
+                      fields={{ orcamento_projeto_id: orcamentoProjetoId, demanda_id: demandaId, item_id: item.id }}
+                      titulo="Remover análise?"
+                      mensagem={`${item.codigo_analise} (${item.n_amostras} amostras) sai dos custos do projeto.`}
+                      confirmLabel="Remover"
+                      triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
+                      trigger={<IconeAcao icone={Trash2} rotulo={`Remover ${item.codigo_analise}`} />}
+                    />
+                  </td>
+                )}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
 
   return (
     <div className="mt-4 space-y-5" data-testid="editor-custos-projeto">
@@ -408,12 +512,39 @@ export async function EditorCustosProjeto({
             <button type="submit" className="rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-muted">Alterar</button>
           </FormAcao>
         )}
+        {((editavel && podePreencher) || (podeModelos && custos.length > 0)) && (
+          <div className="flex flex-wrap items-end gap-2">
+            {editavel && podePreencher && (
+              <UsarModeloDialog
+                modelos={modelos}
+                orcamentoProjetoId={orcamentoProjetoId}
+                demandaId={demandaId}
+                action={aplicarModeloProjeto}
+              />
+            )}
+            {podeModelos && custos.length > 0 && (
+              <SalvarModeloDialog orcamentoProjetoId={orcamentoProjetoId} demandaId={demandaId} action={salvarComoTemplate} />
+            )}
+          </div>
+        )}
         <div className="text-right">
           <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Custo do projeto</p>
-          <p className="text-2xl font-semibold tabular-nums" data-testid="total-custo-projeto">{brl(totalProjeto)}</p>
+          <p className="text-2xl font-semibold tabular-nums" data-testid="total-custo-projeto">
+            {mascararPessoal ? <Mascarado /> : brl(totalProjeto)}
+          </p>
           <p className="text-[11px] text-muted-foreground">{quantidadeItens} {quantidadeItens === 1 ? "item" : "itens"} · custo técnico, antes dos parâmetros</p>
         </div>
       </div>
+
+      {orc.reformulacao_de_versao_id && (
+        <p role="note" className="flex items-start gap-2 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
+          <RefreshCcw className="mt-0.5 size-3.5 shrink-0" aria-hidden />
+          <span>
+            <strong className="font-semibold">Reformulação da proposta {versaoAprovada ?? "aprovada"}.</strong> Ao concluir a
+            revisão, emita a nova versão; quando aprovada, ela substitui a atual, que fica no histórico.
+          </span>
+        </p>
+      )}
 
       {!editavel && estado.motivo && (
         <p role="note" className="flex items-start gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-xs leading-5 text-muted-foreground">
@@ -430,7 +561,9 @@ export async function EditorCustosProjeto({
             <p className="text-xs font-semibold">
               {r.codigo} · {r.nome}
             </p>
-            <p className="mt-1 font-medium tabular-nums" data-testid={`total-rubrica-${r.codigo}`}>{brl(r.total)}</p>
+            <p className="mt-1 font-medium tabular-nums" data-testid={`total-rubrica-${r.codigo}`}>
+              {r.codigo === "PE" && mascararPessoal ? <Mascarado /> : brl(r.total)}
+            </p>
             <p className="text-[11px] text-muted-foreground">{r.itens} {r.itens === 1 ? "item" : "itens"}</p>
           </li>
         ))}
@@ -452,15 +585,24 @@ export async function EditorCustosProjeto({
                   id: item.id,
                   descricao: item.descricao,
                   quantidade: item.quantidade,
-                  custo_unitario: item.custo_unitario,
+                  // Sem a permissão, o valor nem chega ao navegador (DC8).
+                  custo_unitario: podeVerPessoal ? item.custo_unitario : 0,
                   meses_selecionados: item.meses_selecionados,
                 }))}
                 mesesProjeto={mesesProjeto}
                 orcamentoProjetoId={orcamentoProjetoId}
                 demandaId={demandaId}
-                editavel={editavel}
+                editavel={editavel && podeVerPessoal}
+                mascarado={!podeVerPessoal}
                 action={salvarMesesPessoalProjeto}
-                acoesLinha={editavel ? Object.fromEntries(linhasPessoal.map((item) => [item.id, acoesItem(item)])) : undefined}
+                acoesLinha={
+                  editavel && podeVerPessoal
+                    ? Object.fromEntries(linhasPessoal.map((item) => [item.id, acoesItem(item)]))
+                    : undefined
+                }
+                detalhesLinha={Object.fromEntries(
+                  linhasPessoal.map((item) => [item.id, <SeloCatalogoLinha key={item.id} linha={planoPorLinha.get(item.id)} />]),
+                )}
               />
             ) : (
               <>
@@ -502,6 +644,7 @@ export async function EditorCustosProjeto({
                   </div>
                 )}
                 {tabelaItens(rubrica)}
+                {rubrica === "MC" && analisesAntigas}
               </>
             )}
             {blocoAdicionar(rubrica)}
@@ -509,98 +652,22 @@ export async function EditorCustosProjeto({
         ))}
       </Tabs>
 
-      {/* Análises laboratoriais dentro do projeto */}
-      <div className="rounded-md border border-border p-3">
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div className="flex items-center gap-1">
-            <h4 className="text-sm font-semibold">Análises dentro do projeto</h4>
-            <HelpTip title="Análises dentro do projeto">
-              <p>Entram pelo <b>custo técnico</b> do Custeio, sem o preço de tabela, para que impostos, taxas e lucro incidam <b>uma única vez</b>, nos parâmetros da proposta.</p>
-            </HelpTip>
-          </div>
-          <span className="text-xs text-muted-foreground tabular-nums">{brl(totalAnalises)}</span>
-        </div>
-        <div className="mt-3 overflow-x-auto rounded-md border border-border">
-          <table className="min-w-full text-sm">
-            <caption className="sr-only">Análises dentro do projeto</caption>
-            <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th scope="col" className="px-3 py-2">Análise</th>
-                <th scope="col" className="px-3 py-2 text-right">Amostras</th>
-                <th scope="col" className="px-3 py-2 text-right">Custo unit.</th>
-                <th scope="col" className="px-3 py-2 text-right">Subtotal</th>
-                {editavel && (
-                  <th scope="col" className="px-3 py-2">
-                    <span className="sr-only">Ações</span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {analises.length === 0 && (
-                <tr>
-                  <td colSpan={editavel ? 5 : 4} className="px-3 py-4 text-xs text-muted-foreground">Nenhuma análise no projeto.</td>
-                </tr>
-              )}
-              {analises.map((item) => (
-                <tr key={item.id}>
-                  <th scope="row" className="px-3 py-2 text-left font-medium">{item.codigo_analise}</th>
-                  <td className="px-3 py-2 text-right tabular-nums">{item.n_amostras.toLocaleString("pt-BR")}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">{brl(item.custo_unitario)}</td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums">{brl(item.custo_unitario * item.n_amostras)}</td>
-                  {editavel && (
-                    <td className="px-3 py-2 text-right">
-                      <ConfirmActionButton
-                        action={removerAnaliseProjeto}
-                        fields={{ orcamento_projeto_id: orcamentoProjetoId, demanda_id: demandaId, item_id: item.id }}
-                        titulo="Remover análise?"
-                        mensagem={`${item.codigo_analise} (${item.n_amostras} amostras) sai dos custos do projeto.`}
-                        confirmLabel="Remover"
-                        triggerClassName="rounded-md p-1.5 text-muted-foreground hover:bg-danger-soft hover:text-danger-strong"
-                        trigger={
-                          <>
-                            <Trash2 className="size-4" aria-hidden />
-                            <span className="sr-only">Remover {item.codigo_analise}</span>
-                          </>
-                        }
-                      />
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {editavel && (
-          <FormAcao action={adicionarAnaliseProjeto} sucesso="Análise adicionada." aria-label="Adicionar análise ao projeto" className="mt-3 flex flex-wrap items-end gap-3">
-            {campos}
-            <div className="min-w-56 flex-1">
-              <label htmlFor="projeto-analise-codigo" className={lbl}>Análise</label>
-              <select id="projeto-analise-codigo" name="codigo_analise" required defaultValue="" className={inp}>
-                <option value="" disabled>Selecione…</option>
-                {((analisesDisponiveis ?? []) as Array<{ codigo: string; nome: string | null }>).map((a) => (
-                  <option key={a.codigo} value={a.codigo}>
-                    {a.codigo}{a.nome ? ` · ${a.nome}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label htmlFor="projeto-analise-amostras" className={lbl}>Amostras</label>
-              <input id="projeto-analise-amostras" name="n_amostras" type="number" min="1" step="1" defaultValue="1" required className={`${inp} w-28`} />
-            </div>
-            <button type="submit" className={botaoPrimario}>Adicionar análise</button>
-          </FormAcao>
-        )}
-      </div>
-
       {/* Exportação e conclusão da revisão */}
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-md border border-border p-3">
         <div>
-          <h4 className="text-sm font-semibold">Exportar custos do projeto</h4>
-          <p className="mt-1 text-xs text-muted-foreground">Itens, rubricas e demonstrativo com os parâmetros deste orçamento de projeto.</p>
+          <div className="flex items-center gap-1">
+            <h4 className="text-sm font-semibold">Exportar custos do projeto</h4>
+            <HelpTip title="Exportar custos">
+              <p>Itens, rubricas e demonstrativo com os parâmetros deste orçamento de projeto.</p>
+            </HelpTip>
+          </div>
           <div className="mt-2">
-            <ExportProjetoButtons info={exportInfo} itens={exportItens} calculo={calculoExport} />
+            {mascararPessoal ? (
+              // A planilha levaria os valores de pessoal ao navegador.
+              <p className="text-xs text-muted-foreground">Há itens de pessoal: a exportação exige a permissão de pessoal.</p>
+            ) : (
+              <ExportProjetoButtons info={exportInfo} itens={exportItens} calculo={calculoExport} />
+            )}
           </div>
         </div>
         <div className="max-w-md">
@@ -618,11 +685,34 @@ export async function EditorCustosProjeto({
                 mensagem={
                   <>
                     <p>
-                      Custo do projeto: <strong>{brl(totalProjeto)}</strong> em {quantidadeItens} {quantidadeItens === 1 ? "item" : "itens"}.
+                      Custo do projeto: <strong>{mascararPessoal ? VALOR_MASCARADO : brl(totalProjeto)}</strong> em {quantidadeItens}{" "}
+                      {quantidadeItens === 1 ? "item" : "itens"}.
                     </p>
                     <p className="mt-2">
-                      Os custos ficam travados e passam a compor a proposta. Custos revisados não voltam para edição nesta versão do sistema.
+                      Os custos ficam travados e passam a compor a proposta. Para mudar depois, use “Reabrir revisão”.
                     </p>
+                    {avisosConferencia.length > 0 && (
+                      <div className="mt-2 rounded-md bg-warning-soft px-2 py-1.5 text-warning-strong">
+                        <p className="font-medium">Confira antes de concluir:</p>
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                          {avisosConferencia.map((aviso) => (
+                            <li key={aviso.tipo}>{aviso.texto}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                    {frasesCatalogo.length > 0 ? (
+                      <div className="mt-2">
+                        <p className="font-medium">No catálogo de custos:</p>
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                          {frasesCatalogo.map((frase) => (
+                            <li key={frase}>{frase}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-2">O catálogo de custos não muda.</p>
+                    )}
                   </>
                 }
                 confirmLabel="Concluir revisão"
@@ -638,17 +728,19 @@ export async function EditorCustosProjeto({
             </p>
           )}
           {estado.podeReabrir && podeRevisar && (
-            <FormAcao action={reabrirCustosProjeto} sucesso="Custos reabertos para edição." className="mt-2">
-              {campos}
-              <ConfirmSubmitButton
-                className="rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-muted"
-                titulo="Reabrir para edição?"
-                mensagem="Os custos voltam a ficar editáveis e a revisão precisará ser concluída de novo."
-                confirmLabel="Reabrir"
-              >
-                Reabrir para edição
-              </ConfirmSubmitButton>
-            </FormAcao>
+            <div className="mt-2">
+              <ReabrirRevisaoDialog
+                orcamentoProjetoId={orcamentoProjetoId}
+                demandaId={demandaId}
+                versaoAprovada={versaoAprovada}
+                action={reabrirCustosProjeto}
+              />
+            </div>
+          )}
+          {estado.podeReabrir && !podeRevisar && (
+            <p className="mt-2 text-xs leading-5 text-muted-foreground">
+              Reabrir a revisão é feito por quem emite propostas (coordenador, gestor ou administrador).
+            </p>
           )}
           {!estado.podeConcluir && !estado.podeReabrir && (
             <p className="mt-2 text-xs leading-5 text-muted-foreground">

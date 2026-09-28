@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { buttonVariants } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 import { calcularTodas } from "@/lib/costing/loader";
 import {
@@ -178,82 +180,121 @@ export default async function ParametrosEconomicosPage() {
   const parametrosProjeto = somarParametrosProjeto(projetosCalculados);
   const projetosInvalidos = projetosCalculados.filter((projeto) => projeto.calculo.validationError);
 
-  const card =
-    "rounded-lg border border-border bg-card p-4 shadow-sm";
+  const versoesLista = (versoes ?? []) as VersaoParametro[];
+  const blocoVersoes =
+    versoesLista.length === 0 ? (
+      <LinhaVazia
+        titulo="Versões de parâmetros"
+        ajuda={<AjudaVersoes />}
+        texto="Nenhuma versão registrada ainda. O próximo salvamento criará a primeira versão."
+      />
+    ) : (
+      <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <Cabecalho titulo="Versões de parâmetros" ajuda={<AjudaVersoes />} />
+        <div className="divide-y divide-border/70">
+          {versoesLista.map((versao) => (
+            <div
+              key={versao.id}
+              className="grid gap-x-3 gap-y-0.5 px-3 py-1.5 text-sm md:grid-cols-[9rem_3rem_7rem_minmax(0,8rem)_8.5rem_minmax(0,1fr)] md:items-baseline"
+            >
+              <span className="font-medium">
+                {versao.escopo === "laboratorio_global" ? "Laboratório global" : "Projeto"}
+              </span>
+              <span className="tabular-nums">v{versao.versao}</span>
+              <span>{versao.orcamento_projeto_id ? `Projeto #${versao.orcamento_projeto_id}` : "Global"}</span>
+              <span className="truncate" title={versao.origem}>{versao.origem}</span>
+              <span className="text-xs tabular-nums text-muted-foreground">{formatDateTime(versao.criado_em)}</span>
+              <span className="truncate text-xs text-muted-foreground" title={resumirPayloadVersao(versao.parametros)}>
+                {resumirPayloadVersao(versao.parametros)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+    );
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <Link
               href="/orcamento"
               className="text-xs text-muted-foreground hover:underline"
             >
               Orçamentos
             </Link>
-            <div className="mt-2 flex items-center gap-1">
+            <div className="mt-1 flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Parâmetros econômicos</h1>
               <HelpTip title="Parâmetros econômicos">
                 <p>Mostra os percentuais que formam os preços e o <b>impacto</b> de cada um, para conferir antes de recalcular ou emitir propostas. Cada salvamento gera uma nova versão.</p>
                 <p>A <b>margem global</b> é o padrão do laboratório; o lucro de cada proposta é definido na própria proposta ou no orçamento de projeto.</p>
               </HelpTip>
             </div>
+            {/* resumo em uma linha (28/09): os números de referência sem cartões ocupando a tela */}
+            <dl className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
+              <Indicador
+                rotulo="Fator econômico total"
+                valor={pct(fatorTotal)}
+                destaque
+                ajuda={
+                  <HelpTip title="Fator econômico total" className="h-6 w-6">
+                    <p>Soma dos <b>fatores de preço</b> do laboratório: margem, impostos, taxas e fundos.</p>
+                  </HelpTip>
+                }
+              />
+              <Indicador rotulo="Dias úteis/ano" valor={formatNumber(params.dias_uteis_ano)} />
+              <Indicador
+                rotulo="Impacto laboratório"
+                valor={brl(impactoTotalLab)}
+                ajuda={
+                  <HelpTip title="Impacto dos parâmetros" className="h-6 w-6">
+                    <p>Quanto os parâmetros <b>acrescentam ao custo</b>. No laboratório, a conta usa o custo médio do catálogo; no projeto, os orçamentos de projeto recentes.</p>
+                  </HelpTip>
+                }
+              />
+              <Indicador rotulo="Impacto projeto" valor={brl(impactoProjeto)} />
+              {ultimaAtualizacao && (
+                <Indicador rotulo="Última atualização" valor={formatDateTime(ultimaAtualizacao)} />
+              )}
+            </dl>
           </div>
-          <Link
-            href="/custeio"
-            className="rounded-md border border-input px-3 py-2 text-sm font-medium text-foreground hover:bg-muted"
-          >
+          <Link href="/custeio" className={buttonVariants({ variant: "outline", size: "sm" })}>
             Ver custeio
           </Link>
         </div>
 
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div className={card}>
-            <div className="flex items-center gap-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Fator econômico total
-              </p>
-              <HelpTip title="Fator econômico total">
-                <p>Soma dos <b>fatores de preço</b> do laboratório: margem, impostos, taxas e fundos.</p>
-              </HelpTip>
-            </div>
-            <p className="mt-2 text-2xl font-semibold text-brand-700 dark:text-brand-400">
-              {pct(fatorTotal)}
-            </p>
-          </div>
-          <div className={card}>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Dias úteis/ano
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {formatNumber(params.dias_uteis_ano)}
-            </p>
-          </div>
-          <div className={card}>
-            <div className="flex items-center gap-1">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Impacto laboratório
-              </p>
-              <HelpTip title="Impacto dos parâmetros">
-                <p>Quanto os parâmetros <b>acrescentam ao custo</b>. No laboratório, a conta usa o custo médio do catálogo; no projeto, os orçamentos de projeto recentes.</p>
-              </HelpTip>
-            </div>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {brl(impactoTotalLab)}
-            </p>
-          </div>
-          <div className={card}>
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Impacto projeto
-            </p>
-            <p className="mt-2 text-2xl font-semibold tabular-nums">
-              {brl(impactoProjeto)}
-            </p>
-          </div>
+        {/* Premissas numa faixa: seis campos curtos lado a lado; Salvar na linha do título */}
+        <section aria-labelledby="premissas-titulo" className="mt-4 rounded-lg border border-border bg-card px-3 pb-3 pt-2 shadow-sm">
+          <ParametrosEconomicosForm
+            valores={valores}
+            cabecalho={
+              <div className="flex items-center gap-0.5">
+                <h2 id="premissas-titulo" className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Premissas de orçamento
+                </h2>
+                <HelpTip title="Quando as mudanças valem" className="h-6 w-6">
+                  <p>Alterações valem para <b>novos cálculos</b>. Orçamentos já existentes mantêm os valores gravados até você usar <b>Recalcular preços</b>.</p>
+                </HelpTip>
+              </div>
+            }
+          />
         </section>
 
-        <section className="mt-6 grid gap-4 lg:grid-cols-[1fr_1.1fr]">
+        {/* Blocos em duas colunas equilibradas pelo navegador (a altura de cada um
+            depende dos dados); blocos sem dados viram uma linha. */}
+        <div className="mt-4 gap-4 xl:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
+          <TabelaParametros
+            titulo="Impacto dos parâmetros globais"
+            subtitulo="Simulação sobre o custo médio calculado do catálogo laboratorial."
+            linhas={parametrosLab.map((parametro) => [
+              parametro.label,
+              pct(parametro.valor),
+              parametro.origem,
+              parametro.versao,
+              brl(parametro.impacto),
+            ])}
+          />
           <PainelCustos
             titulo="Custos recebidos"
             itens={[
@@ -262,22 +303,24 @@ export default async function ParametrosEconomicosPage() {
               ["Consolidado", brl(custoMedio + totalProjetoCusto), "base de simulação antes dos parâmetros"],
             ]}
           />
-          <div className={card}>
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold">Fórmula e validação</h2>
-              <HelpTip title="Duas fórmulas de preço">
-                <p><b>Laboratório</b>: o preço de tabela soma os fatores sobre o custo. <b>Projeto</b>: os percentuais incidem sobre o preço final (gross-up), por isso a soma precisa ficar abaixo de 100%.</p>
-                <HelpFormula>projeto: total = custo ÷ (1 − soma dos %)</HelpFormula>
-                <HelpExample>Custo de R$ 1.000 e 25%: laboratório → R$ 1.250; projeto → R$ 1.333,33.</HelpExample>
-              </HelpTip>
-            </div>
-            <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
+          <section className="rounded-lg border border-border bg-card shadow-sm">
+            <Cabecalho
+              titulo="Fórmula e validação"
+              ajuda={
+                <HelpTip title="Duas fórmulas de preço" className="h-6 w-6">
+                  <p><b>Laboratório</b>: o preço de tabela soma os fatores sobre o custo. <b>Projeto</b>: os percentuais incidem sobre o preço final (gross-up), por isso a soma precisa ficar abaixo de 100%.</p>
+                  <HelpFormula>projeto: total = custo ÷ (1 − soma dos %)</HelpFormula>
+                  <HelpExample>Custo de R$ 1.000 e 25%: laboratório → R$ 1.250; projeto → R$ 1.333,33.</HelpExample>
+                </HelpTip>
+              }
+            />
+            <dl className="grid sm:grid-cols-2">
               <InfoParametro label="Laboratório" value={`Preço = custo x (1 + ${pct(fatorTotal)})`} />
               <InfoParametro label="Projeto" value="Total = custo / (1 - soma dos percentuais)" />
               <InfoParametro label="Base laboratório" value={`${brl(custoMedio)} -> ${brl(precoMedio)}`} />
               <InfoParametro label="Base projeto" value={`${brl(totalProjetoCusto)} -> ${brl(totalProjetoFinal)}`} />
-            </div>
-            <div className="mt-4 rounded-md border border-border bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
+            </dl>
+            <p className="px-3 py-1.5 text-xs text-muted-foreground">
               {projetosInvalidos.length > 0 ? (
                 <span className="font-medium text-danger-strong">
                   {projetosInvalidos.length} orçamento(s) de projeto têm gross-up inválido e precisam de revisão antes de emissão.
@@ -285,189 +328,203 @@ export default async function ParametrosEconomicosPage() {
               ) : (
                 <span>Percentuais válidos nos orçamentos recentes (soma abaixo de 100%).</span>
               )}
-            </div>
-          </div>
-        </section>
+            </p>
+          </section>
 
-        {ultimaAtualizacao && (
-          <p className="mt-3 text-xs text-muted-foreground/80">
-            Última atualização:{" "}
-            {formatDateTime(ultimaAtualizacao)}
-          </p>
-        )}
-
-        <section className="mt-8">
-          <div className="mb-3">
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Premissas de orçamento</h2>
-              <HelpTip title="Quando as mudanças valem">
-                <p>Alterações valem para <b>novos cálculos</b>. Orçamentos já existentes mantêm os valores gravados até você usar <b>Recalcular preços</b>.</p>
-              </HelpTip>
-            </div>
-          </div>
-          <ParametrosEconomicosForm valores={valores} />
-        </section>
-
-        <section className="mt-6 grid gap-4 xl:grid-cols-2">
-          <TabelaParametros
-            titulo="Impacto dos parâmetros globais"
-            subtitulo="Simulação sobre o custo médio calculado do catálogo laboratorial."
-            linhas={parametrosLab.map((parametro) => [
-              parametro.label,
-              pct(parametro.valor),
-              "%",
-              parametro.origem,
-              parametro.versao,
-              brl(parametro.impacto),
-            ])}
-          />
           <TabelaParametros
             titulo="Impacto dos parâmetros de projeto"
             subtitulo="Soma dos impactos nos orçamentos de projeto recentes."
             linhas={parametrosProjeto.map((parametro) => [
               parametro.label,
               pct(parametro.percentualMedio),
-              "%",
               "projeto",
               versaoMaisRecente(versoes as VersaoParametro[] | null | undefined, "projeto"),
               brl(parametro.impacto),
             ])}
           />
-        </section>
 
-        <section tabIndex={0} aria-label="Orçamentos de projeto considerados" className="mt-8 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold">Orçamentos de projeto considerados</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Leitura recente para validar base, itens, fator de gross-up e bloqueios.
-            </p>
-          </div>
-          <table className="w-full text-left text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3">Projeto</th>
-                <th className="px-4 py-3">Cliente</th>
-                <th className="px-4 py-3 text-right">Itens</th>
-                <th className="px-4 py-3 text-right">Custo</th>
-                <th className="px-4 py-3 text-right">Gross-up</th>
-                <th className="px-4 py-3 text-right">Total</th>
-                <th className="px-4 py-3">Validação</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {projetosCalculados.map((projeto) => (
-                <tr key={projeto.id}>
-                  <td className="px-4 py-3">
-                    <Link href={projeto.href} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
-                      #{projeto.id} {projeto.titulo ?? "Sem título"}
-                    </Link>
-                    <p className="mt-0.5 text-xs text-muted-foreground">{projeto.status ?? "sem status"}</p>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{projeto.cliente_nome ?? "—"}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{projeto.analisesCount + projeto.custosCount}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{brl(projeto.calculo.subtotal)}</td>
-                  <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
-                    {pct(projeto.calculo.markupRate)} · {projeto.calculo.grossUpFactor.toFixed(4).replace(".", ",")}x
-                  </td>
-                  <td className="px-4 py-3 text-right font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</td>
-                  <td className="px-4 py-3">
-                    <span className={`rounded-full px-2 py-1 text-xs font-medium ${
-                      projeto.calculo.validationError
-                        ? "bg-danger-soft text-danger-strong"
-                        : "bg-success-soft text-success-strong"
-                    }`}>
-                      {projeto.calculo.validationError || "Válido"}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-              {projetosCalculados.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-5 text-sm text-muted-foreground/80">
-                    Nenhum orçamento de projeto recente encontrado para simulação.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </section>
+          {analisesPreview.length === 0 ? (
+            <LinhaVazia titulo="Prévia de impacto" texto="Nenhuma análise calculada no catálogo." />
+          ) : (
+            <section tabIndex={0} aria-label="Prévia de impacto" className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+              <Cabecalho titulo="Prévia de impacto" subtitulo="Cinco análises com maior preço atual usando estes parâmetros." />
+              <table className="w-full text-right text-sm">
+                <thead className={cabecalhoTabela}>
+                  <tr>
+                    <th className="px-3 py-1.5 text-left font-medium">Análise</th>
+                    <th className="px-3 py-1.5 font-medium">Custo total</th>
+                    <th className="px-3 py-1.5 font-medium">Fatores</th>
+                    <th className="px-3 py-1.5 font-medium">Preço</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {analisesPreview.map((b) => (
+                    <tr key={b.codigo}>
+                      <td className="max-w-64 truncate px-3 py-1.5 text-left font-medium" title={b.codigo}>
+                        {b.codigo}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground">
+                        {brl(b.custoTotal)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground">
+                        {pct(b.fatores * 100)}
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 font-semibold tabular-nums text-brand-700 dark:text-brand-400">
+                        {brl(b.preco)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
 
-        <section className="mt-8 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-          <div className="border-b border-border px-4 py-3">
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold">Versões de parâmetros</h2>
-              <HelpTip title="Versões de parâmetros">
-                <p>Cada vez que parâmetros globais ou de um projeto são salvos, uma <b>nova versão</b> é registrada aqui, com data e origem.</p>
-              </HelpTip>
-            </div>
-          </div>
-          <div className="divide-y divide-border/70">
-            {(versoes ?? []).map((versao) => (
-              <div key={versao.id} className="grid gap-2 px-4 py-3 text-sm md:grid-cols-[1.1fr_0.5fr_0.8fr_1fr_1fr_1.2fr]">
-                <span className="font-medium">
-                  {versao.escopo === "laboratorio_global" ? "Laboratório global" : "Projeto"}
-                </span>
-                <span>v{versao.versao}</span>
-                <span>{versao.orcamento_projeto_id ? `Projeto #${versao.orcamento_projeto_id}` : "Global"}</span>
-                <span>{versao.origem}</span>
-                <span className="text-muted-foreground">{formatDateTime(versao.criado_em)}</span>
-                <span className="text-muted-foreground">{resumirPayloadVersao((versao as VersaoParametro).parametros)}</span>
-              </div>
-            ))}
-            {(versoes ?? []).length === 0 && (
-              <p className="px-4 py-5 text-sm text-muted-foreground/80">
-                Nenhuma versão registrada ainda. O próximo salvamento criará a primeira versão.
-              </p>
-            )}
-          </div>
-        </section>
+          {projetosCalculados.length === 0 ? (
+            <LinhaVazia
+              titulo="Orçamentos de projeto considerados"
+              texto="Nenhum orçamento de projeto recente encontrado para simulação."
+            />
+          ) : (
+            <section tabIndex={0} aria-label="Orçamentos de projeto considerados" className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
+              <Cabecalho
+                titulo="Orçamentos de projeto considerados"
+                subtitulo="Leitura recente para validar base, itens, fator de gross-up e bloqueios."
+              />
+              <table className="w-full text-left text-sm">
+                <thead className={cabecalhoTabela}>
+                  <tr>
+                    <th className="px-3 py-1.5 font-medium">Projeto</th>
+                    <th className="px-3 py-1.5 font-medium">Cliente</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Itens</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Custo</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Gross-up</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Total</th>
+                    <th className="px-3 py-1.5 font-medium">Validação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {projetosCalculados.map((projeto) => (
+                    <tr key={projeto.id}>
+                      <td className="max-w-56 px-3 py-1.5">
+                        <Link
+                          href={projeto.href}
+                          className="block truncate font-medium text-brand-700 hover:underline dark:text-brand-300"
+                          title={`#${projeto.id} ${projeto.titulo ?? "Sem título"}`}
+                        >
+                          #{projeto.id} {projeto.titulo ?? "Sem título"}
+                        </Link>
+                        <span className="block text-xs text-muted-foreground">{projeto.status ?? "sem status"}</span>
+                      </td>
+                      <td className="max-w-40 truncate px-3 py-1.5 text-muted-foreground" title={projeto.cliente_nome ?? undefined}>
+                        {projeto.cliente_nome ?? "—"}
+                      </td>
+                      <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{projeto.analisesCount + projeto.custosCount}</td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">{brl(projeto.calculo.subtotal)}</td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                        {pct(projeto.calculo.markupRate)} · {projeto.calculo.grossUpFactor.toFixed(4).replace(".", ",")}x
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</td>
+                      <td className="px-3 py-1.5">
+                        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                          projeto.calculo.validationError
+                            ? "bg-danger-soft text-danger-strong"
+                            : "bg-success-soft text-success-strong"
+                        }`}>
+                          {projeto.calculo.validationError || "Válido"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
+          )}
 
-        <section tabIndex={0} aria-label="Prévia de impacto" className="mt-8 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold">Prévia de impacto</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Cinco análises com maior preço atual usando estes parâmetros.
-            </p>
-          </div>
-          <table className="w-full text-right text-sm">
-            <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left">Análise</th>
-                <th className="px-4 py-3">Custo total</th>
-                <th className="px-4 py-3">Fatores</th>
-                <th className="px-4 py-3">Preço</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
-              {analisesPreview.map((b) => (
-                <tr key={b.codigo}>
-                  <td className="px-4 py-2.5 text-left font-medium">
-                    {b.codigo}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
-                    {brl(b.custoTotal)}
-                  </td>
-                  <td className="px-4 py-2.5 tabular-nums text-muted-foreground">
-                    {pct(b.fatores * 100)}
-                  </td>
-                  <td className="px-4 py-2.5 font-semibold tabular-nums text-brand-700 dark:text-brand-400">
-                    {brl(b.preco)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </section>
+          {versoesLista.length === 0 && blocoVersoes}
+        </div>
+
+        {versoesLista.length > 0 && blocoVersoes}
       </main>
     </div>
   );
 }
 
+const cabecalhoTabela = "whitespace-nowrap text-[11px] uppercase tracking-wide text-muted-foreground";
+
+function AjudaVersoes() {
+  return (
+    <HelpTip title="Versões de parâmetros" className="h-6 w-6">
+      <p>Cada vez que parâmetros globais ou de um projeto são salvos, uma <b>nova versão</b> é registrada aqui, com data e origem.</p>
+    </HelpTip>
+  );
+}
+
+/** Um número do resumo do topo: rótulo discreto, valor em destaque. */
+function Indicador({
+  rotulo,
+  valor,
+  ajuda,
+  destaque = false,
+}: {
+  rotulo: string;
+  valor: string;
+  ajuda?: ReactNode;
+  destaque?: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <dt className="flex items-center">
+        {rotulo}
+        {ajuda}
+      </dt>
+      <dd className={`font-semibold tabular-nums ${destaque ? "text-brand-700 dark:text-brand-400" : "text-foreground"}`}>
+        {valor}
+      </dd>
+    </div>
+  );
+}
+
+/** Cabeçalho de bloco em uma linha: título, ajuda e explicação curta ao lado. */
+function Cabecalho({
+  titulo,
+  subtitulo,
+  ajuda,
+}: {
+  titulo: string;
+  subtitulo?: string;
+  ajuda?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-border px-3 py-2">
+      <div className="flex items-center gap-0.5">
+        <h2 className="text-sm font-semibold">{titulo}</h2>
+        {ajuda ?? (subtitulo ? <HelpTip title={titulo}><p>{subtitulo}</p></HelpTip> : null)}
+      </div>
+    </div>
+  );
+}
+
+/** Bloco sem dados: uma linha discreta no lugar de uma tabela vazia. */
+function LinhaVazia({ titulo, texto, ajuda }: { titulo: string; texto: string; ajuda?: ReactNode }) {
+  return (
+    <section
+      aria-label={titulo}
+      className="flex flex-wrap items-center gap-x-2 gap-y-0.5 rounded-lg border border-border bg-card px-3 py-2 shadow-sm"
+    >
+      <div className="flex items-center gap-0.5">
+        <h2 className="text-sm font-semibold">{titulo}</h2>
+        {ajuda}
+      </div>
+      <p className="text-xs text-muted-foreground/80">{texto}</p>
+    </section>
+  );
+}
+
 function InfoParametro({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md bg-muted/50 p-2">
-      <p className="text-muted-foreground">{label}</p>
-      <p className="mt-1 font-medium text-foreground">{value}</p>
+    <div className="border-b border-border/70 px-3 py-1.5 text-sm sm:odd:border-r">
+      <dt className="text-xs text-muted-foreground">{label}</dt>
+      <dd className="font-medium tabular-nums text-foreground">{value}</dd>
     </div>
   );
 }
@@ -480,20 +537,20 @@ function PainelCustos({
   itens: Array<[string, string, string]>;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <h2 className="text-sm font-semibold">{titulo}</h2>
-      <div className="mt-4 divide-y divide-border/70">
+    <section className="rounded-lg border border-border bg-card shadow-sm">
+      <Cabecalho titulo={titulo} />
+      <div className="divide-y divide-border/70 px-3">
         {itens.map(([label, valor, detalhe]) => (
-          <div key={label} className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
-            <div>
-              <p className="text-sm font-medium">{label}</p>
-              <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p>
-            </div>
-            <p className="text-right text-sm font-semibold tabular-nums">{valor}</p>
+          <div key={label} className="flex items-baseline justify-between gap-4 py-1.5">
+            <p className="min-w-0 text-sm">
+              <span className="font-medium">{label}</span>
+              <span className="text-xs text-muted-foreground"> · {detalhe}</span>
+            </p>
+            <p className="whitespace-nowrap text-right text-sm font-semibold tabular-nums">{valor}</p>
           </div>
         ))}
       </div>
-    </div>
+    </section>
   );
 }
 
@@ -504,43 +561,35 @@ function TabelaParametros({
 }: {
   titulo: string;
   subtitulo: string;
+  /** [campo, valor com unidade, origem, versão, impacto] */
   linhas: string[][];
 }) {
+  if (linhas.length === 0) {
+    return <LinhaVazia titulo={titulo} texto="Sem dados suficientes para calcular impacto." />;
+  }
   return (
     <section tabIndex={0} aria-label={titulo} className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-sm font-semibold">{titulo}</h2>
-        <p className="mt-1 text-xs text-muted-foreground">{subtitulo}</p>
-      </div>
+      <Cabecalho titulo={titulo} subtitulo={subtitulo} />
       <table className="w-full text-left text-sm">
-        <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className={cabecalhoTabela}>
           <tr>
-            <th className="px-4 py-3">Campo</th>
-            <th className="px-4 py-3 text-right">Valor</th>
-            <th className="px-4 py-3">Unidade</th>
-            <th className="px-4 py-3">Origem</th>
-            <th className="px-4 py-3">Versão</th>
-            <th className="px-4 py-3 text-right">Impacto</th>
+            <th className="px-3 py-1.5 font-medium">Campo</th>
+            <th className="px-3 py-1.5 text-right font-medium">Valor</th>
+            <th className="px-3 py-1.5 font-medium">Origem</th>
+            <th className="px-3 py-1.5 font-medium">Versão</th>
+            <th className="px-3 py-1.5 text-right font-medium">Impacto</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border/70">
           {linhas.map((linha) => (
-            <tr key={`${linha[0]}-${linha[3]}`}>
-              <td className="px-4 py-3 font-medium">{linha[0]}</td>
-              <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">{linha[1]}</td>
-              <td className="px-4 py-3 text-muted-foreground">{linha[2]}</td>
-              <td className="px-4 py-3 text-muted-foreground">{linha[3]}</td>
-              <td className="px-4 py-3 text-muted-foreground">{linha[4]}</td>
-              <td className="px-4 py-3 text-right font-semibold tabular-nums">{linha[5]}</td>
+            <tr key={`${linha[0]}-${linha[2]}`}>
+              <td className="px-3 py-1.5 font-medium">{linha[0]}</td>
+              <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">{linha[1]}</td>
+              <td className="px-3 py-1.5 text-muted-foreground">{linha[2]}</td>
+              <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">{linha[3]}</td>
+              <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold tabular-nums">{linha[4]}</td>
             </tr>
           ))}
-          {linhas.length === 0 && (
-            <tr>
-              <td colSpan={6} className="px-4 py-5 text-sm text-muted-foreground/80">
-                Sem dados suficientes para calcular impacto.
-              </td>
-            </tr>
-          )}
         </tbody>
       </table>
     </section>

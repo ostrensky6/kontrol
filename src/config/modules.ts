@@ -254,6 +254,13 @@ export const APP_MODULES: AppModule[] = [
         showInTopNav: false,
       },
       {
+        href: "/orcamento/documento-proposta",
+        label: "Documento da proposta",
+        desc: "dados das empresas emissoras e textos padrão",
+        icon: "FileText",
+        showInTopNav: false,
+      },
+      {
         href: "/orcamento/modelos",
         label: "Modelos",
         desc: "templates comerciais e modelos de proposta",

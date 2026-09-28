@@ -146,10 +146,10 @@ export default async function NovaDemandaPage() {
                 { label: "Novo orçamento" },
               ]}
             />
-            <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
               Entrada comercial
             </p>
-            <div className="mt-1 flex items-center gap-1">
+            <div className="mt-0.5 flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Novo orçamento</h1>
             </div>
           </div>
@@ -161,7 +161,8 @@ export default async function NovaDemandaPage() {
           </Link>
         </div>
 
-        <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
+        {/* pb-4/px-4 casam com a barra de ação presa (-mx-4 -mb-4) do formulário. */}
+        <section className="mt-3 rounded-lg border border-border bg-card px-4 pb-4 pt-3 shadow-sm">
           <DemandaForm
             demanda={demandaNova}
             clientes={(clientes ?? []) as { id: number; nome: string }[]}

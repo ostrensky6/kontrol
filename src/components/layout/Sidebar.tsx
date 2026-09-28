@@ -213,8 +213,9 @@ export function Sidebar({
 
   return (
     <>
-      {/* Barra superior (só mobile) */}
-      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur md:hidden">
+      {/* Barra superior (só mobile). A folha A4 impressa é mais estreita que o
+          breakpoint md: sem print:hidden, o logo do Kontrol saía na proposta. */}
+      <div className="sticky top-0 z-30 flex items-center justify-between border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur md:hidden print:hidden">
         <Button
           type="button"
           aria-label="Abrir menu"

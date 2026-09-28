@@ -182,10 +182,12 @@ export default async function RecebimentoPage() {
         </div>
 
         <section className="mt-8">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Compras formais sem pedido interno</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Itens recebidos diretamente do fornecedor, inclusive recebimentos parciais.</p>
+              <HelpTip title="Compras formais sem pedido interno">
+                <p>Itens recebidos diretamente do fornecedor, inclusive recebimentos parciais.</p>
+              </HelpTip>
             </div>
             <span className="text-sm tabular-nums text-muted-foreground">{comprasFormais.length} pendente(s)</span>
           </div>

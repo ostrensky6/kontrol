@@ -47,11 +47,12 @@ test("tela administrativa lista as 10 análises históricas", async ({ page }) =
 
 test("orçamento mostra ofertáveis e oculta análise não ofertável", async ({ page }) => {
   await page.goto("/orcamento/demandas/nova");
-  await expect(page.getByText("9 análise(s) oficial(is) disponível(is).")).toBeVisible();
   await page.waitForLoadState("networkidle");
   const abrirCatalogo = page.getByRole("button", { name: "Selecionar análises" });
   await expect(abrirCatalogo).toBeEnabled();
   await abrirCatalogo.click();
+  // a contagem fica no catálogo, junto da busca (28/09: sem frase ao lado do "?")
+  await expect(page.getByText("9 análise(s) oficial(is) disponível(is).")).toBeVisible();
   const catalogo = page.getByLabel("Catálogo de análises filtradas");
   await expect(catalogo).toBeVisible();
 

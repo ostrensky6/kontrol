@@ -47,11 +47,18 @@ test("sem a permissão, salário e derivados aparecem como XXX e não chegam ao 
   await expect(salario).toHaveAccessibleDescription("Visível só para quem tem permissão");
 });
 
-test("sem a permissão, o catálogo mostra XXX só nos valores de PE", async ({ page }) => {
-  await comoCategoria(page, "coordenador");
+test("sem a permissão de pessoal, o catálogo mostra XXX só nos valores de PE", async ({ page }) => {
+  // 0137: técnico não faz orçamento e não tem "Valores de pessoal no orçamento".
+  await comoCategoria(page, "tecnico");
   await page.goto("/orcamento/modelos");
   const catalogo = page.locator("#catalogo");
   await expect(catalogo.getByRole("row", { name: /PE-E2E/ })).toContainText("XXX");
   await expect(catalogo).not.toContainText("7.654,32");
   await expect(catalogo.getByRole("row", { name: /MC-E2E/ })).toContainText("12,50");
+});
+
+test("coordenador vê os valores de pessoal do catálogo (Valores de pessoal no orçamento)", async ({ page }) => {
+  await comoCategoria(page, "coordenador");
+  await page.goto("/orcamento/modelos");
+  await expect(page.locator("#catalogo").getByRole("row", { name: /PE-E2E/ })).toContainText("7.654,32");
 });

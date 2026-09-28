@@ -7,7 +7,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
  *  - proposta 1: projeto já revisado ("enviado") → editor em leitura, emissão liberada;
  *  - proposta 2: projeto em edição ("rascunho"), 18 meses, um PE manual de R$ 3.000/mês.
  * O fluxo de edição roda uma vez por servidor novo: ao final a revisão é concluída
- * e os custos da proposta 2 ficam travados.
+ * e reaberta (DC4), e a proposta 2 volta para edição com os itens lançados.
  */
 
 async function totalRubrica(editor: Locator, rubrica: string) {
@@ -62,25 +62,24 @@ test("edita custos do projeto e conclui a revisão", async ({ page }) => {
   await expect(editor.getByText("Há marcações não salvas.")).toHaveCount(0);
   await expect.poll(() => totalRubrica(editor, "PE")).toBe("R$ 39.000,00");
 
-  // MC: item do catálogo com busca.
+  // MC: campo único — digitar busca no catálogo; escolher preenche unidade e valor.
   await abrirRubrica(page, /^MC · /);
-  const catalogo = editor.getByRole("form", { name: "Adicionar item do catálogo em MC" });
-  await catalogo.getByLabel("Buscar no catálogo").fill("luva");
-  const opcoes = catalogo.getByLabel(/Item do catálogo \(1\)/);
-  await expect(opcoes.locator("option", { hasText: "Luvas nitrílicas" })).toHaveCount(1);
-  await opcoes.selectOption("MC-30");
-  await catalogo.getByLabel("Quantidade").fill("4");
-  await catalogo.getByRole("button", { name: "Adicionar do catálogo" }).click();
+  const adicionar = editor.getByRole("form", { name: "Adicionar item em MC" });
+  await adicionar.getByRole("combobox", { name: /Descrição/ }).fill("luva");
+  await adicionar.getByRole("option", { name: /Luvas nitrílicas/ }).click();
+  await expect(adicionar.getByText(/Do catálogo \(MC-30\)/)).toBeVisible();
+  await adicionar.getByLabel("Quantidade").fill("4");
+  await adicionar.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(editor.getByRole("rowheader", { name: "Luvas nitrílicas" })).toBeVisible();
   await expect.poll(() => totalRubrica(editor, "MC")).toBe("R$ 180,00");
 
-  // MC: item manual.
-  const manual = editor.getByRole("form", { name: "Adicionar item manual em MC" });
-  await manual.getByLabel("Descrição").fill("Frascos de coleta");
-  await manual.getByLabel("Unidade").fill("un");
-  await manual.getByLabel("Quantidade").fill("10");
-  await manual.getByLabel("Custo unitário (R$)").fill("12.5");
-  await manual.getByRole("button", { name: "Adicionar item" }).click();
+  // MC: item novo (não está no catálogo) no mesmo campo.
+  await adicionar.getByRole("combobox", { name: /Descrição/ }).fill("Frascos de coleta");
+  await expect(adicionar.getByText("Item novo: entra no catálogo ao concluir a revisão.")).toBeVisible();
+  await adicionar.getByLabel("Unidade").fill("un");
+  await adicionar.getByLabel("Quantidade").fill("10");
+  await adicionar.getByLabel(/Valor unitário/).fill("12.5");
+  await adicionar.getByRole("button", { name: "Adicionar", exact: true }).click();
   await expect(editor.getByRole("rowheader", { name: "Frascos de coleta" })).toBeVisible();
   await expect.poll(() => totalRubrica(editor, "MC")).toBe("R$ 305,00");
 
@@ -125,4 +124,13 @@ test("edita custos do projeto e conclui a revisão", async ({ page }) => {
   await expect(editor.getByText("Revisado").first()).toBeVisible();
   await expect(editor.getByRole("button", { name: /^Editar / })).toHaveCount(0);
   await expect(page.locator('a[href^="/orcamento/projetos/"]')).toHaveCount(0);
+
+  // Tudo editável (DC4): reabrir a revisão devolve os custos para edição.
+  await editor.getByRole("button", { name: "Reabrir revisão" }).click();
+  const reabrir = page.getByRole("dialog", { name: "Reabrir a revisão dos custos" });
+  await reabrir.getByRole("button", { name: "Reabrir revisão" }).click();
+  await expect(reabrir).toBeHidden();
+  await expect(editor.getByText("Em edição").first()).toBeVisible();
+  await abrirRubrica(page, /^MC · /);
+  await expect(editor.getByRole("button", { name: "Editar Frascos de coleta" })).toBeVisible();
 });

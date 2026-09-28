@@ -116,6 +116,8 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.ver": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      // 0137: técnico não faz orçamento; não vê valores de pessoal.
+      "orcamentos.pessoal": false,
     },
   },
   {
@@ -148,6 +150,8 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.editar": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      // 0137: quem faz orçamento vê e lança valores de pessoal.
+      "orcamentos.pessoal": true,
     },
   },
   {
@@ -186,6 +190,7 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.editar": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      "orcamentos.pessoal": true,
       "configuracoes.ver": true,
     },
   },
@@ -293,6 +298,17 @@ const baseStore = (): Store => {
   demanda_grupos_amostras: [],
   projetos: [{ id: 1, nome: "Projeto E2E" }],
   clientes: [{ id: 1, nome: "Cliente Cadastrado", ativo: true }],
+  // Documento da proposta (0135)
+  empresas_emissoras: [
+    { id: 1, codigo: "ATGC", nome_legal: "ATGC Genética Ambiental Ltda.", cnpj: null, endereco: null, telefone: null, email: null, site: null },
+    { id: 2, codigo: "GIA", nome_legal: "Grupo Integrado de Aquicultura e Estudos Ambientais", cnpj: null, endereco: null, telefone: null, email: null, site: null },
+  ],
+  proposta_secoes_padrao: ["ATGC", "GIA"].flatMap((empresa, i) => [
+    { id: 10 + i * 2, empresa_codigo: empresa, chave: "prazos", titulo: "Prazos e entregas", ordem: 10, ativo: true,
+      texto: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Relatório técnico no prazo técnico informado." }] }] } },
+    { id: 11 + i * 2, empresa_codigo: empresa, chave: "condicoes", titulo: "Condições comerciais", ordem: 30, ativo: true,
+      texto: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Pagamento conforme combinado." }] }] } },
+  ]),
   analises: HISTORICAL_ANALISES,
   insumos,
   etapas: HISTORICAL_ANALISE_CODES.map((codigo) => ({
@@ -809,6 +825,11 @@ function mockMinhasPermissoes(sessao: SessaoMock) {
 
 function podeVerSalarioMock(sessao: SessaoMock) {
   return mockTemPermissao("tecnicos.salario.ver", sessao);
+}
+
+/** Mesma regra de kontrol_private.pode_ver_pessoal_orcamento (0137). */
+function podeVerPessoalOrcamentoMock(sessao: SessaoMock) {
+  return mockTemPermissao("orcamentos.pessoal", sessao) || podeVerSalarioMock(sessao);
 }
 
 /** Mesma forma de public.v_minhas_notificacoes (0128): estado de leitura por usuário. */
@@ -1802,6 +1823,8 @@ function emitirOrcamentoFinalTransacional(args: Row) {
     criado_por: args.p_criado_por,
     criado_em: criadoEm,
     valido_ate: validoAte,
+    validade_dias: validadeDias,
+    textos_proposta: null,
   };
   store.orcamento_final_versoes.push(versaoFinal);
 
@@ -1893,7 +1916,7 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
       }
       if (fn === "valor_hora_pessoal_total") return { data: valorHoraPessoalTotalMock(), error: null };
       if (fn === "orcamento_projeto_catalogo_listar") {
-        const pode = podeVerSalarioMock(sessao);
+        const pode = podeVerPessoalOrcamentoMock(sessao);
         return {
           data: [...(store.orcamento_projeto_catalogo ?? [])]
             .sort((a, b) =>
@@ -1958,6 +1981,151 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         }
       }
       if (fn === "emitir_orcamento_final_transacional") return { data: emitirOrcamentoFinalTransacional(args), error: null };
+      if (fn === "atualizar_textos_versao_final") {
+        const versao = (store.orcamento_final_versoes ?? []).find((row) => Number(row.id) === Number(args.p_versao_id));
+        if (!versao) return { data: null, error: { message: "Proposta não encontrada.", code: "P0002" } };
+        if (!["emitido", "enviado", "alterado_reenviado"].includes(String(versao.status))) {
+          return { data: null, error: { message: "Só dá para editar os textos de proposta emitida ou enviada, ainda não aprovada.", code: "22023" } };
+        }
+        versao.textos_proposta = args.p_textos;
+        return { data: { id: versao.id, status: versao.status }, error: null };
+      }
+      // 0137: o simulado não reproduz o catálogo vivo (coberto pelo teste SQL);
+      // conclui pela mesma transição e devolve o resumo vazio.
+      if (fn === "previa_catalogo_revisao_projeto") {
+        return { data: [], error: null };
+      }
+      if (fn === "concluir_revisao_custos_projeto") {
+        try {
+          transicionarOrcamentoProjeto({
+            p_orcamento_projeto_id: args.p_orcamento_projeto_id,
+            p_status_destino: "enviado",
+            p_observacao: args.p_observacao ?? null,
+          });
+          return { data: { novos: 0, atualizados: 0, pendentes: 0, repetidos: 0 }, error: null };
+        } catch (error) {
+          return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC" } };
+        }
+      }
+      // 0138: edição do catálogo (versão simples; as regras completas estão no teste SQL).
+      if (fn === "catalogo_projeto_historico") {
+        return { data: [], error: null };
+      }
+      if (fn === "catalogo_projeto_salvar_item") {
+        const catalogo = (store.orcamento_projeto_catalogo ??= []);
+        const campos = {
+          rubrica: args.p_rubrica,
+          descricao: args.p_descricao,
+          unidade: args.p_unidade ?? null,
+          categoria: args.p_categoria ?? null,
+        };
+        if (args.p_id) {
+          const item = catalogo.find((row) => row.id === args.p_id);
+          if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+          Object.assign(item, campos, args.p_preco == null ? {} : { preco_unitario: args.p_preco });
+          return { data: item.id, error: null };
+        }
+        const id = `${String(args.p_rubrica)}-${900 + catalogo.length}`;
+        catalogo.push({ id, ...campos, preco_unitario: args.p_preco, ativo: true, origem: "cadastro_catalogo" });
+        return { data: id, error: null };
+      }
+      if (fn === "catalogo_projeto_definir_ativo") {
+        const item = (store.orcamento_projeto_catalogo ?? []).find((row) => row.id === args.p_id);
+        if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+        item.ativo = args.p_ativo === true;
+        return { data: null, error: null };
+      }
+      if (fn === "catalogo_projeto_unificar") {
+        const item = (store.orcamento_projeto_catalogo ?? []).find((row) => row.id === args.p_remover);
+        if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+        Object.assign(item, { substituido_por: args.p_manter, ativo: false });
+        return { data: null, error: null };
+      }
+      // 0139: versões simples de reabrir, modelo, pendências e importação (regras completas no teste SQL).
+      if (fn === "reabrir_revisao_custos_projeto") {
+        const projeto = (store.orcamento_projetos ?? []).find((row) => Number(row.id) === Number(args.p_orcamento_projeto_id));
+        if (!projeto) return { data: null, error: { code: "P0002", message: "Orçamento de projeto não encontrado." } };
+        const origem = String(projeto.status ?? "rascunho");
+        if (origem === "rascunho" || origem === "cancelado") {
+          return { data: null, error: { code: "22023", message: "Os custos já estão em edição ou o orçamento foi cancelado." } };
+        }
+        const aprovada = (store.orcamento_final_versoes ?? []).find(
+          (row) => Number(row.demanda_id) === Number(projeto.demanda_id) && ["aprovado", "convertido_projeto"].includes(String(row.status)),
+        );
+        const motivo = String(args.p_motivo ?? "").trim();
+        if (aprovada && motivo.length < 5) {
+          return { data: null, error: { code: "22023", message: `A proposta ${aprovada.numero} está aprovada: informe o motivo da reformulação.` } };
+        }
+        projeto.status = "rascunho";
+        projeto.reformulacao_de_versao_id = aprovada ? aprovada.id : null;
+        return {
+          data: { status_origem: origem, reformulacao: Boolean(aprovada), versao_aprovada: aprovada?.numero ?? null },
+          error: null,
+        };
+      }
+      if (fn === "aplicar_modelo_orcamento_projeto") {
+        const modelo = (store.orcamento_projeto_templates ?? []).find((row) => Number(row.id) === Number(args.p_template_id));
+        if (!modelo) return { data: null, error: { code: "P0002", message: "Modelo não encontrado." } };
+        const catalogo = store.orcamento_projeto_catalogo ?? [];
+        let doCatalogo = 0;
+        const itens = Array.isArray(modelo.itens) ? (modelo.itens as Row[]) : [];
+        for (const item of itens) {
+          const doItem = catalogo.find((row) => row.id === item.catalogo_item_id && row.ativo !== false);
+          if (doItem) doCatalogo += 1;
+          const valor = Number(doItem?.preco_unitario ?? item.custo_unitario ?? 0);
+          (store.orcamento_projeto_custos ??= []).push({
+            id: nextId("orcamento_projeto_custos"),
+            orcamento_projeto_id: Number(args.p_orcamento_projeto_id),
+            rubrica: item.rubrica ?? "OU",
+            categoria: item.categoria ?? "outros",
+            descricao: doItem?.descricao ?? item.descricao,
+            unidade: doItem?.unidade ?? item.unidade ?? null,
+            quantidade: Number(item.quantidade ?? 1),
+            custo_unitario: valor,
+            preco_unitario: valor,
+            meses_selecionados: [],
+            catalogo_item_id: doItem?.id ?? null,
+            origem: "template",
+          });
+        }
+        return { data: { itens: itens.length, do_catalogo: doCatalogo, sem_catalogo: itens.length - doCatalogo, pessoal_ignorado: 0 }, error: null };
+      }
+      if (fn === "catalogo_projeto_pendencias") return { data: [], error: null };
+      if (fn === "catalogo_projeto_resolver_pendencia") {
+        return { data: null, error: { code: "22023", message: "Pendência não encontrada ou já resolvida." } };
+      }
+      if (fn === "catalogo_projeto_importar") {
+        const catalogo = (store.orcamento_projeto_catalogo ??= []);
+        const chave = (texto: unknown) => String(texto ?? "").trim().toLowerCase();
+        const linhas = (Array.isArray(args.p_itens) ? args.p_itens : []) as Row[];
+        const data = linhas.map((linha, indice) => {
+          const existente = catalogo.find(
+            (row) => row.rubrica === linha.rubrica && chave(row.descricao) === chave(linha.descricao) && chave(row.unidade) === chave(linha.unidade),
+          );
+          const preco = typeof linha.preco === "number" ? linha.preco : null;
+          const acao = preco == null || !linha.descricao ? "erro" : !existente ? "novo" : Number(existente.preco_unitario) === preco ? "igual" : "atualizar";
+          let itemId = existente?.id ?? null;
+          if (args.p_aplicar === true && acao === "novo") {
+            itemId = `${String(linha.rubrica)}-${900 + catalogo.length}`;
+            catalogo.push({ id: itemId, rubrica: linha.rubrica, descricao: linha.descricao, unidade: linha.unidade ?? null, categoria: linha.categoria ?? null, preco_unitario: preco, ativo: true, origem: "importacao_planilha" });
+          } else if (args.p_aplicar === true && acao === "atualizar" && existente) {
+            existente.preco_unitario = preco;
+          }
+          return {
+            linha: indice + 1,
+            rubrica: linha.rubrica,
+            descricao: linha.descricao ?? null,
+            unidade: linha.unidade ?? null,
+            preco,
+            categoria: linha.categoria ?? null,
+            acao,
+            catalogo_item_id: itemId,
+            preco_atual: existente?.preco_unitario ?? null,
+            mensagem: acao === "erro" ? "Valor ausente ou negativo." : null,
+          };
+        });
+        return { data, error: null };
+      }
       if (fn === "transicionar_orcamento_projeto") {
         try {
           return { data: transicionarOrcamentoProjeto(args), error: null };

@@ -87,10 +87,20 @@ export type AnaliseSelecionadaDemanda = {
 const initialState: DemandaFormState = { ok: false };
 /** Itens exibidos no catálogo de uma vez; acima disso, o usuário refina a busca. */
 const LIMITE_CATALOGO = 30;
-const inp = `rounded-md border-2 border-brand-300 bg-card px-3 py-2 text-sm font-medium shadow-sm outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-200 dark:border-brand-700 dark:focus:ring-brand-900 ${TOM_ENTRADA}`;
-const inheritedInp = "rounded-md border border-input bg-muted/50 px-3 py-2 text-sm font-medium text-foreground shadow-sm outline-none focus:border-ring focus:ring-2 focus:ring-border";
-const operationalInp = "rounded-md border-2 border-warning-strong/30 bg-warning-soft px-3 py-2 text-sm font-semibold text-warning-strong shadow-sm outline-none focus:border-warning-strong focus:ring-2 focus:ring-warning-strong/30";
+// Mesmo padrão compacto do formulário "Dados do orçamento" da edição
+// (demandas/[id], aprovado em 28/09): campos de 32 px, grupos lado a lado,
+// campos aos pares. §8.2: valor digitado/escolhido pelo usuário em azul.
+const campo = `mt-0.5 h-8 w-full rounded-md border border-input bg-card px-2.5 text-sm font-medium ${TOM_ENTRADA}`;
+const campoHerdado = "mt-0.5 h-8 w-full rounded-md border border-input bg-muted/50 px-2.5 text-sm font-medium text-foreground";
+const campoCalculado = "mt-0.5 flex h-8 w-full items-center rounded-md border border-dashed border-input bg-muted/50 px-2.5 text-sm font-medium text-muted-foreground";
+const campoOperacional = "h-8 rounded-md border border-warning-strong/30 bg-warning-soft px-2.5 text-sm font-semibold tabular-nums text-warning-strong";
+const areaTexto = `mt-0.5 block min-h-14 w-full rounded-md border bg-card px-2.5 py-1.5 text-sm font-medium ${TOM_ENTRADA}`;
+const grupoCampos = "min-w-0 rounded-md border border-border bg-muted/20 px-2.5 pb-2.5 pt-2";
+const legenda = "float-left mb-1 w-full text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
 const lbl = "block text-xs font-medium text-muted-foreground";
+const secao = "rounded-md border border-border px-3 pb-3 pt-2";
+const cabecalhoSecao = "flex flex-wrap items-center gap-x-3 gap-y-1";
 
 export function DemandaForm({
   demanda,
@@ -208,11 +218,28 @@ export function DemandaForm({
   const pendenciasInsumos = analises
     .flatMap((analise) => analise.reagentes.map((reagente) => ({ codigo: analise.codigo, ...reagente })))
     .filter((reagente) => reagente.status_vinculo_insumo === "insumo_sem_cadastro_correspondente");
+  const erroDescricao = Boolean(state.errors?.descricao);
 
   return (
-    <form action={formAction} {...formularioSemPerda(state)} className="mt-3 space-y-4">
+    <form action={formAction} {...formularioSemPerda(state)} aria-busy={pending} className="space-y-3">
       {demanda.id > 0 ? <input type="hidden" name="demanda_id" value={demanda.id} /> : null}
       <input type="hidden" name="escopo_salvamento" value={modo} />
+      {/* Título + "?" e nada mais: orientação e legenda dos campos ficam no "?" (28/09). */}
+      {mostraDemanda && (
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold">Dados do orçamento</h2>
+          <HelpTip title="Dados do orçamento">
+            <p>O número é gerado ao criar; depois vêm os custos e a proposta. Campos com <b className="text-danger-strong">*</b> são obrigatórios.</p>
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <Legenda texto="Editável" classe="border-input bg-card" textoClasse={TOM_ENTRADA} />
+              <Legenda texto="Vem do cadastro" classe="border-input bg-muted" />
+              <Legenda texto="Calculado" classe="border-dashed border-input bg-muted" />
+              <Legenda texto="Operacional" classe="border-warning-strong/30 bg-warning-soft" />
+            </p>
+            <p>Depois da emissão, os dados ficam bloqueados na proposta emitida.</p>
+          </HelpTip>
+        </div>
+      )}
       {!mostraDemanda && (
         <CamposDemandaLeitura
           demanda={demanda}
@@ -220,140 +247,135 @@ export function DemandaForm({
           matrizAmostra={grupos.map((grupo) => grupo.tipo_matriz).filter(Boolean).join("; ") || (demanda.matriz_amostra ?? "")}
         />
       )}
-      <div className="flex flex-wrap gap-2 rounded-md border border-border bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
-        <Legenda texto="Editável" classe="border-brand-300 bg-card" />
-        <Legenda texto="Herdado" classe="border-input bg-muted" />
-        <Legenda texto="Calculado" classe="border-dashed border-input bg-muted" />
-        <Legenda texto="Operacional" classe="border-warning-strong/30 bg-warning-soft" />
-        <Legenda texto="Bloqueado após emissão" classe="border-input bg-muted" />
-      </div>
-      {state.message && (
-        <div
-          className={`rounded-md px-3 py-2 text-sm ${
-            state.ok
-              ? "bg-brand-50 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200"
-              : "bg-danger-soft text-danger-strong"
-          }`}
-          aria-live="polite"
-        >
-          {state.message}
-          {state.savedAt ? <span className="ml-2 text-xs opacity-75">Último salvamento: {new Date(state.savedAt).toLocaleString("pt-BR")}</span> : null}
-        </div>
-      )}
+
       {mostraDemanda && (
-      <section className="rounded-md border border-border p-3">
-        <h3 className="text-sm font-semibold">Identificação do orçamento</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
-          <div className="sm:col-span-2">
-            <label className={lbl}>Título <Obrigatorio /></label>
-            <input name="titulo" defaultValue={demanda.titulo ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={lbl}>Modalidade <Obrigatorio /></label>
-            <select name="modalidade" value={modalidade} onChange={(event) => setModalidade(event.target.value)} className={`${inp} mt-1 w-full`}>
-              <option value="analises">Análises laboratoriais</option>
-              <option value="projeto">Projeto sem análises</option>
-              <option value="projeto_com_analises">Projeto com análises</option>
-            </select>
-          </div>
-          <div>
-            <label className={lbl}>Número do orçamento <Selo texto="Calculado" /></label>
-            <div className="mt-1 rounded-md border border-dashed border-input bg-muted/50 px-3 py-2 text-sm font-medium text-muted-foreground">
-              {demanda.id > 0 ? `#${demanda.id}` : "Gerado ao salvar"}
+        // Grupos lado a lado, três linhas de campos cada: Identificação | Cliente
+        // (lg) + Controle e prazos (terceira coluna no 2xl; faixa de 12 colunas
+        // no lg), como em "Dados do orçamento" da edição.
+        <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
+          <fieldset className={grupoCampos}>
+            <legend className={legenda}>Identificação do orçamento</legend>
+            <div className={grade}>
+              <div className="col-span-6">
+                <label htmlFor="nd-titulo" className={lbl}>Título <Obrigatorio /></label>
+                <input id="nd-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
+              </div>
+              <div className="col-span-6 sm:col-span-3">
+                <label htmlFor="nd-modalidade" className={lbl}>Modalidade <Obrigatorio /></label>
+                <select id="nd-modalidade" name="modalidade" value={modalidade} onChange={(event) => setModalidade(event.target.value)} className={campo}>
+                  <option value="analises">Análises laboratoriais</option>
+                  <option value="projeto">Projeto sem análises</option>
+                  <option value="projeto_com_analises">Projeto com análises</option>
+                </select>
+              </div>
+              <div className="col-span-6 sm:col-span-3">
+                <label htmlFor="demanda-instituicao" className={lbl} title="Empresa que emite a proposta (cabeçalho do documento)">
+                  Empresa emissora
+                </label>
+                <select id="demanda-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>
+                  <option value="">Escolha…</option>
+                  {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+                </select>
+              </div>
+              <div className="col-span-6">
+                <label htmlFor="nd-projeto" className={lbl}>Projeto</label>
+                <select id="nd-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
+                  <option value="">Sem projeto vinculado</option>
+                  {projetos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
+                </select>
+              </div>
+              <input name="prazo_tecnico_dias" type="hidden" value={demanda.prazo_tecnico_dias ?? ""} />
+              <input name="quantidade_amostras_estimada" type="hidden" value={grupos.reduce((total, grupo) => total + Number(grupo.quantidade_amostras || 0), 0) || quantidadeInicial} />
+              <input name="matriz_amostra" type="hidden" value={grupos.map((grupo) => grupo.tipo_matriz).filter(Boolean).join("; ") || (demanda.matriz_amostra ?? "")} />
             </div>
-          </div>
-          <div>
-            <label className={lbl}>Prioridade</label>
-            <select name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={`${inp} mt-1 w-full`}>
-              <option value="baixa">Baixa</option>
-              <option value="normal">Normal</option>
-              <option value="alta">Alta</option>
-              <option value="urgente">Urgente</option>
-            </select>
-          </div>
-          <div>
-            <label className={lbl}>Responsável interno</label>
-            <input name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label className={lbl}>Data da solicitação</label>
-            <input name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label className={lbl}>Prazo esperado</label>
-            <input name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div className="sm:col-span-2">
-            <label className={lbl}>Origem</label>
-            <input name="origem" defaultValue={demanda.origem ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <input name="prazo_tecnico_dias" type="hidden" value={demanda.prazo_tecnico_dias ?? ""} />
-          <input name="quantidade_amostras_estimada" type="hidden" value={grupos.reduce((total, grupo) => total + Number(grupo.quantidade_amostras || 0), 0) || quantidadeInicial} />
-          <input name="matriz_amostra" type="hidden" value={grupos.map((grupo) => grupo.tipo_matriz).filter(Boolean).join("; ") || (demanda.matriz_amostra ?? "")} />
-        </div>
-      </section>
-      )}
+          </fieldset>
 
-      {mostraDemanda && (
-      <section className="rounded-md border border-border p-3">
-        <h3 className="text-sm font-semibold">Cliente</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-4">
-          <div className="sm:col-span-2">
-            <label className={lbl}>Cliente <Obrigatorio /></label>
-            <select name="cliente_id" defaultValue={demanda.cliente_id ?? ""} className={`${inp} mt-1 w-full`}>
-              <option value="">Sem cadastro</option>
-              {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className={lbl}>Projeto <Selo texto="Quando aplicável" /></label>
-            <select name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={`${inp} mt-1 w-full`}>
-              <option value="">Sem projeto vinculado</option>
-              {projetos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className={lbl}>Nome do cliente <Selo texto="Editável" /></label>
-            <input name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label className={lbl}>CNPJ/CPF</label>
-            <input name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
-          <div>
-            <label htmlFor="demanda-instituicao" className={lbl}>Instituição emissora (cabeçalho da proposta)</label>
-            <select id="demanda-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={`${inp} mt-1 w-full`}>
-              <option value="">Escolha…</option>
-              {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
-            </select>
-          </div>
-          <div className="sm:col-span-2">
-            <label className={lbl}>Contato <Selo texto="Herdado do cliente quando selecionado" /></label>
-            <input name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={`${inheritedInp} mt-1 w-full`} />
-          </div>
-        </div>
-      </section>
-      )}
+          <fieldset className={grupoCampos}>
+            <legend className={legenda}>Cliente</legend>
+            <div className={grade}>
+              <div className="col-span-6">
+                <label htmlFor="nd-cliente" className={lbl}>Cliente <Obrigatorio /></label>
+                <select id="nd-cliente" name="cliente_id" defaultValue={demanda.cliente_id ?? ""} className={campo}>
+                  <option value="">Sem cadastro</option>
+                  {clientes.map((c) => <option key={c.id} value={c.id}>{c.nome}</option>)}
+                </select>
+              </div>
+              <div className="col-span-6 sm:col-span-4">
+                <label htmlFor="nd-cliente-nome" className={lbl}>Nome do cliente</label>
+                <input id="nd-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
+              </div>
+              <div className="col-span-6 sm:col-span-2">
+                <label htmlFor="nd-cliente-cnpj" className={lbl}>CNPJ/CPF</label>
+                <input id="nd-cliente-cnpj" name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={campo} />
+              </div>
+              <div className="col-span-6">
+                <label htmlFor="nd-cliente-contato" className={lbl}>Contato</label>
+                <input id="nd-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} placeholder="Vem do cadastro do cliente" className={campoHerdado} />
+              </div>
+            </div>
+          </fieldset>
 
-      {mostraDemanda && (
-      <section className="rounded-md border border-border p-3">
-        <h3 className="text-sm font-semibold">Escopo inicial</h3>
-        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <div>
-            <label className={lbl}>Descrição do orçamento <Obrigatorio /></label>
-            <textarea id="descricao" name="descricao" rows={3} defaultValue={demanda.descricao ?? ""} className={`${inp} mt-1 w-full ${state.errors?.descricao ? "border-danger-strong/40 focus:border-danger-strong focus:ring-danger-strong/30" : ""}`} />
-          </div>
-          <div>
-            <label className={lbl}>Observações gerais</label>
-            <textarea name="observacoes" rows={3} defaultValue={demanda.observacoes ?? ""} className={`${inp} mt-1 w-full`} />
-          </div>
+          <fieldset className={`${grupoCampos} lg:col-span-2 2xl:col-span-1`}>
+            <legend className={legenda}>Controle e prazos</legend>
+            <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
+              <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
+                <p className={lbl} title="Número do orçamento">Nº do orçamento</p>
+                <div className={campoCalculado}>{demanda.id > 0 ? `#${demanda.id}` : "Gerado ao salvar"}</div>
+              </div>
+              <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
+                <label htmlFor="nd-prioridade" className={lbl}>Prioridade</label>
+                <select id="nd-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
+                  <option value="baixa">Baixa</option>
+                  <option value="normal">Normal</option>
+                  <option value="alta">Alta</option>
+                  <option value="urgente">Urgente</option>
+                </select>
+              </div>
+              <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
+                <label htmlFor="nd-responsavel" className={lbl}>Responsável interno</label>
+                <input id="nd-responsavel" name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={campo} />
+              </div>
+              <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
+                <label htmlFor="nd-origem" className={lbl}>Origem</label>
+                <input id="nd-origem" name="origem" defaultValue={demanda.origem ?? ""} className={campo} />
+              </div>
+              <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                <label htmlFor="nd-solicitacao" className={lbl}>Data da solicitação</label>
+                <input id="nd-solicitacao" name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={campo} />
+              </div>
+              <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                <label htmlFor="nd-prazo" className={lbl}>Prazo esperado</label>
+                <input id="nd-prazo" name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={campo} />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className={`${grupoCampos} lg:col-span-2 2xl:col-span-3`}>
+            <legend className={legenda}>Escopo inicial</legend>
+            <div className="clear-both grid gap-x-2.5 gap-y-1.5 md:grid-cols-3">
+              <div className="md:col-span-2">
+                <label htmlFor="descricao" className={lbl}>Descrição do orçamento <Obrigatorio /></label>
+                <textarea
+                  id="descricao"
+                  name="descricao"
+                  rows={2}
+                  defaultValue={demanda.descricao ?? ""}
+                  aria-invalid={erroDescricao || undefined}
+                  className={`${areaTexto} ${erroDescricao ? "border-danger-strong/60" : "border-input"}`}
+                />
+              </div>
+              <div>
+                <label htmlFor="nd-observacoes" className={lbl}>Observações gerais</label>
+                <textarea id="nd-observacoes" name="observacoes" rows={2} defaultValue={demanda.observacoes ?? ""} className={`${areaTexto} border-input`} />
+              </div>
+            </div>
+          </fieldset>
         </div>
-      </section>
       )}
 
       {mostraLaboratorio && exigeAnalises && (
-      <section className="rounded-md border border-border p-3">
-        <div className="flex items-center justify-between gap-3">
+      <section className={secao}>
+        <div className={cabecalhoSecao}>
           <div className="flex items-center gap-1">
             <h3 className="text-sm font-semibold">Amostras a processar</h3>
             <HelpTip title="Grupos de amostras">
@@ -366,85 +388,110 @@ export function DemandaForm({
             setGrupos((atuais) => [...atuais, { key, identificacao: proximaIdentificacaoGrupo(atuais.map((g) => g.identificacao)), tipo_matriz: "", quantidade_amostras: 1, unidade: "amostras", observacao: null }]);
             setGrupoAtivo(key);
             setSeletorAberto(key);
-          }} className="rounded-md border border-input px-3 py-2 text-xs font-medium hover:bg-muted">Adicionar tipo de amostra</button>
+          }} className="ml-auto inline-flex h-8 items-center rounded-md border border-input bg-card px-3 text-xs font-medium hover:bg-muted">Adicionar tipo de amostra</button>
         </div>
-        <div className="mt-3 grid gap-3">
+        <div className="mt-2 grid gap-2">
           {grupos.map((grupo) => {
             const selecionadasDoGrupo = selecionadas.filter((item) => item.grupoKey === grupo.key);
             return (
-            <div key={grupo.key} id={`grupo-card-${grupo.key}`} className="grid gap-2 rounded-md bg-muted/50 p-3 sm:grid-cols-5">
+            <div key={grupo.key} id={`grupo-card-${grupo.key}`} className="rounded-md border border-border bg-muted/20 px-2.5 pb-2.5 pt-2">
               <input type="hidden" name="grupo_key" value={grupo.key} />
               {/* id do grupo existente: permite atualizar em vez de recriar,
                   preservando o vínculo de demanda_analises.grupo_amostra_id */}
               <input type="hidden" name="grupo_id" value={grupo.id ?? ""} />
-              <div><label className={lbl}>Grupo</label><input name="grupo_identificacao" value={grupo.identificacao} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, identificacao: event.target.value } : item))} className={`${inp} mt-1 w-full`} /></div>
-              <div className="sm:col-span-2"><label htmlFor={`matriz-${grupo.key}`} className={lbl}>Tipo/matriz</label>{matrizes.length > 0 ? (
-                <select id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={`${inp} mt-1 w-full`}>
-                  <option value="">Selecione…</option>
-                  {grupo.tipo_matriz && !matrizes.some((m) => m.codigo === grupo.tipo_matriz) && <option value={grupo.tipo_matriz}>{grupo.tipo_matriz}</option>}
-                  {matrizes.map((m) => <option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
-                </select>
-              ) : (
-                <input id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={`${inp} mt-1 w-full`} />
-              )}</div>
-              <div><label className={lbl}>Quantidade</label><input name="grupo_quantidade" type="number" min="1" step="1" required value={grupo.quantidade_amostras} onChange={(event) => {
-                const quantidade = lerQuantidade(event.target.value);
-                setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, quantidade_amostras: quantidade } : item));
-                // Análises que seguem o padrão do grupo acompanham a nova quantidade.
-                if (quantidade !== "") setSelecionadas((atuais) => atuais.map((atual) => atual.grupoKey === grupo.key && atual.origem === "padrao" ? { ...atual, quantidade } : atual));
-              }} className={`${operationalInp} mt-1 w-full`} /></div>
-              <div><label className={lbl}>Unidade</label><input name="grupo_unidade" value={grupo.unidade} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, unidade: event.target.value } : item))} className={`${inp} mt-1 w-full`} /></div>
-              <div className="sm:col-span-5"><label className={lbl}>Observação</label><input name="grupo_observacao" value={grupo.observacao ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, observacao: event.target.value } : item))} className={`${inp} mt-1 w-full`} /></div>
-              {grupos.length > 1 && (
-                <div className="sm:col-span-5 flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (selecionadasDoGrupo.length === 0) removerGrupo(grupo.key);
-                      else setGrupoParaRemover(grupo.key);
-                    }}
-                    className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-danger-strong hover:bg-danger-soft"
-                  >
-                    <Trash2 aria-hidden className="h-3.5 w-3.5" /> Remover grupo
-                  </button>
+              {/* Uma linha com largura pelo conteúdo: grupo, matriz, quantidade,
+                  unidade, observação e, à direita, as análises do grupo. */}
+              <div className="grid grid-cols-6 items-end gap-x-2 gap-y-1.5 sm:flex sm:flex-wrap">
+                <div className="col-span-3 sm:w-32">
+                  <label htmlFor={`grupo-${grupo.key}`} className={lbl}>Grupo</label>
+                  <input id={`grupo-${grupo.key}`} name="grupo_identificacao" value={grupo.identificacao} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, identificacao: event.target.value } : item))} className={campo} />
                 </div>
-              )}
-              <div className="sm:col-span-5 rounded-md border border-border bg-card p-3">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h4 className="text-xs font-semibold uppercase text-muted-foreground">Análises deste grupo</h4>
-                    <p className="mt-1 text-xs text-muted-foreground">{selecionadasDoGrupo.length} análise(s) selecionada(s) para {grupo.identificacao || "grupo"}.</p>
-                  </div>
+                <div className="col-span-3 sm:w-52">
+                  <label htmlFor={`matriz-${grupo.key}`} className={lbl}>Tipo/matriz</label>
+                  {matrizes.length > 0 ? (
+                    <select id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={campo}>
+                      <option value="">Selecione…</option>
+                      {grupo.tipo_matriz && !matrizes.some((m) => m.codigo === grupo.tipo_matriz) && <option value={grupo.tipo_matriz}>{grupo.tipo_matriz}</option>}
+                      {matrizes.map((m) => <option key={m.codigo} value={m.codigo}>{m.nome}</option>)}
+                    </select>
+                  ) : (
+                    <input id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={campo} />
+                  )}
+                </div>
+                <div className="col-span-2 sm:w-24">
+                  <label htmlFor={`quantidade-${grupo.key}`} className={lbl}>Quantidade</label>
+                  <input id={`quantidade-${grupo.key}`} name="grupo_quantidade" type="number" min="1" step="1" required value={grupo.quantidade_amostras} onChange={(event) => {
+                    const quantidade = lerQuantidade(event.target.value);
+                    setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, quantidade_amostras: quantidade } : item));
+                    // Análises que seguem o padrão do grupo acompanham a nova quantidade.
+                    if (quantidade !== "") setSelecionadas((atuais) => atuais.map((atual) => atual.grupoKey === grupo.key && atual.origem === "padrao" ? { ...atual, quantidade } : atual));
+                  }} className={`${campoOperacional} mt-0.5 w-full`} />
+                </div>
+                <div className="col-span-2 sm:w-28">
+                  <label htmlFor={`unidade-${grupo.key}`} className={lbl}>Unidade</label>
+                  <input id={`unidade-${grupo.key}`} name="grupo_unidade" value={grupo.unidade} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, unidade: event.target.value } : item))} className={campo} />
+                </div>
+                <div className="col-span-2 sm:w-52 2xl:w-72">
+                  <label htmlFor={`observacao-${grupo.key}`} className={lbl}>Observação</label>
+                  <input id={`observacao-${grupo.key}`} name="grupo_observacao" value={grupo.observacao ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, observacao: event.target.value } : item))} className={campo} />
+                </div>
+                {/* Análises do grupo na mesma linha, à direita. */}
+                <div className="col-span-6 flex items-center gap-2 sm:ml-auto sm:h-8">
+                  <span className="text-xs text-muted-foreground">
+                    {selecionadasDoGrupo.length > 0
+                      ? `${selecionadasDoGrupo.length} análise(s) no grupo`
+                      : "Nenhuma análise"}
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
                       setGrupoAtivo(grupo.key);
                       setSeletorAberto((atual) => atual === grupo.key ? null : grupo.key);
                     }}
-                    className="rounded-md bg-brand-600 px-3 py-2 text-xs font-medium text-white hover:bg-brand-500"
+                    aria-expanded={seletorAberto === grupo.key}
+                    className="inline-flex h-8 items-center rounded-md bg-brand-600 px-3 text-xs font-medium text-white hover:bg-brand-500"
                   >
                     Selecionar análises
                   </button>
                 </div>
-                {selecionadasDoGrupo.length > 0 ? (
-                  <div tabIndex={0} aria-label="Análises selecionadas do grupo" className="mt-3 overflow-x-auto">
-                    <table className="min-w-full divide-y divide-border/70 text-sm">
+                {grupos.length > 1 && (
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selecionadasDoGrupo.length === 0) removerGrupo(grupo.key);
+                        else setGrupoParaRemover(grupo.key);
+                      }}
+                      title="Remover grupo"
+                      aria-label={`Remover grupo ${grupo.identificacao}`.trim()}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md text-danger-strong hover:bg-danger-soft"
+                    >
+                      <Trash2 aria-hidden className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
+              </div>
+              <div className="empty:hidden">
+                {selecionadasDoGrupo.length > 0 && (
+                  <div tabIndex={0} aria-label="Análises selecionadas do grupo" className="mt-1.5 overflow-x-auto">
+                    {/* Largura pelo conteúdo em telas largas: a lixeira fica junto da quantidade. */}
+                    <table className="min-w-full divide-y divide-border/70 text-sm lg:min-w-[40rem]">
                       <thead className="text-left text-xs text-muted-foreground">
-                        <tr><th className="py-2">Código da análise</th><th>Nome da análise</th><th>Quantidade de amostras para esta análise</th><th className="w-10 text-right"></th></tr>
+                        <tr><th className="py-1 pr-6 font-medium">Código</th><th className="pr-6 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="w-10 text-right"></th></tr>
                       </thead>
                       <tbody className="divide-y divide-border/70">
                         {selecionadasDoGrupo.map((item) => {
                           const analise = porCodigo.get(item.codigo);
                           return (
                             <tr key={`${item.grupoKey}-${item.codigo}`}>
-                              <td className="py-2 pr-3 font-mono text-xs text-muted-foreground">
+                              <td className="py-1 pr-6 font-mono text-xs text-muted-foreground">
                                 <input type="hidden" name="analise_grupo_key" value={item.grupoKey} />
                                 <input type="hidden" name="analise_codigo" value={item.codigo} />
                                 <input type="hidden" name="analise_origem_quantidade" value={item.origem} />
                                 {item.codigo}
                               </td>
-                              <td className="pr-3">{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</td>
-                              <td className="pr-3">
+                              <td className="py-1 pr-6">{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</td>
+                              <td className="py-1 pr-3">
                                 <input
                                   name="analise_quantidade"
                                   type="number"
@@ -452,11 +499,12 @@ export function DemandaForm({
                                   step="1"
                                   required
                                   value={item.quantidade}
+                                  aria-label={`Quantidade de amostras para ${item.codigo}`}
                                   onChange={(event) => setSelecionadas((atuais) => atuais.map((atual) => atual.codigo === item.codigo && atual.grupoKey === item.grupoKey ? { ...atual, quantidade: lerQuantidade(event.target.value), origem: "manual" } : atual))}
-                                  className={`${operationalInp} w-24`}
+                                  className={`${campoOperacional} w-24`}
                                 />
                               </td>
-                              <td className="text-right">
+                              <td className="py-1 text-right">
                                 <button type="button" onClick={() => toggleAnalise(item.grupoKey, item.codigo)} className="text-danger-strong hover:text-danger-strong" title="Remover análise" aria-label={`Remover análise ${item.codigo}`}>
                                   <Trash2 aria-hidden className="h-4 w-4 inline" />
                                 </button>
@@ -467,29 +515,31 @@ export function DemandaForm({
                       </tbody>
                     </table>
                   </div>
-                ) : (
-                  <p className="mt-3 rounded-md border border-dashed border-input px-3 py-2 text-xs text-muted-foreground">Nenhuma análise selecionada para este grupo.</p>
                 )}
                 {seletorAberto === grupo.key && (
-                  <div className="mt-3 rounded-md border border-brand-200 bg-brand-50/40 p-3 dark:border-brand-900 dark:bg-brand-950/20">
-                    <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por código, nome ou método" aria-label="Buscar análises" className={`${inp} w-full`} />
-                    {totalEncontradas > filtradas.length && (
-                      <p role="status" className="mt-2 text-xs text-muted-foreground">
-                        Mostrando {filtradas.length} de {totalEncontradas}. Refine a busca para ver as demais.
-                      </p>
-                    )}
-                    <div tabIndex={0} aria-label="Catálogo de análises filtradas" className="mt-3 max-h-[24rem] overflow-y-auto rounded-md border border-border bg-card">
+                  <div className="mt-2 rounded-md border border-brand-200 bg-brand-50/40 p-2 dark:border-brand-900 dark:bg-brand-950/20">
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                      <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por código, nome ou método" aria-label="Buscar análises" className={`${campo} mt-0 sm:max-w-md`} />
+                      <p className="text-xs text-muted-foreground">{analises.length} análise(s) oficial(is) disponível(is).</p>
+                      {totalEncontradas > filtradas.length && (
+                        <p role="status" className="text-xs text-muted-foreground">
+                          Mostrando {filtradas.length} de {totalEncontradas}. Refine a busca para ver as demais.
+                        </p>
+                      )}
+                    </div>
+                    {/* Catálogo em colunas para caber mais itens por tela. */}
+                    <div tabIndex={0} aria-label="Catálogo de análises filtradas" className="mt-2 grid max-h-[20rem] overflow-y-auto rounded-md border border-border bg-card sm:grid-cols-2 2xl:grid-cols-3">
                       {filtradas.length === 0 ? (
-                        <p className="px-3 py-4 text-xs text-muted-foreground">
+                        <p className="px-3 py-3 text-xs text-muted-foreground sm:col-span-2 2xl:col-span-3">
                           {analises.length === 0 ? "Não existem análises ativas cadastradas ou você não possui permissão para visualizar este catálogo." : "Nenhuma análise corresponde à busca ou à matriz informada."}
                         </p>
                       ) : filtradas.map((analise) => {
                         const marcada = selecionadas.some((item) => item.codigo === analise.codigo && item.grupoKey === grupo.key);
                         const pendenteInsumo = analise.reagentes.some((reagente) => reagente.status_vinculo_insumo === "insumo_sem_cadastro_correspondente");
                         return (
-                          <label key={`${grupo.key}-${analise.codigo}`} className="flex cursor-pointer gap-3 border-b border-border/70 px-3 py-2 text-sm last:border-0 hover:bg-brand-50 focus-within:bg-brand-50 dark:hover:bg-brand-950/20">
-                            <input type="checkbox" checked={marcada} onChange={() => toggleAnalise(grupo.key, analise.codigo)} className="mt-1 h-4 w-4 rounded border-input focus:ring-2 focus:ring-brand-500" />
-                            <span>
+                          <label key={`${grupo.key}-${analise.codigo}`} className="flex cursor-pointer gap-2.5 border-b border-border/70 px-2.5 py-1.5 text-sm hover:bg-brand-50 focus-within:bg-brand-50 dark:hover:bg-brand-950/20">
+                            <input type="checkbox" checked={marcada} onChange={() => toggleAnalise(grupo.key, analise.codigo)} className="mt-0.5 h-4 w-4 shrink-0 rounded border-input focus:ring-2 focus:ring-brand-500" />
+                            <span className="min-w-0">
                               <span className="font-medium">{analise.codigo} · {analise.nome_simplificado ?? analise.nome ?? "Sem nome"}</span>
                               <span className="block text-xs text-muted-foreground">
                                 Método: {analise.metodo ?? "não informado"} · Lote: {analise.lote_padrao ?? "a calcular"} amostra(s) · Custeio: {analise.custeio_disponivel ? "disponível" : "pendente"}{pendenteInsumo ? " · insumo sem cadastro" : ""}
@@ -510,38 +560,46 @@ export function DemandaForm({
       )}
 
       {mostraLaboratorio && exigeAnalises && (
-        <section id="analises-solicitadas" className="rounded-md border border-border p-3">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1">
-                <h3 className="text-sm font-semibold">Análises por grupo de amostra</h3>
-                <HelpTip title="Previsão por análise">
-                  <p><b>Lotes previstos</b> é o número de corridas necessárias, conforme o lote de cada análise. O sistema ainda <b>não verifica a matriz</b>: confirme tecnicamente se cada análise serve para a amostra.</p>
-                  <HelpLegend
-                    items={[
-                      { tom: "info", rotulo: "Disponível", texto: "custo da análise já calculado; insumos cadastrados (Mapeados)." },
-                      { tom: "atencao", rotulo: "Pendente", texto: "falta custo calculado ou há reagente sem cadastro no estoque." },
-                    ]}
-                  />
-                  <HelpExample>30 amostras e lote de 12 → 3 lotes previstos.</HelpExample>
-                </HelpTip>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">Resumo consolidado das análises selecionadas nos grupos acima. {analises.length} análise(s) oficial(is) disponível(is).</p>
+        <section id="analises-solicitadas" className={secao}>
+          <div className={cabecalhoSecao}>
+            <div className="flex items-center gap-1">
+              <h3 className="text-sm font-semibold">Análises por grupo de amostra</h3>
+              <HelpTip title="Previsão por análise">
+                <p><b>Lotes previstos</b> é o número de corridas necessárias, conforme o lote de cada análise. O sistema ainda <b>não verifica a matriz</b>: confirme tecnicamente se cada análise serve para a amostra.</p>
+                <HelpLegend
+                  items={[
+                    { tom: "info", rotulo: "Disponível", texto: "custo da análise já calculado; insumos cadastrados (Mapeados)." },
+                    { tom: "atencao", rotulo: "Pendente", texto: "falta custo calculado ou há reagente sem cadastro no estoque." },
+                  ]}
+                />
+                <p>Resumo das análises escolhidas em todos os grupos acima.</p>
+                <HelpExample>30 amostras e lote de 12 → 3 lotes previstos.</HelpExample>
+              </HelpTip>
             </div>
           </div>
-          <div className="mt-3 grid gap-2 md:grid-cols-4">
+          {/* Resumo numa linha; aviso e pendências só quando existem (28/09). */}
+          <dl className="mt-1.5 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-1.5">
             <ResumoLaboratorio titulo="Análises" valor={`${selecionadas.length}`} detalhe={`${totalAmostras} amostra(s)`} />
             <ResumoLaboratorio titulo="Custo direto estimado" valor={formatCurrency(custoDiretoLaboratorio)} detalhe="insumos/reagentes" />
-            <ResumoLaboratorio titulo="Prazo técnico" valor={prazoMaximoLaboratorio > 0 ? `${prazoMaximoLaboratorio} dia(s)` : "a calcular"} detalhe="maior prazo previsto" />
-            <ResumoLaboratorio titulo="Pendências" valor={`${pendentesCusteio}`} detalhe={pendentesCusteio > 0 ? "custeio pendente" : "custeio disponível"} />
-          </div>
-          <div className="mt-3 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-xs text-warning-strong">
-            Confirme tecnicamente se cada análise serve para a matriz antes de emitir.
-          </div>
-          <div tabIndex={0} aria-label="Resumo de análises por grupo" className="mt-3 overflow-x-auto">
+            <ResumoLaboratorio titulo="Prazo técnico" valor={prazoMaximoLaboratorio > 0 ? `${prazoMaximoLaboratorio} dia(s)` : "a calcular"} />
+            <ResumoLaboratorio titulo="Custeio pendente" valor={`${pendentesCusteio}`} />
+          </dl>
+          {selecionadas.length > 0 && (
+            <p className="mt-1.5 text-xs text-warning-strong">Confirme tecnicamente se cada análise serve para a matriz antes de emitir.</p>
+          )}
+          {pendenciasInsumos.length > 0 && (
+            <p className="mt-1 text-xs text-warning-strong">
+              <span className="font-semibold">Insumos sem cadastro:</span>{" "}
+              {[...new Set(pendenciasInsumos.map((item) => `${item.codigo}: ${item.especificacao}`))].join(" · ")}
+            </p>
+          )}
+          {selecionadas.length === 0 ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">Nenhuma análise selecionada. Use “Selecionar análises” em cada grupo.</p>
+          ) : (
+          <div tabIndex={0} aria-label="Resumo de análises por grupo" className="mt-2 overflow-x-auto">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr><th className="py-2">Grupo</th><th>Tipo/matriz da amostra</th><th>Código da análise</th><th>Nome da análise</th><th>Quantidade de amostras para esta análise</th><th>Prazo técnico calculado</th><th>Lotes previstos</th><th>Status do custeio</th><th>Status dos insumos</th><th className="w-16 text-right"></th></tr>
+                <tr><th className="py-1.5 pr-3 font-medium">Grupo</th><th className="pr-3 font-medium">Matriz</th><th className="pr-3 font-medium">Código</th><th className="pr-3 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="pr-3 font-medium">Prazo</th><th className="pr-3 font-medium">Lotes</th><th className="pr-3 font-medium">Custeio</th><th className="pr-3 font-medium">Insumos</th><th className="w-16 text-right"></th></tr>
               </thead>
               <tbody className="divide-y divide-border/70">
                 {selecionadas.map((item) => {
@@ -551,13 +609,13 @@ export function DemandaForm({
                   const statusInsumos = analise?.reagentes.some((reagente) => reagente.status_vinculo_insumo === "insumo_sem_cadastro_correspondente") ? "Pendente" : "Mapeados";
                   return (
                     <tr key={`${item.grupoKey}-${item.codigo}`}>
-                      <td className="py-2 pr-3">{grupo?.identificacao ?? "Grupo"}</td>
+                      <td className="whitespace-nowrap py-1.5 pr-3">{grupo?.identificacao ?? "Grupo"}</td>
                       <td className="pr-3 text-muted-foreground">{grupo?.tipo_matriz || "—"}</td>
                       <td className="pr-3 font-mono text-xs text-muted-foreground">{item.codigo}</td>
                       <td className="pr-3">{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</td>
                       <td className="pr-3 font-semibold tabular-nums">{item.quantidade}</td>
-                      <td className="pr-3 text-muted-foreground">{previsao?.prazoDias ? `${previsao.prazoDias} dia(s)` : "a calcular"}</td>
-                      <td className="pr-3 text-muted-foreground">{previsao ? `${previsao.lotes} lote(s) de ${previsao.lotePadrao}` : "a calcular"}</td>
+                      <td className="whitespace-nowrap pr-3 text-muted-foreground">{previsao?.prazoDias ? `${previsao.prazoDias} dia(s)` : "a calcular"}</td>
+                      <td className="whitespace-nowrap pr-3 text-muted-foreground">{previsao ? `${previsao.lotes} lote(s) de ${previsao.lotePadrao}` : "a calcular"}</td>
                       <td className={analise?.custeio_disponivel ? "pr-3 text-brand-700 dark:text-brand-300" : "pr-3 text-warning-strong"}>
                         {analise?.custeio_disponivel ? "Disponível" : "Pendente"}
                       </td>
@@ -582,23 +640,21 @@ export function DemandaForm({
                     </tr>
                   );
                 })}
-                {selecionadas.length === 0 && (
-                  <tr><td colSpan={10} className="py-4 text-xs text-muted-foreground/80">Nenhuma análise selecionada.</td></tr>
-                )}
               </tbody>
             </table>
           </div>
+          )}
           {previsoesOperacionais.length > 0 && (
-            <div className="mt-3 rounded-md border border-border bg-muted/50 p-3">
-              <h4 className="text-xs font-semibold uppercase text-muted-foreground">Previsão operacional calculada</h4>
-              <div className="mt-2 grid gap-2 md:grid-cols-2">
+            <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
+              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Previsão operacional calculada</h4>
+              <div className="mt-1.5 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                 {previsoesOperacionais.map((previsao) => (
-                  <div key={previsao.key} className="rounded-md border border-border bg-card p-2 text-xs">
+                  <div key={previsao.key} className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs">
                     <div className="flex flex-wrap justify-between gap-2">
                       <span className="font-semibold">{grupos.find((grupo) => grupo.key === previsao.grupoKey)?.identificacao ?? "Grupo"} · {previsao.codigo}</span>
                       <span className="text-muted-foreground">{previsao.quantidade} amostra(s) · {previsao.lotes} lote(s) de {previsao.lotePadrao}</span>
                     </div>
-                    <ul className="mt-2 space-y-1 text-muted-foreground">
+                    <ul className="mt-1 space-y-0.5 text-muted-foreground">
                       {previsao.reagentes.length > 0 ? previsao.reagentes.slice(0, 4).map((reagente, index) => (
                         <li key={`${previsao.codigo}-${reagente.especificacao}-${index}`}>
                           {reagente.especificacao}: {formatNumber(reagente.consumo)} {reagente.unidade} · {formatCurrency(reagente.custo)} <span className="text-muted-foreground/80">({reagente.modo_cobranca === "por_execucao" ? "por execução" : "por amostra"})</span>
@@ -613,26 +669,37 @@ export function DemandaForm({
         </section>
       )}
 
-      {mostraLaboratorio && exigeAnalises && (
-      <section className="rounded-md border border-border p-3">
-        <h3 className="text-sm font-semibold">Pendências</h3>
-        {pendenciasInsumos.length > 0 ? (
-          <ul className="mt-2 space-y-1 text-xs text-warning-strong">
-            {[...new Set(pendenciasInsumos.map((item) => `${item.codigo}: ${item.especificacao}`))].map((item) => (
-              <li key={item}><Selo texto="Pendente" /> {item}</li>
-            ))}
-          </ul>
+      {/* Barra de ação presa ao pé da tela, como em SalvarDemandaForm. */}
+      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-border bg-card/95 px-4 py-2.5 backdrop-blur">
+        {state.message ? (
+          <div
+            role={state.ok ? "status" : "alert"}
+            aria-live={state.ok ? "polite" : "assertive"}
+            aria-atomic="true"
+            className={`rounded-md px-3 py-1.5 text-sm ${
+              state.ok
+                ? "bg-brand-50 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200"
+                : "bg-danger-soft text-danger-strong"
+            }`}
+          >
+            {state.message}
+            {state.savedAt ? <span className="ml-2 text-xs opacity-75">Último salvamento: {new Date(state.savedAt).toLocaleString("pt-BR")}</span> : null}
+          </div>
         ) : (
-          <p className="mt-2 text-xs text-muted-foreground">Sem pendências de cadastro de insumo para as análises carregadas.</p>
+          <span className="text-xs text-muted-foreground">
+            {demanda.id > 0 ? "Alterações só valem depois de salvar." : "Nada é gravado antes de criar o orçamento."}
+          </span>
         )}
-      </section>
-      )}
-
-      <div className="flex flex-wrap items-center gap-3">
-        <button disabled={pending} className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:cursor-wait disabled:opacity-60">
-          {pending ? "Salvando…" : demanda.id > 0 ? (modo === "laboratorio" ? "Salvar análises laboratoriais" : "Salvar orçamento") : "Criar orçamento"}
-        </button>
-        {state.errors?.descricao ? <a href="#descricao" className="text-sm font-medium text-danger-strong">Corrigir descrição</a> : null}
+        <div className="flex flex-wrap items-center gap-3">
+          {erroDescricao ? <a href="#descricao" className="text-sm font-medium text-danger-strong">Corrigir descrição</a> : null}
+          <button
+            type="submit"
+            disabled={pending}
+            className="min-h-10 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+          >
+            {pending ? "Salvando…" : demanda.id > 0 ? (modo === "laboratorio" ? "Salvar análises laboratoriais" : "Salvar orçamento") : "Criar orçamento"}
+          </button>
+        </div>
       </div>
 
       <Dialog open={grupoParaRemover !== null} onOpenChange={(aberto) => { if (!aberto) setGrupoParaRemover(null); }}>
@@ -733,11 +800,17 @@ function ResumoLeitura({ rotulo, valor, largo = false }: { rotulo: string; valor
 
 
 function Obrigatorio() {
-  return <span className="text-[10px] font-semibold uppercase tracking-wide text-danger-strong">Obrigatório</span>;
+  return (
+    <>
+      <span aria-hidden className="ml-0.5 font-semibold text-danger-strong">*</span>
+      <span className="sr-only">(obrigatório)</span>
+    </>
+  );
 }
 
+/** Selo de estado do campo, na mesma linha do rótulo (não ocupa linha extra). */
 function Selo({ texto }: { texto: string }) {
-  return <span className="rounded border border-input px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">{texto}</span>;
+  return <span className="ml-0.5 whitespace-nowrap rounded border border-input px-1 text-[10px] font-medium leading-4 text-muted-foreground">{texto}</span>;
 }
 
 // "" mantém o campo vazio durante a edição; valores válidos viram inteiros >= 1.
@@ -751,21 +824,22 @@ function formatNumber(valor: number) {
   return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 3 }).format(valor);
 }
 
-function Legenda({ texto, classe }: { texto: string; classe: string }) {
+function Legenda({ texto, classe, textoClasse = "" }: { texto: string; classe: string; textoClasse?: string }) {
   return (
-    <span className="inline-flex items-center gap-1">
-      <span className={`h-3 w-3 rounded border ${classe}`} />
+    <span className={`inline-flex items-center gap-1 ${textoClasse}`}>
+      <span aria-hidden className={`h-3 w-3 rounded border ${classe}`} />
       {texto}
     </span>
   );
 }
 
-function ResumoLaboratorio({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe: string }) {
+/** Um par "rótulo valor · detalhe" da faixa de resumo do laboratório. */
+function ResumoLaboratorio({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
   return (
-    <div className="rounded-md border border-border bg-muted/50 px-3 py-2">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-sm font-semibold tabular-nums text-foreground">{valor}</p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{detalhe}</p>
+    <div className="flex flex-wrap items-baseline gap-x-1.5">
+      <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titulo}</dt>
+      <dd className="text-sm font-semibold tabular-nums text-foreground">{valor}</dd>
+      {detalhe && <dd className="text-xs text-muted-foreground">· {detalhe}</dd>}
     </div>
   );
 }

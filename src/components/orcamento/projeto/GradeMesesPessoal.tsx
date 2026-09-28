@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatCurrency as brl } from "@/lib/formatters";
 import { anosDoProjeto, subtotalCusto } from "@/lib/project-budget/editor";
+import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
 export type LinhaPessoal = {
@@ -45,6 +46,8 @@ export function GradeMesesPessoal({
   editavel,
   action,
   acoesLinha,
+  detalhesLinha,
+  mascarado = false,
 }: {
   linhas: LinhaPessoal[];
   mesesProjeto: number;
@@ -54,6 +57,10 @@ export function GradeMesesPessoal({
   action: AcaoFormulario;
   /** Botões de editar/remover já renderizados no servidor, por id da linha. */
   acoesLinha?: Record<number, ReactNode>;
+  /** Selos do catálogo vivo por linha, renderizados no servidor. */
+  detalhesLinha?: Record<number, ReactNode>;
+  /** Sem a permissão de pessoal: valores e totais aparecem como XXX (DC8). */
+  mascarado?: boolean;
 }) {
   const anos = useMemo(() => anosDoProjeto(mesesProjeto), [mesesProjeto]);
   const [anoAtivo, setAnoAtivo] = useState(1);
@@ -196,8 +203,13 @@ export function GradeMesesPessoal({
               });
               return (
                 <tr key={linha.id} className="align-middle">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">{linha.descricao}</th>
-                  <td className="px-3 py-2 text-right tabular-nums">{brl(linha.custo_unitario)}</td>
+                  <th scope="row" className="px-3 py-2 text-left font-medium">
+                    {linha.descricao}
+                    {detalhesLinha?.[linha.id]}
+                  </th>
+                  <td className="px-3 py-2 text-right tabular-nums">
+                    {mascarado ? <span title={NOTA_VALOR_MASCARADO}>{VALOR_MASCARADO}</span> : brl(linha.custo_unitario)}
+                  </td>
                   {editavel && (
                     <td className="px-2 py-2">
                       <button
@@ -225,7 +237,9 @@ export function GradeMesesPessoal({
                   <td className="px-3 py-2 text-right tabular-nums">
                     {marcados.size > 0 ? marcados.size : <span title="Sem meses marcados: conta a quantidade da linha">{linha.quantidade}*</span>}
                   </td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums">{brl(total)}</td>
+                  <td className="px-3 py-2 text-right font-medium tabular-nums">
+                    {mascarado ? <span title={NOTA_VALOR_MASCARADO}>{VALOR_MASCARADO}</span> : brl(total)}
+                  </td>
                   {acoesLinha && <td className="px-2 py-2 text-right whitespace-nowrap">{acoesLinha[linha.id]}</td>}
                 </tr>
               );

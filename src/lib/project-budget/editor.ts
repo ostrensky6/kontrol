@@ -8,6 +8,9 @@ import {
   classificarDespesaViagem,
   type ViagemInputs,
 } from "./travel";
+import type { LinhaPlanoCatalogo } from "./catalogo-vivo";
+import { formatCurrency as brl } from "@/lib/formatters";
+import { MESES_VALOR_VELHO, valorDesatualizado } from "@/lib/orcamento/catalogo-custos";
 
 export const ORDEM_RUBRICAS = Object.keys(RUBRICAS_PROJETO) as RubricaProjeto[];
 
@@ -30,14 +33,22 @@ export function subtotalCusto(item: CustoEditor) {
 
 export type ResumoRubrica = { codigo: RubricaProjeto; nome: string; total: number; itens: number };
 
-export function resumirRubricas(custos: CustoEditor[]): ResumoRubrica[] {
+/**
+ * Totais por rubrica. `analisesMC` são as análises lançadas dentro do projeto (caixa antiga,
+ * DC3): entram em MC como no total, na emissão e na planilha.
+ */
+export function resumirRubricas(
+  custos: CustoEditor[],
+  analisesMC: { total: number; itens: number } = { total: 0, itens: 0 },
+): ResumoRubrica[] {
   return ORDEM_RUBRICAS.map((codigo) => {
     const itens = custos.filter((item) => (item.rubrica ?? "OU") === codigo);
+    const extra = codigo === "MC" ? analisesMC : { total: 0, itens: 0 };
     return {
       codigo,
       nome: RUBRICAS_PROJETO[codigo],
-      total: roundMoney(itens.reduce((soma, item) => soma + subtotalCusto(item), 0)),
-      itens: itens.length,
+      total: roundMoney(itens.reduce((soma, item) => soma + subtotalCusto(item), 0) + extra.total),
+      itens: itens.length + extra.itens,
     };
   });
 }
@@ -111,9 +122,9 @@ export type EstadoEdicaoProjeto = {
 };
 
 /**
- * Traduz o status do orçamento de projeto (transições do RPC `transicionar_orcamento_projeto`):
- * rascunho → enviado/cancelado; enviado → aprovado/recusado/cancelado; recusado → rascunho/cancelado.
- * Na proposta, "enviado" significa custos revisados.
+ * Traduz o status do orçamento de projeto. Concluir: rascunho → enviado (0137). Reabrir
+ * (0139, DC4 — tudo editável): enviado, recusado ou aprovado → rascunho; com proposta aprovada
+ * é reformulação. Na proposta, "enviado" significa custos revisados.
  */
 export function estadoEdicaoProjeto(status: string | null | undefined): EstadoEdicaoProjeto {
   switch (status ?? "rascunho") {
@@ -124,17 +135,18 @@ export function estadoEdicaoProjeto(status: string | null | undefined): EstadoEd
         editavel: false,
         rotulo: "Revisado",
         motivo:
-          "A revisão dos custos foi concluída e a proposta já pode usar estes valores. Custos revisados não voltam para edição nesta versão do sistema.",
+          "A revisão dos custos foi concluída e a proposta já pode usar estes valores. Para mudar, reabra a revisão.",
         podeConcluir: false,
-        podeReabrir: false,
+        podeReabrir: true,
       };
     case "aprovado":
       return {
         editavel: false,
         rotulo: "Aprovado",
-        motivo: "Custos aprovados não podem ser alterados.",
+        motivo:
+          "A proposta foi aprovada. Para mudar (reformulação pedida pelo cliente ou pelo órgão concedente), reabra a revisão informando o motivo: a nova versão, quando aprovada, substitui a atual.",
         podeConcluir: false,
-        podeReabrir: false,
+        podeReabrir: true,
       };
     case "recusado":
       return {
@@ -155,4 +167,80 @@ export function estadoEdicaoProjeto(status: string | null | undefined): EstadoEd
     default:
       return { editavel: false, rotulo: String(status), motivo: "Status desconhecido.", podeConcluir: false, podeReabrir: false };
   }
+}
+
+export type AvisoConferencia = {
+  tipo: "valor_zero" | "pessoal_sem_meses" | "viagem_ajustada" | "catalogo_mudou" | "valor_velho";
+  texto: string;
+};
+
+type CustoConferencia = {
+  id: number;
+  rubrica: string | null;
+  descricao: string;
+  categoria?: string | null;
+  quantidade: number;
+  custo_unitario: number;
+  meses_selecionados?: number[] | null;
+};
+
+const lista = (itens: string[]) => itens.join(", ");
+
+/**
+ * Lista de conferência antes de concluir a revisão (Fase C). Só avisa; não impede concluir.
+ * `plano` é a prévia do catálogo vivo (valor e data do catálogo por linha).
+ */
+export function conferenciaRevisao(args: {
+  custos: CustoConferencia[];
+  viagem: ViagemInputs;
+  plano: LinhaPlanoCatalogo[];
+  hoje?: Date;
+}): AvisoConferencia[] {
+  const avisos: AvisoConferencia[] = [];
+  const zerados = args.custos.filter((item) => !(Number(item.custo_unitario) > 0)).map((item) => item.descricao);
+  if (zerados.length) {
+    avisos.push({
+      tipo: "valor_zero",
+      texto: `${zerados.length} ${zerados.length === 1 ? "item" : "itens"} com valor zero: ${lista(zerados)}.`,
+    });
+  }
+  const semMeses = args.custos
+    .filter((item) => item.rubrica === "PE" && !(item.meses_selecionados?.length))
+    .map((item) => item.descricao);
+  if (semMeses.length) {
+    avisos.push({
+      tipo: "pessoal_sem_meses",
+      texto: `Pessoal sem meses marcados na grade (conta pela quantidade): ${lista(semMeses)}.`,
+    });
+  }
+  const ajustadas = args.custos.flatMap((item) => {
+    if (item.rubrica !== "VD") return [];
+    const situacao = situacaoQuantidadeViagem(item, args.viagem);
+    return situacao.situacao === "ajustado"
+      ? [`${item.descricao} (${Number(item.quantidade).toLocaleString("pt-BR")}; calculado: ${Number(situacao.calculada).toLocaleString("pt-BR")})`]
+      : [];
+  });
+  if (ajustadas.length) {
+    avisos.push({ tipo: "viagem_ajustada", texto: `Viagem com quantidade diferente da calculada: ${lista(ajustadas)}.` });
+  }
+  const ligadas = args.plano.filter((linha) => linha.acao === "inalterado" || linha.acao === "vincular");
+  const mudou = ligadas
+    .filter((linha) => linha.valorCatalogo != null && Math.abs(linha.valorCatalogo - linha.valor) >= 0.005)
+    .map((linha) => `${linha.descricao} (catálogo ${brl(Number(linha.valorCatalogo))})`);
+  if (mudou.length) {
+    avisos.push({
+      tipo: "catalogo_mudou",
+      texto: `Valor diferente do catálogo atual (este orçamento mantém o seu): ${lista(mudou)}.`,
+    });
+  }
+  const velhos = ligadas
+    .filter((linha) => valorDesatualizado(linha.valorCatalogoEm, args.hoje))
+    .map((linha) => linha.descricao);
+  if (velhos.length) {
+    avisos.push({
+      tipo: "valor_velho",
+      texto: `Valor do catálogo com mais de ${MESES_VALOR_VELHO} meses sem atualizar: ${lista(velhos)}.`,
+    });
+  }
+  return avisos;
 }

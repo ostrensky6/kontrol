@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { redirect, unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
-import { calcularTodas } from "@/lib/costing/loader";
 import { precoCatalogoMascarado } from "@/lib/cadastros/salario";
 import { registrarEvento } from "./eventos";
 import {
@@ -17,6 +16,7 @@ import {
 import { ratesDoOrcamentoProjeto } from "@/lib/orcamento/parametros-proposta";
 import { validarParametrosProjetoGrossUp } from "@/lib/project-budget/orcamento-projeto";
 import { linhasViagemFaltantes, normalizarMeses } from "@/lib/project-budget/editor";
+import { mensagemConclusaoCatalogo } from "@/lib/project-budget/catalogo-vivo";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
@@ -296,34 +296,16 @@ export async function salvarParametrosEconomicosProjeto(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
-async function adicionarAnaliseProjetoInterno(formData: FormData) {
+/**
+ * DC3 (dono, 28/09): análise não entra mais dentro do orçamento de projeto — não pode haver
+ * dois lugares para a mesma análise. Ela vai para a etapa Laboratório, com o tipo "Projeto com
+ * análises laboratoriais". As já lançadas continuam valendo e podem ser removidas.
+ */
+async function adicionarAnaliseProjetoInterno(): Promise<void> {
   await exigirPapelOrcamento("preencher_custos");
-  const id = numero(formData, "orcamento_projeto_id");
-  const codigo = texto(formData, "codigo_analise");
-  const nAmostras = numero(formData, "n_amostras", 1);
-  if (!id || !codigo || nAmostras <= 0) return;
-
-  const supabase = await createClient();
-  const { data: analise } = await supabase
-    .from("analises")
-    .select("ativo, ofertavel")
-    .eq("codigo", codigo)
-    .single();
-  if (!analise?.ativo || !analise?.ofertavel) {
-    throw new Error("Análise inativa ou fora da oferta; não pode entrar em novos orçamentos.");
-  }
-  const { breakdowns } = await calcularTodas();
-  const breakdown = breakdowns.find((x) => x.codigo === codigo);
-  const projeto = await assegurarProjetoEditavel(supabase, id);
-  const { error } = await supabase.from("orcamento_projeto_analises").insert({
-    orcamento_projeto_id: id,
-    codigo_analise: codigo,
-    n_amostras: nAmostras,
-    custo_unitario: breakdown?.custoTotal ?? 0,
-    preco_unitario: breakdown?.preco ?? 0,
-  });
-  if (error) throw new Error(error.message);
-  revalidarEtapaProjeto(demandaDe(projeto, formData));
+  throw new Error(
+    "Análises entram pela etapa Laboratório: use o tipo “Projeto com análises laboratoriais”. As análises já lançadas aqui continuam valendo.",
+  );
 }
 
 async function adicionarCustoProjetoInterno(formData: FormData) {
@@ -364,9 +346,13 @@ async function adicionarCustoProjetoInterno(formData: FormData) {
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
+const mesmoTexto = (a: string | null | undefined, b: string | null | undefined) =>
+  (a ?? "").trim().toLocaleLowerCase("pt-BR") === (b ?? "").trim().toLocaleLowerCase("pt-BR");
+
 /**
- * Edita uma linha de custo existente (descrição, unidade, quantidade, custo e classificação).
- * Rubrica, origem e vínculo com o catálogo não mudam: para trocar de rubrica, remova e adicione.
+ * Edita uma linha de custo existente (descrição, unidade, quantidade, custo, rubrica e
+ * classificação). Trocar a rubrica (Fase C) ou, numa linha do catálogo, a descrição ou a
+ * unidade desfaz o vínculo com o catálogo: na conclusão ela conta como item digitado.
  */
 async function atualizarCustoProjetoInterno(formData: FormData) {
   await exigirPapelOrcamento("preencher_custos");
@@ -377,22 +363,39 @@ async function atualizarCustoProjetoInterno(formData: FormData) {
 
   const quantidade = numero(formData, "quantidade", NaN);
   const custoUnitario = numero(formData, "custo_unitario", NaN);
+  const rubricaNova = texto(formData, "rubrica");
+  const unidade = texto(formData, "unidade");
   if (!(quantidade > 0)) throw new Error("A quantidade precisa ser maior que zero.");
   if (!(custoUnitario >= 0)) throw new Error("O custo unitário não pode ser negativo.");
+  if (rubricaNova && !RUBRICAS_VALIDAS.has(rubricaNova)) throw new Error("Rubrica inválida.");
 
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
+  const { data: linha } = await supabase
+    .from("orcamento_projeto_custos")
+    .select("rubrica, descricao, unidade, catalogo_item_id")
+    .eq("id", itemId)
+    .eq("orcamento_projeto_id", id)
+    .single();
+  const atual = (linha ?? {}) as { rubrica?: string | null; descricao?: string; unidade?: string | null; catalogo_item_id?: string | null };
+  const trocaRubrica = Boolean(rubricaNova) && (atual.rubrica ?? "OU") !== rubricaNova;
+  const trocaIdentidade =
+    Boolean(atual.catalogo_item_id) && (!mesmoTexto(atual.descricao, descricao) || !mesmoTexto(atual.unidade, unidade));
   const { error } = await supabase
     .from("orcamento_projeto_custos")
     .update({
       descricao,
-      unidade: texto(formData, "unidade"),
+      unidade,
       quantidade,
       custo_unitario: custoUnitario,
       preco_unitario: custoUnitario,
       etapa: texto(formData, "etapa"),
       atividade: texto(formData, "atividade"),
       entrega: texto(formData, "entrega"),
+      ...(trocaRubrica && rubricaNova
+        ? { rubrica: rubricaNova, categoria: categoriaPorRubrica(rubricaNova), meses_selecionados: [] }
+        : {}),
+      ...(trocaRubrica || trocaIdentidade ? { catalogo_item_id: null, catalogo_valor_base: null } : {}),
     })
     .eq("id", itemId)
     .eq("orcamento_projeto_id", id);
@@ -477,13 +480,15 @@ async function salvarDuracaoProjetoInterno(formData: FormData) {
 }
 
 /**
- * Conclui a revisão dos custos de projeto (rascunho → enviado pelo RPC transacional).
- * É o que marca o módulo como "revisado" e libera parâmetros e emissão da proposta.
+ * Conclui a revisão dos custos de projeto (rascunho → enviado) pela RPC que também
+ * alimenta o catálogo vivo (0137): item novo entra, valor digitado sobrepõe, vale a
+ * última conclusão. É o que marca o módulo como "revisado" e libera parâmetros e
+ * emissão da proposta. Devolve o resumo para a tela.
  */
-async function concluirRevisaoCustosProjetoInterno(formData: FormData) {
+async function concluirRevisaoCustosProjetoInterno(formData: FormData): Promise<string> {
   await exigirPapelOrcamento("revisar_modulo");
   const id = numero(formData, "orcamento_projeto_id");
-  if (!id) return;
+  if (!id) throw new Error("Orçamento de projeto não informado.");
 
   const supabase = await createClient();
   const { data: projeto } = await supabase
@@ -505,33 +510,37 @@ async function concluirRevisaoCustosProjetoInterno(formData: FormData) {
     throw new Error("Adicione ao menos um custo ou análise antes de concluir a revisão.");
   }
 
-  const { error } = await supabase.rpc("transicionar_orcamento_projeto", {
+  const { data, error } = await supabase.rpc("concluir_revisao_custos_projeto", {
     p_orcamento_projeto_id: id,
-    p_status_destino: "enviado",
     p_observacao: texto(formData, "observacao") ?? "Revisão dos custos de projeto concluída.",
   });
   if (error) throw new Error(error.message);
   revalidarEtapaProjeto(demandaDe(atual, formData));
+  revalidatePath("/orcamento/modelos");
+  return mensagemConclusaoCatalogo(data);
 }
 
-/** Reabre custos recusados para edição (recusado → rascunho). "Enviado" não volta a rascunho no RPC. */
-async function reabrirCustosProjetoInterno(formData: FormData) {
+/**
+ * Reabre a revisão dos custos (0139, DC4 — tudo editável): de revisado, recusado ou aprovado
+ * volta para edição. Com proposta aprovada é reformulação e exige motivo; a nova versão,
+ * quando aprovada, substitui a atual (o banco valida tudo).
+ */
+async function reabrirCustosProjetoInterno(formData: FormData): Promise<string> {
   await exigirPapelOrcamento("revisar_modulo");
   const id = numero(formData, "orcamento_projeto_id");
-  if (!id) return;
+  if (!id) throw new Error("Orçamento de projeto não informado.");
 
   const supabase = await createClient();
-  const projeto = await carregarProjeto(supabase, id);
-  if (projeto?.status !== "recusado") {
-    throw new Error("Só custos recusados podem ser reabertos para edição.");
-  }
-  const { error } = await supabase.rpc("transicionar_orcamento_projeto", {
+  const { data, error } = await supabase.rpc("reabrir_revisao_custos_projeto", {
     p_orcamento_projeto_id: id,
-    p_status_destino: "rascunho",
-    p_observacao: "Custos de projeto reabertos para edição.",
+    p_motivo: texto(formData, "motivo"),
   });
   if (error) throw new Error(error.message);
-  revalidarEtapaProjeto(demandaDe(projeto, formData));
+  revalidarEtapaProjeto(demandaDe(null, formData));
+  const retorno = (data ?? {}) as { reformulacao?: boolean; versao_aprovada?: string | null };
+  return retorno.reformulacao
+    ? `Revisão reaberta como reformulação da proposta ${retorno.versao_aprovada}. Ao concluir, emita a nova versão: aprovada, ela substitui a atual.`
+    : "Revisão dos custos reaberta para edição.";
 }
 
 async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
@@ -550,7 +559,7 @@ async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
   if (precoCatalogoMascarado(item)) {
     // Copiar o valor de PE para o orçamento o revelaria na linha de custo.
     throw new Error(
-      "Valores de pessoal (PE) do catálogo exigem a permissão “Ver salário dos técnicos”. Lance o custo manualmente ou peça a quem tem a permissão.",
+      "Valores de pessoal (PE) do catálogo exigem a permissão “Valores de pessoal no orçamento”. Peça ao administrador em Usuários.",
     );
   }
 
@@ -561,6 +570,12 @@ async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
     inteiroArray(formData, "meses_selecionados"),
     Number(projeto?.project_months ?? 12),
   );
+  // Campo único (Fase C): o valor sugerido pelo catálogo pode ser ajustado para este orçamento.
+  const precoCatalogo = Number(item.preco_unitario ?? 0);
+  // Campo ausente ou vazio = usa o valor do catálogo (Number(null) daria 0).
+  const custoTexto = texto(formData, "custo_unitario");
+  const custoInformado = custoTexto === null ? NaN : Number(custoTexto.replace(",", "."));
+  const custo = Number.isFinite(custoInformado) && custoInformado >= 0 ? custoInformado : precoCatalogo;
   const { error } = await supabase.from("orcamento_projeto_custos").insert({
     orcamento_projeto_id: id,
     categoria: categoriaPorRubrica(item.rubrica),
@@ -569,8 +584,10 @@ async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
     descricao: item.descricao,
     quantidade,
     unidade: item.unidade,
-    custo_unitario: Number(item.preco_unitario ?? 0),
-    preco_unitario: Number(item.preco_unitario ?? 0),
+    custo_unitario: custo,
+    preco_unitario: custo,
+    // Valor do catálogo quando a linha entrou: a conclusão só grava se for alterado (0137).
+    catalogo_valor_base: precoCatalogo,
     meses_selecionados: mesesSelecionados,
     origem: "catalogo",
     etapa: texto(formData, "etapa") || etapaPorRubrica(item.rubrica),
@@ -656,6 +673,7 @@ async function salvarViagensProjetoInterno(formData: FormData) {
           unidade: item.unidade,
           custo_unitario: Number(item.preco_unitario ?? 0),
           preco_unitario: Number(item.preco_unitario ?? 0),
+          catalogo_valor_base: Number(item.preco_unitario ?? 0),
           meses_selecionados: [],
           origem: "catalogo",
           etapa: etapaPorRubrica("VD"),
@@ -719,7 +737,50 @@ async function comRetorno(acao: () => Promise<void>): Promise<EstadoAcao | void>
 }
 
 export async function adicionarAnaliseProjeto(formData: FormData): Promise<EstadoAcao | void> {
-  return comRetorno(() => adicionarAnaliseProjetoInterno(formData));
+  void formData;
+  return comRetorno(() => adicionarAnaliseProjetoInterno());
+}
+
+/** Campo único do editor (Fase C): item escolhido no catálogo (valor ajustável) ou digitado. */
+export async function adicionarItemProjeto(formData: FormData): Promise<EstadoAcao | void> {
+  return comRetorno(() =>
+    texto(formData, "catalogo_item_id")
+      ? adicionarCustoCatalogoProjetoInterno(formData)
+      : adicionarCustoProjetoInterno(formData),
+  );
+}
+
+function mensagemModeloAplicado(retorno: unknown) {
+  const r = (retorno ?? {}) as Record<string, unknown>;
+  const itens = Number(r.itens ?? 0) || 0;
+  const doCatalogo = Number(r.do_catalogo ?? 0) || 0;
+  const pessoal = Number(r.pessoal_ignorado ?? 0) || 0;
+  let mensagem = `Modelo aplicado: ${itens} ${itens === 1 ? "item" : "itens"} (${doCatalogo} com o valor atual do catálogo).`;
+  if (pessoal) {
+    mensagem += ` ${pessoal} ${pessoal === 1 ? "item de pessoal ficou" : "itens de pessoal ficaram"} de fora (sem a permissão de valores de pessoal).`;
+  }
+  return mensagem;
+}
+
+/** Usa um modelo dentro da proposta (Fase E): os valores vêm do catálogo no momento do uso. */
+export async function aplicarModeloProjeto(formData: FormData): Promise<EstadoAcao> {
+  try {
+    await exigirPapelOrcamento("preencher_custos");
+    const id = numero(formData, "orcamento_projeto_id");
+    const templateId = numero(formData, "template_id");
+    if (!id || !templateId) return falha("Escolha o modelo.");
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("aplicar_modelo_orcamento_projeto", {
+      p_orcamento_projeto_id: id,
+      p_template_id: templateId,
+    });
+    if (error) return falha(mensagemDoBanco(error));
+    revalidarEtapaProjeto(demandaDe(null, formData));
+    return sucesso(mensagemModeloAplicado(data));
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
 }
 
 export async function adicionarCustoProjeto(formData: FormData): Promise<EstadoAcao | void> {
@@ -739,11 +800,21 @@ export async function salvarDuracaoProjeto(formData: FormData): Promise<EstadoAc
 }
 
 export async function concluirRevisaoCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {
-  return comRetorno(() => concluirRevisaoCustosProjetoInterno(formData));
+  try {
+    return sucesso(await concluirRevisaoCustosProjetoInterno(formData));
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
 }
 
 export async function reabrirCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {
-  return comRetorno(() => reabrirCustosProjetoInterno(formData));
+  try {
+    return sucesso(await reabrirCustosProjetoInterno(formData));
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
 }
 
 export async function adicionarCustoCatalogoProjeto(formData: FormData): Promise<EstadoAcao | void> {
@@ -853,22 +924,6 @@ export async function aprovarOrcamentoPublico(formData: FormData) {
   revalidatePath(`/orcamento/final/${resultado.versao_id}`);
 }
 
-type CustoTemplate = {
-  categoria: string;
-  etapa?: string | null;
-  atividade?: string | null;
-  entrega?: string | null;
-  categoria_institucional?: string | null;
-  nomenclatura_origem?: string | null;
-  rubrica: string | null;
-  descricao: string;
-  quantidade: number;
-  unidade: string | null;
-  custo_unitario: number;
-  preco_unitario: number;
-  meses_selecionados: number[] | null;
-};
-
 type ParametrosTemplate = {
   project_months?: number;
   impostos_legacy?: number;
@@ -879,125 +934,61 @@ type ParametrosTemplate = {
   travel_inputs?: unknown;
 };
 
-/** Salva o orçamento atual como template reutilizável (parâmetros + rubricas).
- *  Análises de laboratório não entram (são específicas de cada cotação).
- *  Usa o schema existente (0012): parâmetros e itens em colunas jsonb. */
-export async function salvarComoTemplate(formData: FormData) {
-  await exigirPapelOrcamento("gerir_modelos");
-  const id = numero(formData, "orcamento_projeto_id");
-  const nome = texto(formData, "nome");
-  if (!id || !nome) return;
+/**
+ * Salva os itens deste orçamento de projeto como modelo (Fase E). O modelo guarda itens,
+ * quantidades e o vínculo com o catálogo; ao usar, os valores vêm do catálogo daquele dia.
+ */
+export async function salvarComoTemplate(formData: FormData): Promise<EstadoAcao> {
+  try {
+    await exigirPapelOrcamento("gerir_modelos");
+    const id = numero(formData, "orcamento_projeto_id");
+    const nome = texto(formData, "nome");
+    if (!id || !nome) return falha("Dê um nome ao modelo.");
 
-  const supabase = await createClient();
-
-  const { data: orc } = await supabase
-    .from("orcamento_projetos")
-    .select(
-      "demanda_id, project_months, impostos_legacy, incubacao, reserva, investimentos, lucro, margem_lucro, impostos, travel_inputs",
-    )
-    .eq("id", id)
-    .single();
-  if (!orc) return;
-
-  const { data: custos } = await supabase
-    .from("orcamento_projeto_custos")
-    .select("categoria, etapa, atividade, entrega, categoria_institucional, nomenclatura_origem, rubrica, descricao, quantidade, unidade, custo_unitario, preco_unitario, meses_selecionados")
-    .eq("orcamento_projeto_id", id);
-
-  const parametros: ParametrosTemplate = {
-    project_months: Number(orc.project_months ?? 12),
-    ...ratesDoOrcamentoProjeto(orc),
-    travel_inputs: orc.travel_inputs ?? {},
-  };
-
-  const { error } = await supabase.from("orcamento_projeto_templates").insert({
-    nome,
-    descricao: texto(formData, "descricao"),
-    origem: "kontrol",
-    itens: (custos ?? []) as unknown as Json,
-    parametros: parametros as unknown as Json,
-  });
-  if (error) throw new Error(error.message);
-  revalidarEtapaProjeto(demandaDe(orc, formData));
-  revalidatePath("/orcamento/modelos");
-}
-
-/** Cria um novo orçamento de projeto a partir de um template. */
-export async function criarProjetoDeTemplate(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const templateId = numero(formData, "template_id");
-  if (!templateId) return;
-
-  const supabase = await createClient();
-  const { data: tpl } = await supabase
-    .from("orcamento_projeto_templates")
-    .select("*")
-    .eq("id", templateId)
-    .single();
-  if (!tpl) return;
-
-  const params = (tpl.parametros ?? {}) as ParametrosTemplate;
-
-  const projetoId = formData.get("projeto_id") ? Number(formData.get("projeto_id")) : null;
-  let projeto: { nome: string; cliente_id: number | null } | null = null;
-  if (projetoId) {
-    const { data } = await supabase
-      .from("projetos")
-      .select("nome, cliente_id")
-      .eq("id", projetoId)
+    const supabase = await createClient();
+    const { data: orc } = await supabase
+      .from("orcamento_projetos")
+      .select(
+        "demanda_id, project_months, impostos_legacy, incubacao, reserva, investimentos, lucro, margem_lucro, impostos, travel_inputs",
+      )
+      .eq("id", id)
       .single();
-    projeto = data;
+    if (!orc) return falha("Orçamento de projeto não encontrado.");
+
+    const { data: custos } = await supabase
+      .from("orcamento_projeto_custos")
+      .select("categoria, etapa, atividade, entrega, categoria_institucional, nomenclatura_origem, rubrica, descricao, quantidade, unidade, custo_unitario, preco_unitario, meses_selecionados, catalogo_item_id")
+      .eq("orcamento_projeto_id", id);
+
+    const parametros: ParametrosTemplate = {
+      project_months: Number(orc.project_months ?? 12),
+      ...ratesDoOrcamentoProjeto(orc),
+      travel_inputs: orc.travel_inputs ?? {},
+    };
+
+    const { error } = await supabase.from("orcamento_projeto_templates").insert({
+      nome,
+      descricao: texto(formData, "descricao"),
+      origem: "kontrol",
+      // Pessoal sai sem valor: o modelo é lido por quem tem "Modelos e catálogos", que pode não ter
+      // a permissão de pessoal. Ao usar o modelo, o valor vem do catálogo (0139).
+      itens: (custos ?? []).map((item) =>
+        item.rubrica === "PE" ? { ...item, custo_unitario: null, preco_unitario: null } : item,
+      ) as unknown as Json,
+      parametros: parametros as unknown as Json,
+    });
+    if (error) return falha(mensagemDoBanco(error));
+    revalidarEtapaProjeto(demandaDe(orc, formData));
+    revalidatePath("/orcamento/modelos");
+    return sucesso(`Modelo “${nome}” salvo.`);
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
   }
-  const cliente = await carregarCliente(projeto?.cliente_id ?? null);
-
-  const { data: novo, error } = await supabase
-    .from("orcamento_projetos")
-    .insert({
-      projeto_id: projetoId,
-      cliente_id: projeto?.cliente_id ?? null,
-      titulo: projeto?.nome ?? `Projeto de ${tpl.nome}`,
-      cliente_nome: cliente?.nome ?? null,
-      cliente_cnpj: cliente?.cnpj ?? null,
-      cliente_contato: cliente?.contato || cliente?.email || cliente?.telefone || null,
-      project_months: Number(params.project_months ?? 12),
-      impostos_legacy: Number(params.impostos_legacy ?? 0),
-      incubacao: Number(params.incubacao ?? 0),
-      reserva: Number(params.reserva ?? 0),
-      investimentos: Number(params.investimentos ?? 0),
-      lucro: Number(params.lucro ?? 0),
-      travel_inputs: (params.travel_inputs ?? {}) as Json,
-    })
-    .select("id")
-    .single();
-  if (error) throw new Error(error.message);
-
-  const itens = ((tpl.itens ?? []) as unknown as CustoTemplate[]) ?? [];
-  if (itens.length > 0) {
-    const linhas = itens.map((it) => ({
-      orcamento_projeto_id: novo.id,
-      categoria: it.categoria || categoriaPorRubrica(it.rubrica || "OU"),
-      etapa: it.etapa ?? etapaPorRubrica(it.rubrica || "OU"),
-      atividade: it.atividade ?? it.categoria,
-      entrega: it.entrega ?? "Entrega principal",
-      categoria_institucional: it.categoria_institucional ?? categoriaInstitucionalPorRubrica(it.rubrica || "OU"),
-      nomenclatura_origem: it.nomenclatura_origem ?? "kontrol",
-      rubrica: it.rubrica || "OU",
-      descricao: it.descricao,
-      quantidade: Number(it.quantidade) || 1,
-      unidade: it.unidade,
-      custo_unitario: Number(it.custo_unitario) || 0,
-      preco_unitario: Number(it.preco_unitario) || 0,
-      meses_selecionados: it.meses_selecionados ?? [],
-      origem: "template",
-    }));
-    const { error: itemError } = await supabase.from("orcamento_projeto_custos").insert(linhas);
-    if (itemError) throw new Error(itemError.message);
-  }
-
-  // K2 (Etapa B): este fluxo ainda cria sem demanda; o endereço antigo redireciona para a etapa da proposta.
-  revalidatePath(pathDemandas);
-  redirect(`/orcamento/projetos/${novo.id}`);
 }
+
+// "Usar modelo" agora é dentro da proposta (aplicarModeloProjeto, RPC da 0139). O fluxo antigo
+// criarProjetoDeTemplate criava orçamento de projeto sem proposta (K2) e saiu.
 
 export async function excluirTemplate(formData: FormData) {
   const templateId = numero(formData, "template_id");
@@ -1052,19 +1043,8 @@ export async function duplicarTemplateProjeto(formData: FormData) {
   revalidatePath("/orcamento/modelos");
 }
 
-export async function arquivarCatalogoProjetoItem(formData: FormData) {
-  const catalogoId = texto(formData, "catalogo_item_id");
-  if (!catalogoId) return;
-  await exigirPapelOrcamento("gerir_modelos");
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("orcamento_projeto_catalogo")
-    .update({ ativo: false, atualizado_em: new Date().toISOString() })
-    .eq("id", catalogoId);
-  if (error) throw new Error(error.message);
-  await registrarEvento("orcamento_catalogo", Number(catalogoId) || 0, "ativo", "arquivado", "Item de catálogo arquivado sem remoção física.");
-  revalidatePath("/orcamento/modelos");
-}
+// Arquivar/reativar item do catálogo: src/lib/actions/catalogo-custos.ts (RPC da 0138,
+// com a trava do catálogo). A versão antiga gravava o evento com id 0 (códigos "MC-12").
 
 const BUCKET_ANEXOS = "orcamento-anexos";
 

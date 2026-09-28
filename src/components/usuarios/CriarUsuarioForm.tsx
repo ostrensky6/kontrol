@@ -2,17 +2,17 @@
 
 import { useActionState } from "react";
 
-import { criarUsuario } from "@/lib/actions/usuarios";
+import { criarUsuario, type UsuarioFormState } from "@/lib/actions/usuarios";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PAPEIS } from "@/lib/auth/permissions";
-import type { FormState } from "@/lib/actions/cadastros";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { SenhaProvisoriaGerada } from "./SenhaProvisoriaGerada";
 
-const initialState: FormState = { ok: false, message: "" };
+const initialState: UsuarioFormState ={ ok: false, message: "" };
 
 export function CriarUsuarioForm() {
   const [state, action] = useActionState(criarUsuario, initialState);
@@ -45,16 +45,22 @@ export function CriarUsuarioForm() {
         <SubmitButton pendingLabel="Cadastrando…">Cadastrar usuário</SubmitButton>
       </div>
       <p className="mt-2 flex items-center gap-1 text-xs leading-5 text-info-strong/80">
-        Entra com senha provisória e troca no primeiro acesso.
+        O Kontrol gera uma senha provisória só para esta pessoa; ela troca no primeiro acesso.
         <HelpTip title="Novo usuário">
           <p>
-            A conta é criada com acesso e uma <b>senha provisória</b>. No primeiro login, a pessoa
+            A conta é criada com uma <b>senha provisória</b> gerada na hora, que aparece uma única
+            vez aqui. Copie e passe para a pessoa. Ela vale por 7 dias; no primeiro login, a pessoa
             define a senha definitiva.
           </p>
           <p>As permissões iniciais são as da categoria escolhida; ajuste depois em Editar.</p>
         </HelpTip>
       </p>
       <MensagemAcao estado={state} className="mt-2" />
+      {state.ok && state.senhaProvisoria && (
+        <div className="mt-3">
+          <SenhaProvisoriaGerada senha={state.senhaProvisoria} />
+        </div>
+      )}
     </form>
   );
 }

@@ -29,8 +29,6 @@ type StatusModulo = "pendente" | "preenchido" | "revisado" | "nao_exigido";
 export type EntradaEtapasProposta = {
   demandaId: number;
   modalidade?: string | null;
-  /** Projeto vinculado força a etapa de projeto mesmo em modalidade só de análises. */
-  projetoAssociado?: boolean;
   demandaCompleta: boolean;
   demandaFaltante: number;
   laboratorioStatus: StatusModulo;
@@ -55,7 +53,8 @@ function hrefEtapa(demandaId: number, id: EtapaId) {
  */
 export function montarEtapasProposta(args: EntradaEtapasProposta): EtapaProposta[] {
   const exigeAnalises = modalidadeExigeLaboratorio(args.modalidade);
-  const exigeProjeto = modalidadeExigeProjeto(args.modalidade) || Boolean(args.projetoAssociado);
+  // O tipo do orçamento decide as etapas (dono, 28/09): ligação com projeto não cria etapa de custos.
+  const exigeProjeto = modalidadeExigeProjeto(args.modalidade);
   const laboratorioLiberado = args.demandaCompleta && exigeAnalises;
   const projetoLiberado = args.demandaCompleta && exigeProjeto;
   // Sequenciamento: quando a modalidade exige análises, o laboratório precisa

@@ -15,12 +15,22 @@ import { avaliarCompletudeDemanda } from "@/lib/orcamento/demanda-completude";
 import { avaliarModuloOperacional } from "@/lib/orcamento/modulo-status";
 import { consolidarOrcamentoFinal, explicarOrigem } from "@/lib/orcamento/orcamento-final";
 import { rotuloStatusModulo, rotuloStatusOrcamento, rotuloStatusVersaoFinal } from "@/lib/orcamento/rotulos-status";
-import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
-import { HelpExample, HelpFormula, HelpTip } from "@/components/common/HelpTip";
+import { OPCOES_INSTITUICAO, opcaoInstituicao, resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
+import { HelpTip } from "@/components/common/HelpTip";
 import { PainelParametrosEconomicos } from "@/components/orcamento/PainelParametrosEconomicos";
 import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";
+import { ClienteCadastradoSelect, type ClienteCadastro } from "@/components/orcamento/elaboracao/ClienteCadastradoSelect";
 import { EditorCustosProjeto } from "@/components/orcamento/projeto/EditorCustosProjeto";
 import { EditorParametrosProposta } from "@/components/orcamento/EditorParametrosProposta";
+import { DocumentoProposta } from "@/components/orcamento/documento/DocumentoProposta";
+import { PainelInterno } from "@/components/orcamento/interno/PainelInterno";
+import { salvarParametrosEconomicosDaDemanda } from "@/lib/actions/demandas";
+import { salvarTextosDemanda } from "@/lib/actions/orcamento-textos";
+import { carregarComplementosDocumento } from "@/lib/orcamento/complementos-documento";
+import { montarDocumentoProposta } from "@/lib/orcamento/documento-proposta";
+import { resolverTextosDemanda } from "@/lib/orcamento/textos-proposta";
+import { mascararPessoalVisao, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/orcamento/parametros-proposta";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
@@ -53,6 +63,8 @@ const MODALIDADES: Record<string, string> = {
   projeto_analises_custos: "Projeto com custos próprios e análises laboratoriais",
 };
 
+const ROTULO_PRIORIDADE: Record<string, string> = { baixa: "baixa", normal: "normal", alta: "alta", urgente: "urgente" };
+
 // Opções oferecidas em novos cadastros: apenas as três modalidades canônicas.
 const MODALIDADES_SELECIONAVEIS: Array<[string, string]> = [
   ["analises", MODALIDADES.analises],
@@ -80,6 +92,7 @@ type OrcamentoAnalisesResumo = {
 type OrcamentoProjetoResumo = {
   id: number;
   status: string;
+  reformulacao_de_versao_id?: number | null;
   data_orcamento: string | null;
   titulo: string | null;
   projeto_sem_custo_justificativa?: string | null;
@@ -90,10 +103,13 @@ type OrcamentoProjetoResumo = {
   reserva: number | null;
   investimentos: number | null;
   lucro: number | null;
-  orcamento_projeto_analises?: { id: number; n_amostras: number; custo_unitario: number; preco_unitario: number }[] | null;
+  orcamento_projeto_analises?: { id: number; codigo_analise: string | null; n_amostras: number; custo_unitario: number; preco_unitario: number }[] | null;
   orcamento_projeto_custos?: {
     id: number;
     rubrica: string | null;
+    descricao: string | null;
+    unidade: string | null;
+    categoria: string | null;
     quantidade: number;
     custo_unitario: number;
     preco_unitario: number;
@@ -112,6 +128,8 @@ export default async function DemandaDetalhe({
     erro_integridade?: string;
     erro_parametros?: string;
     parametros_salvos?: string;
+    aba?: string;
+    sub?: string;
   }>;
 }) {
   const { id } = await params;
@@ -121,6 +139,8 @@ export default async function DemandaDetalhe({
     erro_integridade: erroIntegridade,
     erro_parametros: erroParametros,
     parametros_salvos: parametrosSalvos,
+    aba: abaParam,
+    sub: subParam,
   } = await searchParams;
   const demandaId = Number(id);
   const supabase = await createClient();
@@ -134,7 +154,7 @@ export default async function DemandaDetalhe({
 
   const [{ data: clientes }, { data: projetos }, { data: orcamentos }, { data: orcProjetos }, { data: versoesFinais }] =
     await Promise.all([
-      supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
+      supabase.from("clientes").select("id, nome, cnpj, contato, email, telefone, endereco").eq("ativo", true).order("nome"),
       supabase.from("projetos").select("id, nome").order("nome"),
       supabase
         .from("orcamentos")
@@ -143,7 +163,7 @@ export default async function DemandaDetalhe({
         .order("id"),
       supabase
         .from("orcamento_projetos")
-        .select("id, status, data_orcamento, titulo, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
+        .select("id, status, reformulacao_de_versao_id, data_orcamento, titulo, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, descricao, unidade, categoria, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
         .eq("demanda_id", demandaId)
         .order("id"),
       supabase
@@ -155,7 +175,8 @@ export default async function DemandaDetalhe({
 
   const modalidadeCanonica = normalizarModalidadeOrcamento(demanda.modalidade);
   const exigeAnalises = modalidadeExigeLaboratorio(demanda.modalidade);
-  const exigeProjeto = modalidadeExigeProjeto(demanda.modalidade) || Boolean(demanda.projeto_id);
+  // O tipo do orçamento decide (dono, 28/09); ligação com projeto não cria etapa de custos.
+  const exigeProjeto = modalidadeExigeProjeto(demanda.modalidade);
   const completudeDemanda = avaliarCompletudeDemanda(demanda);
   // Todos os módulos aparecem nas listas; só os ativos (não cancelados) entram nos totais.
   const todosOrcamentosAnalises = ((orcamentos ?? []) as OrcamentoAnalisesResumo[]);
@@ -191,6 +212,9 @@ export default async function DemandaDetalhe({
     pendenciaSemItens: "adicionar ao menos um custo, análise de projeto ou justificativa",
   });
   const projetoReferencia = orcamentosProjeto.at(-1);
+  // Reformulação (0139): a revisão foi reaberta com a proposta aprovada.
+  const reformulacaoDeId = orcamentosProjeto.find((o) => o.reformulacao_de_versao_id)?.reformulacao_de_versao_id ?? null;
+  const versaoReformulada = reformulacaoDeId ? (versoesFinais ?? []).find((v) => v.id === reformulacaoDeId) ?? null : null;
   // com projeto: percentuais do projeto; sem projeto: os da proposta ou os padrões (0118)
   const { data: parametrosGlobais } = await supabase.from("parametros").select("chave, valor");
   const parametrosProposta = resolverParametrosProposta({
@@ -230,7 +254,6 @@ export default async function DemandaDetalhe({
   const etapas = montarEtapasProposta({
     demandaId,
     modalidade: demanda.modalidade,
-    projetoAssociado: Boolean(demanda.projeto_id),
     demandaCompleta: completudeDemanda.completa,
     demandaFaltante: completudeDemanda.faltante,
     laboratorioStatus: moduloAnalises.status === "nao_exigido" ? "nao_exigido" : moduloAnalises.status,
@@ -289,10 +312,14 @@ export default async function DemandaDetalhe({
     versoesEmitidas: versoesFinais?.length ?? 0,
     ultimaVersaoStatus: ultimaVersaoFinal?.status ?? null,
   });
-  const [autorizadoEmitir, autorizadoParametros] = await Promise.all([
+  const [autorizadoEmitir, autorizadoParametros, podePessoalOrcamento, podeSalarioTecnicos] = await Promise.all([
     podeOrcamento("emitir_final"),
     podeOrcamento("editar_parametros"),
+    temPermissao("orcamentos.pessoal"),
+    temPermissao("tecnicos.salario.ver"),
   ]);
+  // DC8: sem a permissão de pessoal, os valores de PE da visão interna aparecem como XXX.
+  const podeVerPessoal = podePessoalOrcamento || podeSalarioTecnicos;
   const podeEmitir = orcamentoFinal.pronto && !temCustoZeroSemJustificativa;
   // Σ% = 0 (ex.: "Apenas análises", sem módulo de projeto para guardar parâmetros).
   const semParametros = orcamentoFinal.somaPercentual <= 0;
@@ -301,7 +328,6 @@ export default async function DemandaDetalhe({
   // --- Idempotência/UI dos módulos (Fase 5) ---
   const planoModulosUi = planejarModulosProposta({
     modalidade: demanda.modalidade,
-    projetoAssociado: Boolean(demanda.projeto_id),
     laboratorioAtivos: orcamentosAnalises.filter((o) => o.status !== "cancelado").map((o) => o.id),
     projetoAtivos: orcamentosProjeto.filter((o) => o.status !== "cancelado").map((o) => o.id),
   });
@@ -350,8 +376,50 @@ export default async function DemandaDetalhe({
   const inp =
     `rounded-md border border-input bg-card px-3 py-2 text-sm font-medium ${TOM_ENTRADA}`;
   const lbl = "block text-xs font-medium text-muted-foreground";
+  // formulário Dados do orçamento: campos de 32 px, grupos aos pares (28/09)
+  const campo = `rounded-md border border-input bg-card px-2.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 h-8 w-full`;
+  const areaTexto = `rounded-md border border-input bg-card px-2.5 py-1.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 block min-h-14 w-full`;
+  // Caixas bem delimitadas (28/09): borda mais forte, fundo cinza atrás dos campos brancos e
+  // título da caixa com linha embaixo, para Identificação, Cliente e Amostras não se misturarem.
+  const grupo = "min-w-0 rounded-lg border border-foreground/20 bg-muted px-2.5 pb-2.5 pt-2 shadow-sm dark:bg-muted/40";
+  const legenda =
+    "float-left mb-2 w-full border-b border-foreground/15 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300";
+  const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
   const operacaoEmissaoId = randomUUID();
+
+  // --- Etapa Proposta (28/09): as mesmas abas da proposta emitida, com valores vivos ---
+  const abaProposta = abaParam === "documento" ? "documento" : "interno";
+  const autorizadoTextos = await podeOrcamento("criar_demanda");
+  const complementosProposta = etapaAtiva === "final"
+    ? await carregarComplementosDocumento(supabase, {
+        identidade: resolverIdentidadeComAviso(demanda.instituicao).identidade,
+        codigosAnalises: [...itensLaboratorioFlat.map((i) => i.codigo_analise), ...analisesProjetoFlat.map((i) => i.codigo_analise)],
+        comSecoes: true,
+      })
+    : null;
+  const visaoViva = montarVisaoInterna({
+    itensLaboratorio: itensLaboratorioFlat,
+    custosProjeto: custosProjetoFlat,
+    analisesProjeto: analisesProjetoFlat,
+    parametros: orcamentoFinal.parametros,
+    total: orcamentoFinal.totalFinal,
+    legado: false,
+    nomesAnalises: complementosProposta?.nomesAnalises,
+  });
+  const textosVivos = resolverTextosDemanda({
+    salvos: demanda.textos_proposta,
+    padroes: complementosProposta?.secoesPadrao ?? [],
+    escopoLegado: demanda.escopo_preliminar || demanda.descricao || null,
+  });
+  const documentoPrevia = montarDocumentoProposta({
+    versao: { numero: "Prévia", versao: 0, status: "rascunho", validade_dias: 30, total_final: orcamentoFinal.totalFinal },
+    demanda,
+    visao: visaoViva,
+    textos: textosVivos,
+    empresa: complementosProposta?.empresa ?? null,
+    rascunho: true,
+  });
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -363,51 +431,49 @@ export default async function DemandaDetalhe({
           ]}
         />
 
-        <section className="mt-4 rounded-lg border border-border bg-card p-5 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
-                Orçamento
-              </p>
-              <h1 className="mt-1 text-xl font-semibold tracking-tight">{demanda.titulo}</h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {MODALIDADES[modalidadeCanonica] ?? MODALIDADES[demanda.modalidade] ?? demanda.modalidade}
-              </p>
-            </div>
-            <div className="text-right text-sm">
-              <p className="font-medium">Nº {demanda.id}</p>
-              <p className="text-muted-foreground">Status: {rotuloStatusOrcamento(demanda.status)}</p>
-              <p className="text-muted-foreground">Prioridade: {demanda.prioridade}</p>
-              <p className={`flex items-center justify-end gap-1 ${completudeDemanda.completa ? "text-brand-700 dark:text-brand-300" : "text-warning-strong"}`}>
-                {completudeDemanda.completa ? "Dados completos" : `${completudeDemanda.faltante}% faltante`}
-                <HelpTip title="Completude dos dados" align="end">
-                  <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo e, conforme a modalidade, projeto e amostras).</p>
-                  <p>Os módulos de custo só são liberados com <b>0% faltante</b>.</p>
-                </HelpTip>
-              </p>
-            </div>
+        {/* Cabeçalho compacto (28/09): os dados completos ficam no formulário da etapa 1. */}
+        <section className="mt-3 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg font-semibold tracking-tight">
+              <span className="text-muted-foreground">Nº {demanda.id} · </span>
+              {demanda.titulo}
+            </h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {[
+                demanda.cliente_nome || "Cliente não informado",
+                MODALIDADES[modalidadeCanonica] ?? MODALIDADES[demanda.modalidade] ?? demanda.modalidade,
+                demanda.data_solicitacao ? `solicitado em ${formatDate(demanda.data_solicitacao)}` : null,
+                demanda.prazo_esperado ? `prazo ${formatDate(demanda.prazo_esperado)}` : null,
+                demanda.responsavel_interno ? `resp. ${demanda.responsavel_interno}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ")}
+            </p>
           </div>
-
-          <div className="mt-5 grid gap-3 md:grid-cols-4 2xl:grid-cols-6">
-            <Info titulo="Cliente" texto={demanda.cliente_nome} />
-            <Info titulo="Contato" texto={demanda.cliente_contato} />
-            <Info titulo="Solicitação" texto={formatDate(demanda.data_solicitacao)} />
-            <Info titulo="Prazo esperado" texto={formatDate(demanda.prazo_esperado)} />
-            <Info titulo="Matriz/amostra" texto={demanda.matriz_amostra} />
-            <Info titulo="Qtd. estimada" texto={demanda.quantidade_amostras_estimada ? String(demanda.quantidade_amostras_estimada) : null} />
-            <Info titulo="Prazo técnico" texto={demanda.prazo_tecnico_dias ? `${demanda.prazo_tecnico_dias} dias` : null} />
-            <Info titulo="Completude atualizada" texto={formatDateTime(demanda.completude_atualizada_em)} />
-          </div>
-
-          <div className="mt-6 grid gap-4 text-sm md:grid-cols-3">
-            <Texto titulo="Descrição" texto={demanda.descricao} />
-            <Texto titulo="Escopo preliminar" texto={demanda.escopo_preliminar} />
-            <Texto titulo="Observações" texto={demanda.observacoes} />
+          <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
+            <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
+              {rotuloStatusOrcamento(demanda.status)}
+            </span>
+            <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
+              Prioridade {ROTULO_PRIORIDADE[demanda.prioridade ?? "normal"] ?? demanda.prioridade}
+            </span>
+            <span
+              className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 ${
+                completudeDemanda.completa ? "bg-success-soft text-success-strong" : "bg-warning-soft text-warning-strong"
+              }`}
+            >
+              {completudeDemanda.completa ? "Dados completos" : `${completudeDemanda.faltante}% faltante`}
+              <HelpTip title="Completude dos dados" align="end">
+                <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo e, conforme a modalidade, projeto e amostras).</p>
+                <p>Os módulos de custo só são liberados com <b>0% faltante</b>.</p>
+                <p className="text-xs">Atualizado em {formatDateTime(demanda.completude_atualizada_em)}.</p>
+              </HelpTip>
+            </span>
           </div>
         </section>
 
-        <nav className="sticky top-[57px] z-10 mt-4 overflow-x-auto md:top-0 border-y border-border bg-card/95 py-2 shadow-sm backdrop-blur">
-          <div className="flex min-w-max gap-2 px-2">
+        <nav className="sticky top-[57px] z-10 mt-3 overflow-x-auto md:top-0 border-y border-border bg-card/95 py-1.5 shadow-sm backdrop-blur">
+          <div className="flex min-w-max gap-1.5 px-2">
             {etapas.map((etapa, indice) => {
               const ativa = etapa.id === etapaAtiva;
               const desabilitada = !etapa.aplicavel;
@@ -417,7 +483,7 @@ export default async function DemandaDetalhe({
                   href={etapa.href}
                   aria-current={ativa ? "step" : undefined}
                   aria-disabled={desabilitada || undefined}
-                  className={`rounded-md border px-3 py-2 text-left text-xs transition hover:bg-muted ${
+                  className={`rounded-md border px-3 py-1.5 text-left text-xs transition hover:bg-muted ${
                     ativa
                       ? "border-brand-500 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-brand-950/40 dark:text-brand-200"
                       : desabilitada
@@ -437,12 +503,168 @@ export default async function DemandaDetalhe({
           </div>
         </nav>
 
-        <section id="acoes" className={`mt-6 scroll-mt-20 grid gap-4 lg:grid-cols-3 2xl:grid-cols-4 ${passo("demanda")}`}>
+        <section id="demanda" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card px-4 pb-4 pt-3 shadow-sm ${passo("demanda")}`}>
+          <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
+            <h2 className="text-sm font-semibold">Dados do orçamento</h2>
+            <HelpTip title="Dados do orçamento">
+              <p>Com tudo preenchido, as etapas de custo são liberadas.</p>
+            </HelpTip>
+            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
+              {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
+            </span>
+          </div>
+          <SalvarDemandaForm>
+            <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
+            {/* Grupos lado a lado em telas largas (3 colunas), campos aos pares. */}
+            <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
+              <fieldset className={grupo}>
+                <legend className={legenda}>Identificação</legend>
+                <div className={grade}>
+                  <div className="col-span-6">
+                    <label htmlFor="d-titulo" className={lbl}>Título</label>
+                    <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-4">
+                    <label htmlFor="d-modalidade" className={lbl}>Modalidade</label>
+                    <select {...hydrationSafe} id="d-modalidade" name="modalidade" defaultValue={demanda.modalidade ?? "analises"} className={campo}>
+                      {opcoesModalidade.map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label htmlFor="d-prioridade" className={lbl}>Prioridade</label>
+                    <select {...hydrationSafe} id="d-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
+                      <option value="baixa">Baixa</option>
+                      <option value="normal">Normal</option>
+                      <option value="alta">Alta</option>
+                      <option value="urgente">Urgente</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="orcamento-instituicao" className={lbl}>Empresa emissora</label>
+                    <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>
+                      <option value="">Escolha…</option>
+                      {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-projeto" className={lbl}>Projeto</label>
+                    <select {...hydrationSafe} id="d-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
+                      <option value="">—</option>
+                      {(projetos ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-responsavel" className={lbl}>Responsável interno</label>
+                    <input {...hydrationSafe} id="d-responsavel" name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-origem" className={lbl}>Origem</label>
+                    <input {...hydrationSafe} id="d-origem" name="origem" defaultValue={demanda.origem ?? ""} className={campo} />
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset className={grupo}>
+                <legend className={legenda}>Cliente</legend>
+                <div className={grade}>
+                  <div className="col-span-6">
+                    <label htmlFor="d-cliente" className={lbl}>Cliente cadastrado <span className="font-normal">(preenche os dados abaixo)</span></label>
+                    <ClienteCadastradoSelect
+                      id="d-cliente"
+                      name="cliente_id"
+                      clientes={(clientes ?? []) as ClienteCadastro[]}
+                      valorInicial={demanda.cliente_id ?? null}
+                      className={campo}
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <label htmlFor="d-cliente-nome" className={lbl}>Razão social / nome</label>
+                    <input {...hydrationSafe} id="d-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-2">
+                    <label htmlFor="d-cliente-cnpj" className={lbl}>CNPJ/CPF</label>
+                    <input {...hydrationSafe} id="d-cliente-cnpj" name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-contato" className={lbl}>Contato</label>
+                    <input {...hydrationSafe} id="d-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-telefone" className={lbl}>Telefone</label>
+                    <input {...hydrationSafe} id="d-cliente-telefone" name="cliente_telefone" defaultValue={demanda.cliente_telefone ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-email" className={lbl}>E-mail</label>
+                    <input {...hydrationSafe} id="d-cliente-email" name="cliente_email" type="email" defaultValue={demanda.cliente_email ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-endereco" className={lbl}>Endereço</label>
+                    <input {...hydrationSafe} id="d-cliente-endereco" name="cliente_endereco" defaultValue={demanda.cliente_endereco ?? ""} placeholder="Rua, nº · cidade/UF" className={campo} />
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset className={`${grupo} lg:col-span-2 2xl:col-span-1`}>
+                <legend className={legenda}>Amostras e prazos</legend>
+                <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
+                  <div className="col-span-6 lg:col-span-4 2xl:col-span-6">
+                    <label htmlFor="d-matriz" className={lbl}>Matriz ou tipo de amostra</label>
+                    <input {...hydrationSafe} id="d-matriz" name="matriz_amostra" defaultValue={demanda.matriz_amostra ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-qtd" className={lbl}>Qtd. de amostras</label>
+                    <input {...hydrationSafe} id="d-qtd" name="quantidade_amostras_estimada" type="number" min="1" step="1" defaultValue={demanda.quantidade_amostras_estimada ?? ""} className={`${campo} text-right tabular-nums`} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-prazo-tecnico" className={lbl}>Prazo técnico (dias)</label>
+                    <input {...hydrationSafe} id="d-prazo-tecnico" name="prazo_tecnico_dias" type="number" min="1" step="1" defaultValue={demanda.prazo_tecnico_dias ?? ""} className={`${campo} text-right tabular-nums`} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-solicitacao" className={lbl}>Solicitado em</label>
+                    <input {...hydrationSafe} id="d-solicitacao" name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-prazo" className={lbl}>Prazo esperado</label>
+                    <input {...hydrationSafe} id="d-prazo" name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={campo} />
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset className={`${grupo} lg:col-span-2 2xl:col-span-3`}>
+                <legend className={legenda}>Textos</legend>
+                <div className="clear-both grid gap-x-2.5 gap-y-1.5 md:grid-cols-3">
+                  <div>
+                    <label htmlFor="d-descricao" className={lbl}>Descrição</label>
+                    <textarea {...hydrationSafe} id="d-descricao" name="descricao" rows={2} defaultValue={demanda.descricao ?? ""} className={areaTexto} />
+                  </div>
+                  <div>
+                    <label htmlFor="d-escopo" className={lbl}>
+                      Escopo preliminar <span className="font-normal">(texto inicial da proposta)</span>
+                    </label>
+                    <textarea {...hydrationSafe} id="d-escopo" name="escopo_preliminar" rows={2} defaultValue={demanda.escopo_preliminar ?? ""} className={areaTexto} />
+                  </div>
+                  <div>
+                    <label htmlFor="d-observacoes" className={lbl}>Observações internas</label>
+                    <textarea {...hydrationSafe} id="d-observacoes" name="observacoes" rows={2} defaultValue={demanda.observacoes ?? ""} className={areaTexto} />
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+          </SalvarDemandaForm>
+        </section>
+
+        <section id="acoes" className={`mt-3 scroll-mt-20 grid gap-3 lg:grid-cols-3 ${passo("demanda")}`}>
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <h2 className="text-sm font-semibold">Próximos módulos</h2>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">
-              A modalidade do orçamento controla quais módulos podem ser preenchidos.
-            </p>
+            <div className="flex items-center gap-1">
+              <h2 className="text-sm font-semibold">Próximos módulos</h2>
+              <HelpTip title="Próximos módulos">
+                <p>A modalidade do orçamento controla quais módulos podem ser preenchidos.</p>
+              </HelpTip>
+            </div>
             {!completudeDemanda.completa && (
               <div className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
                 Complete os dados antes de gerar módulos: {completudeDemanda.pendencias.join("; ")}.
@@ -509,18 +731,16 @@ export default async function DemandaDetalhe({
           </div>
         </section>
 
-        <section id="laboratorio" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("laboratorio")}`}>
+        <section id="laboratorio" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("laboratorio")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
                 <h2 className="text-sm font-semibold">Orçamento laboratorial</h2>
                 <HelpTip title="Custo × preço recebidos">
+                  <p>Custos das análises gerados a partir deste orçamento.</p>
                   <p>O <b>custo</b> das análises é o que entra na proposta. O <b>preço</b> é o de tabela, mostrado só como referência.</p>
                 </HelpTip>
               </div>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Custos de análises gerados a partir deste orçamento.
-              </p>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${statusClasse(moduloAnalises.status)}`}>
               {exigeAnalises ? `${moduloAnalises.label} · ${moduloAnalises.faltante}% faltante` : "Não se aplica"}
@@ -533,12 +753,13 @@ export default async function DemandaDetalhe({
             </div>
           ) : (
             <>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
-                <Info titulo="Orçamentos" texto={String(todosOrcamentosAnalises.length)} />
-                <Info titulo="Itens laboratoriais" texto={String(itensAnalises)} />
-                <Info titulo="Custo recebido" texto={brl(totalAnalisesCusto)} />
-                <Info titulo="Preço recebido" texto={brl(totalAnalisesPreco)} />
-              </div>
+              {/* Resumo numa linha (28/09): os cartões repetiam a tabela logo abaixo. */}
+              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
+                <span><span className="text-muted-foreground">Orçamentos</span> <b className="font-semibold">{todosOrcamentosAnalises.length}</b></span>
+                <span><span className="text-muted-foreground">Itens</span> <b className="font-semibold">{itensAnalises}</b></span>
+                <span><span className="text-muted-foreground">Custo recebido</span> <b className="font-semibold">{brl(totalAnalisesCusto)}</b></span>
+                <span><span className="text-muted-foreground">Preço de tabela</span> <b className="font-semibold">{brl(totalAnalisesPreco)}</b> <span className="text-xs text-muted-foreground">(referência)</span></span>
+              </p>
               <TabelaSimples
                 colunas={["Orçamento", "Status", "Data", "Itens", "Custo", "Preço", "Ação"]}
                 vazio="Nenhum orçamento laboratorial gerado."
@@ -562,7 +783,7 @@ export default async function DemandaDetalhe({
           )}
         </section>
 
-        <section id="projeto" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("projeto")}`}>
+        <section id="projeto" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("projeto")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Custos do projeto</h2>
@@ -622,13 +843,15 @@ export default async function DemandaDetalhe({
           />
         </section>
 
-        <section id="parametros" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
+        <section id="parametros" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Leitura dos custos recebidos e dos percentuais usados na consolidação final.
-              </p>
+              <div className="flex items-center gap-1">
+                <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
+                <HelpTip title="Parâmetros econômicos">
+                  <p>Custos recebidos e percentuais usados na consolidação final. Também dá para alterá-los na etapa Proposta, aba Interno.</p>
+                </HelpTip>
+              </div>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${podeConsolidar ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {podeConsolidar ? "Liberado" : "Aguardando revisão"}
@@ -666,29 +889,18 @@ export default async function DemandaDetalhe({
           />
         </section>
 
-        <section id="final" className={`mt-6 scroll-mt-20 space-y-4 ${passo("final")}`}>
+        <section id="final" className={`mt-3 scroll-mt-20 space-y-4 ${passo("final")}`}>
           {/* A — Cabeçalho da proposta + ações */}
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
+            {/* Total e emissão numa faixa só; título e cliente já estão no cabeçalho. */}
+            <div className="flex flex-wrap items-end justify-between gap-4 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
-                  Proposta final · Nº {demanda.id}
+                <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-brand-700 dark:text-brand-300">
+                  Total da proposta
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal ${STATUS_FINAL_CLS[statusFinal]}`}>
+                    {LABEL_STATUS_FINAL[statusFinal]}
+                  </span>
                 </p>
-                <h2 className="mt-1 text-lg font-semibold tracking-tight">{demanda.titulo}</h2>
-                <p className="mt-0.5 text-xs text-muted-foreground">
-                  {demanda.cliente_nome || "Cliente livre"} · {MODALIDADES[modalidadeCanonica] ?? demanda.modalidade}
-                  {versaoEmitidaVigente?.valido_ate ? ` · válida até ${formatDate(versaoEmitidaVigente.valido_ate)}` : ""}
-                </p>
-              </div>
-              <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${STATUS_FINAL_CLS[statusFinal]}`}>
-                {LABEL_STATUS_FINAL[statusFinal]}
-              </span>
-            </div>
-
-            {/* Total final acima da dobra */}
-            <div className="mt-4 flex flex-wrap items-end justify-between gap-4 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
-              <div>
-                <p className="text-[11px] font-medium uppercase tracking-wide text-brand-700 dark:text-brand-300">Total final</p>
                 <p className="mt-1 text-3xl font-semibold tabular-nums text-brand-800 dark:text-brand-200">{brl(orcamentoFinal.totalFinal)}</p>
               </div>
               <div className="flex flex-wrap items-end gap-2">
@@ -732,6 +944,12 @@ export default async function DemandaDetalhe({
                 )}
               </div>
             </div>
+            {versaoReformulada && (
+              <p role="note" className="mt-2 rounded-md bg-warning-soft px-3 py-1.5 text-xs text-warning-strong">
+                Reformulação da proposta {versaoReformulada.numero}: a versão emitida agora, quando aprovada, substitui a{" "}
+                {versaoReformulada.numero}, que fica no histórico.
+              </p>
+            )}
             {!podeEmitir && (
               <p className="mt-2 text-right text-xs text-warning-strong">
                 Emissão bloqueada:{" "}
@@ -744,52 +962,6 @@ export default async function DemandaDetalhe({
             )}
             {erroEmissao && (
               <p className="mt-3 rounded-md bg-danger-soft px-3 py-2 text-xs text-danger-strong">{erroEmissao}</p>
-            )}
-          </div>
-
-          {/* B — Resumo executivo */}
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-1">
-              <h3 className="text-sm font-semibold">Resumo executivo</h3>
-              <HelpTip title="Resumo executivo">
-                <p>O <b>subtotal técnico</b> soma os custos do laboratório e do projeto. O <b>total de parâmetros</b> é o que impostos, taxas e lucro acrescentam.</p>
-                <HelpExample>Subtotal de R$ 1.000 + parâmetros de R$ 333,33 = total final de R$ 1.333,33.</HelpExample>
-              </HelpTip>
-            </div>
-            <div className={`mt-3 grid gap-3 ${exigeProjeto ? "md:grid-cols-5" : "md:grid-cols-4"}`}>
-              <ResumoFinal titulo="Custo laboratório (técnico)" valor={orcamentoFinal.totalLaboratorioCusto} />
-              {exigeProjeto && <ResumoFinal titulo="Custo direto projeto" valor={orcamentoFinal.totalProjetoCusto} />}
-              <ResumoFinal titulo="Subtotal técnico" valor={orcamentoFinal.subtotalTecnico} />
-              <ResumoFinal titulo="Total de parâmetros" valor={orcamentoFinal.totalParametros} />
-              <ResumoFinal titulo="Total final" valor={orcamentoFinal.totalFinal} destaque />
-            </div>
-          </div>
-
-          {/* C — Resumo econômico */}
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center gap-1">
-              <h3 className="text-sm font-semibold">Resumo econômico</h3>
-              <HelpTip title="Gross-up">
-                <p>Impostos, taxas e lucro são percentuais do <b>preço final</b>, não do custo. Por isso o custo é dividido por 1 menos a soma dos percentuais; o resultado dessa conta é o <b>fator de gross-up</b>.</p>
-                <HelpFormula>total = custo ÷ (1 − soma dos %)</HelpFormula>
-                <HelpExample>Custo de R$ 1.000 e parâmetros somando 25%: fator 1 ÷ 0,75 = 1,3333 → total de R$ 1.333,33.</HelpExample>
-              </HelpTip>
-            </div>
-            <div className="mt-3 grid gap-3 md:grid-cols-3">
-              <Info titulo="Subtotal técnico" texto={brl(orcamentoFinal.subtotalTecnico)} />
-              <Info titulo="Soma dos parâmetros" texto={`${orcamentoFinal.somaPercentual.toLocaleString("pt-BR")}%`} />
-              <Info titulo="Fator de gross-up" texto={orcamentoFinal.fatorGrossUp.toLocaleString("pt-BR", { maximumFractionDigits: 4 })} />
-            </div>
-            {orcamentoFinal.parametrosProjeto.length > 0 && (
-              <TabelaSimples
-                colunas={["Parâmetro", "Percentual", "Valor nominal"]}
-                vazio="Sem parâmetros."
-                linhas={orcamentoFinal.parametrosProjeto.map((p) => [
-                  p.label,
-                  `${p.nominalRate.toLocaleString("pt-BR")}%`,
-                  brl(p.amount),
-                ])}
-              />
             )}
           </div>
 
@@ -814,93 +986,80 @@ export default async function DemandaDetalhe({
             </div>
           )}
 
-          {/* D — Composição da proposta (reconciliada) */}
-          <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-1">
-                <h3 className="text-sm font-semibold">Composição da proposta</h3>
-                <HelpTip title="Valor comercial">
-                  <p>O total final é repartido entre os itens conforme a <b>participação</b> de cada um no custo técnico. A soma das linhas sempre fecha com o total.</p>
-                  <HelpFormula>valor comercial = total final × participação</HelpFormula>
-                  <HelpExample>Item com 30% do custo e total de R$ 1.500 → R$ 450.</HelpExample>
-                </HelpTip>
-              </div>
-              <span className={`text-[11px] ${composicaoFinal.reconciliaOk ? "text-muted-foreground/80" : "font-medium text-warning-strong"}`}>
-                {composicaoFinal.reconciliaOk ? "Soma confere" : "Soma divergente"}
-              </span>
-            </div>
-            {composicaoFinal.linhas.length === 0 ? (
-              <p className="mt-3 text-xs text-muted-foreground/80">Nenhum componente com valor positivo para compor a proposta.</p>
+          {/* D — Mesmas abas da proposta emitida, com os valores atuais (28/09) */}
+          <div className="space-y-3">
+            <nav aria-label="Prévia da proposta" className="flex gap-1 border-b border-border">
+              {[
+                { id: "interno", rotulo: "Interno", href: `/orcamento/demandas/${demandaId}?etapa=final` },
+                { id: "documento", rotulo: "Documento do cliente (prévia)", href: `/orcamento/demandas/${demandaId}?etapa=final&aba=documento` },
+              ].map((t) => (
+                <Link
+                  key={t.id}
+                  href={t.href}
+                  aria-current={abaProposta === t.id ? "page" : undefined}
+                  className={`border-b-2 px-4 py-2 text-sm ${
+                    abaProposta === t.id
+                      ? "border-brand-600 font-semibold text-brand-800 dark:border-brand-400 dark:text-brand-200"
+                      : "border-transparent text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t.rotulo}
+                </Link>
+              ))}
+            </nav>
+            {abaProposta === "interno" ? (
+              <>
+                {erroParametros && (
+                  <p role="alert" className="rounded-md bg-danger-soft px-3 py-2 text-sm text-danger-strong">{erroParametros}</p>
+                )}
+                {parametrosSalvos === "1" && !erroParametros && (
+                  <p role="status" className="rounded-md bg-success-soft px-3 py-2 text-sm text-success-strong">Percentuais salvos.</p>
+                )}
+                <PainelInterno
+                  visao={podeVerPessoal ? visaoViva : mascararPessoalVisao(visaoViva)}
+                  fundos={{ ...montarFundos(visaoViva, null), hrefFundos: "/orcamento/fundos" }}
+                  subInicial={subParam}
+                  motivoSemPercentuais={autorizadoParametros ? null : "Alterar os percentuais exige o perfil de gestor do orçamento."}
+                  percentuais={
+                    autorizadoParametros
+                      ? {
+                          valores: parametrosProposta.rates,
+                          custoLaboratorio: orcamentoFinal.totalLaboratorioCusto,
+                          custoProjeto: orcamentoFinal.totalProjetoCusto,
+                          action: salvarParametrosEconomicosDaDemanda,
+                          campos: { demanda_id: demandaId, retorno: "final" },
+                          rotuloSalvar: "Salvar percentuais",
+                          aviso: "Os percentuais valem para este orçamento e entram na próxima emissão.",
+                        }
+                      : null
+                  }
+                />
+              </>
             ) : (
-              <TabelaSimples
-                colunas={["Componente", "Descrição", "Qtd", "Custo unit. téc.", "Subtotal téc.", "Participação", "Valor comercial", "Obs."]}
-                vazio="Sem componentes."
-                linhas={composicaoFinal.linhas.map((l) => [
-                  l.componente,
-                  l.descricao,
-                  String(l.quantidade),
-                  brl(l.custoUnitarioTecnico),
-                  brl(l.subtotalTecnico),
-                  `${(l.participacao * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`,
-                  brl(l.valorComercial),
-                  l.observacao ?? "—",
-                ])}
-              />
+              <>
+                {documentoPrevia.avisos.length > 0 && (
+                  <ul className="space-y-1 text-xs text-warning-strong">
+                    {documentoPrevia.avisos.map((a) => (
+                      <li key={a}>{a}</li>
+                    ))}
+                  </ul>
+                )}
+                <DocumentoProposta
+                  modelo={documentoPrevia}
+                  edicao={
+                    autorizadoTextos
+                      ? {
+                          action: salvarTextosDemanda,
+                          campos: { demanda_id: demandaId },
+                          textos: textosVivos,
+                          aviso: "Salvo neste orçamento. Entra no documento na próxima emissão.",
+                        }
+                      : null
+                  }
+                />
+              </>
             )}
           </div>
-
-          {/* E — Itens detalhados (custo técnico × preço snapshot), expansível */}
-          <details className="rounded-lg border border-border bg-card p-4 shadow-sm">
-            <summary className="cursor-pointer text-sm font-semibold">Detalhamento interno (custo técnico × preço de referência)</summary>
-            <div className="mt-3 space-y-4">
-              <p className="flex items-center gap-1 text-xs text-muted-foreground">
-                Só o custo técnico entra no total.
-                <HelpTip title="Custo técnico × preço de referência">
-                  <p>O <b>custo técnico</b> (insumos, horas e overhead) é a base da proposta. O <b>preço de referência</b> da tabela de análises aparece só para comparação.</p>
-                  <HelpExample>Custo de R$ 80 e preço de tabela de R$ 120: a proposta parte dos R$ 80 e acrescenta os parâmetros.</HelpExample>
-                </HelpTip>
-              </p>
-              {exigeAnalises && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Laboratório</p>
-                  <TabelaSimples
-                    colunas={["Análise", "Amostras", "Custo unit. (técnico)", "Preço unit. (referência)", "Custo total"]}
-                    vazio="Sem itens laboratoriais."
-                    linhas={itensLaboratorioFlat.map((item, i) => [
-                      item.codigo_analise ?? `Item ${i + 1}`,
-                      String(item.n_amostras ?? 0),
-                      brl(Number(item.custo_unitario ?? 0)),
-                      brl(Number(item.preco_unitario ?? 0)),
-                      brl(Number(item.custo_unitario ?? 0) * Number(item.n_amostras ?? 0)),
-                    ])}
-                  />
-                </div>
-              )}
-              {exigeProjeto && (
-                <div>
-                  <p className="text-xs font-semibold text-muted-foreground">Projeto</p>
-                  <TabelaSimples
-                    colunas={["Rubrica", "Quantidade", "Custo unit. (técnico)", "Custo total"]}
-                    vazio="Sem custos de projeto."
-                    linhas={custosProjetoFlat.map((item, i) => [
-                      item.rubrica ?? `Item ${i + 1}`,
-                      String(
-                        item.rubrica === "PE" && (item.meses_selecionados?.length ?? 0) > 0
-                          ? item.meses_selecionados!.length
-                          : item.quantidade ?? 0,
-                      ),
-                      brl(Number(item.custo_unitario ?? 0)),
-                      brl(
-                        (item.rubrica === "PE" && (item.meses_selecionados?.length ?? 0) > 0
-                          ? item.meses_selecionados!.length
-                          : Number(item.quantidade ?? 0)) * Number(item.custo_unitario ?? 0),
-                      ),
-                    ])}
-                  />
-                </div>
-              )}
-            </div>
-          </details>
 
           {/* G — Histórico resumido */}
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -932,127 +1091,8 @@ export default async function DemandaDetalhe({
           </div>
         </section>
 
-        <section id="demanda" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("demanda")}`}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Dados do orçamento</h2>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                Identificação, classificação e escopo inicial que liberam os módulos seguintes.
-              </p>
-            </div>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-              {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
-            </span>
-          </div>
-          <SalvarDemandaForm>
-            <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
-            <div className="sm:col-span-2">
-              <label className={lbl}>Título</label>
-              <input {...hydrationSafe} name="titulo" defaultValue={demanda.titulo ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Cliente cadastrado</label>
-              <select {...hydrationSafe} name="cliente_id" defaultValue={demanda.cliente_id ?? ""} className={`${inp} mt-1 w-full`}>
-                <option value="">Sem cadastro</option>
-                {(clientes ?? []).map((c) => (
-                  <option key={c.id} value={c.id}>{c.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Projeto</label>
-              <select {...hydrationSafe} name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={`${inp} mt-1 w-full`}>
-                <option value="">—</option>
-                {(projetos ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Nome do cliente</label>
-              <input {...hydrationSafe} name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>CNPJ/CPF</label>
-              <input {...hydrationSafe} name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Contato</label>
-              <input {...hydrationSafe} name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label htmlFor="orcamento-instituicao" className={lbl}>Instituição emissora (cabeçalho da proposta)</label>
-              <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={`${inp} mt-1 w-full`}>
-                <option value="">Escolha…</option>
-                {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Responsável interno</label>
-              <input {...hydrationSafe} name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Origem</label>
-              <input {...hydrationSafe} name="origem" defaultValue={demanda.origem ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Data da solicitação</label>
-              <input {...hydrationSafe} name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Prazo esperado</label>
-              <input {...hydrationSafe} name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Matriz ou tipo de amostra</label>
-              <input {...hydrationSafe} name="matriz_amostra" defaultValue={demanda.matriz_amostra ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Quantidade estimada de amostras</label>
-              <input {...hydrationSafe} name="quantidade_amostras_estimada" type="number" min="1" step="1" defaultValue={demanda.quantidade_amostras_estimada ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Prazo técnico estimado (dias)</label>
-              <input {...hydrationSafe} name="prazo_tecnico_dias" type="number" min="1" step="1" defaultValue={demanda.prazo_tecnico_dias ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Modalidade</label>
-              <select {...hydrationSafe} name="modalidade" defaultValue={demanda.modalidade ?? "analises"} className={`${inp} mt-1 w-full`}>
-                {opcoesModalidade.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <p className={lbl}>Situação</p>
-              <p className="mt-1 text-sm font-medium">{rotuloStatusOrcamento(demanda.status)}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground/80">Muda sozinha: emitir a proposta, aprovar ou cancelar.</p>
-            </div>
-            <div>
-              <label className={lbl}>Prioridade</label>
-              <select {...hydrationSafe} name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={`${inp} mt-1 w-full`}>
-                <option value="baixa">Baixa</option>
-                <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="urgente">Urgente</option>
-              </select>
-            </div>
-            <div>
-              <label className={lbl}>Descrição</label>
-              <textarea {...hydrationSafe} name="descricao" rows={4} defaultValue={demanda.descricao ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div>
-              <label className={lbl}>Escopo preliminar</label>
-              <textarea {...hydrationSafe} name="escopo_preliminar" rows={4} defaultValue={demanda.escopo_preliminar ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-            <div className="sm:col-span-2">
-              <label className={lbl}>Observações</label>
-              <textarea {...hydrationSafe} name="observacoes" rows={3} defaultValue={demanda.observacoes ?? ""} className={`${inp} mt-1 w-full`} />
-            </div>
-          </SalvarDemandaForm>
-        </section>
 
-        <section id="historico" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("historico")}`}>
+        <section id="historico" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("historico")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Histórico e auditoria</h2>
@@ -1163,35 +1203,6 @@ function ModuloAcao({
         Criar orçamento {rotulo}
       </button>
     </form>
-  );
-}
-
-function Info({ titulo, texto }: { titulo: string; texto: string | null }) {
-  return (
-    <div className="rounded-lg bg-muted/50 p-3">
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-sm font-medium">{texto || "—"}</p>
-    </div>
-  );
-}
-
-function Texto({ titulo, texto }: { titulo: string; texto: string | null }) {
-  return (
-    <div>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{titulo}</h3>
-      <p className="mt-1 whitespace-pre-wrap leading-6 text-foreground">{texto || "—"}</p>
-    </div>
-  );
-}
-
-function ResumoFinal({ titulo, valor, destaque = false }: { titulo: string; valor: number; destaque?: boolean }) {
-  return (
-    <div className={`rounded-md border p-3 ${destaque ? "border-brand-200 bg-brand-50 dark:border-brand-900 dark:bg-brand-950/30" : "border-border"}`}>
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className={`mt-1 text-base font-semibold tabular-nums ${destaque ? "text-brand-700 dark:text-brand-300" : ""}`}>
-        {brl(valor)}
-      </p>
-    </div>
   );
 }
 

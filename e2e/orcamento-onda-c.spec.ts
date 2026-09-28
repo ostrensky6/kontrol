@@ -32,6 +32,10 @@ test("lista: resumo em uma linha e fase como filtro em lista suspensa", async ({
   const fase = page.getByRole("combobox", { name: "Filtrar por Fase" });
   await fase.selectOption("Em elaboração");
   await expect(page.getByRole("status").filter({ hasText: / de \d+/ })).toBeVisible();
+  // Modalidade, Completude e Projeto ficam em "Mais filtros", como no Histórico
+  await expect(page.getByRole("combobox", { name: "Filtrar por Modalidade" })).toBeHidden();
+  await page.getByText("Mais filtros").click();
+  await expect(page.getByRole("combobox", { name: "Filtrar por Modalidade" })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Emitida" })).toHaveCount(0);
 });
 

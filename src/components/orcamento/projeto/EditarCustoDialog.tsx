@@ -4,6 +4,8 @@ import { useId, useState } from "react";
 import { useFormStatus } from "react-dom";
 import { Pencil } from "lucide-react";
 
+import { CLASSE_BOTAO_ICONE, IconeAcao } from "@/components/common/IconeAcao";
+
 import {
   Dialog,
   DialogContent,
@@ -17,9 +19,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
+const RUBRICAS = [
+  ["PE", "PE · Pessoal"],
+  ["MC", "MC · Material de consumo"],
+  ["MP", "MP · Material permanente"],
+  ["ST", "ST · Serviços de terceiros"],
+  ["VD", "VD · Viagens e diárias"],
+  ["OU", "OU · Outros"],
+] as const;
+
 export type CustoEditavel = {
   id: number;
   rubrica: string;
+  catalogo_item_id?: string | null;
   descricao: string;
   unidade: string | null;
   quantidade: number;
@@ -42,31 +54,41 @@ function Salvar() {
   );
 }
 
-/** Edita uma linha de custo em diálogo (Radix: prende o foco, fecha com Esc). */
+/**
+ * Edita uma linha de custo em diálogo (Radix: prende o foco, fecha com Esc). A rubrica pode ser
+ * trocada (Fase C); isso solta o vínculo com o catálogo e limpa os meses do pessoal.
+ */
 export function EditarCustoDialog({
   item,
   orcamentoProjetoId,
   demandaId,
   action,
+  podePessoal,
 }: {
   item: CustoEditavel;
   orcamentoProjetoId: number;
   demandaId: number;
   action: AcaoFormulario;
+  /** Sem a permissão de pessoal, PE não aparece como destino. */
+  podePessoal: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [rubrica, setRubrica] = useState(item.rubrica);
   const id = useId();
-  const pessoal = item.rubrica === "PE";
+  const pessoal = rubrica === "PE";
+  const trocouRubrica = rubrica !== item.rubrica;
 
   return (
-    <Dialog open={aberto} onOpenChange={setAberto}>
+    <Dialog
+      open={aberto}
+      onOpenChange={(proximo) => {
+        setAberto(proximo);
+        if (proximo) setRubrica(item.rubrica);
+      }}
+    >
       <DialogTrigger asChild>
-        <button
-          type="button"
-          aria-label={`Editar ${item.descricao}`}
-          className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-        >
-          <Pencil className="size-4" aria-hidden />
+        <button type="button" className={CLASSE_BOTAO_ICONE}>
+          <IconeAcao icone={Pencil} rotulo={`Editar ${item.descricao}`} />
         </button>
       </DialogTrigger>
       <DialogContent className="max-w-lg text-left">
@@ -82,6 +104,28 @@ export function EditarCustoDialog({
           <input type="hidden" name="orcamento_projeto_id" value={orcamentoProjetoId} />
           <input type="hidden" name="demanda_id" value={demandaId} />
           <input type="hidden" name="item_id" value={item.id} />
+          <div className="sm:col-span-2">
+            <Label htmlFor={`${id}-rubrica`}>Rubrica</Label>
+            <select
+              id={`${id}-rubrica`}
+              name="rubrica"
+              value={rubrica}
+              onChange={(evento) => setRubrica(evento.target.value)}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+            >
+              {RUBRICAS.filter(([codigo]) => podePessoal || codigo !== "PE" || item.rubrica === "PE").map(([codigo, nome]) => (
+                <option key={codigo} value={codigo}>
+                  {nome}
+                </option>
+              ))}
+            </select>
+            {trocouRubrica && (
+              <p className="mt-1 text-xs text-warning-strong">
+                Trocar a rubrica solta o vínculo com o catálogo{item.rubrica === "PE" || rubrica === "PE" ? " e limpa os meses do pessoal" : ""}: na
+                conclusão, o item conta como digitado.
+              </p>
+            )}
+          </div>
           <div className="sm:col-span-2">
             <Label htmlFor={`${id}-descricao`}>Descrição</Label>
             <Input id={`${id}-descricao`} name="descricao" required defaultValue={item.descricao} className="mt-1" />

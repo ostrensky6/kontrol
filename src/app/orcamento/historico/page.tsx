@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Ban, Copy, Search, SlidersHorizontal } from "lucide-react";
+import { CLASSE_BOTAO_ICONE, CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 import { LinhaExpansivel } from "@/components/common/LinhaExpansivel";
 import { SubmitButton } from "@/components/common/SubmitButton";
 
@@ -83,6 +84,8 @@ type VersaoFinal = {
   versao: number;
   numero: string;
   status: string;
+  /** Versão aprovada que esta reformula (0139). */
+  reformulacao_de?: number | null;
   validade_dias: number;
   valido_ate: string | null;
   total_final: number;
@@ -140,7 +143,7 @@ export default async function HistoricoOrcamentosPage({
   const { data, error } = await db
     .from("orcamento_final_versoes")
     .select(
-      "id, demanda_id, versao, numero, status, validade_dias, valido_ate, total_final, total_laboratorio_custo, total_laboratorio_preco, total_projeto_custo, total_projeto_final, criado_por, criado_em, duplicada_de_id, cancelado_em, cancelado_motivo, classificado_em, classificacao_motivo, snapshot, demandas_propostas(id, titulo, cliente_nome, responsavel_interno, modalidade)",
+      "id, demanda_id, versao, numero, status, reformulacao_de, validade_dias, valido_ate, total_final, total_laboratorio_custo, total_laboratorio_preco, total_projeto_custo, total_projeto_final, criado_por, criado_em, duplicada_de_id, cancelado_em, cancelado_motivo, classificado_em, classificacao_motivo, snapshot, demandas_propostas(id, titulo, cliente_nome, responsavel_interno, modalidade)",
     )
     .order("criado_em", { ascending: false });
   if (error) throw new Error(error.message);
@@ -173,10 +176,12 @@ export default async function HistoricoOrcamentosPage({
     podeOrcamento("cancelar_documento"),
     podeOrcamento("classificar_final"),
   ]);
-  // Uma versão viva por proposta: com versão aprovada, nenhuma outra é aprovada nem duplicada.
-  const propostasAprovadas = new Set(
-    lidas.filter((v) => (STATUS_APROVADOS as readonly string[]).includes(v.status)).map((v) => v.demanda_id),
+  // Uma versão viva por proposta: com versão aprovada, nenhuma outra é aprovada nem duplicada —
+  // exceto a reformulação dela (0139), que ao ser aprovada a substitui.
+  const aprovadaPorProposta = new Map(
+    lidas.filter((v) => (STATUS_APROVADOS as readonly string[]).includes(v.status)).map((v) => [v.demanda_id, v.id]),
   );
+  const propostasAprovadas = new Set(aprovadaPorProposta.keys());
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -355,7 +360,10 @@ export default async function HistoricoOrcamentosPage({
                                 status: item.status,
                                 valido_ate: item.valido_ate,
                                 hoje,
-                                outraAprovada: propostasAprovadas.has(item.demanda_id) && !(STATUS_APROVADOS as readonly string[]).includes(item.status),
+                                outraAprovada:
+                                  propostasAprovadas.has(item.demanda_id) &&
+                                  !(STATUS_APROVADOS as readonly string[]).includes(item.status) &&
+                                  item.reformulacao_de !== aprovadaPorProposta.get(item.demanda_id),
                               })}
                             />
                           )}
@@ -412,14 +420,17 @@ export default async function HistoricoOrcamentosPage({
                                 <input type="hidden" name="versao_id" value={item.id} />
                                 <input type="hidden" name="validade_dias" value={item.validade_dias || 30} />
                                 <input type="hidden" name="operacao_id" value={operacoesDuplicacao.get(item.id)} />
-                                <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
+                                <SubmitButton variant="ghost" size="icon" className={CLASSE_BOTAO_ICONE} pendingLabel="…">
+                                  <IconeAcao icone={Copy} rotulo={`Duplicar a versão ${item.numero}`} />
+                                </SubmitButton>
                               </form>
                             )}
                             {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(item.status) && (
                               <CancelarComMotivo
                                 action={cancelarVersaoFinal}
                                 fields={{ versao_id: item.id }}
-                                trigger="Cancelar"
+                                trigger={<IconeAcao icone={Ban} rotulo={`Cancelar a versão ${item.numero}`} />}
+                                triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
                                 titulo="Cancelar versão final"
                                 mensagem={item.status === "aprovado"
                                   ? `Cancelar a versão aprovada ${item.numero}? O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas.`

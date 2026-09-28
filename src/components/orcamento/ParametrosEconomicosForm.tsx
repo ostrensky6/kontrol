@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, type ReactNode } from "react";
 import {
   salvarParametrosEconomicos,
   type ParametrosEconomicosState,
 } from "@/lib/actions/orcamentos";
 import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { HelpTip } from "@/components/common/HelpTip";
 
 type ParametroCampo = {
   chave:
@@ -82,8 +83,11 @@ const CAMPOS: ParametroCampo[] = [
 
 export function ParametrosEconomicosForm({
   valores,
+  cabecalho,
 }: {
   valores: Record<ParametroCampo["chave"], number>;
+  /** Título do bloco; fica na mesma linha do botão Salvar. */
+  cabecalho?: ReactNode;
 }) {
   const [state, action, pending] = useActionState<
     ParametrosEconomicosState,
@@ -91,26 +95,38 @@ export function ParametrosEconomicosForm({
   >(salvarParametrosEconomicos, { ok: false });
 
   // §8.2: o percentual/valor que o usuário define é entrada -> azul (TOM_ENTRADA).
+  // Campos de 32 px e largura curta (28/09): as seis premissas cabem numa linha.
   const inputBase =
-    `mt-1 w-full rounded-md border bg-card px-3 py-2 text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-brand-500 ${TOM_ENTRADA}`;
+    `h-8 w-full rounded-md border bg-card pl-2.5 pr-11 text-sm font-medium tabular-nums focus:outline-none focus:ring-1 focus:ring-brand-500 ${TOM_ENTRADA}`;
 
   return (
-    <form action={action} {...formularioSemPerda(state)} className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2">
+    // Grade: título e Salvar na primeira linha, os seis campos na segunda. O botão
+    // vem depois dos campos no DOM, para a ordem do Tab seguir o preenchimento.
+    <form
+      action={action}
+      {...formularioSemPerda(state)}
+      className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1"
+    >
+      <div className="col-start-1 row-start-1 min-w-0">{cabecalho}</div>
+      <div className="col-span-2 row-start-2 grid grid-cols-2 gap-x-3 gap-y-2 md:grid-cols-3 xl:grid-cols-6">
         {CAMPOS.map((campo) => {
           const erro = state.errors?.[campo.chave];
           return (
-            <div
-              key={campo.chave}
-              className="rounded-lg border border-border bg-card p-4 shadow-sm"
-            >
-              <label
-                htmlFor={campo.chave}
-                className="block text-sm font-semibold text-foreground"
-              >
-                {campo.label}
-              </label>
-              <div className="mt-1 flex items-center gap-2">
+            <div key={campo.chave} className="min-w-0">
+              <div className="flex h-5 items-center gap-0.5">
+                <label
+                  htmlFor={campo.chave}
+                  className="truncate text-xs font-medium text-muted-foreground"
+                  title={campo.label}
+                >
+                  {campo.label}
+                  <span className="sr-only"> ({campo.unidade})</span>
+                </label>
+                <HelpTip title={campo.label} className="h-6 w-6">
+                  <p>{campo.ajuda}</p>
+                </HelpTip>
+              </div>
+              <div className="relative mt-0.5 max-w-40">
                 <input
                   id={campo.chave}
                   name={campo.chave}
@@ -120,21 +136,24 @@ export function ParametrosEconomicosForm({
                   min={campo.min}
                   max={campo.max}
                   defaultValue={valores[campo.chave]}
+                  aria-invalid={erro ? true : undefined}
+                  aria-describedby={erro ? `${campo.chave}-erro` : undefined}
                   className={`${inputBase} ${
                     erro
                       ? "border-danger-strong/40 focus:border-danger-strong"
                       : "border-input focus:border-brand-500"
                   }`}
                 />
-                <span className="min-w-10 rounded-md border border-border bg-muted/50 px-2 py-2 text-center text-xs font-medium text-muted-foreground">
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-xs font-medium text-muted-foreground"
+                >
                   {campo.unidade}
                 </span>
               </div>
-              {erro ? (
-                <p className="mt-2 text-xs text-danger-strong">{erro}</p>
-              ) : (
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  {campo.ajuda}
+              {erro && (
+                <p id={`${campo.chave}-erro`} className="mt-1 text-xs text-danger-strong">
+                  {erro}
                 </p>
               )}
             </div>
@@ -142,9 +161,17 @@ export function ParametrosEconomicosForm({
         })}
       </div>
 
+      <button
+        disabled={pending}
+        className="col-start-2 row-start-1 h-8 rounded-md bg-brand-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-brand-500 disabled:opacity-50"
+      >
+        {pending ? "Salvando..." : "Salvar parâmetros"}
+      </button>
+
       {state.message && (
         <p
-          className={`rounded-md px-3 py-2 text-sm ${
+          role="status"
+          className={`col-span-2 row-start-3 mt-1 rounded-md px-3 py-1.5 text-sm ${
             state.ok
               ? "bg-brand-50 text-brand-700 dark:bg-brand-950/30 dark:text-brand-300"
               : "bg-danger-soft text-danger-strong"
@@ -153,15 +180,6 @@ export function ParametrosEconomicosForm({
           {state.message}
         </p>
       )}
-
-      <div className="flex justify-end">
-        <button
-          disabled={pending}
-          className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-500 disabled:opacity-50"
-        >
-          {pending ? "Salvando..." : "Salvar parâmetros"}
-        </button>
-      </div>
     </form>
   );
 }

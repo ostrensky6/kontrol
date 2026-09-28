@@ -4,7 +4,12 @@ import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { formatCurrency } from "@/lib/formatters";
 import { exportOrcamentoFinalDocx, exportOrcamentoFinalXlsx } from "./final-exporters";
+import { montarDocumentoProposta } from "./documento-proposta";
+import { empresaDeRegistro } from "./empresas-emissoras";
+import { resolverIdentidadeComAviso } from "./identidade-institucional";
 import { montarPropostaFinalExport } from "./proposta-final-export";
+import { textosDaVersao } from "./textos-proposta";
+import { entradaDoSnapshot, montarVisaoInterna } from "./visao-interna";
 
 vi.mock("file-saver", () => ({ saveAs: vi.fn() }));
 const saveAsMock = vi.mocked(saveAs);
@@ -42,6 +47,18 @@ const propostaBase = {
 };
 const dados = montarPropostaFinalExport(propostaBase);
 
+/** Documento do cliente montado como a página faz (visão interna + textos + empresa). */
+function documento(base: typeof propostaBase, empresa: unknown = null) {
+  const { identidade } = resolverIdentidadeComAviso(base.demanda.instituicao);
+  return montarDocumentoProposta({
+    versao: base.versao,
+    demanda: base.demanda,
+    visao: montarVisaoInterna(entradaDoSnapshot(base.snapshot, base.versao.total_final)),
+    textos: textosDaVersao({ coluna: null, snapshot: base.snapshot, escopoLegado: base.demanda.escopo_preliminar, validadeTexto: "Valores válidos por 30 dias a partir da emissão." }),
+    empresa: empresa ? empresaDeRegistro(empresa, identidade) : null,
+  });
+}
+
 describe("exportOrcamentoFinalXlsx (reconciliado)", () => {
   beforeEach(() => saveAsMock.mockClear());
 
@@ -62,7 +79,7 @@ describe("exportOrcamentoFinalXlsx (reconciliado)", () => {
       "Detalhamento técnico",
     ]);
     expect(wb.creator).toBe("Kontrol - ATGC");
-    expect(wb.getWorksheet("Proposta")!.getCell("B1").value).toBe("ATGC Genética Ambiental Limitada");
+    expect(wb.getWorksheet("Proposta")!.getCell("B1").value).toBe("ATGC Genética Ambiental Ltda.");
     // a soma dos valores comerciais deve reconciliar com o total final (350)
     const comercial = wb.getWorksheet("Composição comercial")!;
     let soma = 0;
@@ -88,17 +105,14 @@ describe("exportOrcamentoFinalDocx (documento do cliente)", () => {
   beforeEach(() => saveAsMock.mockClear());
 
   it("gera DOCX nomeado como proposta pelo numero da versao final", async () => {
-    await exportOrcamentoFinalDocx(dados);
+    await exportOrcamentoFinalDocx(documento(propostaBase));
     expect(saveAsMock).toHaveBeenCalledTimes(1);
     expect(saveAsMock.mock.calls[0][1]).toBe("proposta-OF-2026-0001-v1.docx");
     expect((saveAsMock.mock.calls[0][0] as Blob).size).toBeGreaterThan(1000);
   });
 
   it("traz só o que o cliente vê: sem margem, parâmetros nem custo técnico", async () => {
-    await exportOrcamentoFinalDocx(montarPropostaFinalExport({
-      ...propostaBase,
-      snapshot: { ...propostaBase.snapshot, consolidado: { ...propostaBase.snapshot.consolidado, economia: undefined } },
-    }));
+    await exportOrcamentoFinalDocx(documento(propostaBase));
     const texto = await textoDoDocx(saveAsMock.mock.calls[0][0] as Blob);
 
     for (const interno of [
@@ -106,7 +120,6 @@ describe("exportOrcamentoFinalDocx (documento do cliente)", () => {
       "Parâmetros econômicos",
       "Subtotal técnico",
       "Soma dos parâmetros",
-      "Impostos",
       "gross-up",
       "total_final",
       "Participação",
@@ -114,13 +127,16 @@ describe("exportOrcamentoFinalDocx (documento do cliente)", () => {
       "custo unit",
       "fator",
       "regra econômica anterior",
+      "Kontrol",
     ]) {
       expect(texto.toLowerCase(), `não pode conter "${interno}"`).not.toContain(interno.toLowerCase());
     }
+    // "impostos" só como aviso ao cliente de que estão inclusos, nunca como linha de parâmetro
+    expect(texto.toLowerCase().replace(/impostos inclusos/g, "")).not.toContain("impostos");
   });
 
   it("mostra proposta, cliente, serviços, total e condições com datas legíveis", async () => {
-    await exportOrcamentoFinalDocx(dados);
+    await exportOrcamentoFinalDocx(documento(propostaBase));
     const texto = await textoDoDocx(saveAsMock.mock.calls[0][0] as Blob);
 
     expect(texto).toContain("Proposta comercial");
@@ -132,6 +148,18 @@ describe("exportOrcamentoFinalDocx (documento do cliente)", () => {
     expect(texto).toContain("21/06/2026");
     expect(texto).toContain("20/07/2026");
     expect(texto).not.toContain("2026-06-21T");
+  });
+
+  it("traz os dados cadastrais da empresa emissora e o nome dela como autora", async () => {
+    await exportOrcamentoFinalDocx(documento(propostaBase, { nome_legal: "ATGC Genética Ambiental Ltda.", cnpj: "12.345.678/0001-90", endereco: "Rua A, 1 - Curitiba/PR" }));
+    const blob = saveAsMock.mock.calls[0][0] as Blob;
+    const texto = await textoDoDocx(blob);
+    expect(texto).toContain("CNPJ 12.345.678/0001-90");
+    expect(texto).toContain("Rua A, 1 - Curitiba/PR");
+    const zip = await JSZip.loadAsync(await blob.arrayBuffer());
+    const core = await zip.file("docProps/core.xml")!.async("string");
+    expect(core).toContain("ATGC Genética Ambiental Ltda.");
+    expect(core).not.toContain("Kontrol");
   });
 
   it("gera XLSX GIA com criador e instituição GIA", async () => {
