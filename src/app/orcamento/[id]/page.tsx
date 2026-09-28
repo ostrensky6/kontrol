@@ -451,9 +451,15 @@ export default async function OrcamentoDetalhe({
                           <input type="hidden" name="orcamento_id" value={orcId} />
                           <input type="hidden" name="codigo_analise" value={linha.codigo} />
                           <input type="hidden" name="acao" value="remover" />
-                          <button className="text-xs text-danger-strong hover:underline" aria-label={`Remover ${linha.codigo}`}>
+                          <SubmitButton
+                            variant="link"
+                            size="sm"
+                            pendingLabel="Removendo…"
+                            className="h-auto p-0 text-xs text-danger-strong"
+                            aria-label={`Remover ${linha.codigo}`}
+                          >
                             Remover
-                          </button>
+                          </SubmitButton>
                         </FormEstado>
                       )}
                     </td>
@@ -817,9 +823,10 @@ function TabelaCatalogoAnalises({
     "w-24 rounded-md border border-input bg-card px-2 py-1.5 text-right text-sm font-medium text-brand-700 dark:text-brand-300";
 
   return (
-    <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-      <table className="w-full min-w-[980px] text-right text-sm">
-        <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+    <div className="mt-3 rounded-lg border border-border md:overflow-x-auto">
+      {/* No celular cada análise vira um cartão (mesma tabela, só CSS): código e nome em cima. */}
+      <table className="w-full text-sm md:min-w-[980px] md:text-right">
+        <thead className="hidden bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground md:table-header-group">
           <tr>
             <th className="px-3 py-2 text-left">Incluir</th>
             <th className="px-3 py-2 text-left">Código</th>
@@ -834,7 +841,7 @@ function TabelaCatalogoAnalises({
             <th className="px-3 py-2"></th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-border/70">
+        <tbody className="block divide-y divide-border/70 md:table-row-group">
           {analises.map((analise) => {
             const item = itensPorCodigo.get(analise.codigo);
             const selecionada = Boolean(item);
@@ -842,8 +849,11 @@ function TabelaCatalogoAnalises({
             const amostras = Number(item?.n_amostras ?? 1);
             const subtotal = selecionada ? custoUnitario * amostras : 0;
             return (
-              <tr key={analise.codigo} className={selecionada ? "bg-brand-50/40 dark:bg-brand-950/10" : ""}>
-                <td className="px-3 py-2 text-left">
+              <tr
+                key={analise.codigo}
+                className={`grid grid-cols-2 gap-x-3 gap-y-2 p-3 md:table-row md:p-0 ${selecionada ? "bg-brand-50/40 dark:bg-brand-950/10" : ""}`}
+              >
+                <td data-label="Incluir" className="order-6 self-end md:order-none md:table-cell md:px-3 md:py-2 md:text-left">
                   {bloqueado ? (
                     <span className="text-xs text-muted-foreground">{selecionada ? "Incluída" : "—"}</span>
                   ) : (
@@ -852,30 +862,33 @@ function TabelaCatalogoAnalises({
                     <input type="hidden" name="codigo_analise" value={analise.codigo} />
                     <input type="hidden" name="n_amostras" value={amostras} />
                     <input type="hidden" name="acao" value={selecionada ? "remover" : "incluir"} />
-                    <button
-                      className={`rounded-md border px-2.5 py-1 text-xs font-medium ${
+                    <SubmitButton
+                      variant="outline"
+                      size="sm"
+                      pendingLabel={selecionada ? "Removendo…" : "Incluindo…"}
+                      className={`h-auto px-2.5 py-1 text-xs max-md:min-h-11 max-md:w-full ${
                         selecionada
                           ? "border-danger-strong/30 text-danger-strong hover:bg-danger-soft"
                           : "border-brand-200 text-brand-700 hover:bg-brand-50 dark:border-brand-900 dark:text-brand-300"
                       }`}
                     >
                       {selecionada ? "Remover" : "Incluir"}
-                    </button>
+                    </SubmitButton>
                   </FormEstado>
                   )}
                 </td>
-                <td className="px-3 py-2 text-left font-semibold">{analise.codigo}</td>
-                <td className="max-w-xs px-3 py-2 text-left text-foreground">{analise.nome ?? "—"}</td>
-                <td className="px-3 py-2 tabular-nums">{analise.breakdown?.lote ?? "—"}</td>
-                <td className="px-3 py-2 tabular-nums">{brl(custoUnitario)}</td>
-                <td className="px-3 py-2 text-xs text-muted-foreground">
+                <td className="order-1 col-span-2 font-semibold md:order-none md:table-cell md:px-3 md:py-2 md:text-left">{analise.codigo}</td>
+                <td className="order-2 col-span-2 -mt-2 text-foreground md:order-none md:mt-0 md:table-cell md:max-w-xs md:px-3 md:py-2 md:text-left">{analise.nome ?? "—"}</td>
+                <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
+                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
+                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   R {brl(Number(analise.breakdown?.reagentes ?? 0))} · E {brl(Number(analise.breakdown?.equipamento ?? 0))} · P {brl(Number(analise.breakdown?.pessoal ?? 0))} · O {brl(Number(analise.breakdown?.overhead ?? 0))}
                 </td>
-                <td className="px-3 py-2">
+                <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   {selecionada && bloqueado ? (
                     <span className="tabular-nums">{amostras}</span>
                   ) : selecionada ? (
-                    <FormEstado action={salvarItemOrcamento} className="flex flex-wrap justify-end gap-2" mensagemClassName="w-full text-right text-xs">
+                    <FormEstado action={salvarItemOrcamento} className="flex flex-wrap gap-2 md:justify-end" mensagemClassName="w-full text-xs md:text-right">
                       <input type="hidden" name="orcamento_id" value={orcId} />
                       <input type="hidden" name="codigo_analise" value={analise.codigo} />
                       <input type="hidden" name="acao" value="quantidade" />
@@ -888,16 +901,16 @@ function TabelaCatalogoAnalises({
                         defaultValue={amostras}
                         className={inputClass}
                       />
-                      <button className="rounded-md border border-input px-2 py-1 text-xs hover:bg-muted">
+                      <SubmitButton variant="outline" size="sm" pendingLabel="Salvando…" className="h-auto px-2 py-1 text-xs max-md:min-h-11">
                         Salvar
-                      </button>
+                      </SubmitButton>
                     </FormEstado>
                   ) : (
                     <span className="text-muted-foreground/80">—</span>
                   )}
                 </td>
-                <td className="px-3 py-2 font-semibold tabular-nums">{brl(subtotal)}</td>
-                <td className="px-3 py-2 text-left text-xs text-muted-foreground">
+                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-3 md:py-2 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
+                <td className="order-8 self-center text-xs text-muted-foreground md:order-none md:table-cell md:px-3 md:py-2 md:text-left">
                   {selecionada ? "No orçamento" : "Fora do subtotal"}
                 </td>
               </tr>
