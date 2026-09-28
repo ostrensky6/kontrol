@@ -1,7 +1,8 @@
 # Orçamento de projeto: catálogo vivo de custos (desenho)
 
-Data: 2026-09-28 · Situação: **decisões do dono tomadas (DC1–DC8); fases A, B e D (edição do catálogo)
-implementadas em 28/09** na branch `claude/catalogo-vivo-projeto` (1.2.2, migrations 0137 e 0138, só no banco local).
+Data: 2026-09-28 · Situação: **decisões do dono tomadas (DC1–DC8); fases A, B, C, D e E implementadas em
+28/09** na branch `claude/catalogo-vivo-projeto` (1.2.2, migrations 0137 a 0140, só no banco local). A 0140
+(pessoal nas linhas de custo só com a permissão) completa a DC8 fora do catálogo.
 Relatório: `docs/catalogo-vivo-projeto-2026-09-28.md`.
 Base de código: branch `claude/budget-module-reorganization-143e54` (1.2.1). A execução começa depois que a sessão
 aberta nessa branch fizer commit do que está editando (Modelos, Parâmetros, Governança, formulário do orçamento).
