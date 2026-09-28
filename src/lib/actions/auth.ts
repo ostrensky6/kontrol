@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
-import { SENHA_PROVISORIA } from "@/lib/auth/senha-provisoria";
+import { SENHA_PROVISORIA_LEGADA, senhaProvisoriaVencida } from "@/lib/auth/senha-provisoria";
 import type { FormState } from "./cadastros";
 
 function mensagemErroLogin(error: { code?: string; message?: string } | null) {
@@ -26,17 +26,20 @@ export async function entrar(_prev: FormState, formData: FormData): Promise<Form
   const { data, error } = await supabase.auth.signInWithPassword({ email, password: senha });
   if (error) return { ok: false, message: mensagemErroLogin(error) };
 
-  if (
-    senha === SENHA_PROVISORIA &&
-    (
-      data.user.app_metadata?.cadastrado_pelo_admin !== true ||
-      data.user.app_metadata?.senha_provisoria !== true
-    )
-  ) {
+  // A senha fixa antiga aparecia na tela de login: não vale mais (1.1.8).
+  if (senha === SENHA_PROVISORIA_LEGADA) {
     await supabase.auth.signOut();
     return {
       ok: false,
-      message: "A senha provisória só pode ser usada por usuários cadastrados pelo administrador.",
+      message:
+        "Essa senha provisória antiga não vale mais. Peça ao administrador uma nova senha provisória.",
+    };
+  }
+  if (senhaProvisoriaVencida(data.user.app_metadata)) {
+    await supabase.auth.signOut();
+    return {
+      ok: false,
+      message: "Sua senha provisória venceu. Peça ao administrador uma nova.",
     };
   }
 
@@ -76,7 +79,7 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
     const senha = String(formData.get("senha") ?? "");
     const confirmar = String(formData.get("confirmar") ?? "");
     if (senha.length < 8) return { ok: false, message: "A senha deve ter ao menos 8 caracteres." };
-    if (senha === SENHA_PROVISORIA) {
+    if (senha === SENHA_PROVISORIA_LEGADA) {
       return { ok: false, message: "Escolha uma senha diferente da senha provisória." };
     }
     if (senha !== confirmar) return { ok: false, message: "As senhas não conferem." };
@@ -99,6 +102,7 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
         ...user.app_metadata,
         cadastrado_pelo_admin: true,
         senha_provisoria: false,
+        senha_provisoria_expira_em: null,
       },
     });
     if (metadataError) return { ok: false, message: mensagemErroAdminSupabase(metadataError) };
