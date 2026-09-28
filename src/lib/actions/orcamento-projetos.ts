@@ -1064,19 +1064,8 @@ export async function duplicarTemplateProjeto(formData: FormData) {
   revalidatePath("/orcamento/modelos");
 }
 
-export async function arquivarCatalogoProjetoItem(formData: FormData) {
-  const catalogoId = texto(formData, "catalogo_item_id");
-  if (!catalogoId) return;
-  await exigirPapelOrcamento("gerir_modelos");
-  const supabase = await createClient();
-  const { error } = await supabase
-    .from("orcamento_projeto_catalogo")
-    .update({ ativo: false, atualizado_em: new Date().toISOString() })
-    .eq("id", catalogoId);
-  if (error) throw new Error(error.message);
-  await registrarEvento("orcamento_catalogo", Number(catalogoId) || 0, "ativo", "arquivado", "Item de catálogo arquivado sem remoção física.");
-  revalidatePath("/orcamento/modelos");
-}
+// Arquivar/reativar item do catálogo: src/lib/actions/catalogo-custos.ts (RPC da 0138,
+// com a trava do catálogo). A versão antiga gravava o evento com id 0 (códigos "MC-12").
 
 const BUCKET_ANEXOS = "orcamento-anexos";
 

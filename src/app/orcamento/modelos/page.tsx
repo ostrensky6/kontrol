@@ -1,19 +1,29 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Archive, Copy, Search, SlidersHorizontal } from "lucide-react";
+import { Archive, ArchiveRestore, Copy, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { CLASSE_BOTAO_ICONE, CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpTip } from "@/components/common/HelpTip";
+import { ItemCatalogoDialog } from "@/components/orcamento/catalogo/ItemCatalogoDialog";
+import { UnificarItemDialog } from "@/components/orcamento/catalogo/UnificarItemDialog";
 import { buttonVariants } from "@/components/ui/button";
 import {
-  arquivarCatalogoProjetoItem,
   criarProjetoDeTemplate,
   duplicarTemplateProjeto,
   excluirTemplate,
 } from "@/lib/actions/orcamento-projetos";
-import { formatCurrency as brl, formatDate } from "@/lib/formatters";
+import { definirAtivoItemCatalogo, salvarItemCatalogo, unificarItensCatalogo } from "@/lib/actions/catalogo-custos";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
+import { podeOrcamento } from "@/lib/orcamento/governanca";
+import {
+  MESES_VALOR_VELHO,
+  origemDoValor,
+  ROTULO_EVENTO_CATALOGO,
+  valorDesatualizado,
+} from "@/lib/orcamento/catalogo-custos";
+import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { precoCatalogoMascarado } from "@/lib/cadastros/salario";
 import { createClient } from "@/lib/supabase/server";
@@ -31,6 +41,10 @@ type SearchParams = {
   rubrica?: string;
   status?: string;
   busca?: string;
+  /** "1" = só valores com mais de 8 meses (DC7). */
+  velho?: string;
+  /** Código do item cujo histórico de valores aparece no painel. */
+  historico?: string;
 };
 
 type TemplateProjeto = {
@@ -54,6 +68,22 @@ type CatalogoItem = {
   origem: string;
   ativo: boolean;
   valid_from: string | null;
+  // catálogo vivo (0137): unificação e origem do valor atual
+  substituido_por?: string | null;
+  valor_atualizado_em?: string | null;
+  valor_atualizado_por?: string | null;
+  valor_origem_demanda_titulo?: string | null;
+};
+
+type HistoricoValor = {
+  registrado_em: string;
+  evento: string;
+  preco_unitario: number | null;
+  preco_anterior: number | null;
+  aplicado: boolean;
+  demanda_titulo: string | null;
+  usuario: string | null;
+  observacao: string | null;
 };
 
 type ProjetoOpcao = {
@@ -79,17 +109,34 @@ export default async function OrcamentoModelosPage({
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
-  const [{ data: templates }, { data: catalogoCompleto }, { data: projetos }] = await Promise.all([
+  const [
+    { data: templates },
+    { data: catalogoCompleto },
+    { data: projetos },
+    podeEditarCatalogo,
+    podePessoal,
+    podeSalario,
+  ] = await Promise.all([
     supabase
       .from("orcamento_projeto_templates")
       .select("id, nome, descricao, itens, parametros, origem, criado_em")
       .order("criado_em", { ascending: false }),
     // Preço de PE (pessoas nominais) vem mascarado (NULL) do banco para quem
-    // não tem "Ver salário dos técnicos" — migration 0112. Já vem ordenado.
+    // não tem "Valores de pessoal no orçamento" (0137). Já vem ordenado.
     supabase.rpc("orcamento_projeto_catalogo_listar"),
     supabase.from("projetos").select("id, nome").order("nome").limit(100),
+    // Editar o catálogo: "Modelos e catálogos" (0138, mesma regra da RLS da 0124).
+    podeOrcamento("gerir_modelos"),
+    temPermissao("orcamentos.pessoal"),
+    temPermissao("tecnicos.salario.ver"),
   ]);
-  const catalogo = ((catalogoCompleto ?? []) as CatalogoItem[]).slice(0, 300);
+  const podeVerPessoal = podePessoal || podeSalario;
+  const catalogo = ((catalogoCompleto ?? []) as CatalogoItem[]).slice(0, 400);
+  const itemHistorico = filtros.historico ? catalogo.find((item) => item.id === filtros.historico) : undefined;
+  const { data: historicoData } = itemHistorico
+    ? await supabase.rpc("catalogo_projeto_historico", { p_id: itemHistorico.id })
+    : { data: null };
+  const historico = (historicoData ?? []) as HistoricoValor[];
 
   const templatesFiltrados = filtrarTemplates((templates ?? []) as TemplateProjeto[], filtros);
   // A rubrica é escolhida nas abas do catálogo; as contagens das abas seguem os demais filtros.
@@ -105,8 +152,14 @@ export default async function OrcamentoModelosPage({
   const importados = catalogo.filter((item) => item.origem === "orcamento_projetos_antigo").length;
   const parametrosPadrao = resumirParametrosPadrao((templates ?? []) as TemplateProjeto[]);
 
-  const filtrosAvancados = [filtros.origem, filtros.status].filter(Boolean).length;
-  const temFiltro = Boolean(filtros.busca || filtros.origem || filtros.status || filtros.rubrica);
+  const filtrosAvancados = [filtros.origem, filtros.status, filtros.velho].filter(Boolean).length;
+  const temFiltro = Boolean(filtros.busca || filtros.origem || filtros.status || filtros.rubrica || filtros.velho);
+  const valoresVelhos = catalogo.filter((item) => item.ativo && valorDesatualizado(dataDoValor(item))).length;
+  /** Itens ativos da mesma rubrica para onde um item repetido pode ser unificado. */
+  const opcoesUnificar = (item: CatalogoItem) =>
+    catalogo
+      .filter((outro) => outro.id !== item.id && outro.rubrica === item.rubrica && outro.ativo && !outro.substituido_por)
+      .map((outro) => ({ id: outro.id, descricao: outro.descricao, unidade: outro.unidade }));
   const mostrarRubrica = !filtros.rubrica;
 
   return (
@@ -187,6 +240,12 @@ export default async function OrcamentoModelosPage({
                   <option value="ativo">Ativo</option>
                   <option value="arquivado">Arquivado</option>
                   <option value="inativo">Inativo</option>
+                </select>
+              </CampoFiltro>
+              <CampoFiltro label="Valor do catálogo">
+                <select name="velho" defaultValue={filtros.velho ?? ""} className={inputCls}>
+                  <option value="">Todos</option>
+                  <option value="1">Mais de {MESES_VALOR_VELHO} meses sem atualizar</option>
                 </select>
               </CampoFiltro>
             </div>
@@ -328,9 +387,77 @@ export default async function OrcamentoModelosPage({
           <Cabecalho
             id="catalogo-titulo"
             titulo="Catálogo institucional de custos"
-            subtitulo="Itens reutilizáveis por rubrica, com origem auditável e arquivamento sem remoção."
+            subtitulo="Valores de referência dos orçamentos de projeto. Cada item (rubrica + descrição + unidade) tem um valor só: a conclusão de cada revisão de custos atualiza o catálogo e aqui também se cria e edita. Nada é apagado: o valor antigo fica no histórico e o item fora de uso é arquivado."
             semBorda
+            extra={
+              <div className="ml-auto flex items-center gap-3">
+                {valoresVelhos > 0 && (
+                  <Link
+                    href={hrefModelos({ ...filtros, velho: "1", historico: undefined })}
+                    className="text-xs font-medium text-warning-strong hover:underline"
+                  >
+                    {valoresVelhos} {valoresVelhos === 1 ? "valor" : "valores"} com mais de {MESES_VALOR_VELHO} meses
+                  </Link>
+                )}
+                {podeEditarCatalogo && (
+                  <ItemCatalogoDialog
+                    rubricaPadrao={filtros.rubrica ?? "MC"}
+                    podeVerPessoal={podeVerPessoal}
+                    action={salvarItemCatalogo}
+                  />
+                )}
+              </div>
+            }
           />
+          {itemHistorico && (
+            <div className="border-t border-border bg-muted/30 px-3 py-2" aria-labelledby="historico-titulo">
+              <div className="flex items-center justify-between gap-2">
+                <h3 id="historico-titulo" className="text-sm font-semibold">
+                  Histórico de valores · {itemHistorico.id} — {itemHistorico.descricao} ({itemHistorico.unidade ?? "un"})
+                </h3>
+                <Link href={hrefHistorico(filtros, undefined)} scroll={false} className={CLASSE_BOTAO_ICONE}>
+                  <IconeAcao icone={X} rotulo="Fechar o histórico" />
+                </Link>
+              </div>
+              {historico.length === 0 ? (
+                <p className="py-1 text-xs text-muted-foreground">Sem registros de valor.</p>
+              ) : (
+                <table className="mt-1 w-full text-left text-xs">
+                  <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                    <tr>
+                      <th className="py-1 pr-3 font-medium">Quando</th>
+                      <th className="py-1 pr-3 font-medium">O que</th>
+                      <th className="py-1 pr-3 text-right font-medium">Valor</th>
+                      <th className="py-1 pr-3 text-right font-medium">Antes</th>
+                      <th className="py-1 pr-3 font-medium">Origem</th>
+                      <th className="py-1 font-medium">Quem</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/60">
+                    {historico.map((linha, indice) => (
+                      <tr key={`${linha.registrado_em}-${indice}`}>
+                        <td className="whitespace-nowrap py-1 pr-3 tabular-nums">{formatDateTime(linha.registrado_em)}</td>
+                        <td className="py-1 pr-3">
+                          {ROTULO_EVENTO_CATALOGO[linha.evento] ?? linha.evento}
+                          {!linha.aplicado && <span className="ml-1 text-warning-strong">(aguardando)</span>}
+                        </td>
+                        <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums">
+                          {linha.preco_unitario == null ? VALOR_MASCARADO : brl(Number(linha.preco_unitario))}
+                        </td>
+                        <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums text-muted-foreground">
+                          {linha.preco_anterior == null ? "—" : brl(Number(linha.preco_anterior))}
+                        </td>
+                        <td className="py-1 pr-3 text-muted-foreground">
+                          {linha.demanda_titulo ? `Proposta “${linha.demanda_titulo}”` : linha.observacao ?? "—"}
+                        </td>
+                        <td className="py-1 text-muted-foreground">{linha.usuario ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
           {/* Subabas por rubrica (como a visão interna da proposta): só as que têm itens. */}
           <nav aria-label="Rubricas do catálogo" className="flex gap-1 overflow-x-auto border-b border-border px-1.5 [scrollbar-width:none]">
             <AbaRubrica href={hrefRubrica(filtros, undefined)} ativa={!filtros.rubrica} rotulo="Todas" total={catalogoSemRubrica.length} />
@@ -354,29 +481,34 @@ export default async function OrcamentoModelosPage({
                 <col className="w-[5.5rem]" />
                 <col className="w-[7.5rem]" />
                 <col className="w-[6rem]" />
-                <col className="w-[7rem]" />
-                <col className="w-[5.75rem]" />
+                <col className="w-[7.5rem]" />
+                <col className="w-[8.75rem]" />
               </colgroup>
               <thead className={cabecalhoTabela}>
                 <tr>
                   <th className="px-3 py-1.5 font-medium">Código</th>
                   {mostrarRubrica && <th className="px-3 py-1.5 font-medium">Rubrica</th>}
-                  <th className="px-3 py-1.5 font-medium">Categoria institucional</th>
+                  <th className="px-3 py-1.5 font-medium">Grupo</th>
                   <th className="px-3 py-1.5 font-medium">Descrição</th>
                   <th className="px-3 py-1.5 font-medium">Unidade</th>
                   <th className="px-3 py-1.5 text-right font-medium">Custo padrão</th>
                   <th className="px-3 py-1.5 font-medium">Origem</th>
-                  <th className="px-3 py-1.5 font-medium">Válido desde</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Ação</th>
+                  <th className="px-3 py-1.5 font-medium">Atualizado</th>
+                  <th className="px-3 py-1.5 text-right font-medium">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
                 {catalogoFiltrado.map((item) => (
-                  <tr key={item.id}>
+                  <tr key={item.id} className={item.id === itemHistorico?.id ? "bg-muted/40" : undefined}>
                     <td className="truncate px-3 py-1.5 font-medium" title={item.id}>{item.id}</td>
                     {mostrarRubrica && <td className="px-3 py-1.5"><Badge>{item.rubrica}</Badge></td>}
                     <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.categoria ?? undefined}>{item.categoria ?? "—"}</td>
-                    <td className="truncate px-3 py-1.5" title={item.descricao}>{item.descricao}</td>
+                    <td className="truncate px-3 py-1.5" title={item.descricao}>
+                      {item.descricao}
+                      {item.substituido_por && (
+                        <span className="block text-[11px] text-muted-foreground">Unificado em {item.substituido_por}</span>
+                      )}
+                    </td>
                     <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.unidade ?? "un"}>{item.unidade ?? "un"}</td>
                     <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                       {precoCatalogoMascarado(item) ? (
@@ -389,21 +521,64 @@ export default async function OrcamentoModelosPage({
                       )}
                     </td>
                     <td className="px-3 py-1.5"><Origem origem={item.origem} /></td>
-                    <td className="px-3 py-1.5 tabular-nums text-muted-foreground">{formatDate(item.valid_from)}</td>
-                    <td className="px-3 py-1.5 text-right">
-                      {item.ativo ? (
-                        <ConfirmActionButton
-                          action={arquivarCatalogoProjetoItem}
-                          fields={{ catalogo_item_id: item.id }}
-                          trigger={<IconeAcao icone={Archive} rotulo={`Arquivar ${item.descricao}`} />}
-                          titulo="Arquivar item do catálogo"
-                          mensagem={`Arquivar ${item.descricao}? O item deixa de ser sugerido para novos orçamentos, sem apagar histórico.`}
-                          confirmLabel="Arquivar"
-                          triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
-                        />
-                      ) : (
-                        <Badge tom="zinc">Arquivado</Badge>
+                    <td
+                      className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground"
+                      title={`Valor de ${formatDate(dataDoValor(item))} — ${origemDoValor(item)}`}
+                    >
+                      {formatDate(dataDoValor(item))}
+                      {item.ativo && valorDesatualizado(dataDoValor(item)) && (
+                        <span className="ml-1 rounded-full bg-warning-soft px-1.5 py-0.5 text-[10px] font-semibold text-warning-strong">
+                          +{MESES_VALOR_VELHO} meses
+                        </span>
                       )}
+                    </td>
+                    <td className="px-2 py-1 text-right">
+                      <div className="flex items-center justify-end gap-0.5">
+                        {podeEditarCatalogo && !item.substituido_por && (
+                          <ItemCatalogoDialog
+                            item={{
+                              id: item.id,
+                              rubrica: item.rubrica,
+                              descricao: item.descricao,
+                              unidade: item.unidade,
+                              categoria: item.categoria,
+                              preco_unitario: item.preco_unitario,
+                              preco_mascarado: precoCatalogoMascarado(item),
+                            }}
+                            podeVerPessoal={podeVerPessoal}
+                            action={salvarItemCatalogo}
+                          />
+                        )}
+                        <Link href={hrefHistorico(filtros, item.id)} scroll={false} className={CLASSE_BOTAO_ICONE}>
+                          <IconeAcao icone={History} rotulo={`Histórico de valores de ${item.descricao}`} />
+                        </Link>
+                        {podeEditarCatalogo && item.ativo && !item.substituido_por && opcoesUnificar(item).length > 0 && (
+                          <UnificarItemDialog item={item} opcoes={opcoesUnificar(item)} action={unificarItensCatalogo} />
+                        )}
+                        {podeEditarCatalogo && !item.substituido_por && (item.ativo ? (
+                          <ConfirmActionButton
+                            action={definirAtivoItemCatalogo}
+                            fields={{ catalogo_item_id: item.id, ativo: "0" }}
+                            trigger={<IconeAcao icone={Archive} rotulo={`Arquivar ${item.descricao}`} />}
+                            titulo="Arquivar item do catálogo"
+                            mensagem={`Arquivar ${item.descricao}? O item deixa de ser sugerido para novos orçamentos, sem apagar histórico.`}
+                            confirmLabel="Arquivar"
+                            triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
+                          />
+                        ) : (
+                          <ConfirmActionButton
+                            action={definirAtivoItemCatalogo}
+                            fields={{ catalogo_item_id: item.id, ativo: "1" }}
+                            trigger={<IconeAcao icone={ArchiveRestore} rotulo={`Reativar ${item.descricao}`} />}
+                            titulo="Reativar item do catálogo"
+                            mensagem={`Reativar ${item.descricao}? O item volta a ser sugerido nos orçamentos de projeto.`}
+                            confirmLabel="Reativar"
+                            destrutivo={false}
+                            triggerClassName={CLASSE_BOTAO_ICONE}
+                          />
+                        ))}
+                        {!item.ativo && !podeEditarCatalogo && <Badge tom="zinc">Arquivado</Badge>}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -428,13 +603,28 @@ const inputCls =
 
 const cabecalhoTabela = "whitespace-nowrap bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground";
 
-/** Mesmo endereço, com a rubrica trocada e os demais filtros preservados. */
-function hrefRubrica(filtros: SearchParams, rubrica: string | undefined) {
+/** Endereço da página com os filtros dados (vazios ficam de fora). */
+function hrefModelos(filtros: SearchParams) {
   const params = new URLSearchParams(
-    Object.entries({ ...filtros, rubrica }).filter((entrada): entrada is [string, string] => Boolean(entrada[1])),
+    Object.entries(filtros).filter((entrada): entrada is [string, string] => Boolean(entrada[1])),
   );
   const consulta = params.toString();
   return consulta ? `/orcamento/modelos?${consulta}` : "/orcamento/modelos";
+}
+
+/** Mesmo endereço, com a rubrica trocada e os demais filtros preservados (fecha o histórico). */
+function hrefRubrica(filtros: SearchParams, rubrica: string | undefined) {
+  return hrefModelos({ ...filtros, rubrica, historico: undefined });
+}
+
+/** Abre (ou fecha, com `undefined`) o painel de histórico de um item, preservando os filtros. */
+function hrefHistorico(filtros: SearchParams, id: string | undefined) {
+  return `${hrefModelos({ ...filtros, historico: id })}#catalogo`;
+}
+
+/** Data do valor atual: a da última atualização (0137) ou a da carga. */
+function dataDoValor(item: CatalogoItem) {
+  return item.valor_atualizado_em ?? item.valid_from;
 }
 
 function filtrarTemplates(templates: TemplateProjeto[], filtros: SearchParams) {
@@ -459,7 +649,8 @@ function filtrarCatalogo(catalogo: CatalogoItem[], filtros: SearchParams) {
       (!filtros.rubrica || item.rubrica === filtros.rubrica) &&
       (!filtros.origem || item.origem === filtros.origem) &&
       (!filtros.status ||
-        (filtros.status === "ativo" ? item.ativo : filtros.status === "inativo" || filtros.status === "arquivado" ? !item.ativo : true))
+        (filtros.status === "ativo" ? item.ativo : filtros.status === "inativo" || filtros.status === "arquivado" ? !item.ativo : true)) &&
+      (!filtros.velho || (item.ativo && valorDesatualizado(dataDoValor(item))))
     );
   });
 }
@@ -612,6 +803,8 @@ function CampoFiltro({ label, children }: { label: string; children: React.React
 
 function Origem({ origem }: { origem: string | null }) {
   if (origem === "orcamento_projetos_antigo") return <Badge tom="amber">Importada</Badge>;
+  if (origem === "revisao_custos") return <Badge tom="brand">Orçamento</Badge>;
+  if (origem === "cadastro_catalogo") return <Badge tom="brand">Cadastro</Badge>;
   return <Badge tom="brand">Kontrol</Badge>;
 }
 
