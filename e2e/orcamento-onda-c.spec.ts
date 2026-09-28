@@ -25,13 +25,13 @@ async function cabeNaTela(page: Page, seletor: string) {
 test("lista: resumo em uma linha e fase como filtro em lista suspensa", async ({ page }) => {
   await page.goto("/orcamento/demandas");
   await expect(page.getByRole("link", { name: "Novo orçamento" }).first()).toBeVisible();
-  await expect(page.getByText(/d+ orçamentos?/).first()).toBeVisible();
+  await expect(page.getByText(/\d+ orçamentos?/).first()).toBeVisible();
   // nada de fileira de botões de fase
   await expect(page.getByRole("navigation", { name: "Fases dos orçamentos" })).toHaveCount(0);
 
   const fase = page.getByRole("combobox", { name: "Filtrar por Fase" });
   await fase.selectOption("Em elaboração");
-  await expect(page.getByRole("status").filter({ hasText: / de d+/ })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: / de \d+/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: "Emitida" })).toHaveCount(0);
 });
 
