@@ -2148,40 +2148,112 @@ export type Database = {
           ativo: boolean
           atualizado_em: string
           categoria: string | null
+          chave_descricao: string | null
+          chave_unidade: string | null
           criado_em: string
           descricao: string
           id: string
           origem: string
           preco_unitario: number
           rubrica: string
+          substituido_por: string | null
           unidade: string | null
           valid_from: string | null
+          valor_atualizado_em: string | null
+          valor_atualizado_por: string | null
+          valor_origem_demanda_id: number | null
+          valor_origem_orcamento_projeto_id: number | null
         }
         Insert: {
           ativo?: boolean
           atualizado_em?: string
           categoria?: string | null
+          chave_descricao?: never
+          chave_unidade?: never
           criado_em?: string
           descricao: string
           id: string
           origem?: string
           preco_unitario?: number
           rubrica: string
+          substituido_por?: string | null
           unidade?: string | null
           valid_from?: string | null
+          valor_atualizado_em?: string | null
+          valor_atualizado_por?: string | null
+          valor_origem_demanda_id?: number | null
+          valor_origem_orcamento_projeto_id?: number | null
         }
         Update: {
           ativo?: boolean
           atualizado_em?: string
           categoria?: string | null
+          chave_descricao?: never
+          chave_unidade?: never
           criado_em?: string
           descricao?: string
           id?: string
           origem?: string
           preco_unitario?: number
           rubrica?: string
+          substituido_por?: string | null
           unidade?: string | null
           valid_from?: string | null
+          valor_atualizado_em?: string | null
+          valor_atualizado_por?: string | null
+          valor_origem_demanda_id?: number | null
+          valor_origem_orcamento_projeto_id?: number | null
+        }
+        Relationships: []
+      }
+      orcamento_projeto_catalogo_valores: {
+        Row: {
+          aplicado: boolean
+          catalogo_item_id: string | null
+          demanda_id: number | null
+          descricao: string
+          evento: string
+          id: number
+          observacao: string | null
+          orcamento_projeto_id: number | null
+          preco_anterior: number | null
+          preco_unitario: number
+          registrado_em: string
+          rubrica: string
+          unidade: string | null
+          usuario: string | null
+        }
+        Insert: {
+          aplicado?: boolean
+          catalogo_item_id?: string | null
+          demanda_id?: number | null
+          descricao: string
+          evento: string
+          id?: never
+          observacao?: string | null
+          orcamento_projeto_id?: number | null
+          preco_anterior?: number | null
+          preco_unitario: number
+          registrado_em?: string
+          rubrica: string
+          unidade?: string | null
+          usuario?: string | null
+        }
+        Update: {
+          aplicado?: boolean
+          catalogo_item_id?: string | null
+          demanda_id?: number | null
+          descricao?: string
+          evento?: string
+          id?: never
+          observacao?: string | null
+          orcamento_projeto_id?: number | null
+          preco_anterior?: number | null
+          preco_unitario?: number
+          registrado_em?: string
+          rubrica?: string
+          unidade?: string | null
+          usuario?: string | null
         }
         Relationships: []
       }
@@ -2189,6 +2261,7 @@ export type Database = {
         Row: {
           atividade: string | null
           catalogo_item_id: string | null
+          catalogo_valor_base: number | null
           categoria: string
           categoria_institucional: string | null
           custo_unitario: number
@@ -2209,6 +2282,7 @@ export type Database = {
         Insert: {
           atividade?: string | null
           catalogo_item_id?: string | null
+          catalogo_valor_base?: number | null
           categoria: string
           categoria_institucional?: string | null
           custo_unitario?: number
@@ -2229,6 +2303,7 @@ export type Database = {
         Update: {
           atividade?: string | null
           catalogo_item_id?: string | null
+          catalogo_valor_base?: number | null
           categoria?: string
           categoria_institucional?: string | null
           custo_unitario?: number
@@ -4669,6 +4744,10 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      concluir_revisao_custos_projeto: {
+        Args: { p_observacao?: string; p_orcamento_projeto_id: number }
+        Returns: Json
+      }
       criar_pedido_faltas_planejamento: {
         Args: { p_itens: Json; p_planejamento_id: number }
         Returns: Json
@@ -4798,11 +4877,30 @@ export type Database = {
           preco_mascarado: boolean
           preco_unitario: number | null
           rubrica: string
+          substituido_por: string | null
           unidade: string | null
           valid_from: string | null
+          valor_atualizado_em: string | null
+          valor_atualizado_por: string | null
+          valor_origem_demanda_id: number | null
+          valor_origem_demanda_titulo: string | null
         }[]
       }
       papel_minimo: { Args: { p_min: string }; Returns: boolean }
+      previa_catalogo_revisao_projeto: {
+        Args: { p_orcamento_projeto_id: number }
+        Returns: {
+          acao: string
+          catalogo_item_id: string | null
+          descricao: string
+          linha_id: number
+          rubrica: string
+          unidade: string | null
+          valor: number
+          valor_catalogo: number | null
+          valor_catalogo_em: string | null
+        }[]
+      }
       recalcular_orcamento_transacional: {
         Args: {
           p_fonte_custo_insumos: string
