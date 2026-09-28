@@ -42,7 +42,8 @@ describe("permissoes reconciliadas", () => {
       "compras.cancelar",
       "estoque.lote.gerir",
     ]));
-    expect(defaultPermissionsForRole("coordenador")).not.toContain("estoque.descartar_bloquear");
+    // D5 (dono, 28/09): sem gestor, o coordenador bloqueia e descarta lotes
+    expect(defaultPermissionsForRole("coordenador")).toContain("estoque.descartar_bloquear");
   });
 
   it("documenta que o papel administrativo historico nao foi colapsado silenciosamente", () => {

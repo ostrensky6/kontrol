@@ -92,9 +92,15 @@ async function resolverCoordenadorProjeto(
 
   const { data, error } = await supabase
     .from("projetos")
-    .select("coordenador, coordenador_nome, coordenador_email")
+    .select("coordenador, coordenador_nome, coordenador_email, coordenador_id")
     .eq("id", projetoId)
     .single();
+  // D3 (0136): o coordenador cadastrado como usuário vale sobre os campos de texto antigos
+  const coordenadorId = (data as { coordenador_id?: string | null } | null)?.coordenador_id;
+  if (!error && coordenadorId) {
+    const { data: perfil } = await supabase.from("perfis").select("nome, email").eq("id", coordenadorId).maybeSingle();
+    if (perfil) return { nome: perfil.nome ?? perfil.email ?? null, email: perfil.email ?? null };
+  }
   if (erroSchemaCache(error)) {
     const { data: legado, error: legadoError } = await supabase
       .from("projetos")
