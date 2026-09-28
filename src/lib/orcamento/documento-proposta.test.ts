@@ -132,7 +132,7 @@ describe("montarDocumentoProposta", () => {
       telefone: null,
     });
     expect(doc.empresa.nomeLegal).toBe("ATGC Genética Ambiental Ltda.");
-    expect(doc.avisos.join(" ")).toMatch(/Empresas emissoras/);
+    expect(doc.avisos.join(" ")).toMatch(/Documento da proposta/);
   });
 
   it("prévia da elaboração não tem número", () => {

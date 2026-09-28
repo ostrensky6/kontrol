@@ -1,10 +1,15 @@
 import { aprovarOrcamentoPublico } from "@/lib/actions/orcamento-projetos";
 import { SubmitButton } from "@/components/common/SubmitButton";
+import type { Metadata } from "next";
+import { DocumentoProposta } from "@/components/orcamento/documento/DocumentoProposta";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { montarPropostaFinalExport } from "@/lib/orcamento/proposta-final-export";
-import { rotuloStatusVersaoFinal, statusEfetivoVersaoFinal } from "@/lib/orcamento/rotulos-status";
+import { montarDocumentoProposta } from "@/lib/orcamento/documento-proposta";
+import { empresaDoSnapshot, empresaPadrao } from "@/lib/orcamento/empresas-emissoras";
+import { resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
+import { textosDaVersao } from "@/lib/orcamento/textos-proposta";
+import { entradaDoSnapshot, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +55,7 @@ type PayloadPublico = {
     status: string;
     valido_ate: string | null;
     total_final: number;
+    textos_proposta?: unknown;
   };
   vencida?: boolean;
   aprovado_em: string | null;
@@ -83,6 +89,15 @@ async function lerPropostaPublica(token: string): Promise<PayloadPublico | null>
   }
 }
 
+/** Título da aba: a empresa emissora, nunca o Kontrol (ferramenta interna). */
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const { token } = await params;
+  const payload = await lerPropostaPublica(token);
+  if (!payload?.versao) return { title: "Proposta comercial" };
+  const { identidade } = resolverIdentidadeComAviso(payload.snapshot?.demanda?.instituicao);
+  return { title: `Proposta ${payload.versao.numero} · ${identidade.nomeLegal}` };
+}
+
 export default async function AprovacaoPublicaPage({
   params,
   searchParams,
@@ -99,97 +114,42 @@ export default async function AprovacaoPublicaPage({
 
   const snapshot = payload.snapshot;
   const demanda = snapshot.demanda;
-  const consolidado = snapshot.consolidado;
-  const totalFinal = Number(payload.versao.total_final ?? consolidado?.totalFinal ?? 0);
-  // Página do cliente: só itens com valor comercial e total. Custos internos,
+  const totalFinal = Number(payload.versao.total_final ?? snapshot.consolidado?.totalFinal ?? 0);
+  const { identidade } = resolverIdentidadeComAviso(demanda?.instituicao);
+  // Página do cliente: o mesmo documento da proposta impressa. Custos internos,
   // lucro, reserva e demais parâmetros não aparecem aqui.
-  const proposta = montarPropostaFinalExport({
+  const visao = montarVisaoInterna(entradaDoSnapshot(snapshot, totalFinal));
+  const documento = montarDocumentoProposta({
     versao: payload.versao,
-    snapshot,
     demanda: demanda ?? null,
+    visao,
+    textos: textosDaVersao({
+      coluna: payload.versao.textos_proposta,
+      snapshot,
+      escopoLegado: demanda?.escopo_preliminar || demanda?.descricao || null,
+      validadeTexto: `Valores válidos até ${formatDate(payload.versao.valido_ate)}.`,
+    }),
+    empresa: empresaDoSnapshot(snapshot, identidade) ?? empresaPadrao(identidade),
   });
-  const identidade = proposta.info.identidade;
-  const itens = proposta.composicaoComercial;
-  const status = rotuloStatusVersaoFinal(statusEfetivoVersaoFinal(payload.versao));
-  const escopo = demanda?.escopo_preliminar || demanda?.descricao || demanda?.observacoes;
   const aprovado = Boolean(payload.aprovado_em);
   const vencida = Boolean(payload.vencida) && !aprovado;
   const aprovadaPelaEquipe = !aprovado && payload.versao.status === "aprovado";
 
   return (
-    <main className="mx-auto max-w-3xl px-4 py-6 font-sans text-foreground sm:px-6 sm:py-8">
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
-          Proposta comercial — {identidade.nomeCurto}
-        </p>
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">
-          {demanda?.titulo ?? payload.versao.numero}
-        </h1>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {payload.versao.numero} · versão {payload.versao.versao}
-        </p>
+    <main className="mx-auto max-w-[230mm] px-3 py-6 font-sans text-foreground sm:px-6 sm:py-8">
+      <DocumentoProposta modelo={documento} />
 
-        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-1 text-sm sm:grid-cols-2">
-          <Linha rotulo="Cliente" valor={demanda?.cliente_nome} />
-          <Linha rotulo="Responsável" valor={demanda?.responsavel_interno} />
-          <Linha rotulo="Válida até" valor={formatDate(payload.versao.valido_ate)} />
-          <Linha rotulo="Situação" valor={status} />
-        </dl>
-
-        <div className="mt-6">
-          <Resumo rotulo="Valor total da proposta" valor={totalFinal} destaque />
-        </div>
-
-        {itens.length > 0 && (
-          <section className="mt-8">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Itens da proposta
-            </h2>
-            <div className="mt-2 overflow-x-auto rounded-lg border border-border">
-              <table className="w-full text-right text-sm">
-                <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Item</th>
-                    <th className="px-3 py-2">Qtd.</th>
-                    <th className="px-3 py-2">Valor</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
-                  {itens.map((item, index) => (
-                    <tr key={`${item.componente}-${item.descricao}-${index}`}>
-                      <td className="px-3 py-2 text-left">
-                        <span className="font-medium">{item.descricao}</span>
-                        <span className="block text-xs text-muted-foreground">{item.componente}</span>
-                      </td>
-                      <td className="px-3 py-2 tabular-nums">{item.quantidade}</td>
-                      <td className="px-3 py-2 tabular-nums">{brl(item.valorComercial)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </section>
-        )}
-
-        {escopo && (
-          <section className="mt-6 text-sm">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Escopo e observações
-            </h2>
-            <p className="mt-1 whitespace-pre-wrap leading-6 text-foreground">{escopo}</p>
-          </section>
-        )}
-
-        <section className="mt-6 text-sm">
-          <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Condições
-          </h2>
-          <p className="mt-1 leading-6 text-foreground">
-            Valores válidos até {formatDate(payload.versao.valido_ate)}. Mudanças de escopo, quantidade de amostras ou prazo podem exigir nova versão da proposta.
+      <section
+        aria-label="Aprovação da proposta"
+        className="no-print mx-auto mt-4 w-full max-w-[210mm] rounded-lg border border-border bg-card p-5 shadow-sm"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-sm font-semibold">Aprovação</h2>
+          <p className="text-sm tabular-nums">
+            Valor total <b>{brl(totalFinal)}</b> · válida até {formatDate(payload.versao.valido_ate)}
           </p>
-        </section>
-
-        <div className="mt-8 border-t border-border pt-6">
+        </div>
+        <div className="mt-3">
           {query.erro && (
             <p role="alert" className="mb-3 rounded-lg bg-danger-soft px-4 py-3 text-sm text-danger-strong">
               {MENSAGEM_ERRO[query.erro] ?? MENSAGEM_ERRO.link_indisponivel}
@@ -206,10 +166,7 @@ export default async function AprovacaoPublicaPage({
           ) : aprovado ? (
             <div className="rounded-lg bg-leaf-50 px-4 py-3 text-sm text-leaf-800 dark:bg-leaf-950/40 dark:text-leaf-200">
               ✓ Proposta aprovada{payload.aprovado_por ? ` por ${payload.aprovado_por}` : ""}
-              {payload.aprovado_em
-                ? ` em ${formatDateTime(payload.aprovado_em)}`
-                : ""}
-              .
+              {payload.aprovado_em ? ` em ${formatDateTime(payload.aprovado_em)}` : ""}.
             </div>
           ) : (
             <form action={aprovarOrcamentoPublico} className="flex flex-wrap items-end gap-3">
@@ -226,18 +183,15 @@ export default async function AprovacaoPublicaPage({
                   className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
                 />
               </div>
-              <SubmitButton
-                pendingLabel="Aprovando…"
-                className="min-h-11 bg-brand-600 px-5 text-white hover:bg-brand-500"
-              >
+              <SubmitButton pendingLabel="Aprovando…" className="min-h-11 bg-brand-600 px-5 text-white hover:bg-brand-500">
                 Aprovar proposta
               </SubmitButton>
             </form>
           )}
         </div>
-      </div>
-      <p className="mt-4 text-center text-xs text-muted-foreground/80">
-        Documento gerado pelo Kontrol — {identidade.nomeCurto}. Valores em reais (BRL).
+      </section>
+      <p className="no-print mt-4 text-center text-xs text-muted-foreground/80">
+        {documento.empresa.nomeLegal} · valores em reais (BRL).
       </p>
     </main>
   );
@@ -252,43 +206,5 @@ function LinkIndisponivel() {
         novo link ao responsável pela proposta.
       </p>
     </main>
-  );
-}
-
-function Resumo({
-  rotulo,
-  valor,
-  destaque = false,
-}: {
-  rotulo: string;
-  valor: number;
-  destaque?: boolean;
-}) {
-  return (
-    <div
-      className={
-        destaque
-          ? "rounded-lg border border-brand-200 bg-brand-50 p-4 dark:border-brand-900 dark:bg-brand-950/30"
-          : "rounded-lg border border-border bg-muted/50 p-4"
-      }
-    >
-      <p className="text-xs font-medium text-muted-foreground">{rotulo}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">{brl(valor)}</p>
-    </div>
-  );
-}
-
-function Linha({
-  rotulo,
-  valor,
-}: {
-  rotulo: string;
-  valor: string | null | undefined;
-}) {
-  return (
-    <div className="flex gap-2">
-      <dt className="text-muted-foreground">{rotulo}:</dt>
-      <dd className="font-medium">{valor ?? "—"}</dd>
-    </div>
   );
 }

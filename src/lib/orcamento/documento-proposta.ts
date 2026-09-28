@@ -146,7 +146,7 @@ export function montarDocumentoProposta(args: {
   const avisos: string[] = [];
   if (aviso) avisos.push(aviso);
   if (!empresa.cnpj || !empresa.endereco) {
-    avisos.push("CNPJ ou endereço da empresa emissora em branco: preencha em Cadastros › Empresas emissoras.");
+    avisos.push("CNPJ ou endereço da empresa emissora em branco: preencha em Orçamentos › Documento da proposta.");
   }
 
   return {

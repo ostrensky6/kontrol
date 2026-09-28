@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
+import { pode } from "@/lib/auth/permissao-efetiva";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { normalizarTexto, textoVazio } from "@/lib/orcamento/texto-rico";
@@ -79,7 +80,41 @@ export async function salvarTextosDemanda(_estado: EstadoAcao, formData: FormDat
   return sucesso("Texto salvo.");
 }
 
-/** Seção padrão de uma empresa (Parâmetros do orçamento › Textos padrão da proposta). */
+/** Dados cadastrais da empresa emissora (cabeçalho e rodapé da proposta). */
+export async function salvarEmpresaEmissora(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
+  if (!(await pode("cadastros.editar"))) {
+    return falha("Alterar os dados da empresa exige a permissão “Cadastros: editar”.");
+  }
+  const codigo = String(formData.get("codigo") ?? "");
+  if (codigo !== "ATGC" && codigo !== "GIA") return falha("Empresa inválida.");
+  const campo = (nome: string, max: number) => {
+    const valor = String(formData.get(nome) ?? "").trim();
+    return valor ? valor.slice(0, max) : null;
+  };
+  const nomeLegal = campo("nome_legal", 160);
+  if (!nomeLegal || nomeLegal.length < 3) return falha("Informe a razão social.");
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("empresas_emissoras")
+    .update({
+      nome_legal: nomeLegal,
+      cnpj: campo("cnpj", 30),
+      endereco: campo("endereco", 240),
+      telefone: campo("telefone", 60),
+      email: campo("email", 120),
+      site: campo("site", 120),
+      atualizado_em: new Date().toISOString(),
+    })
+    .eq("codigo", codigo)
+    .select("id");
+  if (error) return falha(mensagemDoBanco(error));
+  if (!data?.length) return falha("Nada foi salvo: seu perfil não pode alterar os dados da empresa.");
+  revalidatePath("/orcamento/documento-proposta");
+  return sucesso("Dados da empresa salvos. Valem para as próximas emissões.");
+}
+
+/** Seção padrão de uma empresa (Orçamentos › Documento da proposta). */
 export async function salvarSecaoPadrao(_estado: EstadoAcao, formData: FormData): Promise<EstadoAcao> {
   const recusa = await recusaSemPermissao("emitir_final");
   if (recusa) return recusa;
@@ -114,6 +149,6 @@ export async function salvarSecaoPadrao(_estado: EstadoAcao, formData: FormData)
     .select("id");
   if (error) return falha(mensagemDoBanco(error));
   if (!data?.length) return falha("Nada foi salvo: seu perfil não pode alterar os textos padrão.");
-  revalidatePath("/orcamento/parametros");
+  revalidatePath("/orcamento/documento-proposta");
   return sucesso("Seção padrão salva.");
 }
