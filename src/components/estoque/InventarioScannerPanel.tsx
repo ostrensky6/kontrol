@@ -14,7 +14,7 @@ import {
   iniciarLeitorCamera,
   type ScannerCameraControls,
 } from "@/components/scanner/zxing-adapter";
-import { calcularDivergenciaInventario } from "@/lib/inventario/contagem";
+import { calcularDivergenciaInventario, descreverDiferencaInventario } from "@/lib/inventario/contagem";
 import { HelpTip } from "@/components/common/HelpTip";
 import type { FormState } from "@/lib/actions/cadastros";
 import { enviarSemReset } from "@/lib/formulario-sem-perda";
@@ -375,8 +375,8 @@ export function InventarioScannerPanel({
                   : "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
               }`}
             >
-              Divergência: <b>{divergencia.divergencia}</b>
-              {divergencia.temDivergencia ? " · justificativa obrigatória" : " · sem divergência"}
+              <b>{descreverDiferencaInventario(divergencia.quantidadeSistema, divergencia.quantidadeContada, loteSelecionado?.unidade).frase}</b>
+              {divergencia.temDivergencia ? " Explique o motivo na justificativa." : ""}
             </p>
           )}
 

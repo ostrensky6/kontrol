@@ -77,6 +77,9 @@ jobs:
       - name: Validar registro dos backups e aviso de atraso
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_backups_0134.sql
 
+      - name: Validar decisões D2, D3, D5 e D7 (autoaprovação, coordenador, inventário)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/decisoes_d2_d3_d5_d7_0136.sql
+
   check:
     runs-on: ubuntu-latest
     steps:

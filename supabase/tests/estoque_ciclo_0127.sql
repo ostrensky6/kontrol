@@ -271,7 +271,8 @@ declare
   r jsonb;
 begin
   insert into public.pedidos_internos (titulo, status, solicitante, tipo_demanda, justificativa)
-  values ('TS-0127 pedido', 'rascunho', 'ts-0127-coordenador@example.invalid', 'laboratorio', 'teste')
+  -- 0136 (D2): quem valida não é quem pediu
+  values ('TS-0127 pedido', 'rascunho', 'ts-0127-tecnico@example.invalid', 'laboratorio', 'teste')
   returning id into v_pedido;
   insert into public.pedidos_internos_itens (pedido_interno_id, tipo, especificacao, quantidade, insumo_id)
   values (v_pedido, 'material', 'Tampao A', 2, v_frasco) returning id into v_item_a;

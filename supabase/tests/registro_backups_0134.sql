@@ -41,6 +41,8 @@ begin
   end loop;
 
   -- Sem nenhum backup registrado: um aviso de atraso por tipo, sem repetir no mesmo dia.
+  -- (começa sem avisos de backup: a rotina diária pode já ter rodado hoje neste banco)
+  delete from public.notificacoes where dedupe_key like 'backup-%';
   delete from public.backups_execucoes;
   v_avisos := kontrol_private.verificar_backups();
   if v_avisos <> 2 then

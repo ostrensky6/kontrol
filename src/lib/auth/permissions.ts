@@ -169,6 +169,8 @@ const COORDENADOR: PermissaoUsuario[] = [
   "pedido.aprovar",
   "estoque.lote.aceitar",
   "estoque.lote.gerir",
+  // D5 (0136): sem gestor, o coordenador bloqueia e descarta lotes.
+  "estoque.descartar_bloquear",
   "planejamento.editar",
 ];
 
@@ -183,7 +185,6 @@ const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
   coordenador: COORDENADOR,
   gestor: [
     ...COORDENADOR,
-    "estoque.descartar_bloquear",
     "orcamento.parametros.editar",
     "orcamentos.fundos",
     "orcamentos.modelos",
