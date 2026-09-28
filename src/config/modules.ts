@@ -297,7 +297,7 @@ export const APP_MODULES: AppModule[] = [
     id: "governanca",
     label: "Governança",
     href: "/governanca",
-    desc: "auditoria, backups e permissões",
+    desc: "auditoria, backups, erros e permissões",
     icon: "ShieldCheck",
     accent: "slate",
     activePaths: ["/governanca", "/auditoria", "/usuarios"],
@@ -313,6 +313,13 @@ export const APP_MODULES: AppModule[] = [
         label: "Backups",
         desc: "app local e banco em nuvem",
         icon: "ArchiveRestore",
+        minRole: "admin",
+      },
+      {
+        href: "/governanca/erros",
+        label: "Erros do app",
+        desc: "falhas registradas e avisos ao administrador",
+        icon: "Bug",
         minRole: "admin",
       },
       {

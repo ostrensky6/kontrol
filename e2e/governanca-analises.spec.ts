@@ -23,13 +23,17 @@ test("admin acessa itens de Governança incluindo Privilégios", async ({ page }
   await expect(page.getByRole("navigation", { name: "Navegação de Governança" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Auditoria" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Backups" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Erros do app" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Usuários e permissões" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Privilégios" })).toBeVisible();
 
   await page.goto("/auditoria");
   await expect(page.getByRole("heading", { name: "Auditoria" })).toBeVisible();
   await page.goto("/governanca/backups");
-  await expect(page.getByRole("heading", { name: "Backups" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Backups", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Registro dos backups" })).toBeVisible();
+  await page.goto("/governanca/erros");
+  await expect(page.getByRole("heading", { name: "Erros do app" })).toBeVisible();
   await page.goto("/usuarios");
   await expect(page.getByRole("heading", { name: "Usuários e permissões" })).toBeVisible();
 });
