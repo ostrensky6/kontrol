@@ -135,8 +135,9 @@ export default async function InventarioPage() {
                 </p>
                 {limiteAjuste > 0 && (
                   <p>
-                    Ajuste acima de <b>{formatCurrency(limiteAjuste)}</b> (diferença × custo) é aplicado por
-                    <b> outra pessoa</b>, não por quem contou. O limite fica em Parâmetros.
+                    Se o ajuste valer mais de <b>{formatCurrency(limiteAjuste)}</b>, quem aplica é
+                    <b> outra pessoa</b>, não quem contou. Exemplo: faltaram 10 frascos de R$ 60 → ajuste de
+                    R$ 600. O limite fica em Parâmetros.
                   </p>
                 )}
                 <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
@@ -278,9 +279,9 @@ export default async function InventarioPage() {
                             {pedeSegunda && (
                               <span
                                 className="text-[11px] text-warning-strong"
-                                title={`Ajuste de ${formatCurrency(valorAjuste)}, acima de ${formatCurrency(limiteAjuste)}: outra pessoa aplica, não quem contou (${contagem.contado_por ?? "—"}).`}
+                                title={`Este ajuste vale ${formatCurrency(valorAjuste)}, mais que o limite de ${formatCurrency(limiteAjuste)}: outra pessoa aplica, não quem contou.`}
                               >
-                                2ª aprovação: não quem contou
+                                Acima de {formatCurrency(limiteAjuste)}: outra pessoa aplica
                               </span>
                             )}
                           </span>
