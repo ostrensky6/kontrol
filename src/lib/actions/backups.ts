@@ -6,11 +6,47 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { revalidatePath } from "next/cache";
 import { temPapel } from "@/lib/auth/roles";
+import { createClientUntyped } from "@/lib/supabase/server";
 
 const execFileAsync = promisify(execFile);
 
-const APP_BACKUP_DIR = "D:\\Dropbox\\Aplicativos\\Kontrol\\APP";
-const DB_BACKUP_DIR = "D:\\Dropbox\\Aplicativos\\Kontrol\\BD";
+// Pastas do computador do laboratório (as mesmas dos scripts em scripts/*.ps1).
+// Podem ser trocadas por variável de ambiente sem mexer no código.
+const APP_BACKUP_DIR = process.env.KONTROL_BACKUP_APP_DIR || "D:\\Dropbox\\Aplicativos\\Kontrol\\APP";
+const DB_BACKUP_DIR = process.env.KONTROL_BACKUP_DB_DIR || "D:\\Dropbox\\Aplicativos\\Kontrol\\BD";
+
+/**
+ * Na Vercel não existe o disco do laboratório: a tela mostra só o registro dos
+ * backups no banco (0134) e o botão de backup local some.
+ */
+function pastasLocaisDisponiveis() {
+  return !process.env.VERCEL;
+}
+
+export type ExecucaoBackup = {
+  id: number;
+  tipo: "banco" | "arquivos";
+  status: "ok" | "falha";
+  concluido_em: string;
+  tamanho_bytes: number | null;
+  arquivos: number | null;
+  detalhe: string | null;
+};
+
+async function lerRegistroBackups(): Promise<{ execucoes: ExecucaoBackup[]; erro: boolean }> {
+  try {
+    const supabase = await createClientUntyped();
+    const { data, error } = await supabase
+      .from("backups_execucoes")
+      .select("id, tipo, status, concluido_em, tamanho_bytes, arquivos, detalhe")
+      .order("concluido_em", { ascending: false })
+      .limit(30);
+    if (error) return { execucoes: [], erro: true };
+    return { execucoes: (data ?? []) as ExecucaoBackup[], erro: false };
+  } catch {
+    return { execucoes: [], erro: true };
+  }
+}
 
 export type BackupActionState = {
   ok: boolean;
@@ -55,16 +91,21 @@ export async function obterResumoBackups() {
     return null;
   }
 
-  const [appBackups, dbBackups] = await Promise.all([
-    listarBackups(APP_BACKUP_DIR, "kontrol-app-"),
-    listarBackups(DB_BACKUP_DIR, "kontrol-db-cloud-"),
+  const local = pastasLocaisDisponiveis();
+  const [appBackups, dbBackups, registro] = await Promise.all([
+    local ? listarBackups(APP_BACKUP_DIR, "kontrol-app-") : Promise.resolve([]),
+    local ? listarBackups(DB_BACKUP_DIR, "kontrol-db-cloud-") : Promise.resolve([]),
+    lerRegistroBackups(),
   ]);
 
   return {
+    local,
     appDir: APP_BACKUP_DIR,
     dbDir: DB_BACKUP_DIR,
     appBackups,
     dbBackups,
+    registro: registro.execucoes,
+    registroIndisponivel: registro.erro,
   };
 }
 
@@ -75,6 +116,12 @@ export async function executarBackupAplicativo(
 
   if (!(await temPapel("admin"))) {
     return { ok: false, message: "Acesso restrito ao administrador." };
+  }
+  if (!pastasLocaisDisponiveis()) {
+    return {
+      ok: false,
+      message: "O backup do aplicativo roda só no computador do laboratório (localhost), não no site publicado.",
+    };
   }
 
   const scriptPath = path.join(process.cwd(), "scripts", "backup-app-local.ps1");

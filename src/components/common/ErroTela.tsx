@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { reportarErroDaTela } from "@/lib/monitoramento/reportar-no-navegador";
 
 /**
  * Tela de erro de uma área (error.tsx): diz o que não abriu, oferece tentar de
@@ -28,6 +29,7 @@ export function ErroTela({
 }) {
   useEffect(() => {
     console.error(error);
+    reportarErroDaTela(error);
   }, [error]);
 
   const mensagem = process.env.NODE_ENV === "production" ? null : error.message || null;
