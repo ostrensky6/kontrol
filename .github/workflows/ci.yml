@@ -95,6 +95,9 @@ jobs:
       - name: Validar registro de erros do app e aviso ao administrador
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_erros_0141.sql
 
+      - name: Validar anexos restritos por permissão e proposta cancelada aprovável de novo
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/anexos_proposta_cancelada_0142.sql
+
   check:
     runs-on: ubuntu-latest
     steps:
