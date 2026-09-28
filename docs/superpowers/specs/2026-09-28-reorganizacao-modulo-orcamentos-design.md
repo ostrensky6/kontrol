@@ -92,7 +92,8 @@ tela, na impressão/PDF, no DOCX e no link público:
       total; total "impostos inclusos". Nunca custo, % ou parâmetro;
    4. Prazos — validade (automática) + entrega dos produtos (texto padrão);
    5. Responsabilidades das partes (inclui coleta de amostras);
-   6. Condições comerciais — pagamento (campo), impostos inclusos, alterações;
+   6. Condições comerciais — texto padrão editável (pagamento, impostos
+      inclusos, alterações de escopo);
    7. Confidencialidade e resultados;
    8. Aceite — assinaturas.
    Seções 4–7 e outras criadas pelo administrador vêm de **textos padrão por
@@ -117,8 +118,8 @@ tabela). O link público mostra o texto novo.
   os dados dele; barra de salvar fixa no pé.
 - **Etapa Proposta**: mesmas abas **Interno** (quadro + subabas com valores
   vivos e percentuais editáveis direto, salvando nos parâmetros do orçamento)
-  e **Documento do cliente** (prévia com o mesmo componente, textos editáveis e
-  condições de pagamento). Emissão copia textos, dados do cliente e da empresa
+  e **Documento do cliente** (prévia com o mesmo componente e textos
+  editáveis). Emissão copia textos, dados do cliente e da empresa
   emissora para o snapshot.
 
 ## 4. Dados (migration 0135, aditiva)
@@ -134,7 +135,8 @@ tabela). O link público mostra o texto novo.
   responsabilidades, condições comerciais e confidencialidade para ATGC e GIA;
   escrita `orcamentos.emitir`; editada em Parâmetros do orçamento.
 - `demandas_propostas`: `cliente_email`, `cliente_telefone`,
-  `cliente_endereco`, `condicoes_pagamento` (text), `textos_proposta` (jsonb).
+  `cliente_endereco` (text), `textos_proposta` (jsonb). Condições de pagamento
+  ficam no texto da seção "Condições comerciais" (sem coluna própria).
 - `orcamento_final_versoes.textos_proposta` (jsonb, nulo = usar snapshot) —
   o trigger de imutabilidade não bloqueia esta coluna; escrita só pelo RPC
   `atualizar_textos_versao_final(p_versao_id, p_textos)` (security definer,
@@ -142,7 +144,7 @@ tabela). O link público mostra o texto novo.
 - `ler_orcamento_publico` passa a devolver `textos_proposta`.
 - Snapshot da emissão passa a guardar: descrição/unidade/categoria dos custos
   do projeto, nome das análises, `empresa_emissora`, `textos_proposta`,
-  `condicoes_pagamento` e dados completos do cliente (via `demanda`).
+  e dados completos do cliente (via `demanda`).
 
 Rollback: `drop` das duas tabelas novas e das colunas novas (vazias até o uso),
 restaurar `ler_orcamento_publico` da 0132, `drop function
