@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import ExcelJS from "exceljs";
+import JSZip from "jszip";
 import { calcularOrcamentoProjeto } from "./orcamento-projeto";
 import {
   exportProjetoDocx,
@@ -69,7 +70,8 @@ describe("exportProjetoXlsx", () => {
     await exportProjetoXlsx(info, itens, calculo);
 
     expect(saveAsMock).toHaveBeenCalledTimes(1);
-    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-projeto-ORC-2026-0007.xlsx");
+    // documento de trabalho: o nome diz que é interno
+    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-projeto-interno-ORC-2026-0007.xlsx");
 
     const blob = saveAsMock.mock.calls[0][0] as Blob;
     const wb = new ExcelJS.Workbook();
@@ -92,12 +94,22 @@ describe("exportProjetoXlsx", () => {
 describe("exportProjetoDocx", () => {
   beforeEach(() => saveAsMock.mockClear());
 
-  it("gera DOCX como blob nomeado pelo número", async () => {
+  it("gera DOCX interno nomeado pelo número", async () => {
     await exportProjetoDocx(info, itens, calculo);
 
     expect(saveAsMock).toHaveBeenCalledTimes(1);
-    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-projeto-ORC-2026-0007.docx");
+    expect(saveAsMock.mock.calls[0][1]).toBe("orcamento-projeto-interno-ORC-2026-0007.docx");
     const blob = saveAsMock.mock.calls[0][0] as Blob;
     expect(blob.size).toBeGreaterThan(1000);
+  });
+
+  it("título segue a instituição do orçamento e avisa que é uso interno", async () => {
+    await exportProjetoDocx({ ...info, instituicao: "GIA / UFPR" }, itens, calculo);
+    const zip = await JSZip.loadAsync(await (saveAsMock.mock.calls[0][0] as Blob).arrayBuffer());
+    const texto = (await zip.file("word/document.xml")!.async("string")).replace(/<[^>]+>/g, " ");
+
+    expect(texto).toContain("GIA / UFPR");
+    expect(texto).not.toContain("ATGC");
+    expect(texto).toContain("Uso interno");
   });
 });
