@@ -105,8 +105,8 @@ Todas aditivas. Rollback no cabeçalho de cada uma.
   0122, 0126, 0132, 0135).
   - Fora do escopo e falhando só no banco local: `estoque_ciclo_0127` (regra da 0136 de outra branch aplicada no
     banco local) e `registro_backups_0134` (estado local).
-- E2E com o Supabase simulado: ver o resultado no fim desta rodada (o teste do editor agora usa o campo único e
-  termina reabrindo a revisão).
+- E2E com o Supabase simulado (`npm run test:e2e`, com build): **51 verdes**. O teste do editor agora usa o
+  campo único (item do catálogo e item novo) e termina reabrindo a revisão.
 - Conferência na tela (porta 56282, banco local), proposta nº 74:
   - campo único (sugestões com valor, escolha preenche, valor alterado, item novo);
   - selo "Atualiza o catálogo"; conferência antes de concluir (valor zero e pessoal sem meses);

@@ -131,5 +131,6 @@ test("edita custos do projeto e conclui a revisão", async ({ page }) => {
   await reabrir.getByRole("button", { name: "Reabrir revisão" }).click();
   await expect(reabrir).toBeHidden();
   await expect(editor.getByText("Em edição").first()).toBeVisible();
+  await abrirRubrica(page, /^MC · /);
   await expect(editor.getByRole("button", { name: "Editar Frascos de coleta" })).toBeVisible();
 });
