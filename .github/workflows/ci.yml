@@ -83,6 +83,9 @@ jobs:
       - name: Validar edição do catálogo de custos de projeto (criar, editar, unificar, histórico)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/catalogo_edicao_0138.sql
 
+      - name: Validar reabrir, reformulação, modelos, pendências de pessoal e importação do catálogo
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/reformulacao_modelos_0139.sql
+
   check:
     runs-on: ubuntu-latest
     steps:
