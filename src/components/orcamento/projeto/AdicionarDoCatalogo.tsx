@@ -6,6 +6,7 @@ import { useFormStatus } from "react-dom";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
+import { MESES_VALOR_VELHO, origemDoValor, valorDesatualizado } from "@/lib/orcamento/catalogo-custos";
 import { VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
@@ -17,9 +18,11 @@ export type ItemCatalogo = {
   /** Preço de pessoal oculto por falta da permissão "Ver salário dos técnicos". */
   preco_mascarado?: boolean;
   categoria: string | null;
-  /** Quando e de qual proposta veio o valor atual (catálogo vivo, 0137). */
+  /** Quando e de onde veio o valor atual (catálogo vivo, 0137). */
   valor_atualizado_em?: string | null;
+  valor_atualizado_por?: string | null;
   valor_origem_demanda_titulo?: string | null;
+  origem?: string | null;
 };
 
 function normalizar(texto: string) {
@@ -124,11 +127,12 @@ export function AdicionarDoCatalogo({
       <Enviar desabilitado={!escolhaValida} />
       {escolhaValida && escolhido && !escolhido.preco_mascarado && escolhido.valor_atualizado_em && (
         <p className="text-xs text-muted-foreground md:col-span-4">
-          Valor de referência de {formatDate(escolhido.valor_atualizado_em)}
-          {escolhido.valor_origem_demanda_titulo
-            ? `, proposta “${escolhido.valor_origem_demanda_titulo}”`
-            : ", carga inicial do catálogo"}
-          .
+          Valor de referência de {formatDate(escolhido.valor_atualizado_em)}, {origemDoValor(escolhido)}.
+          {valorDesatualizado(escolhido.valor_atualizado_em) && (
+            <span className="ml-1 font-medium text-warning-strong">
+              Valor de mais de {MESES_VALOR_VELHO} meses: confira e atualize se preciso.
+            </span>
+          )}
         </p>
       )}
     </FormAcao>
