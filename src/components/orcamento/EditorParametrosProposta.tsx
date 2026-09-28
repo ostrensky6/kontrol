@@ -123,7 +123,7 @@ export function EditorParametrosProposta({
         </p>
         {podeEditar ? (
           <Button type="submit" disabled={!previa.valido}>
-            Salvar parâmetros
+            Salvar e ir para a proposta →
           </Button>
         ) : (
           <span className="text-xs text-muted-foreground">Somente consulta: alterar exige perfil Gestor.</span>

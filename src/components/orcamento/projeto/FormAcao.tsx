@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import type { EstadoAcao } from "@/lib/erros";
@@ -20,6 +21,7 @@ export function FormAcao({
   className,
   sucesso,
   aoConcluir,
+  irPara,
   "aria-label": ariaLabel,
 }: {
   action: AcaoFormulario;
@@ -27,8 +29,11 @@ export function FormAcao({
   className?: string;
   sucesso?: string;
   aoConcluir?: () => void;
+  /** depois do sucesso, abre este endereço (ex.: a próxima etapa da proposta) */
+  irPara?: string;
   "aria-label"?: string;
 }) {
+  const router = useRouter();
   async function enviar(formData: FormData) {
     let mensagem = sucesso;
     try {
@@ -46,6 +51,7 @@ export function FormAcao({
     }
     if (mensagem) toast.success(mensagem);
     aoConcluir?.();
+    if (irPara) router.push(irPara);
   }
 
   return (

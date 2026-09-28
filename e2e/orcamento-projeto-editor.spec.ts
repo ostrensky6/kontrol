@@ -120,6 +120,11 @@ test("edita custos do projeto e conclui a revisão", async ({ page }) => {
   const revisao = page.getByRole("dialog", { name: "Concluir revisão dos custos?" });
   await expect(revisao).toContainText("travados");
   await revisao.getByRole("button", { name: "Concluir revisão" }).click();
+  // Fluxo contínuo (28/09): concluída a revisão, a tela segue sozinha para os parâmetros.
+  await expect(page).toHaveURL(/\/orcamento\/demandas\/2\?etapa=parametros/);
+  await expect(page.getByRole("button", { name: "Salvar e ir para a proposta →" })).toBeVisible();
+  await page.getByRole("link", { name: "← Custos do projeto" }).click();
+  await expect(page).toHaveURL(/etapa=projeto/);
   await expect(editor.getByRole("note")).toContainText("Edição bloqueada.");
   await expect(editor.getByText("Revisado").first()).toBeVisible();
   await expect(editor.getByRole("button", { name: /^Editar / })).toHaveCount(0);

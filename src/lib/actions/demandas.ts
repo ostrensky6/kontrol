@@ -10,7 +10,8 @@ import { consolidarOrcamentoFinal } from "@/lib/orcamento/orcamento-final";
 import { modalidadeExigeLaboratorio, modalidadeExigeProjeto } from "@/lib/orcamento/orcamento-economico";
 import { detectarCustosZero } from "@/lib/orcamento/proposta-final";
 import { planejarModulosProposta, type PlanoModulos } from "@/lib/orcamento/garantir-modulos";
-import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
+import { exigirPapelOrcamento, podeOrcamento } from "@/lib/orcamento/governanca";
+import { ORDEM_ETAPAS, vizinhasEtapa, type EtapaId } from "@/lib/orcamento/etapas-proposta";
 import { gravarPercentuaisDaDemanda, lerPercentuais } from "@/lib/orcamento/gravar-percentuais";
 import { carregarComplementosDocumento } from "@/lib/orcamento/complementos-documento";
 import { empresaParaSnapshot } from "@/lib/orcamento/empresas-emissoras";
@@ -26,7 +27,7 @@ import {
   payloadSincronizacao,
   totalAmostras,
 } from "@/lib/orcamento/grupos-amostras";
-import type { Json } from "@/lib/supabase/database.types";
+import type { Json, Tables } from "@/lib/supabase/database.types";
 
 const listaPath = "/orcamento/demandas";
 
@@ -298,39 +299,35 @@ export async function salvarDemanda(
 
   revalidatePath(listaPath);
   revalidatePath(`${listaPath}/${id}`);
+
+  // "Salvar e continuar": depois de gravar, segue para a próxima etapa (criando o
+  // orçamento de custo se faltar), mesmo com escopo/descrição em branco (dono, 28/09).
+  if (formData.get("continuar") === "1") {
+    const proxima = vizinhasEtapa(patch.modalidade, "demanda").proxima;
+    const salva = proxima ? await carregarDemanda(supabase, id) : null;
+    if (proxima && salva) redirect(await destinoEtapa(supabase, salva, proxima));
+  }
   if (retornaEstado) {
     return { ok: true, message: "Orçamento salvo.", savedAt: new Date().toISOString() };
   }
 }
 
-export async function gerarOrcamentoAnalisesDaDemanda(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = Number(formData.get("demanda_id"));
-  if (!id) return;
+type ClienteSupabase = Awaited<ReturnType<typeof createClient>>;
+type DemandaCompleta = Tables<"demandas_propostas">;
 
-  const supabase = await createClient();
-  const { data: demanda } = await supabase
-    .from("demandas_propostas")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (!demanda) return;
-  if (!avaliarCompletudeDemanda(demanda).completa) {
-    redirect(`${listaPath}/${id}`);
-  }
-  if (!modalidadeExigeLaboratorio(demanda.modalidade)) {
-    redirect(`${listaPath}/${id}`);
-  }
+const erroIntegridade = (id: number, mensagem: string) =>
+  `${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(mensagem)}`;
 
-  // Idempotência: nunca duplicar; abrir o existente; bloquear se houver >1 ativo.
+/**
+ * Garante UM orçamento laboratorial ativo na proposta e devolve o endereço para abri-lo
+ * (ou o da etapa Dados com o erro de integridade). Idempotente: nunca duplica.
+ */
+async function garantirModuloLaboratorio(supabase: ClienteSupabase, demanda: DemandaCompleta): Promise<string> {
+  const id = demanda.id;
   const plano = await planoModulos(supabase, demanda);
   const lab = plano.laboratorio;
-  if (lab.acao === "bloqueado") {
-    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(plano.erros.join("; "))}`);
-  }
-  if (lab.acao === "abrir" && lab.moduloId) {
-    redirect(`/orcamento/${lab.moduloId}`);
-  }
+  if (lab.acao === "bloqueado") return erroIntegridade(id, plano.erros.join("; "));
+  if (lab.acao === "abrir" && lab.moduloId) return `/orcamento/${lab.moduloId}`;
 
   const { data, error } = await supabase
     .from("orcamentos")
@@ -358,45 +355,25 @@ export async function gerarOrcamentoAnalisesDaDemanda(formData: FormData) {
         .neq("status_operacional", "cancelado")
         .limit(1)
         .maybeSingle();
-      if (existente?.id) redirect(`/orcamento/${existente.id}`);
+      if (existente?.id) return `/orcamento/${existente.id}`;
     }
-    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(mensagemDoBanco(error))}`);
+    return erroIntegridade(id, mensagemDoBanco(error));
   }
   // As análises escolhidas nos grupos entram no módulo (antes ele nascia vazio).
   const copia = await incluirAnalisesDaDemandaNoOrcamento(data.id, id);
   await marcarEmAnalise(supabase, demanda);
   revalidatePath(listaPath);
-  redirect(copia.ok ? `/orcamento/${data.id}` : `/orcamento/${data.id}?aviso=${encodeURIComponent(copia.message ?? "")}`);
+  return copia.ok ? `/orcamento/${data.id}` : `/orcamento/${data.id}?aviso=${encodeURIComponent(copia.message ?? "")}`;
 }
 
-export async function gerarOrcamentoProjetoDaDemanda(formData: FormData) {
-  await exigirPapelOrcamento("preencher_custos");
-  const id = Number(formData.get("demanda_id"));
-  if (!id) return;
-
-  const supabase = await createClient();
-  const { data: demanda } = await supabase
-    .from("demandas_propostas")
-    .select("*")
-    .eq("id", id)
-    .single();
-  if (!demanda) return;
-  if (!avaliarCompletudeDemanda(demanda).completa) {
-    redirect(`${listaPath}/${id}`);
-  }
-  if (!modalidadeExigeProjeto(demanda.modalidade)) {
-    redirect(`${listaPath}/${id}`);
-  }
-
-  // Idempotência: nunca duplicar; abrir o existente; bloquear se houver >1 ativo.
+/** Garante UM orçamento de projeto ativo e devolve o endereço da etapa "Custos do projeto". */
+async function garantirModuloProjeto(supabase: ClienteSupabase, demanda: DemandaCompleta): Promise<string> {
+  const id = demanda.id;
+  const etapaProjeto = `${listaPath}/${id}?etapa=projeto`;
   const plano = await planoModulos(supabase, demanda);
   const projeto = plano.projeto;
-  if (projeto.acao === "bloqueado") {
-    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(plano.erros.join("; "))}`);
-  }
-  if (projeto.acao === "abrir" && projeto.moduloId) {
-    redirect(`/orcamento/demandas/${id}?etapa=projeto`);
-  }
+  if (projeto.acao === "bloqueado") return erroIntegridade(id, plano.erros.join("; "));
+  if (projeto.acao === "abrir" && projeto.moduloId) return etapaProjeto;
 
   const { error } = await supabase
     .from("orcamento_projetos")
@@ -414,12 +391,76 @@ export async function gerarOrcamentoProjetoDaDemanda(formData: FormData) {
     });
 
   // ORC-10: duplo clique cai no índice único (0126) e só reabre a etapa do projeto.
-  if (error && error.code !== "23505") {
-    redirect(`${listaPath}/${id}?etapa=demanda&erro_integridade=${encodeURIComponent(mensagemDoBanco(error))}`);
-  }
+  if (error && error.code !== "23505") return erroIntegridade(id, mensagemDoBanco(error));
   await marcarEmAnalise(supabase, demanda);
   revalidatePath(listaPath);
-  redirect(`/orcamento/demandas/${id}?etapa=projeto`);
+  return etapaProjeto;
+}
+
+/**
+ * Endereço de uma etapa da proposta. Nas etapas de custo, cria o orçamento da etapa
+ * (e o da seguinte, no projeto com análises) quando ainda não existe, para o usuário
+ * cair direto na planilha. Dados incompletos NÃO impedem (dono, 28/09): eles só são
+ * cobrados na emissão. Sem permissão de preencher custos, só navega.
+ */
+async function destinoEtapa(supabase: ClienteSupabase, demanda: DemandaCompleta, etapa: EtapaId): Promise<string> {
+  const id = demanda.id;
+  const exigeLab = modalidadeExigeLaboratorio(demanda.modalidade);
+  const exigeProj = modalidadeExigeProjeto(demanda.modalidade);
+  const ehCusto = (etapa === "laboratorio" && exigeLab) || (etapa === "projeto" && exigeProj);
+  if (!ehCusto || !(await podeOrcamento("preencher_custos"))) return `${listaPath}/${id}?etapa=${etapa}`;
+
+  if (etapa === "laboratorio") {
+    const destino = await garantirModuloLaboratorio(supabase, demanda);
+    // No projeto com análises, o de projeto já nasce junto: laboratório → projeto sem clique extra.
+    if (exigeProj && !destino.includes("erro_integridade")) await garantirModuloProjeto(supabase, demanda);
+    return destino;
+  }
+  return garantirModuloProjeto(supabase, demanda);
+}
+
+async function carregarDemanda(supabase: ClienteSupabase, id: number) {
+  const { data } = await supabase.from("demandas_propostas").select("*").eq("id", id).single();
+  return data;
+}
+
+/** Botão "Próxima etapa →": abre a etapa pedida, criando o orçamento de custo se faltar. */
+export async function irParaEtapaDaDemanda(formData: FormData) {
+  const id = Number(formData.get("demanda_id"));
+  const etapa = String(formData.get("etapa") ?? "") as EtapaId;
+  if (!id || !ORDEM_ETAPAS.includes(etapa)) return;
+  const supabase = await createClient();
+  const demanda = await carregarDemanda(supabase, id);
+  if (!demanda) return;
+  redirect(await destinoEtapa(supabase, demanda, etapa));
+}
+
+export async function gerarOrcamentoAnalisesDaDemanda(formData: FormData) {
+  await exigirPapelOrcamento("preencher_custos");
+  const id = Number(formData.get("demanda_id"));
+  if (!id) return;
+
+  const supabase = await createClient();
+  const demanda = await carregarDemanda(supabase, id);
+  if (!demanda) return;
+  if (!modalidadeExigeLaboratorio(demanda.modalidade)) {
+    redirect(`${listaPath}/${id}`);
+  }
+  redirect(await garantirModuloLaboratorio(supabase, demanda));
+}
+
+export async function gerarOrcamentoProjetoDaDemanda(formData: FormData) {
+  await exigirPapelOrcamento("preencher_custos");
+  const id = Number(formData.get("demanda_id"));
+  if (!id) return;
+
+  const supabase = await createClient();
+  const demanda = await carregarDemanda(supabase, id);
+  if (!demanda) return;
+  if (!modalidadeExigeProjeto(demanda.modalidade)) {
+    redirect(`${listaPath}/${id}`);
+  }
+  redirect(await garantirModuloProjeto(supabase, demanda));
 }
 
 export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
@@ -443,7 +484,8 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
 
   const completude = avaliarCompletudeDemanda(demanda);
   if (!completude.completa) {
-    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Complete os dados antes de emitir a proposta.")}`);
+    const falta = `Para emitir a proposta, complete os dados: ${completude.pendencias.join("; ")}.`;
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent(falta)}`);
   }
 
   const [{ data: orcamentosTodos }, { data: orcProjetosTodos }] = await Promise.all([
@@ -745,5 +787,7 @@ export async function salvarParametrosEconomicosDaDemanda(formData: FormData) {
 
   revalidatePath(listaPath);
   revalidatePath(`${listaPath}/${demandaId}`);
+  // Salvou na etapa Parâmetros: segue para a Proposta final (fluxo contínuo, 28/09).
+  if (etapa === "parametros") redirect(`${listaPath}/${demandaId}?etapa=final&parametros_salvos=1`);
   redirect(voltar("parametros_salvos=1"));
 }

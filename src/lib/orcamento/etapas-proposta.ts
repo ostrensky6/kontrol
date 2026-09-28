@@ -44,6 +44,40 @@ function hrefEtapa(demandaId: number, id: EtapaId) {
   return `/orcamento/demandas/${demandaId}?etapa=${id}`;
 }
 
+export const ROTULO_ETAPA: Record<EtapaId, string> = {
+  demanda: "Dados",
+  laboratorio: "Orçamento laboratorial",
+  projeto: "Custos do projeto",
+  parametros: "Parâmetros econômicos",
+  final: "Proposta final",
+  historico: "Histórico e auditoria",
+};
+
+/** Etapas de trabalho, na ordem, para a modalidade (o histórico fica fora da sequência). */
+export function etapasDoFluxo(modalidade?: string | null): EtapaId[] {
+  const exigeAnalises = modalidadeExigeLaboratorio(modalidade);
+  const exigeProjeto = modalidadeExigeProjeto(modalidade);
+  return ORDEM_ETAPAS.filter(
+    (id) => id !== "historico" && (id !== "laboratorio" || exigeAnalises) && (id !== "projeto" || exigeProjeto),
+  );
+}
+
+/**
+ * Etapa anterior e próxima da sequência, para a barra "← anterior · próxima →"
+ * e para o avanço automático depois de salvar ou concluir uma etapa.
+ * O histórico volta para a proposta final.
+ */
+export function vizinhasEtapa(
+  modalidade: string | null | undefined,
+  atual: EtapaId,
+): { anterior: EtapaId | null; proxima: EtapaId | null } {
+  const fluxo = etapasDoFluxo(modalidade);
+  if (atual === "historico") return { anterior: "final", proxima: null };
+  const i = fluxo.indexOf(atual);
+  if (i < 0) return { anterior: null, proxima: fluxo[0] ?? null };
+  return { anterior: fluxo[i - 1] ?? null, proxima: fluxo[i + 1] ?? null };
+}
+
 /**
  * Fonte única de etapas da proposta. Substitui o antigo `calcularFluxoDemanda` e
  * a versão anterior (apenas `modalidade`) deste arquivo. A determinação de
@@ -55,8 +89,10 @@ export function montarEtapasProposta(args: EntradaEtapasProposta): EtapaProposta
   const exigeAnalises = modalidadeExigeLaboratorio(args.modalidade);
   // O tipo do orçamento decide as etapas (dono, 28/09): ligação com projeto não cria etapa de custos.
   const exigeProjeto = modalidadeExigeProjeto(args.modalidade);
-  const laboratorioLiberado = args.demandaCompleta && exigeAnalises;
-  const projetoLiberado = args.demandaCompleta && exigeProjeto;
+  // Dados incompletos NÃO travam os custos (dono, 28/09): dá para fazer uma rodada de custos
+  // antes de escrever escopo e descrição; os dados completos só são cobrados na emissão.
+  const laboratorioLiberado = exigeAnalises;
+  const projetoLiberado = exigeProjeto;
   // Sequenciamento: quando a modalidade exige análises, o laboratório precisa
   // sair de "pendente" antes de o orçamento de projeto ficar ativo.
   const laboratorioBloqueiaProjeto = exigeAnalises && args.laboratorioStatus === "pendente";

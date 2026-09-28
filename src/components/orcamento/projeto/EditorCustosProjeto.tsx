@@ -673,7 +673,12 @@ export async function EditorCustosProjeto({
         <div className="max-w-md">
           <h4 className="text-sm font-semibold">Revisão dos custos</h4>
           {estado.podeConcluir && podeRevisar && (
-            <FormAcao action={concluirRevisaoCustosProjeto} sucesso="Revisão dos custos concluída." className="mt-2 space-y-2">
+            <FormAcao
+              action={concluirRevisaoCustosProjeto}
+              sucesso="Revisão dos custos concluída. Seguindo para os parâmetros."
+              irPara={`/orcamento/demandas/${demandaId}?etapa=parametros`}
+              className="mt-2 space-y-2"
+            >
               {campos}
               <p className="text-xs leading-5 text-muted-foreground">
                 Concluir trava a edição destes custos e libera os parâmetros e a emissão da proposta.

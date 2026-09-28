@@ -36,7 +36,8 @@ import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/or
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
-import { montarEtapasProposta, ORDEM_ETAPAS, type EtapaId } from "@/lib/orcamento/etapas-proposta";
+import { montarEtapasProposta, ORDEM_ETAPAS, ROTULO_ETAPA, vizinhasEtapa, type EtapaId } from "@/lib/orcamento/etapas-proposta";
+import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
 import {
   detectarCustosZero,
   montarComponentesTecnicos,
@@ -261,7 +262,7 @@ export default async function DemandaDetalhe({
     projetoStatus: moduloProjeto.status === "nao_exigido" ? "nao_exigido" : moduloProjeto.status,
     projetoLabel: moduloProjeto.label,
     parametrosLiberados: podeConsolidar,
-    orcamentoFinalPronto: orcamentoFinal.pronto,
+    orcamentoFinalPronto: orcamentoFinal.pronto && completudeDemanda.completa, // dados completos só contam aqui (emissão)
     versoesFinais: versoesFinais?.length ?? 0,
   });
   // §2.7/2.8: a query string ?etapa= controla a etapa exibida, na ordem fixa.
@@ -320,7 +321,8 @@ export default async function DemandaDetalhe({
   ]);
   // DC8: sem a permissão de pessoal, os valores de PE da visão interna aparecem como XXX.
   const podeVerPessoal = podePessoalOrcamento || podeSalarioTecnicos;
-  const podeEmitir = orcamentoFinal.pronto && !temCustoZeroSemJustificativa;
+  // Dados completos só são cobrados aqui, na emissão (dono, 28/09).
+  const podeEmitir = orcamentoFinal.pronto && !temCustoZeroSemJustificativa && completudeDemanda.completa;
   // Σ% = 0 (ex.: "Apenas análises", sem módulo de projeto para guardar parâmetros).
   const semParametros = orcamentoFinal.somaPercentual <= 0;
   const versaoEmitidaVigente = (versoesFinais ?? []).find((v) => v.status === "emitido");
@@ -387,12 +389,14 @@ export default async function DemandaDetalhe({
   const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
   const obrigatorio = <span className="text-danger-strong">*</span>;
-  // Depois de salvar, a barra aponta a próxima etapa de custo (laboratório antes de projeto).
-  const etapaCusto = etapas.find((e) => e.aplicavel && (e.id === "laboratorio" || e.id === "projeto"));
-  const proximaEtapaCusto = completudeDemanda.completa && etapaCusto
-    ? { href: etapaCusto.href, rotulo: etapaCusto.label }
-    : null;
+  // Fluxo contínuo (28/09): "Salvar e ir para …" nos Dados e barra "← anterior · próxima →" nas demais.
+  const proximaDosDados = vizinhasEtapa(demanda.modalidade, "demanda").proxima;
   const hrefDados = `/orcamento/demandas/${demandaId}?etapa=demanda`;
+  const proximaDaEtapa = vizinhasEtapa(demanda.modalidade, etapaAtiva).proxima;
+  const avisoNavegacao =
+    proximaDaEtapa === "parametros" && !podeConsolidar
+      ? `Para liberar os parâmetros, falta: ${modulosPendentes.join("; ")}.`
+      : null;
   const operacaoEmissaoId = randomUUID();
 
   // --- Etapa Proposta (28/09): as mesmas abas da proposta emitida, com valores vivos ---
@@ -472,7 +476,7 @@ export default async function DemandaDetalhe({
               {completudeDemanda.completa ? "Dados completos" : `${completudeDemanda.faltante}% faltante`}
               <HelpTip title="Completude dos dados" align="end">
                 <p>Parte dos <b>dados obrigatórios</b> do orçamento que ainda falta preencher (título, cliente, escopo ou descrição e, com laboratório, matriz e quantidade de amostras). Vincular um projeto é opcional.</p>
-                <p>Os módulos de custo só são liberados com <b>0% faltante</b>.</p>
+                <p>Dá para seguir para os custos com dados parciais. Os dados completos só são exigidos para <b>emitir a proposta</b>.</p>
                 <p className="text-xs">Atualizado em {formatDateTime(demanda.completude_atualizada_em)}.</p>
               </HelpTip>
             </span>
@@ -514,13 +518,13 @@ export default async function DemandaDetalhe({
           <div className="flex flex-wrap items-center gap-x-1 gap-y-0.5">
             <h2 className="text-sm font-semibold">Dados do orçamento</h2>
             <HelpTip title="Dados do orçamento">
-              <p>Com tudo preenchido, as etapas de custo são liberadas.</p>
+              <p>Pode seguir para os custos com dados parciais e completar depois. Os campos com <span className="text-danger-strong">*</span> são exigidos para emitir a proposta.</p>
             </HelpTip>
             <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
             </span>
           </div>
-          <SalvarDemandaForm pendencias={completudeDemanda.pendencias} proximaEtapa={proximaEtapaCusto}>
+          <SalvarDemandaForm pendencias={completudeDemanda.pendencias} rotuloContinuar={proximaDosDados ? ROTULO_ETAPA[proximaDosDados] : null}>
             <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
             {/* Grupos lado a lado em telas largas (3 colunas), campos aos pares. */}
             <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
@@ -674,7 +678,7 @@ export default async function DemandaDetalhe({
             </div>
             {!completudeDemanda.completa && (
               <div className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
-                Complete os dados antes de gerar módulos: {completudeDemanda.pendencias.join("; ")}.
+                Pode seguir para os custos. Para emitir a proposta, falta: {completudeDemanda.pendencias.join("; ")}.
               </div>
             )}
             {(planoModulosUi.bloqueadoPorDuplicidade || erroIntegridade) && (
@@ -690,7 +694,6 @@ export default async function DemandaDetalhe({
               <ModuloAcao
                 plano={planoModulosUi.laboratorio}
                 rotulo="laboratorial"
-                demandaCompleta={completudeDemanda.completa}
                 demandaId={demandaId}
                 acaoCriar={gerarOrcamentoAnalisesDaDemanda}
                 hrefBase="/orcamento"
@@ -698,7 +701,6 @@ export default async function DemandaDetalhe({
               <ModuloAcao
                 plano={planoModulosUi.projeto}
                 rotulo="de projeto"
-                demandaCompleta={completudeDemanda.completa}
                 demandaId={demandaId}
                 acaoCriar={gerarOrcamentoProjetoDaDemanda}
                 hrefBase={`/orcamento/demandas/${demandaId}`}
@@ -759,16 +761,13 @@ export default async function DemandaDetalhe({
               Esta modalidade não exige orçamento laboratorial.
             </div>
           ) : planoModulosUi.laboratorio.acao === "criar" && todosOrcamentosAnalises.length === 0 ? (
-            // Sem orçamento laboratorial ainda: a etapa diz o que falta ou oferece criar (antes era só uma tabela vazia).
-            !completudeDemanda.completa ? (
-              <PendenciasDados pendencias={completudeDemanda.pendencias} hrefDados={hrefDados} etapa="O orçamento laboratorial abre" />
-            ) : (
+            // Sem orçamento laboratorial ainda: oferece criar (antes era só uma tabela vazia).
+            (
               <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
-                <span>Dados completos. Comece o orçamento laboratorial:</span>
+                <span>Nenhum orçamento laboratorial ainda.</span>
                 <ModuloAcao
                   plano={planoModulosUi.laboratorio}
                   rotulo="laboratorial"
-                  demandaCompleta={completudeDemanda.completa}
                   demandaId={demandaId}
                   acaoCriar={gerarOrcamentoAnalisesDaDemanda}
                   hrefBase="/orcamento"
@@ -834,15 +833,12 @@ export default async function DemandaDetalhe({
             <p role="alert" className="mt-4 rounded-md border border-danger-strong/30 bg-danger-soft px-3 py-2 text-xs leading-5 text-danger-strong">
               {planoModulosUi.erros.join(" ")}
             </p>
-          ) : !completudeDemanda.completa ? (
-            <PendenciasDados pendencias={completudeDemanda.pendencias} hrefDados={hrefDados} etapa="Os custos do projeto abrem" />
           ) : (
             <div className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-muted/50 px-3 py-4 text-sm text-muted-foreground">
-              <span>Dados completos. Comece a planilha de custos do projeto:</span>
+              <span>Nenhuma planilha de custos do projeto ainda.</span>
               <ModuloAcao
                 plano={planoModulosUi.projeto}
                 rotulo="de projeto"
-                demandaCompleta={completudeDemanda.completa}
                 demandaId={demandaId}
                 acaoCriar={gerarOrcamentoProjetoDaDemanda}
                 hrefBase={`/orcamento/demandas/${demandaId}`}
@@ -980,7 +976,7 @@ export default async function DemandaDetalhe({
               <p className="mt-2 text-right text-xs text-warning-strong">
                 Emissão bloqueada:{" "}
                 {(() => {
-                  const n = orcamentoFinal.pendencias.length + (temCustoZeroSemJustificativa ? 1 : 0);
+                  const n = orcamentoFinal.pendencias.length + (temCustoZeroSemJustificativa ? 1 : 0) + (completudeDemanda.completa ? 0 : 1);
                   return `${n} ${n === 1 ? "pendência" : "pendências"}`;
                 })()}{" "}
                 — <a href="#bloqueios-emissao" className="font-medium underline">ver</a>
@@ -992,10 +988,16 @@ export default async function DemandaDetalhe({
           </div>
 
           {/* F — Pendências e bloqueios */}
-          {(orcamentoFinal.pendencias.length > 0 || temCustoZeroSemJustificativa || !composicaoFinal.reconciliaOk) && (
+          {(orcamentoFinal.pendencias.length > 0 || temCustoZeroSemJustificativa || !composicaoFinal.reconciliaOk || !completudeDemanda.completa) && (
             <div id="bloqueios-emissao" className="scroll-mt-24 rounded-lg border border-warning-strong/30 bg-warning-soft p-4">
               <h3 className="text-sm font-semibold text-warning-strong">Pendências e bloqueios</h3>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-xs leading-5 text-warning-strong">
+                {!completudeDemanda.completa && (
+                  <li>
+                    Dados do orçamento: {completudeDemanda.pendencias.join("; ")} —{" "}
+                    <a href={hrefDados} className="font-medium underline">completar</a>
+                  </li>
+                )}
                 {orcamentoFinal.pendencias.map((p) => (
                   <li key={p}>{p}</li>
                 ))}
@@ -1166,6 +1168,9 @@ export default async function DemandaDetalhe({
             ]}
           />
         </section>
+        {etapaAtiva !== "demanda" && (
+          <NavegacaoEtapas demandaId={demandaId} modalidade={demanda.modalidade} atual={etapaAtiva} aviso={avisoNavegacao} />
+        )}
       </main>
     </div>
   );
@@ -1174,7 +1179,6 @@ export default async function DemandaDetalhe({
 function ModuloAcao({
   plano,
   rotulo,
-  demandaCompleta,
   demandaId,
   acaoCriar,
   hrefBase,
@@ -1183,7 +1187,6 @@ function ModuloAcao({
 }: {
   plano: PlanoModulo;
   rotulo: string;
-  demandaCompleta: boolean;
   demandaId: number;
   acaoCriar: (formData: FormData) => void | Promise<void>;
   hrefBase: string;
@@ -1205,17 +1208,6 @@ function ModuloAcao({
       </span>
     );
   }
-  if (!demandaCompleta) {
-    // Antes era um rótulo morto; agora leva à etapa Dados, onde a barra de salvar diz o que falta.
-    return (
-      <a
-        href={`/orcamento/demandas/${demandaId}?etapa=demanda`}
-        className="rounded-md border border-warning-strong/30 px-3 py-2 text-xs text-warning-strong hover:bg-warning-soft"
-      >
-        Complete os dados
-      </a>
-    );
-  }
   if (plano.acao === "abrir" && plano.moduloId) {
     return (
       <Link
@@ -1233,20 +1225,6 @@ function ModuloAcao({
         Criar orçamento {rotulo}
       </button>
     </form>
-  );
-}
-
-/** Etapa de custo ainda fechada: diz exatamente o que falta nos Dados e leva até lá. */
-function PendenciasDados({ pendencias, hrefDados, etapa }: { pendencias: string[]; hrefDados: string; etapa: string }) {
-  return (
-    <div role="status" className="mt-4 flex flex-wrap items-center gap-3 rounded-md bg-warning-soft px-3 py-3 text-sm text-warning-strong">
-      <span>
-        {etapa} quando os Dados estiverem completos. Falta: <b className="font-semibold">{pendencias.join("; ")}</b>.
-      </span>
-      <a href={hrefDados} className="rounded-md border border-warning-strong/40 bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted">
-        Ir para Dados
-      </a>
-    </div>
   );
 }
 
