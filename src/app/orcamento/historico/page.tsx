@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Ban, Copy, Search, SlidersHorizontal } from "lucide-react";
+import { CLASSE_BOTAO_ICONE, CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 import { LinhaExpansivel } from "@/components/common/LinhaExpansivel";
 import { SubmitButton } from "@/components/common/SubmitButton";
 
@@ -412,14 +413,17 @@ export default async function HistoricoOrcamentosPage({
                                 <input type="hidden" name="versao_id" value={item.id} />
                                 <input type="hidden" name="validade_dias" value={item.validade_dias || 30} />
                                 <input type="hidden" name="operacao_id" value={operacoesDuplicacao.get(item.id)} />
-                                <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
+                                <SubmitButton variant="ghost" size="icon" className={CLASSE_BOTAO_ICONE} pendingLabel="…">
+                                  <IconeAcao icone={Copy} rotulo={`Duplicar a versão ${item.numero}`} />
+                                </SubmitButton>
                               </form>
                             )}
                             {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(item.status) && (
                               <CancelarComMotivo
                                 action={cancelarVersaoFinal}
                                 fields={{ versao_id: item.id }}
-                                trigger="Cancelar"
+                                trigger={<IconeAcao icone={Ban} rotulo={`Cancelar a versão ${item.numero}`} />}
+                                triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
                                 titulo="Cancelar versão final"
                                 mensagem={item.status === "aprovado"
                                   ? `Cancelar a versão aprovada ${item.numero}? O planejamento dela em rascunho ou reservado também é cancelado, com as reservas liberadas.`

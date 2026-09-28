@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Search, SlidersHorizontal } from "lucide-react";
+import { Archive, Copy, Search, SlidersHorizontal } from "lucide-react";
+import { CLASSE_BOTAO_ICONE, CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -255,7 +256,7 @@ export default async function OrcamentoModelosPage({
                       <td className="px-3 py-1.5 tabular-nums text-muted-foreground">{formatDate(template.criado_em)}</td>
                       <td className="px-3 py-1.5">{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</td>
                       <td className="px-3 py-1.5">
-                        <div className="flex justify-end gap-3">
+                        <div className="flex justify-end gap-1">
                           {USO_DIRETO_DE_TEMPLATE && !isArquivado(template) && (
                             <form action={criarProjetoDeTemplate} className="flex items-center gap-1">
                               <input type="hidden" name="template_id" value={template.id} />
@@ -270,17 +271,19 @@ export default async function OrcamentoModelosPage({
                           )}
                           <form action={duplicarTemplateProjeto}>
                             <input type="hidden" name="template_id" value={template.id} />
-                            <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
+                            <SubmitButton variant="ghost" size="icon" className={CLASSE_BOTAO_ICONE} pendingLabel="…">
+                              <IconeAcao icone={Copy} rotulo="Duplicar modelo" />
+                            </SubmitButton>
                           </form>
                           {!isArquivado(template) && (
                             <ConfirmActionButton
                               action={excluirTemplate}
                               fields={{ template_id: template.id }}
-                              trigger="Arquivar"
+                              trigger={<IconeAcao icone={Archive} rotulo="Arquivar modelo" />}
                               titulo="Arquivar template"
                               mensagem={`Arquivar o template ${nomeVisivel(template.nome)}? Ele deixa de ser oferecido como ativo, mas o registro permanece no histórico.`}
                               confirmLabel="Arquivar"
-                              triggerClassName="text-xs font-medium text-danger-strong hover:underline"
+                              triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
                             />
                           )}
                         </div>
@@ -392,11 +395,11 @@ export default async function OrcamentoModelosPage({
                         <ConfirmActionButton
                           action={arquivarCatalogoProjetoItem}
                           fields={{ catalogo_item_id: item.id }}
-                          trigger="Arquivar"
+                          trigger={<IconeAcao icone={Archive} rotulo={`Arquivar ${item.descricao}`} />}
                           titulo="Arquivar item do catálogo"
                           mensagem={`Arquivar ${item.descricao}? O item deixa de ser sugerido para novos orçamentos, sem apagar histórico.`}
                           confirmLabel="Arquivar"
-                          triggerClassName="text-xs font-medium text-danger-strong hover:underline"
+                          triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
                         />
                       ) : (
                         <Badge tom="zinc">Arquivado</Badge>
