@@ -143,6 +143,39 @@ para producao com autorizacao explicita do dono, na hora.
 Nunca usar `supabase db push` neste projeto enquanto o historico da `0109` nao
 for conciliado.
 
+## Backup e recuperacao
+
+O que roda sozinho (tarefa "Kontrol - Backup banco nuvem", 00:30 e 12:30, no
+computador do laboratorio; instalar com `scripts/install-windows-backup-tasks.ps1`):
+
+1. `pg_dump` do banco da nuvem em `D:\Dropbox\Aplicativos\Kontrol\BD`
+   (30 dias, mais os dias 1 e 15 de cada mes para sempre).
+2. Copia dos arquivos do Storage (anexos, assinaturas) em
+   `D:\Dropbox\Aplicativos\Kontrol\ARQUIVOS`, 14 copias. O `pg_dump` leva so a
+   lista dos arquivos; sem esta copia, os anexos voltariam quebrados. Precisa de
+   `NEXT_PUBLIC_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` da nuvem no
+   `.env.local` da pasta principal e do Node instalado.
+3. Cada execucao (boa ou com falha) fica em `public.backups_execucoes` (0134).
+
+Alerta: todo dia as 8h (Brasilia) o banco confere o registro. Se o ultimo
+backup bom do banco ou dos arquivos tiver mais de 26 horas, ou se houve falha
+nas ultimas 24 horas, os administradores recebem aviso em Notificacoes. Pega
+tambem o computador desligado e a tarefa parada.
+
+Ensaio de restauracao (uma vez por mes e depois de mudanca grande no banco):
+`npm run backup:ensaio` restaura o backup mais recente num banco descartavel do
+Supabase local (Docker), confere tabelas, historico de migrations e contagens,
+mede o tempo e grava o relatorio em `D:\Dropbox\Aplicativos\Kontrol\HISTORICO\ensaios`.
+Nao toca a producao. Resultado "OK" = o backup volta inteiro.
+
+Recuperacao de verdade (incidente): 1) parar o uso do app; 2) escolher o backup
+(o ultimo "OK" do ensaio); 3) backup do estado atual antes de qualquer coisa;
+4) restaurar com `pg_restore --clean --if-exists --no-owner --no-privileges` no
+banco alvo (ou num projeto Supabase novo, apontando a Vercel para ele); 5)
+reenviar os arquivos da copia de `ARQUIVOS` para os mesmos buckets e caminhos;
+6) `npm run db:migration -- --situacao` e o passo 6 da secao anterior; 7) abrir
+as rotas do checklist. So com autorizacao explicita do dono.
+
 ## Observacoes de seguranca
 
 - Nao registrar senha Postgres, senha de usuario ou `service_role` em arquivos versionados.
