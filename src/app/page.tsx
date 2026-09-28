@@ -136,15 +136,11 @@ function JornadaCard({
   return (
     <SectionCard
       title={titulo}
-      description={
-        ajuda ? (
-          <span className="flex items-center gap-1">
-            {subtitulo}
-            <HelpTip title={`Jornada de ${titulo.toLowerCase()}`}>{ajuda}</HelpTip>
-          </span>
-        ) : (
-          subtitulo
-        )
+      help={
+        <HelpTip title={`Jornada de ${titulo.toLowerCase()}`}>
+          <p>{subtitulo}</p>
+          {ajuda}
+        </HelpTip>
       }
       contentClassName="grid gap-2"
     >
@@ -381,9 +377,9 @@ export default async function Home() {
     <PageShell>
       <PageHeader
         title="Painel de decisão operacional"
-        description="O que espera por você e o que precisa de compra, aceite, baixa ou revisão hoje."
         help={
           <HelpTip title="Painel de decisão">
+            <p>O que espera por você e o que precisa de compra, aceite, baixa ou revisão hoje.</p>
             <p>
               Mostra só as áreas que o seu usuário pode abrir. Em <b>Aguardando você</b> ficam as
               etapas que dependem da sua ação; cada indicador leva à lista que o explica.
@@ -423,16 +419,7 @@ export default async function Home() {
       )}
 
       {(gastos !== null || funil !== null) && (
-        <SectionCard
-          title="Dashboard executivo"
-          description={
-            funil !== null && gastos !== null
-              ? "Gasto por mês e funil de orçamentos."
-              : funil !== null
-                ? "Funil de orçamentos."
-                : "Gasto por mês."
-          }
-        >
+        <SectionCard title="Dashboard executivo">
           <ExecutiveCharts gastos={gastos} funil={funil} />
         </SectionCard>
       )}
@@ -513,7 +500,6 @@ export default async function Home() {
       {baseControle.length > 0 && (
         <SectionCard
           title="Base de controle"
-          description="Cadastros, qualidade dos dados, auditoria e usuários."
           contentClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
         >
           {baseControle.map(([titulo, href, desc]) => (

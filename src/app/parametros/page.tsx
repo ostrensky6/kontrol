@@ -27,11 +27,9 @@ export default async function ParametrosPage() {
               A <b>taxa de incubação (UFPR)</b> daqui é o padrão das novas propostas. A mensalidade
               fixa da incubação é custo fixo e fica em Cadastros → Overhead.
             </p>
+            <p>Vale para novos cálculos. Propostas emitidas não mudam.</p>
           </HelpTip>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Vale para novos cálculos. Propostas emitidas não mudam.
-        </p>
 
         <div className="mt-8">
           <ParametrosForm

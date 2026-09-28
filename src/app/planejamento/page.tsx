@@ -122,9 +122,6 @@ export default async function PlanejamentoPage({
             />
           </HelpTip>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Vincule projeto, período e análises; reserve lotes e peça o que faltar.
-        </p>
         {planoExcluido && (
           <p role="status" className="mt-3 rounded-lg border border-brand-300 bg-brand-50 px-4 py-2 text-sm text-brand-800 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-300">
             Plano #{planoExcluido} excluído. O motivo ficou registrado na trilha de auditoria.

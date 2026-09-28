@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PageShell } from "@/components/app/PageShell";
+import { HelpTip } from "@/components/common/HelpTip";
 import {
   arquivarNotificacao,
   marcarNotificacaoLida,
@@ -71,10 +72,12 @@ export default async function NotificacoesPage() {
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Suprimentos
           </p>
-          <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Avisos para você: etapas que esperam sua ação, faltas, reposições e vencimentos.
-          </p>
+          <div className="flex items-center gap-1">
+            <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
+            <HelpTip title="Notificações">
+              <p>Avisos para você: etapas que esperam sua ação, faltas, reposições e vencimentos.</p>
+            </HelpTip>
+          </div>
         </div>
         {naoLidas > 0 && (
           <form action={marcarTodasNotificacoesLidas}>

@@ -99,6 +99,7 @@ export default async function AuditoriaPage({
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Auditoria</h1>
           <HelpTip title="Trilha de auditoria">
+            <p>Quem alterou o quê, e quando.</p>
             <p>
               Cada alteração é registrada <b>automaticamente</b>, com o valor anterior e o novo.
               Ninguém pode editar nem apagar esses registros.
@@ -106,7 +107,6 @@ export default async function AuditoriaPage({
             <p>Use os filtros para ver só um tipo de cadastro.</p>
           </HelpTip>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Quem alterou o quê, e quando.</p>
 
         <nav className="mt-5 flex flex-wrap gap-2 text-xs">
           {TABELAS.map((t) => (

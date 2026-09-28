@@ -44,7 +44,12 @@ test('ajuda "?" tem área de toque de 44 px, nome acessível e Esc devolve o foc
 
 test("parâmetros de custeio: fatores versionados só para consulta", async ({ page }) => {
   await page.goto("/parametros");
-  await expect(page.getByText("Vale para novos cálculos. Propostas emitidas não mudam.")).toBeVisible();
+  // a frase fica no "?" do título (regra: título + "?" e nada mais)
+  await page.getByRole("button", { name: "Ajuda: Parâmetros de custeio" }).click();
+  await expect(page.getByRole("dialog", { name: "Parâmetros de custeio" })).toContainText(
+    "Vale para novos cálculos. Propostas emitidas não mudam.",
+  );
+  await page.keyboard.press("Escape");
   await expect(page.getByLabel(/^Impostos/)).toBeDisabled();
   await expect(page.getByLabel(/^Dias úteis por ano/)).toBeDisabled();
   await expect(page.getByRole("button", { name: "Salvar parâmetros" })).toBeVisible();

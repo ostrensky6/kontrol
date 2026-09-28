@@ -123,7 +123,7 @@ export function CusteioAmostrasChart({
             <h2 className="text-lg font-semibold text-foreground dark:text-white">Custo por número de amostras</h2>
             <HelpTip title="Custo por número de amostras">
               <p>
-                Cada linha é uma análise. Os <b>degraus</b> aparecem quando as amostras passam do
+                Compare análises lado a lado: cada linha é uma análise. Os <b>degraus</b> aparecem quando as amostras passam do
                 lote e é preciso abrir mais uma corrida.
               </p>
               <p>
@@ -149,7 +149,6 @@ export function CusteioAmostrasChart({
               </HelpExample>
             </HelpTip>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">Compare análises lado a lado.</p>
         </div>
         <label className="block min-w-44">
           <span className="text-xs font-medium text-muted-foreground">Métrica</span>
