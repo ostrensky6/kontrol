@@ -370,8 +370,11 @@ export default async function DemandaDetalhe({
   // formulário Dados do orçamento: campos de 32 px, grupos aos pares (28/09)
   const campo = `rounded-md border border-input bg-card px-2.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 h-8 w-full`;
   const areaTexto = `rounded-md border border-input bg-card px-2.5 py-1.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 block min-h-14 w-full`;
-  const grupo = "min-w-0 rounded-md border border-border bg-muted/20 px-2.5 pb-2.5 pt-2";
-  const legenda = "float-left mb-1 w-full text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+  // Caixas bem delimitadas (28/09): borda mais forte, fundo cinza atrás dos campos brancos e
+  // título da caixa com linha embaixo, para Identificação, Cliente e Amostras não se misturarem.
+  const grupo = "min-w-0 rounded-lg border border-foreground/20 bg-muted px-2.5 pb-2.5 pt-2 shadow-sm dark:bg-muted/40";
+  const legenda =
+    "float-left mb-2 w-full border-b border-foreground/15 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300";
   const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
   const operacaoEmissaoId = randomUUID();
@@ -504,7 +507,7 @@ export default async function DemandaDetalhe({
           <SalvarDemandaForm>
             <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
             {/* Grupos lado a lado em telas largas (3 colunas), campos aos pares. */}
-            <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
+            <div className="grid gap-3 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
               <fieldset className={grupo}>
                 <legend className={legenda}>Identificação</legend>
                 <div className={grade}>

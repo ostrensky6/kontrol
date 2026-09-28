@@ -1,20 +1,25 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { Archive, ArchiveRestore, Copy, History, Search, SlidersHorizontal, X } from "lucide-react";
+import { Archive, ArchiveRestore, Check, Copy, History, Search, SlidersHorizontal, X } from "lucide-react";
 import { CLASSE_BOTAO_ICONE, CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
+import { DownloadButton } from "@/components/common/DownloadButton";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpTip } from "@/components/common/HelpTip";
 import { ItemCatalogoDialog } from "@/components/orcamento/catalogo/ItemCatalogoDialog";
 import { UnificarItemDialog } from "@/components/orcamento/catalogo/UnificarItemDialog";
+import { ImportarPlanilhaDialog } from "@/components/orcamento/catalogo/ImportarPlanilhaDialog";
+import { FormAcao } from "@/components/orcamento/projeto/FormAcao";
 import { buttonVariants } from "@/components/ui/button";
+import { duplicarTemplateProjeto, excluirTemplate } from "@/lib/actions/orcamento-projetos";
 import {
-
-  duplicarTemplateProjeto,
-  excluirTemplate,
-} from "@/lib/actions/orcamento-projetos";
-import { definirAtivoItemCatalogo, salvarItemCatalogo, unificarItensCatalogo } from "@/lib/actions/catalogo-custos";
+  definirAtivoItemCatalogo,
+  importarPlanilhaCatalogo,
+  resolverPendenciaCatalogo,
+  salvarItemCatalogo,
+  unificarItensCatalogo,
+} from "@/lib/actions/catalogo-custos";
 import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import {
@@ -68,6 +73,20 @@ type CatalogoItem = {
   valor_atualizado_em?: string | null;
   valor_atualizado_por?: string | null;
   valor_origem_demanda_titulo?: string | null;
+};
+
+/** Valor de pessoal informado por quem não tinha a permissão (0139): espera quem tem. */
+type PendenciaPessoal = {
+  pendencia_id: number;
+  rubrica: string;
+  descricao: string;
+  unidade: string | null;
+  preco_unitario: number | null;
+  catalogo_item_id: string | null;
+  preco_atual: number | null;
+  demanda_titulo: string | null;
+  usuario: string | null;
+  registrado_em: string;
 };
 
 type HistoricoValor = {
@@ -125,6 +144,10 @@ export default async function OrcamentoModelosPage({
     ? await supabase.rpc("catalogo_projeto_historico", { p_id: itemHistorico.id })
     : { data: null };
   const historico = (historicoData ?? []) as HistoricoValor[];
+  // Pendências de pessoal: só quem pode decidir (catálogo + pessoal) as vê.
+  const { data: pendenciasData } =
+    podeEditarCatalogo && podeVerPessoal ? await supabase.rpc("catalogo_projeto_pendencias") : { data: null };
+  const pendencias = (pendenciasData ?? []) as PendenciaPessoal[];
 
   const templatesFiltrados = filtrarTemplates((templates ?? []) as TemplateProjeto[], filtros);
   // A rubrica é escolhida nas abas do catálogo; as contagens das abas seguem os demais filtros.
@@ -247,16 +270,13 @@ export default async function OrcamentoModelosPage({
           <Cabecalho
             id="templates-titulo"
             titulo="Templates de projeto"
-            subtitulo="Duplique ou arquive modelos. Usar em orçamento: em breve."
+            subtitulo="Os modelos são salvos e usados dentro da proposta, na etapa Custos do projeto (Salvar como modelo / Usar modelo). Aqui você duplica ou arquiva."
             semBorda={templatesFiltrados.length === 0}
             extra={
               <>
                 {templatesFiltrados.length === 0 && (
                   <p className="text-xs text-muted-foreground/80">Nenhum template encontrado.</p>
                 )}
-                <p className="ml-auto text-xs text-muted-foreground">
-                  Salve e use modelos dentro da proposta, na etapa Custos do projeto.
-                </p>
               </>
             }
           />
@@ -368,6 +388,10 @@ export default async function OrcamentoModelosPage({
                     {valoresVelhos} {valoresVelhos === 1 ? "valor" : "valores"} com mais de {MESES_VALOR_VELHO} meses
                   </Link>
                 )}
+                <DownloadButton href="/orcamento/modelos/planilha" fileName="catalogo-custos-projeto.xlsx" size="sm">
+                  Exportar
+                </DownloadButton>
+                {podeEditarCatalogo && <ImportarPlanilhaDialog action={importarPlanilhaCatalogo} />}
                 {podeEditarCatalogo && (
                   <ItemCatalogoDialog
                     rubricaPadrao={filtros.rubrica ?? "MC"}
@@ -427,6 +451,7 @@ export default async function OrcamentoModelosPage({
               )}
             </div>
           )}
+          {pendencias.length > 0 && <PendenciasPessoal pendencias={pendencias} />}
           {/* Subabas por rubrica (como a visão interna da proposta): só as que têm itens. */}
           <nav aria-label="Rubricas do catálogo" className="flex gap-1 overflow-x-auto border-b border-border px-1.5 [scrollbar-width:none]">
             <AbaRubrica href={hrefRubrica(filtros, undefined)} ativa={!filtros.rubrica} rotulo="Todas" total={catalogoSemRubrica.length} />
@@ -785,4 +810,72 @@ function Badge({ children, tom = "zinc" }: { children: React.ReactNode; tom?: "b
         ? "bg-warning-soft text-warning-strong"
         : "bg-muted text-muted-foreground";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{children}</span>;
+}
+
+/**
+ * Valores de pessoal que chegaram na conclusão de revisões feitas por quem não tinha a permissão
+ * de pessoal (0137/0139). Aplicar grava no catálogo (com histórico); descartar mantém o catálogo.
+ */
+function PendenciasPessoal({ pendencias }: { pendencias: PendenciaPessoal[] }) {
+  return (
+    <div className="border-t border-border bg-warning-soft/40 px-3 py-2" aria-labelledby="pendencias-titulo">
+      <h3 id="pendencias-titulo" className="text-sm font-semibold">
+        Valores de pessoal aguardando decisão ({pendencias.length})
+      </h3>
+      <p className="text-xs text-muted-foreground">
+        Informados em revisões concluídas por quem não tem a permissão de pessoal. Aplicar atualiza o catálogo; descartar
+        mantém o valor atual. O orçamento de origem não muda em nenhum caso.
+      </p>
+      <table className="mt-1 w-full text-left text-xs">
+        <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="py-1 pr-3 font-medium">Item</th>
+            <th className="py-1 pr-3 text-right font-medium">Informado</th>
+            <th className="py-1 pr-3 text-right font-medium">Catálogo hoje</th>
+            <th className="py-1 pr-3 font-medium">Proposta</th>
+            <th className="py-1 pr-3 font-medium">Quem / quando</th>
+            <th className="py-1 text-right font-medium">Decisão</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border/60">
+          {pendencias.map((p) => (
+            <tr key={p.pendencia_id}>
+              <td className="py-1 pr-3">
+                {p.descricao} ({p.unidade ?? "un"})
+                <span className="ml-1 text-muted-foreground">{p.catalogo_item_id ?? "item novo"}</span>
+              </td>
+              <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums">
+                {p.preco_unitario == null ? "—" : brl(Number(p.preco_unitario))}
+              </td>
+              <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums text-muted-foreground">
+                {p.preco_atual == null ? "—" : brl(Number(p.preco_atual))}
+              </td>
+              <td className="py-1 pr-3 text-muted-foreground">{p.demanda_titulo ?? "—"}</td>
+              <td className="py-1 pr-3 text-muted-foreground">
+                {p.usuario ?? "—"} · {formatDateTime(p.registrado_em)}
+              </td>
+              <td className="py-1">
+                <div className="flex justify-end gap-0.5">
+                  <FormAcao action={resolverPendenciaCatalogo} aria-label={`Aplicar valor de ${p.descricao}`}>
+                    <input type="hidden" name="pendencia_id" value={p.pendencia_id} />
+                    <input type="hidden" name="aplicar" value="1" />
+                    <button type="submit" className={CLASSE_BOTAO_ICONE}>
+                      <IconeAcao icone={Check} rotulo={`Aplicar ao catálogo o valor de ${p.descricao}`} />
+                    </button>
+                  </FormAcao>
+                  <FormAcao action={resolverPendenciaCatalogo} aria-label={`Descartar valor de ${p.descricao}`}>
+                    <input type="hidden" name="pendencia_id" value={p.pendencia_id} />
+                    <input type="hidden" name="aplicar" value="0" />
+                    <button type="submit" className={CLASSE_BOTAO_ICONE_PERIGO}>
+                      <IconeAcao icone={X} rotulo={`Descartar o valor de ${p.descricao}`} />
+                    </button>
+                  </FormAcao>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
 }
