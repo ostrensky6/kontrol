@@ -8,6 +8,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
 import {
   calcularDivergenciaInventario,
+  descreverDiferencaInventario,
   exigeJustificativaInventario,
 } from "@/lib/inventario/contagem";
 import type { FormState } from "./cadastros";
@@ -151,8 +152,8 @@ export async function registrarContagemInventario(
   return {
     ok: true,
     message: divergencia.temDivergencia
-      ? "Contagem registrada com divergência. Revise antes de aplicar ajuste."
-      : "Contagem registrada sem divergência.",
+      ? `Contagem registrada com diferença. ${descreverDiferencaInventario(quantidadeSistema, parsed.data.quantidade_contada).frase} O saldo só muda quando alguém aplicar o ajuste.`
+      : "Contagem registrada: confere com o sistema.",
   };
 }
 

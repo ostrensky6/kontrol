@@ -5,7 +5,8 @@ import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
-import { formatCurrency, formatDate, formatNumber } from "@/lib/formatters";
+import { formatDate, formatNumber } from "@/lib/formatters";
+import { descreverDiferencaInventario } from "@/lib/inventario/contagem";
 import {
   InventarioScannerPanel,
   type InventarioCicloOpcao,
@@ -26,15 +27,23 @@ type ContagemRow = {
   justificativa: string | null;
   ajuste_aplicado: boolean;
   contado_em: string;
-  contado_por: string | null;
-  segunda_aprovacao: boolean | null;
   inventario_ciclos: { nome: string | null } | null;
   locais: { nome: string | null } | null;
   lotes_estoque: {
     codigo_lote: string | null;
-    custo_unitario: number | null;
-    insumos: { especificacao: string | null; unidade: string | null; custo_unitario: number | null } | null;
+    insumos: { especificacao: string | null; unidade: string | null } | null;
   } | null;
+};
+
+type ContagemAberta = {
+  id: number;
+  ciclo_id: number;
+  lote_id: number;
+  quantidade_sistema: number;
+  quantidade_contada: number;
+  divergencia: number;
+  ajuste_aplicado: boolean;
+  lotes_estoque: ContagemRow["lotes_estoque"] | ContagemRow["lotes_estoque"][];
 };
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
@@ -46,7 +55,7 @@ export default async function InventarioPage() {
   const podeCriar = await pode("estoque.lote.gerir");
   const podeAjustar = await pode("estoque.lote.gerir");
 
-  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }, { data: limiteRow }] = await Promise.all([
+  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }] = await Promise.all([
     supabase
       .from("inventario_ciclos")
       .select("id, nome")
@@ -60,26 +69,34 @@ export default async function InventarioPage() {
       .order("id", { ascending: false }),
     supabase
       .from("inventario_contagens")
-      .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, contado_por, segunda_aprovacao, inventario_ciclos(nome), locais(nome), lotes_estoque(codigo_lote, custo_unitario, insumos(especificacao, unidade, custo_unitario))")
+      .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, inventario_ciclos(nome), locais(nome), lotes_estoque(codigo_lote, insumos(especificacao, unidade))")
       .order("contado_em", { ascending: false })
       .limit(25),
-    supabase.from("parametros").select("valor").eq("chave", "limite_ajuste_inventario_valor").maybeSingle(),
   ]);
-  // D7 (0136): ajuste acima do limite é aplicado por outra pessoa, não por quem contou
-  const limiteAjuste = Number((limiteRow as { valor?: number | null } | null)?.valor ?? 0);
 
   // campanhas abertas: quantas contagens e quantas diferenças ainda sem ajuste
   const idsAbertos = (ciclos ?? []).map((ciclo) => Number(ciclo.id));
   const { data: contagensAbertas } = idsAbertos.length
     ? await supabase
         .from("inventario_contagens")
-        .select("ciclo_id, divergencia, ajuste_aplicado")
+        .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, ajuste_aplicado, lotes_estoque(codigo_lote, insumos(especificacao, unidade))")
         .in("ciclo_id", idsAbertos)
-    : { data: [] as { ciclo_id: number; divergencia: number; ajuste_aplicado: boolean }[] };
+    : { data: [] as ContagemAberta[] };
+  const abertas = (contagensAbertas ?? []) as unknown as ContagemAberta[];
+  // o que não bate e ainda não foi ajustado: vira alerta no topo, item por item
+  const diferencasPendentes = abertas
+    .filter((c) => !c.ajuste_aplicado && Math.abs(Number(c.divergencia ?? 0)) > 0.000001)
+    .map((c) => {
+      const lote = firstRelation(c.lotes_estoque);
+      const insumo = firstRelation(lote?.insumos);
+      return {
+        id: c.id,
+        item: [insumo?.especificacao, lote?.codigo_lote ? `lote ${lote.codigo_lote}` : `lote #${c.lote_id}`].filter(Boolean).join(" · "),
+        frase: descreverDiferencaInventario(Number(c.quantidade_sistema ?? 0), Number(c.quantidade_contada ?? 0), insumo?.unidade).frase,
+      };
+    });
   const resumoCiclos = (ciclos ?? []).map((ciclo) => {
-    const doCiclo = ((contagensAbertas ?? []) as { ciclo_id: number; divergencia: number; ajuste_aplicado: boolean }[]).filter(
-      (c) => Number(c.ciclo_id) === Number(ciclo.id),
-    );
+    const doCiclo = abertas.filter((c) => Number(c.ciclo_id) === Number(ciclo.id));
     return {
       id: Number(ciclo.id),
       nome: ciclo.nome ? String(ciclo.nome) : `Inventário #${ciclo.id}`,
@@ -133,13 +150,6 @@ export default async function InventarioPage() {
                   A contagem não muda o saldo sozinha: a diferença fica registrada e o saldo só é
                   corrigido quando alguém com <b>Corrigir estoque</b> clica em <b>Aplicar ajuste</b>.
                 </p>
-                {limiteAjuste > 0 && (
-                  <p>
-                    Se o ajuste valer mais de <b>{formatCurrency(limiteAjuste)}</b>, quem aplica é
-                    <b> outra pessoa</b>, não quem contou. Exemplo: faltaram 10 frascos de R$ 60 → ajuste de
-                    R$ 600. O limite fica em Parâmetros.
-                  </p>
-                )}
                 <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
                 <HelpExample>Sistema diz 12, você contou 10: diferença −2, com justificativa.</HelpExample>
               </HelpTip>
@@ -176,6 +186,29 @@ export default async function InventarioPage() {
             </FormComMensagem>
           )}
         </div>
+
+        {diferencasPendentes.length > 0 && (
+          <div role="alert" className="mt-6 rounded-lg border border-warning-strong/30 bg-warning-soft px-4 py-3 text-sm text-warning-strong">
+            <p className="font-semibold">
+              {diferencasPendentes.length === 1
+                ? "1 item contado não bate com o sistema"
+                : `${diferencasPendentes.length} itens contados não batem com o sistema`}
+            </p>
+            <ul className="mt-1.5 space-y-0.5">
+              {diferencasPendentes.slice(0, 8).map((d) => (
+                <li key={d.id}>
+                  <span className="font-medium">{d.item}:</span> {d.frase}
+                </li>
+              ))}
+            </ul>
+            {diferencasPendentes.length > 8 && (
+              <p className="mt-1">E mais {diferencasPendentes.length - 8} em Contagens recentes.</p>
+            )}
+            <p className="mt-1.5 text-xs">
+              O saldo só muda quando alguém com Corrigir estoque clicar em Aplicar ajuste.
+            </p>
+          </div>
+        )}
 
         {resumoCiclos.length > 0 && (
           <section aria-label="Campanhas abertas" className="mt-6">
@@ -233,7 +266,7 @@ export default async function InventarioPage() {
                   <th className="px-4 py-3 text-left">Local</th>
                   <th className="px-4 py-3 text-right">Sistema</th>
                   <th className="px-4 py-3 text-right">Contado</th>
-                  <th className="px-4 py-3 text-right">Dif.</th>
+                  <th className="px-4 py-3 text-right">Diferença</th>
                   <th className="px-4 py-3 text-left">Justificativa</th>
                   <th className="px-4 py-3 text-right">Ação</th>
                 </tr>
@@ -245,9 +278,11 @@ export default async function InventarioPage() {
                   const lote = firstRelation(contagem.lotes_estoque);
                   const insumo = firstRelation(lote?.insumos);
                   const divergente = Math.abs(Number(contagem.divergencia ?? 0)) > 0.000001;
-                  const custo = Number(lote?.custo_unitario || insumo?.custo_unitario || 0);
-                  const valorAjuste = Math.abs(Number(contagem.divergencia ?? 0)) * custo;
-                  const pedeSegunda = limiteAjuste > 0 && valorAjuste > limiteAjuste;
+                  const diferenca = descreverDiferencaInventario(
+                    Number(contagem.quantidade_sistema ?? 0),
+                    Number(contagem.quantidade_contada ?? 0),
+                    insumo?.unidade,
+                  );
                   return (
                     <tr key={contagem.id}>
                       <td className="px-4 py-3">
@@ -262,8 +297,11 @@ export default async function InventarioPage() {
                       <td className="px-4 py-3">{local?.nome ?? "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatNumber(contagem.quantidade_sistema)}</td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatNumber(contagem.quantidade_contada)}</td>
-                      <td className={`px-4 py-3 text-right tabular-nums ${divergente ? "text-warning-strong" : "text-brand-700 dark:text-brand-300"}`}>
-                        {formatNumber(contagem.divergencia)}
+                      <td
+                        className={`whitespace-nowrap px-4 py-3 text-right tabular-nums ${divergente ? "font-medium text-warning-strong" : "text-brand-700 dark:text-brand-300"}`}
+                        title={diferenca.frase}
+                      >
+                        {diferenca.curta}
                       </td>
                       <td className="max-w-xs truncate px-4 py-3" title={contagem.justificativa ?? ""}>
                         {contagem.justificativa ?? "—"}
@@ -271,20 +309,10 @@ export default async function InventarioPage() {
                       <td className="px-4 py-3 text-right">
                         {contagem.ajuste_aplicado ? (
                           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-                            {contagem.segunda_aprovacao ? "Ajustado · 2ª aprovação" : "Ajustado"}
+                            Ajustado
                           </span>
                         ) : divergente && podeAjustar ? (
-                          <span className="inline-flex flex-col items-end gap-1">
-                            <InventarioAjusteButton contagemId={contagem.id} />
-                            {pedeSegunda && (
-                              <span
-                                className="text-[11px] text-warning-strong"
-                                title={`Este ajuste vale ${formatCurrency(valorAjuste)}, mais que o limite de ${formatCurrency(limiteAjuste)}: outra pessoa aplica, não quem contou.`}
-                              >
-                                Acima de {formatCurrency(limiteAjuste)}: outra pessoa aplica
-                              </span>
-                            )}
-                          </span>
+                          <InventarioAjusteButton contagemId={contagem.id} />
                         ) : (
                           <span className="text-xs text-muted-foreground/80">—</span>
                         )}
