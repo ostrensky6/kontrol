@@ -13,17 +13,19 @@ const salvarComEstado: (
 /**
  * Formulário "Dados do orçamento": os grupos de campos vêm como filhos
  * (grade de 12 colunas); a barra de salvar fica presa no pé da tela.
- * A barra diz o que ainda falta para liberar os custos ou, com tudo
- * preenchido, leva à próxima etapa (antes o fluxo "morria" no salvar).
+ * "Salvar e ir para …" grava e já abre a próxima etapa (antes o fluxo "morria"
+ * no salvar). O que falta nos dados só é exigido para emitir a proposta: a
+ * barra informa, mas não impede de seguir (dono, 28/09).
  */
 export function SalvarDemandaForm({
   children,
   pendencias = [],
-  proximaEtapa = null,
+  rotuloContinuar = null,
 }: {
   children: ReactNode;
   pendencias?: string[];
-  proximaEtapa?: { href: string; rotulo: string } | null;
+  /** nome da próxima etapa; com ele aparece o botão "Salvar e ir para …" */
+  rotuloContinuar?: string | null;
 }) {
   const [state, formAction, pending] = useActionState(salvarComEstado, initialState);
   const salvamentoConfirmado = state.ok && Boolean(state.savedAt);
@@ -63,27 +65,33 @@ export function SalvarDemandaForm({
             <span className="text-xs text-muted-foreground">Alterações só valem depois de salvar.</span>
           )}
           {pendencias.length > 0 && (
-            <span className="text-xs font-medium text-warning-strong">
-              Para liberar os custos, falta: {pendencias.join("; ")}.
+            <span className="text-xs text-warning-strong">
+              Para emitir a proposta, falta: {pendencias.join("; ")}. Pode seguir e completar depois.
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          {proximaEtapa && (
-            <a
-              href={proximaEtapa.href}
-              className="min-h-10 rounded-md border border-input bg-card px-4 py-2 text-sm font-medium hover:bg-muted"
-            >
-              Ir para {proximaEtapa.rotulo} →
-            </a>
-          )}
+          {/* Enter no campo usa o primeiro botão (só salvar); o principal salva e segue. */}
           <button
             type="submit"
             disabled={pending}
-            className="min-h-10 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+            className={rotuloContinuar
+              ? "min-h-10 rounded-md border border-input bg-card px-4 py-2 text-sm font-medium hover:bg-muted disabled:cursor-wait disabled:opacity-60"
+              : "min-h-10 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"}
           >
             {pending ? "Salvando…" : "Salvar orçamento"}
           </button>
+          {rotuloContinuar && (
+            <button
+              type="submit"
+              name="continuar"
+              value="1"
+              disabled={pending}
+              className="min-h-10 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-wait disabled:opacity-60"
+            >
+              Salvar e ir para {rotuloContinuar} →
+            </button>
+          )}
         </div>
       </div>
     </form>

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { montarEtapasProposta, ORDEM_ETAPAS, type EntradaEtapasProposta } from "./etapas-proposta";
+import { montarEtapasProposta, ORDEM_ETAPAS, vizinhasEtapa, type EntradaEtapasProposta } from "./etapas-proposta";
 
 const base: EntradaEtapasProposta = {
   demandaId: 7,
@@ -108,11 +108,39 @@ describe("montarEtapasProposta — modelo único", () => {
     expect(etapa("projeto_com_analises", "final")).toMatchObject({ estado: "bloqueado", status: "Bloqueado" });
   });
 
+  it("dados incompletos não travam as etapas de custo (rodada de custos antes do escopo)", () => {
+    const incompleta = { demandaCompleta: false, demandaFaltante: 25 };
+    expect(etapa("projeto", "projeto", incompleta)).toMatchObject({ aplicavel: true, estado: "ativo" });
+    expect(etapa("analises", "laboratorio", incompleta)).toMatchObject({ aplicavel: true, estado: "ativo" });
+  });
+
   it("histórico nunca é obrigatório e reporta a contagem de versões", () => {
     expect(etapa("analises", "historico", { versoesFinais: 3 })).toMatchObject({
       obrigatoria: false,
       aplicavel: true,
       status: "3 versão(ões)",
     });
+  });
+});
+
+describe("vizinhasEtapa — anterior e próxima", () => {
+  it("apenas projeto: Dados → Custos do projeto → Parâmetros → Proposta", () => {
+    expect(vizinhasEtapa("projeto", "demanda")).toEqual({ anterior: null, proxima: "projeto" });
+    expect(vizinhasEtapa("projeto", "projeto")).toEqual({ anterior: "demanda", proxima: "parametros" });
+    expect(vizinhasEtapa("projeto", "parametros")).toEqual({ anterior: "projeto", proxima: "final" });
+    expect(vizinhasEtapa("projeto", "final")).toEqual({ anterior: "parametros", proxima: null });
+  });
+
+  it("projeto com análises passa pelo laboratório antes do projeto", () => {
+    expect(vizinhasEtapa("projeto_com_analises", "demanda").proxima).toBe("laboratorio");
+    expect(vizinhasEtapa("projeto_com_analises", "laboratorio")).toEqual({ anterior: "demanda", proxima: "projeto" });
+  });
+
+  it("apenas análises pula o projeto", () => {
+    expect(vizinhasEtapa("analises", "laboratorio")).toEqual({ anterior: "demanda", proxima: "parametros" });
+  });
+
+  it("histórico volta para a proposta final", () => {
+    expect(vizinhasEtapa("projeto", "historico")).toEqual({ anterior: "final", proxima: null });
   });
 });

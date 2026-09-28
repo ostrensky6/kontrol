@@ -13,7 +13,7 @@ const exigirPapelOrcamento = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("next/navigation", () => ({ redirect }));
-vi.mock("@/lib/orcamento/governanca", () => ({ exigirPapelOrcamento }));
+vi.mock("@/lib/orcamento/governanca", () => ({ exigirPapelOrcamento, podeOrcamento: vi.fn(async () => true) }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
     from,
@@ -94,17 +94,24 @@ describe("actions de demandas/propostas", () => {
     expect(redirect).toHaveBeenCalledWith("/orcamento/demandas/12");
   });
 
-  it("bloqueia geracao de modulo quando a demanda esta incompleta", async () => {
-    mockDemanda({ id: 13, modalidade: "analises" });
+  it("gera o modulo mesmo com dados incompletos: rodada de custos antes do escopo (dono, 28/09)", async () => {
+    mockDemanda({ id: 13, titulo: "Rascunho", modalidade: "analises" });
+    const semModulos = { select: vi.fn(() => ({ eq: vi.fn(async () => ({ data: [], error: null })) })) };
+    const inserido = vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: 99 }, error: null })) })) }));
+    const base = from.getMockImplementation()!;
+    from.mockImplementation((table: string) => {
+      if (table === "orcamentos") return { ...semModulos, insert: inserido };
+      if (table === "orcamento_projetos") return semModulos;
+      return base(table);
+    });
     const formData = new FormData();
     formData.set("demanda_id", "13");
 
     await expect(demandasActions.gerarOrcamentoAnalisesDaDemanda(formData)).rejects.toThrow(
-      "NEXT_REDIRECT:/orcamento/demandas/13",
+      "NEXT_REDIRECT:/orcamento/99",
     );
 
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("preencher_custos");
-    expect(insert).not.toHaveBeenCalled();
-    expect(redirect).toHaveBeenCalledWith("/orcamento/demandas/13");
+    expect(inserido).toHaveBeenCalledWith(expect.objectContaining({ demanda_id: 13, cliente_nome: "Rascunho" }));
   });
 });

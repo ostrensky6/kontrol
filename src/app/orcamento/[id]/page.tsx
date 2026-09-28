@@ -31,6 +31,8 @@ import { rotuloStatusModulo } from "@/lib/orcamento/rotulos-status";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import type { Json } from "@/lib/supabase/database.types";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
+import { vizinhasEtapa } from "@/lib/orcamento/etapas-proposta";
+import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
 
 export const dynamic = "force-dynamic";
 
@@ -239,6 +241,9 @@ export default async function OrcamentoDetalhe({
         : "#cabecalho-responsavel",
     "adicionar ao menos uma análise": "#analises-quantidades",
   };
+
+  // Revisado o laboratório, segue para a próxima etapa da proposta (fluxo contínuo, 28/09).
+  const proximaDoLaboratorio = demanda ? vizinhasEtapa(demanda.modalidade, "laboratorio").proxima : null;
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -680,7 +685,10 @@ export default async function OrcamentoDetalhe({
             </p>
           )}
           {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar && (
-            <FormEstado action={revisarOrcamentoLaboratorio} className="mt-3 grid gap-2 rounded-md border border-border bg-muted/50 p-2.5 text-sm sm:grid-cols-[1fr_auto]" mensagemClassName="sm:col-span-2">
+            <FormEstado
+              action={revisarOrcamentoLaboratorio}
+              seguirPara={proximaDoLaboratorio ? `/orcamento/demandas/${demanda.id}?etapa=${proximaDoLaboratorio}` : undefined}
+              className="mt-3 grid gap-2 rounded-md border border-border bg-muted/50 p-2.5 text-sm sm:grid-cols-[1fr_auto]" mensagemClassName="sm:col-span-2">
               <input type="hidden" name="orcamento_id" value={orcId} />
               <div>
                 <label htmlFor="revisao-responsavel" className={lbl}>Responsável técnico</label>
@@ -734,6 +742,7 @@ export default async function OrcamentoDetalhe({
             />
           )}
         </div>
+        {demanda && <NavegacaoEtapas demandaId={demanda.id} modalidade={demanda.modalidade} atual="laboratorio" />}
       </main>
     </div>
   );
