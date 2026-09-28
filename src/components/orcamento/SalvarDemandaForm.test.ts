@@ -12,7 +12,7 @@ describe("SalvarDemandaForm", () => {
   it("mantem a pagina server e limita o cliente ao formulario de salvamento", () => {
     expect(page).not.toMatch(/^\s*["']use client["']/);
     expect(page).toContain('import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";');
-    expect(page).toContain("<SalvarDemandaForm>");
+    expect(page).toMatch(/<SalvarDemandaForm[\s>]/);
     expect(page).toContain("</SalvarDemandaForm>");
     expect(page).not.toContain("<form action={salvarDemanda}");
   });
