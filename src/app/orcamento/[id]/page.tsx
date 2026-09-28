@@ -132,6 +132,9 @@ export default async function OrcamentoDetalhe({
     orc.status === "cancelado" ? "cancelado" : ["enviado", "aprovado"].includes(orc.status) ? "revisado" : itens.length > 0 ? "preenchido" : "pendente"
   );
   // Mesma regra do servidor: revisado/enviado/aprovado/cancelado não aceita edição direta.
+  // cancelado no documento, mas o andamento ficou para trás (gravação que falhou)
+  const cancelamentoIncompleto =
+    orc.status === "cancelado" && orc.status_operacional != null && orc.status_operacional !== "cancelado";
   const bloqueado = moduloBloqueadoParaEdicao({ status: orc.status, statusOperacional: orc.status_operacional }).bloqueado;
   const motivoBloqueio = `Somente leitura: custos ${rotuloStatusModulo(orc.status_operacional === "revisado" ? "revisado" : orc.status).toLowerCase()}.`;
   const nomeAnalise = new Map((analises ?? []).map((analise) => [analise.codigo, analise.nome ?? null]));
@@ -737,11 +740,11 @@ export default async function OrcamentoDetalhe({
         </section>
 
         <div className="no-print mt-6 flex flex-wrap gap-3">
-          {!podeCancelar ? null : ["enviado", "aprovado"].includes(orc.status) ? (
+          {!podeCancelar ? null : ["enviado", "aprovado"].includes(orc.status) || cancelamentoIncompleto ? (
             <CancelarComMotivo
               action={cancelarOrcamento}
               fields={{ orcamento_id: orcId }}
-              trigger="Cancelar orçamento"
+              trigger={cancelamentoIncompleto ? "Concluir cancelamento" : "Cancelar orçamento"}
               titulo="Cancelar orçamento"
               mensagem={`Cancelar o orçamento de “${orc.cliente_nome}”? O histórico será preservado.`}
               confirmLabel="Cancelar orçamento"

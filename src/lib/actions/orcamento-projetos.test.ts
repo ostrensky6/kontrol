@@ -54,6 +54,7 @@ describe("actions de orcamento de projetos", () => {
     const cadeia = {
       eq,
       single,
+      select,
       then: (resolver: (valor: { data: unknown; error: null }) => unknown) => resolver({ data: lista, error: null }),
     };
     select.mockReturnValue(cadeia);
@@ -214,6 +215,7 @@ describe("actions de orcamento de projetos", () => {
     const formData = new FormData();
     formData.set("orcamento_projeto_id", "77");
     single.mockResolvedValue({ data: { status: "rascunho", demanda_id: 5 }, error: null });
+    lista = [{ id: 77 }]; // o banco confirma a linha apagada
 
     await expect(excluirOrcamentoProjeto(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/demandas/5?etapa=projeto");
 

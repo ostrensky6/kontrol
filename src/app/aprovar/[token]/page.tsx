@@ -1,4 +1,5 @@
 import { aprovarOrcamentoPublico } from "@/lib/actions/orcamento-projetos";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -225,9 +226,12 @@ export default async function AprovacaoPublicaPage({
                   className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
                 />
               </div>
-              <button className="rounded-md bg-brand-600 px-5 py-2 text-sm font-medium text-white hover:bg-brand-500">
+              <SubmitButton
+                pendingLabel="Aprovando…"
+                className="min-h-11 bg-brand-600 px-5 text-white hover:bg-brand-500"
+              >
                 Aprovar proposta
-              </button>
+              </SubmitButton>
             </form>
           )}
         </div>

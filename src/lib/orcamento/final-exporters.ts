@@ -3,8 +3,10 @@ import {
   AlignmentType,
   BorderStyle,
   Document,
+  Footer,
   HeadingLevel,
   Packer,
+  PageNumber,
   Paragraph,
   ShadingType,
   Table,
@@ -15,11 +17,10 @@ import {
   WidthType,
 } from "docx";
 import { saveAs } from "file-saver";
-import { formatCurrency, formatPercent } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 import { rotuloModalidade } from "./orcamento-economico";
 import type { PropostaFinalExport } from "./proposta-final-export";
-
-const pct = (v: number) => formatPercent(v, 2);
+import { rotuloStatusVersaoFinal } from "./rotulos-status";
 
 const FONT_FAMILY = "Helvetica";
 const INK = "1B3530";
@@ -28,8 +29,7 @@ const HEADER_FILL = "E8F4F3";
 const SOFT_FILL = "F4FBFB";
 const LINE = "D9E7E4";
 
-const arquivoBase = (numero: string) =>
-  `orcamento-final-${(numero || "kontrol").replace(/[^\w-]+/g, "_")}`;
+const arquivoNumero = (numero: string) => (numero || "kontrol").replace(/[^\w-]+/g, "_");
 
 export async function exportOrcamentoFinalXlsx(dados: PropostaFinalExport) {
   const { info, economico } = dados;
@@ -116,13 +116,36 @@ export async function exportOrcamentoFinalXlsx(dados: PropostaFinalExport) {
   formatCurrencyColumn(det, ["C", "D", "E"]);
 
   const buffer = await wb.xlsx.writeBuffer();
-  saveAs(new Blob([buffer]), `${arquivoBase(info.numero)}.xlsx`);
+  // planilha interna: custo técnico, parâmetros e margem
+  saveAs(new Blob([buffer]), `orcamento-interno-${arquivoNumero(info.numero)}.xlsx`);
 }
 
+/**
+ * DOCX que vai ao cliente: o mesmo conteúdo da folha impressa. Custos técnicos,
+ * parâmetros e margem ficam só no app (modo interno) e na planilha interna.
+ */
 export async function exportOrcamentoFinalDocx(dados: PropostaFinalExport) {
   const { info, economico } = dados;
+  const cor = info.identidade.corPrincipal.slice(1);
+  const secao = (titulo: string) =>
+    docParagraph(titulo, { heading: HeadingLevel.HEADING_2, bold: true, color: cor, size: 24 });
+  const linhasCliente = [
+    info.clienteNome || "-",
+    info.clienteCnpj ? `CNPJ/CPF: ${info.clienteCnpj}` : null,
+    info.clienteContato ? `Contato: ${info.clienteContato}` : null,
+  ].filter((linha): linha is string => Boolean(linha));
+  const dias = Number(info.validadeDias ?? 0);
+  const assinatura = (titulo: string, nome: string) => [
+    docParagraph(" "),
+    docParagraph("______________________________________________"),
+    docParagraph(titulo, { size: 18, color: "475569" }),
+    docParagraph(nome, { bold: true }),
+    docParagraph("Data: ____/____/________", { size: 18, color: "475569" }),
+  ];
+
   const doc = new Document({
     creator: info.identidade.creator,
+    title: `${info.identidade.tituloDocumento} ${info.numero}`,
     styles: {
       default: {
         document: {
@@ -134,71 +157,83 @@ export async function exportOrcamentoFinalDocx(dados: PropostaFinalExport) {
     sections: [
       {
         properties: { page: { margin: { top: 900, right: 720, bottom: 900, left: 720 } } },
+        footers: {
+          default: new Footer({
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                  new TextRun({
+                    font: FONT_FAMILY,
+                    size: 16,
+                    color: "475569",
+                    children: [
+                      `${info.identidade.nomeLegal} · Proposta ${info.numero} · Página `,
+                      PageNumber.CURRENT,
+                      " de ",
+                      PageNumber.TOTAL_PAGES,
+                    ],
+                  }),
+                ],
+              }),
+            ],
+          }),
+        },
         children: [
-          docParagraph(info.identidade.tituloDocumento, { heading: HeadingLevel.TITLE, bold: true, color: info.identidade.corPrincipal.slice(1), size: 34 }),
-          docParagraph(`Número: ${info.numero} · Versão ${info.versao} · ${info.status}`),
-          docParagraph(`Emitido em: ${info.emitidoEm || "-"} · Validade: ${info.validade || "-"}`),
-          docParagraph(`Cliente: ${info.clienteNome || "-"} · Contato: ${info.clienteContato || "-"}`),
-          docParagraph(`Orçamento: ${info.demandaTitulo || "-"} · Responsável: ${info.responsavel}`),
-          ...(dados.avisoLegado ? [docParagraph(dados.avisoLegado, { bold: true, color: "9A6700" })] : []),
-          docParagraph("Escopo", { heading: HeadingLevel.HEADING_1, bold: true, color: info.identidade.corPrincipal.slice(1), size: 26 }),
-          docParagraph(info.escopo || "-"),
-
-          // VISÃO COMERCIAL: valor comercial alocado + total final.
-          docParagraph("Composição comercial", { heading: HeadingLevel.HEADING_1, bold: true, color: info.identidade.corPrincipal.slice(1), size: 26 }),
+          docParagraph(info.identidade.nomeLegal, { color: "475569" }),
+          docParagraph("Proposta comercial", { heading: HeadingLevel.TITLE, bold: true, color: cor, size: 36 }),
+          docParagraph(`Proposta nº ${info.numero} · Versão ${info.versao} · ${rotuloStatusVersaoFinal(info.status)}`),
           new Table({
             width: { size: 100, type: WidthType.PERCENTAGE },
             layout: TableLayoutType.FIXED,
             borders: tableBorders(),
             rows: [
-              tableRow(["Componente", "Descrição", "Qtd.", "Valor comercial"], true),
+              tableRow(["Valor total", "Emissão", "Válida até"], true),
+              tableRow([formatCurrency(economico.totalFinal), formatDate(info.emitidoEm), formatDate(info.validade)]),
+            ],
+          }),
+
+          secao("Proponente"),
+          docParagraph(info.identidade.nomeLegal, { bold: true }),
+          secao("Cliente"),
+          ...linhasCliente.map((linha, i) => docParagraph(linha, { bold: i === 0 })),
+
+          secao("Objeto"),
+          docParagraph(info.demandaTitulo || "-", { bold: true }),
+          ...(info.modalidade ? [docParagraph(rotuloModalidade(info.modalidade), { color: "475569" })] : []),
+          docParagraph(info.escopo || "-"),
+
+          secao("Serviços e valores"),
+          new Table({
+            width: { size: 100, type: WidthType.PERCENTAGE },
+            layout: TableLayoutType.FIXED,
+            borders: tableBorders(),
+            rows: [
+              tableRow(["Componente", "Descrição", "Qtd.", "Valor"], true),
               ...dados.composicaoComercial.map((l) =>
                 tableRow([l.componente, l.descricao, String(l.quantidade), formatCurrency(l.valorComercial)]),
               ),
-              tableRow(["", "Total final", "", formatCurrency(economico.totalFinal)], true),
+              tableRow(["", "", "Total", formatCurrency(economico.totalFinal)], true),
             ],
           }),
-          docParagraph("Condições comerciais", { heading: HeadingLevel.HEADING_1, bold: true, color: info.identidade.corPrincipal.slice(1), size: 26 }),
-          docParagraph("Valores válidos até a data indicada. Alterações de escopo, quantidade de amostras ou premissas técnicas podem exigir nova versão."),
 
-          // VISÃO INTERNA: resumo econômico + parâmetros + detalhamento técnico.
-          docParagraph("Resumo econômico (interno)", { heading: HeadingLevel.HEADING_1, bold: true, color: info.identidade.corPrincipal.slice(1), size: 26 }),
-          new Table({
-            width: { size: 100, type: WidthType.PERCENTAGE },
-            layout: TableLayoutType.FIXED,
-            borders: tableBorders(),
-            rows: [
-              tableRow(["Indicador", "Valor"], true),
-              tableRow(["Custo laboratório (técnico)", formatCurrency(economico.custoLaboratorioTecnico)]),
-              tableRow(["Custo direto de projeto", formatCurrency(economico.custoDiretoProjeto)]),
-              tableRow(["Subtotal técnico", formatCurrency(economico.subtotalTecnico)]),
-              tableRow(["Soma dos parâmetros", pct(economico.somaPercentual)]),
-              tableRow(["Total de parâmetros", formatCurrency(economico.totalParametros)]),
-              tableRow(["Total final", formatCurrency(economico.totalFinal)], true),
-            ],
-          }),
-          ...(economico.parametros.length
-            ? [
-                docParagraph("Parâmetros econômicos", { heading: HeadingLevel.HEADING_1, bold: true, color: info.identidade.corPrincipal.slice(1), size: 26 }),
-                new Table({
-                  width: { size: 100, type: WidthType.PERCENTAGE },
-                  layout: TableLayoutType.FIXED,
-                  borders: tableBorders(),
-                  rows: [
-                    tableRow(["Parâmetro", "Percentual", "Valor nominal"], true),
-                    ...economico.parametros.map((p) => tableRow([p.label, pct(p.percentual), formatCurrency(p.valorNominal)])),
-                  ],
-                }),
-              ]
-            : []),
-          docParagraph(economico.formula, { color: "6B7280", size: 18 }),
+          secao("Condições comerciais"),
+          docParagraph(
+            dias > 0
+              ? `Valores válidos por ${dias} dias a partir da emissão.`
+              : `Valores válidos até ${formatDate(info.validade)}.`,
+          ),
+          docParagraph("Alterações de escopo, quantidade de amostras, premissas técnicas ou cronograma podem exigir nova versão da proposta."),
+
+          ...assinatura("Pela proponente", info.identidade.nomeLegal),
+          ...assinatura("De acordo, pelo cliente", info.clienteNome || "Nome e cargo"),
         ],
       },
     ],
   });
 
   const blob = await Packer.toBlob(doc);
-  saveAs(blob, `${arquivoBase(info.numero)}.docx`);
+  saveAs(blob, `proposta-${arquivoNumero(info.numero)}.docx`);
 }
 
 function styleWorkbook(wb: ExcelJS.Workbook) {

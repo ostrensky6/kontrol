@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -384,7 +385,11 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
     const fd = new FormData();
     fd.set("id", row.id);
     fd.set("suspender", row.suspenso ? "0" : "1");
-    startTransition(() => alternarSuspensao(fd));
+    startTransition(async () => {
+      const resultado = await alternarSuspensao(fd);
+      if (resultado.ok) toast.success(resultado.message);
+      else toast.error(resultado.message);
+    });
   }
 
   return (
