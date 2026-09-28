@@ -45,7 +45,8 @@ export function mensagemDoBanco(error: unknown, padrao: string = PADRAO): string
         ? texto
         : "Seu perfil não tem permissão para esta ação. Peça ao administrador para liberar em Usuários.";
     case "23505":
-      return "Já existe um registro com esses dados.";
+      // RPCs como a do catálogo (0138) dizem qual registro já existe.
+      return texto && !TECNICA.test(texto) ? texto : "Já existe um registro com esses dados.";
     case "23503":
       // Os gatilhos de exclusão (0120, 0129) explicam o vínculo e o que fazer.
       return texto && !TECNICA.test(texto)

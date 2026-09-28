@@ -22,6 +22,10 @@ describe("mensagemDoBanco", () => {
     expect(mensagemDoBanco({ code: "23505", message: "duplicate key value violates unique constraint" })).toBe(
       "Já existe um registro com esses dados.",
     );
+    // RPC do catálogo (0138) explica qual item já existe: a mensagem em português é mantida.
+    expect(
+      mensagemDoBanco({ code: "23505", message: "Já existe no catálogo: MC-6 — Papel toalha (fardo). Edite esse item ou mude a descrição ou a unidade." }),
+    ).toBe("Já existe no catálogo: MC-6 — Papel toalha (fardo). Edite esse item ou mude a descrição ou a unidade.");
     expect(mensagemDoBanco({ code: "23503", message: "update or delete violates foreign key" })).toMatch(/em uso/);
     expect(
       mensagemDoBanco({ code: "23503", message: "Este projeto tem pedidos internos. Conclua ou desative em vez de excluir." }),
