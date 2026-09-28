@@ -38,6 +38,14 @@ import { AdicionarDoCatalogo, type ItemCatalogo } from "./AdicionarDoCatalogo";
 import { EditarCustoDialog } from "./EditarCustoDialog";
 import { FormAcao } from "./FormAcao";
 import { GradeMesesPessoal } from "./GradeMesesPessoal";
+import {
+  frasesPreviaCatalogo,
+  lerPlanoCatalogo,
+  resumirPlanoCatalogo,
+  seloLinhaCatalogo,
+  type LinhaPlanoCatalogo,
+  type SeloCatalogo,
+} from "@/lib/project-budget/catalogo-vivo";
 
 type Custo = {
   id: number;
@@ -88,10 +96,31 @@ const inp = "mt-1 h-9 w-full rounded-md border border-input bg-background px-3 t
 const lbl = "block text-xs font-medium text-muted-foreground";
 const botaoPrimario = "rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-60";
 
+const TOM_SELO: Record<SeloCatalogo["tom"], string> = {
+  novo: "bg-info-soft text-info-strong",
+  atualiza: "bg-success-soft text-success-strong",
+  aviso: "bg-warning-soft text-warning-strong",
+};
+
+/** Selo do catálogo vivo na linha (novo, atualiza, catálogo hoje, repetido, pessoal pendente). */
+function SeloCatalogoLinha({ linha }: { linha?: LinhaPlanoCatalogo }) {
+  const selo = linha ? seloLinhaCatalogo(linha) : null;
+  if (!selo) return null;
+  return (
+    <span
+      className={`mt-1 block w-fit rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${TOM_SELO[selo.tom]}`}
+      title={selo.detalhe}
+    >
+      {selo.rotulo}
+    </span>
+  );
+}
+
 /**
  * Editor da etapa "Custos do projeto" da proposta (Etapa A da migração do app antigo):
  * rubricas PE/MC/MP/ST/VD/OU, grade de meses do pessoal, viagens com cálculo automático,
- * análises dentro do projeto, exportação e conclusão da revisão (RPC transicionar_orcamento_projeto).
+ * análises dentro do projeto, exportação e conclusão da revisão (RPC concluir_revisao_custos_projeto,
+ * que também alimenta o catálogo vivo).
  */
 export async function EditorCustosProjeto({
   orcamentoProjetoId,
@@ -149,6 +178,13 @@ export async function EditorCustosProjeto({
     }));
   const estado = estadoEdicaoProjeto(orc.status);
   const editavel = estado.editavel;
+  // Catálogo vivo (0137): o que a conclusão faria com cada linha. Só interessa em edição.
+  const { data: previaData } = editavel
+    ? await supabase.rpc("previa_catalogo_revisao_projeto", { p_orcamento_projeto_id: orcamentoProjetoId })
+    : { data: null };
+  const planoCatalogo = lerPlanoCatalogo(previaData);
+  const planoPorLinha = new Map(planoCatalogo.map((linha) => [linha.linhaId, linha]));
+  const frasesCatalogo = frasesPreviaCatalogo(resumirPlanoCatalogo(planoCatalogo));
   const mesesProjeto = Math.max(1, Number(orc.project_months ?? 12));
   const viagem = normalizarViagemInputs((orc.travel_inputs ?? null) as Partial<ViagemInputs> | null);
 
@@ -372,7 +408,10 @@ export async function EditorCustosProjeto({
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{brl(item.custo_unitario)}</td>
                   <td className="px-3 py-2 text-right font-medium tabular-nums">{brl(subtotalCusto(item))}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">{ORIGEM[item.origem ?? "manual"] ?? item.origem}</td>
+                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                    {ORIGEM[item.origem ?? "manual"] ?? item.origem}
+                    <SeloCatalogoLinha linha={planoPorLinha.get(item.id)} />
+                  </td>
                   {editavel && <td className="px-3 py-2 text-right whitespace-nowrap">{acoesItem(item)}</td>}
                 </tr>
               );
@@ -627,6 +666,18 @@ export async function EditorCustosProjeto({
                     <p className="mt-2">
                       Os custos ficam travados e passam a compor a proposta. Custos revisados não voltam para edição nesta versão do sistema.
                     </p>
+                    {frasesCatalogo.length > 0 ? (
+                      <div className="mt-2">
+                        <p className="font-medium">No catálogo de custos:</p>
+                        <ul className="mt-1 list-disc space-y-1 pl-5">
+                          {frasesCatalogo.map((frase) => (
+                            <li key={frase}>{frase}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : (
+                      <p className="mt-2">O catálogo de custos não muda.</p>
+                    )}
                   </>
                 }
                 confirmLabel="Concluir revisão"

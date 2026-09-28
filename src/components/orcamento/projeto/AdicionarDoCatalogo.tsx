@@ -5,7 +5,7 @@ import { useFormStatus } from "react-dom";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatCurrency as brl } from "@/lib/formatters";
+import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
@@ -17,6 +17,9 @@ export type ItemCatalogo = {
   /** Preço de pessoal oculto por falta da permissão "Ver salário dos técnicos". */
   preco_mascarado?: boolean;
   categoria: string | null;
+  /** Quando e de qual proposta veio o valor atual (catálogo vivo, 0137). */
+  valor_atualizado_em?: string | null;
+  valor_origem_demanda_titulo?: string | null;
 };
 
 function normalizar(texto: string) {
@@ -60,6 +63,7 @@ export function AdicionarDoCatalogo({
   }, [busca, itens]);
   const pessoal = rubrica === "PE";
   const escolhaValida = filtrados.some((item) => item.id === selecionado);
+  const escolhido = filtrados.find((item) => item.id === selecionado);
 
   if (itens.length === 0) {
     return <p className="text-xs text-muted-foreground">Não há itens ativos no catálogo para esta rubrica.</p>;
@@ -118,6 +122,15 @@ export function AdicionarDoCatalogo({
         </div>
       )}
       <Enviar desabilitado={!escolhaValida} />
+      {escolhaValida && escolhido && !escolhido.preco_mascarado && escolhido.valor_atualizado_em && (
+        <p className="text-xs text-muted-foreground md:col-span-4">
+          Valor de referência de {formatDate(escolhido.valor_atualizado_em)}
+          {escolhido.valor_origem_demanda_titulo
+            ? `, proposta “${escolhido.valor_origem_demanda_titulo}”`
+            : ", carga inicial do catálogo"}
+          .
+        </p>
+      )}
     </FormAcao>
   );
 }
