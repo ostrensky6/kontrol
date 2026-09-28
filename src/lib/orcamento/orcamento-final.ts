@@ -29,6 +29,14 @@ export type OrigemValorFinal = {
   valor: number;
 };
 
+// Regra do dono (28/09): o tipo do orçamento decide o que entra na conta.
+// Módulo fora do tipo não soma; se tiver itens, a emissão fica pendente até o
+// usuário mudar o tipo ou retirar os itens. Nada é descartado em silêncio.
+export const PENDENCIA_LABORATORIO_FORA_DO_TIPO =
+  'há análises no orçamento laboratorial, mas o tipo do orçamento não inclui laboratório: mude o tipo para "Projeto com análises laboratoriais" ou retire as análises';
+export const PENDENCIA_PROJETO_FORA_DO_TIPO =
+  'há custos de projeto lançados, mas o tipo do orçamento não inclui projeto: mude o tipo para "Projeto com análises laboratoriais" ou retire esses custos';
+
 /**
  * Consolidação da proposta final — usa a engine AUTORITATIVA (Política A,
  * `calcularPropostaEconomica`). Laboratório entra como custo técnico, projeto
@@ -46,14 +54,18 @@ export function consolidarOrcamentoFinal(args: {
   itensProjeto: ItemProjetoFinal[];
   parametrosProjeto: ProjetoBudgetRates;
 }) {
+  const itensLaboratorio = args.laboratorioExigido ? args.itensLaboratorio : [];
+  const itensProjeto = args.projetoExigido ? args.itensProjeto : [];
   const pendencias = [
     args.laboratorioExigido && !args.laboratorioRevisado ? "revisar custos laboratoriais" : null,
     args.projetoExigido && !args.projetoRevisado ? "revisar custos de projeto" : null,
+    !args.laboratorioExigido && args.itensLaboratorio.length > 0 ? PENDENCIA_LABORATORIO_FORA_DO_TIPO : null,
+    !args.projetoExigido && args.itensProjeto.length > 0 ? PENDENCIA_PROJETO_FORA_DO_TIPO : null,
   ].filter(Boolean) as string[];
 
-  const custoLaboratorioTecnico = calcularTotalLaboratorioCusto(args.itensLaboratorio);
-  const totalLaboratorioPreco = calcularTotalLaboratorioPreco(args.itensLaboratorio); // referência
-  const custoDiretoProjeto = calcularTotalProjetoCusto(args.itensProjeto);
+  const custoLaboratorioTecnico = calcularTotalLaboratorioCusto(itensLaboratorio);
+  const totalLaboratorioPreco = calcularTotalLaboratorioPreco(itensLaboratorio); // referência
+  const custoDiretoProjeto = calcularTotalProjetoCusto(itensProjeto);
 
   // Engine única autoritativa (Política A).
   const economia = calcularPropostaEconomica({
