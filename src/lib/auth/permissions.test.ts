@@ -84,6 +84,19 @@ describe("permissoes reconciliadas", () => {
     expect(normalizePermissions("tecnico", { "tecnicos.salario.ver": true })["tecnicos.salario.ver"]).toBe(true);
   });
 
+  it("valores de pessoal no orçamento: coordenador, gestor e admin por padrão; técnico não", () => {
+    const pessoal = PERMISSOES.find((permissao) => permissao.key === "orcamentos.pessoal");
+    expect(pessoal).toMatchObject({ label: "Valores de pessoal no orçamento", modulo: "Orçamentos" });
+
+    for (const papel of ["coordenador", "gestor", "admin"]) {
+      expect(normalizePermissions(papel, {})["orcamentos.pessoal"]).toBe(true);
+    }
+    expect(defaultPermissionsForRole("tecnico")).not.toContain("orcamentos.pessoal");
+    expect(normalizePermissions("tecnico", {})["orcamentos.pessoal"]).toBe(false);
+    // o administrador pode tirar de um coordenador específico
+    expect(normalizePermissions("coordenador", { "orcamentos.pessoal": false })["orcamentos.pessoal"]).toBe(false);
+  });
+
   it("forca permissoes completas para formulario de admin", () => {
     const formData = new FormData();
     formData.append("permissoes", "analises.ver");

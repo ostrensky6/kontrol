@@ -46,7 +46,8 @@ export type PermissaoUsuario =
   | "configuracoes.ver"
   | "planejamento.executar"
   | "orcamentos.fundos"
-  | "orcamentos.modelos";
+  | "orcamentos.modelos"
+  | "orcamentos.pessoal";
 
 export const HISTORICAL_ROLE_RECONCILIATION = [
   {
@@ -94,7 +95,7 @@ export const PERMISSOES: Array<{
     modulo: "Cadastros",
     label: "Ver salário dos técnicos",
     descricao:
-      "Ver e alterar o salário dos técnicos e os valores de pessoal (PE) do catálogo. Sem ela, o valor aparece como XXX.",
+      "Ver e alterar o salário dos técnicos. Também mostra os valores de pessoal (PE) do catálogo de custos. Sem ela, o salário aparece como XXX.",
   },
   // ---- Operação ----
   { key: "analises.ver", modulo: "Operação", label: "Acessar Análises", descricao: "Ver o catálogo de análises, etapas e receitas." },
@@ -130,6 +131,15 @@ export const PERMISSOES: Array<{
   { key: "orcamento.parametros.editar", modulo: "Orçamentos", label: "Editar parâmetros econômicos", descricao: "Alterar margem, impostos, fundos e parâmetros globais." },
   { key: "orcamentos.fundos", modulo: "Orçamentos", label: "Fundos e taxas", descricao: "Registrar recebimentos, impostos pagos e execução de fundos." },
   { key: "orcamentos.modelos", modulo: "Orçamentos", label: "Modelos e catálogos", descricao: "Manter modelos e o catálogo de custos de projeto." },
+  {
+    // Padrão: coordenador, gestor e admin (quem faz orçamento); técnico não (decisão do dono, 28/09).
+    // O banco aplica a mesma regra (kontrol_private.pode_ver_pessoal_orcamento, migration 0137).
+    key: "orcamentos.pessoal",
+    modulo: "Orçamentos",
+    label: "Valores de pessoal no orçamento",
+    descricao:
+      "Ver e lançar os valores de pessoal (PE) no orçamento de projeto e no catálogo de custos. Sem ela, o valor aparece como XXX.",
+  },
   // ---- Governança ----
   { key: "auditoria.visualizar", modulo: "Governança", label: "Ver auditoria", descricao: "Ver a trilha de auditoria e a governança de orçamentos." },
 ];
@@ -164,6 +174,8 @@ const COORDENADOR: PermissaoUsuario[] = [
   "cadastros.editar",
   "orcamentos.emitir",
   "orcamentos.cancelar",
+  // 0137: quem faz orçamento vê e lança valores de pessoal (técnico não faz orçamento).
+  "orcamentos.pessoal",
   "compras.aprovar",
   "compras.cancelar",
   "pedido.aprovar",

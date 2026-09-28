@@ -550,7 +550,7 @@ async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
   if (precoCatalogoMascarado(item)) {
     // Copiar o valor de PE para o orçamento o revelaria na linha de custo.
     throw new Error(
-      "Valores de pessoal (PE) do catálogo exigem a permissão “Ver salário dos técnicos”. Lance o custo manualmente ou peça a quem tem a permissão.",
+      "Valores de pessoal (PE) do catálogo exigem a permissão “Valores de pessoal no orçamento”. Peça ao administrador em Usuários.",
     );
   }
 
