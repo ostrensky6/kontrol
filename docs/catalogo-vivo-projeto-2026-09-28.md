@@ -72,6 +72,10 @@ banco local** (Docker `supabase_db_Estoque`).
   - `catalogo_edicao_0138.sql`;
   - `salario_tecnicos_0112.sql`, ajustado para medir só o salário.
   - Os três passam, e os três rodam no CI.
+- E2E com o Supabase simulado (`npm run test:e2e`, com build): 51 testes verdes.
+  - A contagem de caixinhas de permissão em `usuarios-permissoes.spec.ts` passou de 37 para 38, por causa da
+    permissão nova.
+  - Em `salario-tecnicos.spec.ts`, técnico vê XXX e coordenador vê o valor de pessoal.
 - Conferência na tela (servidor desta branch com o banco local), com duas propostas simuladas:
   - "TESTE CATÁLOGO VIVO 28/09" (nº 73) e "TESTE CATÁLOGO VIVO 2 28/09" (nº 74);
   - selos, confirmação e aviso de conclusão;
