@@ -212,4 +212,57 @@ describe("excluirUsuario", () => {
     const payload = upsert.mock.calls[0]?.[0] as { permissoes: Record<string, boolean> };
     expect(payload.permissoes["tecnicos.salario.ver"]).toBe(true);
   });
+
+  it("cria cada usuário com uma senha provisória própria e devolve a senha uma vez", async () => {
+    const { criarUsuario } = await import("./usuarios");
+    const senhas: string[] = [];
+    for (const email of ["a@kontrol.test", "b@kontrol.test"]) {
+      const formData = new FormData();
+      formData.set("email", email);
+      formData.set("papel", "tecnico");
+      const result = await criarUsuario({ ok: false }, formData);
+      expect(result.ok).toBe(true);
+      expect(result.message).not.toContain(result.senhaProvisoria ?? "?");
+      senhas.push(String(result.senhaProvisoria));
+    }
+
+    expect(senhas[0]).not.toBe(senhas[1]);
+    expect(senhas).not.toContain("GIA2026");
+    const chamadas = createUser.mock.calls.map((call) => call[0]);
+    expect(chamadas.map((c) => c.password)).toEqual(senhas);
+    expect(chamadas[0].app_metadata).toMatchObject({ senha_provisoria: true, cadastrado_pelo_admin: true });
+    expect(Date.parse(chamadas[0].app_metadata.senha_provisoria_expira_em)).toBeGreaterThan(Date.now());
+  });
+
+  it("gera nova senha provisória para outra pessoa e marca a troca obrigatória", async () => {
+    adminFrom.mockReturnValue({ update });
+    const { gerarNovaSenhaProvisoria } = await import("./usuarios");
+
+    const result = await gerarNovaSenhaProvisoria({ ok: false }, formulario());
+
+    expect(result.ok).toBe(true);
+    expect(result.senhaProvisoria).toMatch(/^.{4}-.{4}-.{4}$/);
+    expect(updateUserById).toHaveBeenCalledWith(
+      "usuario-alvo",
+      expect.objectContaining({
+        password: result.senhaProvisoria,
+        app_metadata: expect.objectContaining({ senha_provisoria: true }),
+      }),
+    );
+    expect(update).toHaveBeenCalledWith({ senha_provisoria: true });
+  });
+
+  it("não gera senha provisória para a própria conta nem sem ser administrador", async () => {
+    const { gerarNovaSenhaProvisoria } = await import("./usuarios");
+
+    usuarioAtual.mockResolvedValue({ id: "usuario-alvo" });
+    expect(await gerarNovaSenhaProvisoria({ ok: false }, formulario())).toEqual({
+      ok: false,
+      message: "Para a sua própria conta, use Alterar senha.",
+    });
+
+    temPapel.mockResolvedValue(false);
+    expect((await gerarNovaSenhaProvisoria({ ok: false }, formulario())).ok).toBe(false);
+    expect(updateUserById).not.toHaveBeenCalled();
+  });
 });

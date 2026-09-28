@@ -301,6 +301,22 @@ export function StockControlHub({
     slate: "border-border bg-muted/50 text-foreground",
   };
 
+  const CABECALHO_VISAO: Record<ViewMode, { titulo: string; ajuda: string }> = {
+    insumo: {
+      titulo: "Visão Consolidada de Insumos",
+      ajuda: "Saldos do insumo consolidado, ideais para análise de compras e reposições.",
+    },
+    lote: {
+      titulo: "Listagem Detalhada por Lote",
+      ajuda: "Lotes individuais ativos, validades e ações físicas de movimentação.",
+    },
+    grafica: {
+      titulo: "Relatórios de Estoque",
+      ajuda: "Análise macro do estoque por faixas, alertas e status físico.",
+    },
+  };
+  const cabecalhoVisao = CABECALHO_VISAO[viewMode];
+
   return (
     <div className="grid gap-5">
       {/* 1. Visão Geral / KPIs Visuais */}
@@ -522,9 +538,11 @@ export function StockControlHub({
 
         {/* Mini gráfico */}
         <div className="rounded-lg border border-border bg-card p-4 shadow-sm flex flex-col justify-between">
-          <div>
+          <div className="flex items-center gap-1">
             <h3 className="text-xs font-bold uppercase text-muted-foreground">Alertas Ativos</h3>
-            <p className="text-[10px] text-muted-foreground/80">Insumos por alerta (um insumo pode ter mais de um)</p>
+            <HelpTip title="Alertas ativos">
+              <p>Insumos por alerta (um insumo pode ter mais de um).</p>
+            </HelpTip>
           </div>
           <div className="h-24 mt-2">
             {chartData.length > 0 ? (
@@ -553,17 +571,11 @@ export function StockControlHub({
       <section className="rounded-lg border border-border bg-card shadow-sm overflow-hidden">
         {/* CABEÇALHO DO MÓDULO */}
         <div className="border-b border-border/70 px-5 py-4 bg-muted/50 flex justify-between items-center">
-          <div>
-            <h2 className="text-sm font-semibold text-foreground">
-              {viewMode === "insumo" && "Visão Consolidada de Insumos"}
-              {viewMode === "lote" && "Listagem Detalhada por Lote"}
-              {viewMode === "grafica" && "Relatórios de Estoque"}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              {viewMode === "insumo" && "Saldos do insumo consolidado, ideais para análise de compras e reposições."}
-              {viewMode === "lote" && "Lotes individuais ativos, validades e ações físicas de movimentação."}
-              {viewMode === "grafica" && "Análise macro do estoque por faixas, alertas e status físico."}
-            </p>
+          <div className="flex items-center gap-1">
+            <h2 className="text-sm font-semibold text-foreground">{cabecalhoVisao.titulo}</h2>
+            <HelpTip title={cabecalhoVisao.titulo}>
+              <p>{cabecalhoVisao.ajuda}</p>
+            </HelpTip>
           </div>
           <span className="text-xs text-muted-foreground/80">
             {viewMode === "insumo" && `${filteredInsumos.length} reagentes`}
@@ -812,8 +824,12 @@ export function StockControlHub({
           <div className="grid gap-5 p-5 md:grid-cols-2">
             {/* Gráfico 1: Situação Geral */}
             <div className="rounded-lg border border-border/70 bg-muted/50 p-5">
-              <h3 className="text-sm font-semibold text-foreground">Situação Física dos Insumos</h3>
-              <p className="mb-4 text-xs text-muted-foreground">Cada insumo aparece uma vez, no alerta mais grave.</p>
+              <div className="mb-4 flex items-center gap-1">
+                <h3 className="text-sm font-semibold text-foreground">Situação Física dos Insumos</h3>
+                <HelpTip title="Situação física dos insumos">
+                  <p>Cada insumo aparece uma vez, no alerta mais grave.</p>
+                </HelpTip>
+              </div>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>

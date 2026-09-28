@@ -33,7 +33,7 @@ export type Campo = {
    */
   opcoes?: { value: string; label: string; inativo?: boolean }[];
   /** preenche as opções dinamicamente no servidor (ex.: lista de fornecedores) */
-  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais";
+  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais" | "perfis";
   /**
    * fora do formulário (sem uso demonstrado), mas mantido na planilha de
    * exportação/importação; a edição pelo formulário não altera o valor gravado.
@@ -146,6 +146,13 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { name: "nome", label: "Nome do projeto", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação" },
       { name: "cliente_id", label: "Cliente", tipo: "select", opcoesDe: "clientes" },
       { name: "responsavel", label: "Responsável (laboratório)", tipo: "text" },
+      {
+        name: "coordenador_id",
+        label: "Coordenador (usuário)",
+        tipo: "select",
+        opcoesDe: "perfis",
+        ajuda: "Recebe o aviso de validação dos pedidos internos do projeto e pode validar ou aprovar os próprios pedidos.",
+      },
       {
         name: "status",
         label: "Status",

@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { HelpTip } from "@/components/common/HelpTip";
 import { temPapel } from "@/lib/auth/roles";
 import { PAPEIS } from "@/lib/auth/permissions";
 import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
@@ -70,11 +71,15 @@ export default async function UsuariosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <h1 className="text-xl font-semibold tracking-tight">Usuários e permissões</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Acessos, pré-aprovados, assinaturas e permissões. A categoria define o padrão; em Editar,
-          ajuste as permissões de uma pessoa sem mudar a categoria.
-        </p>
+        <div className="flex items-center gap-1">
+          <h1 className="text-xl font-semibold tracking-tight">Usuários e permissões</h1>
+          <HelpTip title="Usuários e permissões">
+            <p>
+              Acessos, pré-aprovados, assinaturas e permissões. A categoria define o padrão; em Editar,
+              ajuste as permissões de uma pessoa sem mudar a categoria.
+            </p>
+          </HelpTip>
+        </div>
 
         <CriarUsuarioForm />
 

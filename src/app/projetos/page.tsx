@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { HelpTip } from "@/components/common/HelpTip";
 import { formatDate } from "@/lib/formatters";
 import { STATUS_PROJETO } from "./_lib/status";
 import { responsavelDoProjeto } from "./_lib/responsavel";
@@ -25,12 +26,12 @@ export default async function ProjetosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Projetos</h1>
-            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-              Orçamentos, planejamentos e compras de cada projeto num só lugar.
-            </p>
+            <HelpTip title="Projetos">
+              <p>Orçamentos, planejamentos e compras de cada projeto num só lugar.</p>
+            </HelpTip>
           </div>
           <Link
             href="/cadastros/projetos"

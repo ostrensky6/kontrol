@@ -92,7 +92,7 @@ export default async function GovernancaOrcamentoPage() {
     return (
       <main className="mx-auto max-w-3xl px-6 py-16 text-center font-sans">
         <p className="text-sm text-muted-foreground">
-          Acesso restrito. A governança de Orçamentos é visível para gestor ou admin.
+          Acesso restrito. As regras do orçamento são visíveis para gestor ou admin.
         </p>
         <Link href="/orcamento" className={buttonVariants({ variant: "outline", className: "mt-4" })}>
           Voltar para Orçamentos
@@ -139,8 +139,8 @@ export default async function GovernancaOrcamentoPage() {
               Orçamentos
             </p>
             <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Governança e permissões</h1>
-              <HelpTip title="Governança e permissões">
+              <h1 className="text-xl font-semibold tracking-tight">Regras do orçamento</h1>
+              <HelpTip title="Regras do orçamento">
                 <p>Mostra <b>quem pode fazer</b> cada ação sensível do orçamento e o registro de cada mudança, para reconstruir a origem de qualquer valor final.</p>
                 <p><b>Críticas</b> são cancelamentos, alterações, duplicações e ações sobre propostas emitidas; <b>Com motivo</b> são eventos registrados com justificativa.</p>
               </HelpTip>

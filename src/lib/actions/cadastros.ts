@@ -148,6 +148,11 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
     nome: reqStr,
     cliente_id: optNum({ min: 0 }),
     responsavel: optStr,
+    // D3 (0136): coordenador do projeto é um usuário
+    coordenador_id: z.preprocess(
+      (v) => (v === "" || v == null ? null : v),
+      z.string().uuid("Coordenador inválido").nullable(),
+    ),
     status: z.preprocess(
       (v) => (v === "" || v == null ? "proposto" : v),
       z.enum(["proposto", "ativo", "concluido", "cancelado"]),

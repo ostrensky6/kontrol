@@ -792,9 +792,11 @@ export default async function PedidoInternoDetalhe({
             {pedido.status === "formalizado" && podeGerir && (
               <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <div className="md:col-span-2">
+                <div className="flex items-center gap-1 md:col-span-2">
                   <h3 className="text-sm font-semibold">Análise administrativa</h3>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Confirme recurso, rubrica e conformidade antes de liberar cotação.</p>
+                  <HelpTip title="Análise administrativa">
+                    <p>Confirme recurso, rubrica e conformidade antes de liberar cotação.</p>
+                  </HelpTip>
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
@@ -876,10 +878,12 @@ export default async function PedidoInternoDetalhe({
 
         <section className="mt-4 grid items-start gap-4 lg:grid-cols-2">
           <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-            <div className="flex items-start justify-between gap-3">
-              <div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-1">
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Documentos</h2>
-                <p className="mt-1 text-xs text-muted-foreground">Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
+                <HelpTip title="Documentos">
+                  <p>Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
+                </HelpTip>
               </div>
               <span className={`rounded-md px-2 py-1 text-xs ${temDocumentoCotacao ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
                 {anexoRows.length} anexo(s)
@@ -980,8 +984,12 @@ export default async function PedidoInternoDetalhe({
           </div>
 
           <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Comunicações</h2>
-            <p className="mt-1 text-xs text-muted-foreground">Registro interno de e-mails, reuniões, mensagens e encaminhamentos.</p>
+            <div className="flex items-center gap-1">
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Comunicações</h2>
+              <HelpTip title="Comunicações">
+                <p>Registro interno de e-mails, reuniões, mensagens e encaminhamentos.</p>
+              </HelpTip>
+            </div>
 
             <div className="mt-3 space-y-2">
               {comunicacaoRows.map((comunicacao) => (

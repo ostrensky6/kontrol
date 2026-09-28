@@ -5,6 +5,7 @@ import { mascararAuditoriaSigilosa } from "@/lib/cadastros/salario";
 import { AuditoriaTable, type AuditoriaRow } from "@/components/auditoria/AuditoriaTable";
 import { formatDateTime } from "@/lib/formatters";
 import { HelpTip } from "@/components/common/HelpTip";
+import { resumoDiffAuditoria } from "@/lib/orcamento/auditoria-resumo";
 
 export const dynamic = "force-dynamic";
 
@@ -25,23 +26,10 @@ const ACAO: Record<string, { label: string; cls: string }> = {
 
 const IGNORAR = new Set(["criado_em", "atualizado_em"]);
 
+// Mesma regra da auditoria de Orçamentos: objetos mostram o subcampo que mudou,
+// nunca "[object Object]" (28/09).
 function resumoDiff(acao: string, ant: Record<string, unknown> | null, novo: Record<string, unknown> | null): string {
-  if (acao === "insert") return "registro criado";
-  if (acao === "delete") return "registro removido";
-  if (!ant || !novo) return "—";
-  const mudancas: string[] = [];
-  for (const k of Object.keys(novo)) {
-    if (IGNORAR.has(k)) continue;
-    if (JSON.stringify(ant[k]) !== JSON.stringify(novo[k])) {
-      mudancas.push(`${k}: ${fmtVal(ant[k])} → ${fmtVal(novo[k])}`);
-    }
-  }
-  return mudancas.slice(0, 4).join(" · ") || "sem mudanças relevantes";
-}
-function fmtVal(v: unknown) {
-  if (v == null) return "∅";
-  const s = String(v);
-  return s.length > 28 ? s.slice(0, 28) + "…" : s;
+  return resumoDiffAuditoria(acao, ant, novo, { ignorar: IGNORAR, maximo: 4 });
 }
 
 export default async function AuditoriaPage({
@@ -99,6 +87,7 @@ export default async function AuditoriaPage({
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Auditoria</h1>
           <HelpTip title="Trilha de auditoria">
+            <p>Quem alterou o quê, e quando.</p>
             <p>
               Cada alteração é registrada <b>automaticamente</b>, com o valor anterior e o novo.
               Ninguém pode editar nem apagar esses registros.
@@ -106,7 +95,6 @@ export default async function AuditoriaPage({
             <p>Use os filtros para ver só um tipo de cadastro.</p>
           </HelpTip>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Quem alterou o quê, e quando.</p>
 
         <nav className="mt-5 flex flex-wrap gap-2 text-xs">
           {TABELAS.map((t) => (
