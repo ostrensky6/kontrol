@@ -209,10 +209,14 @@ describe("catálogo PE e auditoria", () => {
       { id: "PE-1", rubrica: "PE", descricao: "Fulana", preco_unitario: 5000 },
       { id: "MC-1", rubrica: "MC", descricao: "Balde", preco_unitario: 50 },
     ];
-    const { data } = await cliente("coordenador").rpc("orcamento_projeto_catalogo_listar");
+    // 0137: técnico não faz orçamento e não vê pessoal; coordenador tem "Valores de pessoal no orçamento".
+    const { data } = await cliente("tecnico").rpc("orcamento_projeto_catalogo_listar");
     const porId = Object.fromEntries((data as { id: string }[]).map((item) => [item.id, item]));
     expect(porId["PE-1"]).toMatchObject({ preco_unitario: null, preco_mascarado: true });
     expect(porId["MC-1"]).toMatchObject({ preco_unitario: 50, preco_mascarado: false });
+    const coordenador = await cliente("coordenador").rpc("orcamento_projeto_catalogo_listar");
+    const peCoordenador = (coordenador.data as { id: string }[]).find((item) => item.id === "PE-1");
+    expect(peCoordenador).toMatchObject({ preco_unitario: 5000, preco_mascarado: false });
 
     const direto = await cliente().from("orcamento_projeto_catalogo").select("id, preco_unitario");
     expect(direto.error).toMatchObject({ code: "42501" });

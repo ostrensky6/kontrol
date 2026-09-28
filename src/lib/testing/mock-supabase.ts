@@ -116,6 +116,8 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.ver": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      // 0137: técnico não faz orçamento; não vê valores de pessoal.
+      "orcamentos.pessoal": false,
     },
   },
   {
@@ -148,6 +150,8 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.editar": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      // 0137: quem faz orçamento vê e lança valores de pessoal.
+      "orcamentos.pessoal": true,
     },
   },
   {
@@ -186,6 +190,7 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.editar": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
+      "orcamentos.pessoal": true,
       "configuracoes.ver": true,
     },
   },
@@ -820,6 +825,11 @@ function mockMinhasPermissoes(sessao: SessaoMock) {
 
 function podeVerSalarioMock(sessao: SessaoMock) {
   return mockTemPermissao("tecnicos.salario.ver", sessao);
+}
+
+/** Mesma regra de kontrol_private.pode_ver_pessoal_orcamento (0137). */
+function podeVerPessoalOrcamentoMock(sessao: SessaoMock) {
+  return mockTemPermissao("orcamentos.pessoal", sessao) || podeVerSalarioMock(sessao);
 }
 
 /** Mesma forma de public.v_minhas_notificacoes (0128): estado de leitura por usuário. */
@@ -1906,7 +1916,7 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
       }
       if (fn === "valor_hora_pessoal_total") return { data: valorHoraPessoalTotalMock(), error: null };
       if (fn === "orcamento_projeto_catalogo_listar") {
-        const pode = podeVerSalarioMock(sessao);
+        const pode = podeVerPessoalOrcamentoMock(sessao);
         return {
           data: [...(store.orcamento_projeto_catalogo ?? [])]
             .sort((a, b) =>
@@ -1996,6 +2006,40 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         } catch (error) {
           return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC" } };
         }
+      }
+      // 0138: edição do catálogo (versão simples; as regras completas estão no teste SQL).
+      if (fn === "catalogo_projeto_historico") {
+        return { data: [], error: null };
+      }
+      if (fn === "catalogo_projeto_salvar_item") {
+        const catalogo = (store.orcamento_projeto_catalogo ??= []);
+        const campos = {
+          rubrica: args.p_rubrica,
+          descricao: args.p_descricao,
+          unidade: args.p_unidade ?? null,
+          categoria: args.p_categoria ?? null,
+        };
+        if (args.p_id) {
+          const item = catalogo.find((row) => row.id === args.p_id);
+          if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+          Object.assign(item, campos, args.p_preco == null ? {} : { preco_unitario: args.p_preco });
+          return { data: item.id, error: null };
+        }
+        const id = `${String(args.p_rubrica)}-${900 + catalogo.length}`;
+        catalogo.push({ id, ...campos, preco_unitario: args.p_preco, ativo: true, origem: "cadastro_catalogo" });
+        return { data: id, error: null };
+      }
+      if (fn === "catalogo_projeto_definir_ativo") {
+        const item = (store.orcamento_projeto_catalogo ?? []).find((row) => row.id === args.p_id);
+        if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+        item.ativo = args.p_ativo === true;
+        return { data: null, error: null };
+      }
+      if (fn === "catalogo_projeto_unificar") {
+        const item = (store.orcamento_projeto_catalogo ?? []).find((row) => row.id === args.p_remover);
+        if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+        Object.assign(item, { substituido_por: args.p_manter, ativo: false });
+        return { data: null, error: null };
       }
       if (fn === "transicionar_orcamento_projeto") {
         try {
