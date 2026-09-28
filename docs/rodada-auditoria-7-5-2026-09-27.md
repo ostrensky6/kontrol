@@ -80,3 +80,38 @@ anterior não vai mais ao cliente (nem ao papel).
   registra de uma vez; alerta de falha no backup, ensaio de restauração e cópia
   do Storage; ondas B (elaboração) e C (lista, histórico e celular); quantidades
   (item 5) e revisão numa única função do banco, na próxima migration.
+
+## Segunda parte — 28/09/2026 (1.1.9 → 1.2.0)
+
+Fecha os itens restantes da auditoria, as pendências soltas e a onda C. A onda
+B (tela de elaboração) fica de fora, por decisão do dono.
+
+| Item | O que mudou |
+|---|---|
+| 4. Migration à prova de interrupção | `npm run db:migration` aplica **e registra** na mesma transação (cair no meio = nada aplicado nem registrado); `--ensaio` termina em rollback; `--situacao` mostra o que falta registrar; `--somente-registrar` para o caso antigo. Achou a 0132 aplicada e não registrada no banco local (o caso real do achado) e acertou. |
+| 5. Quantidades | 0133: o pedido de faltas recusa insumo fora das análises do plano e quantidade acima de um teto folgado da demanda; a compra solicitada acompanha ajuste só de embalagem. |
+| 3. Backup e recuperação | 0134 registra cada backup e avisa os administradores (Notificações, 8h) quando o último bom passou de 26 h ou houve falha. O script do banco registra e chama a cópia dos arquivos do Storage (anexos e assinaturas), que o `pg_dump` não levava. `npm run backup:ensaio` restaura o backup num banco descartável, confere e mede o tempo (ensaio com esquema real: 66 tabelas, 6,6 s). |
+| Acabamentos | Busca e filtros das tabelas guardados ao recarregar; busca com nome acessível; contagem e avisos do scanner anunciados ao leitor de tela; rótulos ligados no inventário. |
+| Pendência: DOCX do projeto | Marcado "Uso interno", título com a instituição certa (antes dizia ATGC sempre), arquivos `orcamento-projeto-interno-*`. |
+| Onda C | Lista com fases (uma por orçamento; o funil soma a tabela e filtra), colunas Valor e Fase, "Novo orçamento" no topo; histórico de 18 colunas vira lista com "Ver detalhes"; catálogo de análises em cartões no celular; estados "Salvando…/Duplicando…"; telas de erro com "Tentar de novo". |
+
+Testes novos: `scripts/*.test.mjs` (migration, cópia do Storage, ensaio),
+`supabase/tests/quantidades_conferidas_0133.sql`, `registro_backups_0134.sql`,
+`src/lib/tabela-filtros.test.ts`, `src/lib/orcamento/fase-orcamento.test.ts`,
+E2E `acabamentos-auditoria.spec.ts` e `orcamento-onda-c.spec.ts` (as checagens
+de largura foram vistas falhando contra o layout antigo).
+
+### Para produção (precisa de autorização do dono)
+
+1. Aplicar 0133 e 0134 com `npm run db:migration` (ensaio antes, backup antes).
+2. Na pasta principal `G:\Aplicativos\Kontrol`: atualizar a `main` para a tarefa
+   agendada usar o script novo, e conferir no `.env.local` as chaves
+   `NEXT_PUBLIC_SUPABASE_URL` e `SUPABASE_SERVICE_ROLE_KEY` da nuvem (sem elas a
+   cópia dos arquivos registra falha e o aviso aparece).
+3. Rodar `npm run backup:ensaio` uma vez com o backup real e guardar o relatório.
+
+### Decisões ainda abertas (rodadas anteriores)
+
+D2 (quem solicita pode validar/aprovar a própria compra?), D3 (coordenador do
+projeto como usuário), D5 (descarte e bloqueio de lote com o coordenador) e D7
+(inventário: fechamento de campanha e segunda aprovação acima de um limite).

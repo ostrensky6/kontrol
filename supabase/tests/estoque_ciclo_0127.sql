@@ -361,6 +361,19 @@ begin
 end $$;
 
 -- ---- "Comprar faltas": sem pedido em dobro ---------------------------------
+-- Desde a 0133 o banco confere se o insumo está nas análises do plano e se a
+-- quantidade cabe na demanda: o plano ganha uma análise que usa o tampão
+-- (25 mL por amostra × 10 amostras = 250 mL; até 3 frascos de 100 mL cabem).
+reset role;
+do $$
+begin
+  insert into public.analises (codigo, nome) values ('TS-0127-FALTA', 'Analise TS-0127 faltas');
+  insert into public.insumo_analise (codigo_analise, nome_etapa, nome_atividade, insumo_id, quantidade_por_amostra, modo_cobranca)
+  values ('TS-0127-FALTA', 'Preparo', 'Tampao', current_setting('t0127.frasco')::bigint, 25000, 'por_amostra');
+  insert into public.planejamento_itens (planejamento_id, codigo_analise, n_amostras)
+  values (current_setting('t0127.plano')::bigint, 'TS-0127-FALTA', 10);
+end $$;
+set local role authenticated;
 select pg_temp.como('tecnico');
 do $$
 declare

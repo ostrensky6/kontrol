@@ -4,11 +4,10 @@ import { formatDate } from "@/lib/formatters";
 import { HelpTip } from "@/components/common/HelpTip";
 import { DemandasTable, type DemandaRow } from "@/components/orcamento/DemandasTable";
 import { avaliarCompletudeDemanda } from "@/lib/orcamento/demanda-completude";
-import { carregarLinhasOrcamentos } from "@/lib/orcamento/orcamentos-listagem";
-import { resumirFunilPropostas } from "@/lib/orcamento/funil-propostas";
+import { carregarLinhasOrcamentos, type OrcamentoFila } from "@/lib/orcamento/orcamentos-listagem";
+import { FASES, faseDoOrcamento, resumirFases, valorDoOrcamento } from "@/lib/orcamento/fase-orcamento";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
-import { StatCard } from "@/components/app/StatCard";
 
 export const dynamic = "force-dynamic";
 
@@ -46,10 +45,19 @@ export default async function DemandasPage({
       supabase.from("projetos").select("id, nome").order("nome"),
       carregarLinhasOrcamentos(),
     ]);
-  const resumoFunil = resumirFunilPropostas(linhasFunil);
+  // Módulos e propostas de cada orçamento: dão a fase e o valor da linha.
+  const linhasPorDemanda = new Map<number, OrcamentoFila[]>();
+  for (const linha of linhasFunil) {
+    if (linha.demandaId == null) continue;
+    linhasPorDemanda.set(linha.demandaId, [...(linhasPorDemanda.get(linha.demandaId) ?? []), linha]);
+  }
+  const rotuloFase = new Map(FASES.map((f) => [f.id, f.item]));
   const projetoNome = new Map((projetos ?? []).map((p) => [p.id, p.nome]));
   const linhas: DemandaRow[] = (demandas ?? []).map((d) => {
     const completude = avaliarCompletudeDemanda(d);
+    const doOrcamento = linhasPorDemanda.get(d.id as number) ?? [];
+    const faseLinha = faseDoOrcamento(d.status, doOrcamento);
+    const { valor, origem } = valorDoOrcamento(doOrcamento);
     return {
       id: d.id as number,
       titulo: d.titulo ?? "Orçamento sem título",
@@ -62,20 +70,42 @@ export default async function DemandasPage({
       dataSolicitacao: formatDate(d.data_solicitacao),
       status: d.status,
       statusLabel: STATUS[d.status] ?? d.status,
+      fase: faseLinha,
+      faseLabel: rotuloFase.get(faseLinha) ?? faseLinha,
+      valor,
+      valorEstimado: origem === "estimativa",
       completudeLabel: completude.completa ? "Pronta" : `${completude.faltante}% faltante`,
       completa: completude.completa,
     };
   });
-  const linhasFiltradas = statusFiltro
-    ? linhas.filter((linha) => linha.status === statusFiltro)
-    : linhas;
+  const resumoFases = resumirFases(linhas.map((linha) => linha.fase));
+  // ?status= (endereço antigo) continua filtrando pelo status do cadastro.
+  const linhasFiltradas = statusFiltro ? linhas.filter((linha) => linha.status === statusFiltro) : linhas;
+  // resumo em uma linha: total e as fases que têm orçamento
+  const partesResumo = FASES.filter((f) => resumoFases[f.id] > 0).map(
+    (f) => `${resumoFases[f.id]} ${resumoFases[f.id] === 1 ? f.item.toLowerCase() : f.rotulo.toLowerCase()}`,
+  );
 
   return (
     <PageShell>
       <PageHeader
         breadcrumbs={[{ label: "Orçamento" }, { label: "Orçamentos" }]}
         title="Orçamentos"
-        description="Orçamentos em andamento."
+        description={
+          <>
+            <b className="font-semibold text-foreground tabular-nums">{linhas.length}</b>{" "}
+            {linhas.length === 1 ? "orçamento" : "orçamentos"}
+            {partesResumo.length > 0 && ` · ${partesResumo.join(" · ")}`}
+          </>
+        }
+        actions={
+          <Link
+            href="/orcamento/demandas/nova"
+            className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          >
+            Novo orçamento
+          </Link>
+        }
         help={
           <HelpTip title="Orçamentos">
             <p>O orçamento é o processo; a <b>proposta</b> é o documento emitido ao final para o cliente.</p>
@@ -83,57 +113,6 @@ export default async function DemandasPage({
           </HelpTip>
         }
       />
-
-      <section className="grid gap-3 sm:grid-cols-3 xl:grid-cols-6" aria-label="Funil de propostas">
-        {[
-          { label: "Em elaboração", valor: resumoFunil.emElaboracao },
-          { label: "Em revisão", valor: resumoFunil.revisao },
-          { label: "Emitidas", valor: resumoFunil.emitidas },
-          { label: "Aprovadas", valor: resumoFunil.aprovadas },
-          { label: "Recusadas", valor: resumoFunil.recusadas },
-          { label: "Concluídas", valor: resumoFunil.concluidas },
-        ].map((item) => (
-          <StatCard key={item.label} label={item.label} value={item.valor.toLocaleString("pt-BR")} />
-        ))}
-      </section>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          Para começar, crie um orçamento com os dados do cliente, as amostras e as análises.
-        </p>
-        <Link
-          href="/orcamento/demandas/nova"
-          className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-        >
-          Novo orçamento
-        </Link>
-      </div>
-
-      <div className="flex flex-wrap gap-2">
-        <Link
-          href="/orcamento/demandas"
-          className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-            !statusFiltro
-              ? "border-primary/40 bg-primary/10 text-primary"
-              : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-          }`}
-        >
-          Todas
-        </Link>
-        {Object.entries(STATUS).map(([value, label]) => (
-          <Link
-            key={value}
-            href={`/orcamento/demandas?status=${value}`}
-            className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-              statusFiltro === value
-                ? "border-primary/40 bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
 
       <DemandasTable rows={linhasFiltradas} />
     </PageShell>

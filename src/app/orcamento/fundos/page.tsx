@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { salvarAcompanhamentoFundos } from "@/lib/actions/orcamento-fundos";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -311,12 +312,14 @@ export default async function FundosPage() {
                           placeholder="Motivo do saldo manual"
                           className="col-span-3 h-8 rounded-md border border-input bg-card px-2 text-xs"
                         />
-                        <button
+                        <SubmitButton
                           disabled={!podeEditar}
-                          className="h-8 rounded-md bg-brand-600 px-3 text-xs font-medium text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-50"
+                          size="sm"
+                          pendingLabel="Salvando…"
+                          className="h-8 bg-brand-600 px-3 text-xs text-white hover:bg-brand-500"
                         >
                           Salvar
-                        </button>
+                        </SubmitButton>
                       </form>
                     </td>
                     <td className="px-3 py-3">

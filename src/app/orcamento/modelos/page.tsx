@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
+import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   arquivarCatalogoProjetoItem,
@@ -207,12 +208,12 @@ export default async function OrcamentoModelosPage({
                                 <option key={projeto.id} value={projeto.id}>{projeto.nome}</option>
                               ))}
                             </select>
-                            <button className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">Usar</button>
+                            <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Criando…">Usar</SubmitButton>
                           </form>
                         )}
                         <form action={duplicarTemplateProjeto}>
                           <input type="hidden" name="template_id" value={template.id} />
-                          <button className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300">Duplicar</button>
+                          <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
                         </form>
                         {!isArquivado(template) && (
                           <ConfirmActionButton

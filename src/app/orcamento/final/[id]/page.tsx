@@ -446,12 +446,13 @@ export default async function OrcamentoFinalPage({
                 <input type="hidden" name="versao_id" value={versao.id} />
                 <input type="hidden" name="operacao_id" value={operacaoDuplicacaoId} />
                 <input type="hidden" name="validade_dias" value={versao.validade_dias ?? 30} />
-                <button
+                <SubmitButton
+                  variant="outline"
+                  pendingLabel="Duplicando…"
                   title="Cria nova versão com os mesmos itens e valores; a versão em vigor passa a substituída."
-                  className="rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-muted"
                 >
                   Duplicar versão
-                </button>
+                </SubmitButton>
               </form>
               )}
               {podeCancelar && ["emitido", "enviado", "alterado_reenviado", "recusado", "rejeitado", "aprovado"].includes(versao.status) && (

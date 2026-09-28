@@ -101,7 +101,7 @@ export async function EditorCustosProjeto({
   demandaId: number;
 }) {
   const supabase = await createClient();
-  const [{ data: orc }, { data: custosData }, { data: analisesData }, { data: catalogoData }, { data: analisesDisponiveis }, podeRevisar] =
+  const [{ data: orc }, { data: custosData }, { data: analisesData }, { data: catalogoData }, { data: analisesDisponiveis }, podeRevisar, { data: demandaInst }] =
     await Promise.all([
       supabase.from("orcamento_projetos").select("*").eq("id", orcamentoProjetoId).single(),
       supabase
@@ -120,6 +120,8 @@ export async function EditorCustosProjeto({
       supabase.rpc("orcamento_projeto_catalogo_listar"),
       supabase.from("analises").select("codigo, nome").eq("ativo", true).eq("ofertavel", true).order("codigo"),
       podeOrcamento("revisar_modulo"),
+      // instituição do orçamento: título e criador dos arquivos exportados
+      supabase.from("demandas_propostas").select("instituicao").eq("id", demandaId).maybeSingle(),
     ]);
 
   if (!orc) {
@@ -203,6 +205,7 @@ export async function EditorCustosProjeto({
     escopo: orc.escopo ?? null,
     cronograma: orc.cronograma ?? null,
     observacoes: orc.observacoes ?? null,
+    instituicao: demandaInst?.instituicao ?? null,
   };
 
   const campos = (
