@@ -1,8 +1,11 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpTip } from "@/components/common/HelpTip";
+import { buttonVariants } from "@/components/ui/button";
 import {
   arquivarCatalogoProjetoItem,
   criarProjetoDeTemplate,
@@ -57,7 +60,16 @@ type ProjetoOpcao = {
   nome: string;
 };
 
-const rubricas = ["PE", "MC", "MP", "ST", "VD", "OU"] as const;
+/** Rubricas na ordem e com os rótulos da visão interna da proposta. */
+const RUBRICAS = [
+  { id: "PE", rotulo: "PE · Pessoal" },
+  { id: "MC", rotulo: "MC · Material de consumo" },
+  { id: "MP", rotulo: "MP · Material permanente" },
+  { id: "ST", rotulo: "ST · Serviços de terceiros" },
+  { id: "VD", rotulo: "VD · Viagens e diárias" },
+  { id: "OU", rotulo: "OU · Outros" },
+] as const;
+const rubricas = RUBRICAS.map((rubrica) => rubrica.id);
 
 export default async function OrcamentoModelosPage({
   searchParams,
@@ -79,195 +91,291 @@ export default async function OrcamentoModelosPage({
   const catalogo = ((catalogoCompleto ?? []) as CatalogoItem[]).slice(0, 300);
 
   const templatesFiltrados = filtrarTemplates((templates ?? []) as TemplateProjeto[], filtros);
-  const catalogoFiltrado = filtrarCatalogo((catalogo ?? []) as CatalogoItem[], filtros);
+  // A rubrica é escolhida nas abas do catálogo; as contagens das abas seguem os demais filtros.
+  const catalogoSemRubrica = filtrarCatalogo(catalogo, { ...filtros, rubrica: undefined });
+  const catalogoFiltrado = filtrarCatalogo(catalogo, filtros);
+  const abasRubrica = RUBRICAS.map((rubrica) => ({
+    ...rubrica,
+    total: catalogoSemRubrica.filter((item) => item.rubrica === rubrica.id).length,
+  })).filter((aba) => aba.total > 0 || aba.id === filtros.rubrica);
   const templatesAtivos = ((templates ?? []) as TemplateProjeto[]).filter((item) => !isArquivado(item)).length;
   const templatesArquivados = ((templates ?? []) as TemplateProjeto[]).filter(isArquivado).length;
-  const itensAtivos = ((catalogo ?? []) as CatalogoItem[]).filter((item) => item.ativo).length;
-  const importados = ((catalogo ?? []) as CatalogoItem[]).filter((item) => item.origem === "orcamento_projetos_antigo").length;
+  const itensAtivos = catalogo.filter((item) => item.ativo).length;
+  const importados = catalogo.filter((item) => item.origem === "orcamento_projetos_antigo").length;
   const parametrosPadrao = resumirParametrosPadrao((templates ?? []) as TemplateProjeto[]);
+
+  const filtrosAvancados = [filtros.origem, filtros.status].filter(Boolean).length;
+  const temFiltro = Boolean(filtros.busca || filtros.origem || filtros.status || filtros.rubrica);
+  const mostrarRubrica = !filtros.rubrica;
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <Link href="/orcamento" className="text-xs text-muted-foreground hover:underline">Orçamentos</Link>
-            <div className="mt-2 flex items-center gap-1">
+            <div className="mt-1 flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Modelos e catálogo</h1>
               <HelpTip title="Modelos e catálogo">
                 <p>Base reutilizável para montar orçamentos de projeto: <b>modelos</b> com itens prontos, o <b>catálogo institucional</b> de custos por rubrica e os parâmetros padrão.</p>
                 <p>Nada é apagado: itens fora de uso são arquivados e continuam no histórico.</p>
               </HelpTip>
             </div>
+            {/* resumo em uma linha (28/09), no lugar dos quatro cartões */}
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              <Numero valor={templatesAtivos} /> {templatesAtivos === 1 ? "template ativo" : "templates ativos"}
+              {" · "}<Numero valor={templatesArquivados} /> {templatesArquivados === 1 ? "template arquivado" : "templates arquivados"}
+              {" · "}<Numero valor={itensAtivos} /> {itensAtivos === 1 ? "item ativo" : "itens ativos"} no catálogo
+              {" · "}<Numero valor={importados} /> de origem importada
+            </p>
           </div>
           <div className="flex flex-wrap gap-2">
             {USO_DIRETO_DE_TEMPLATE && (
-              <Link href="/orcamento/projetos" className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500">
+              <Link href="/orcamento/projetos" className={buttonVariants({ size: "sm" })}>
                 Usar em orçamento
               </Link>
             )}
-            <Link href="/orcamento" className="rounded-md border border-input px-3 py-2 text-sm font-medium hover:bg-muted">
+            <Link href="/orcamento" className={buttonVariants({ variant: "outline", size: "sm" })}>
               Orçamentos
             </Link>
           </div>
         </div>
 
-        <nav className="mt-5 flex gap-2 overflow-x-auto text-sm">
-          {[
-            ["#templates", "Templates"],
-            ["#catalogo", "Catálogo institucional"],
-            ["#parametros", "Parâmetros padrão"],
-            ["#importados", "Origem importada"],
-          ].map(([href, label]) => (
-            <a key={href} href={href} className="rounded-md border border-border px-3 py-2 font-medium hover:bg-muted">
-              {label}
-            </a>
-          ))}
-        </nav>
-
-        <section className="mt-6 grid gap-3 sm:grid-cols-4">
-          <Resumo titulo="Templates ativos" valor={templatesAtivos.toLocaleString("pt-BR")} />
-          <Resumo titulo="Templates arquivados" valor={templatesArquivados.toLocaleString("pt-BR")} />
-          <Resumo titulo="Itens ativos" valor={itensAtivos.toLocaleString("pt-BR")} />
-          <Resumo titulo="Origem importada" valor={importados.toLocaleString("pt-BR")} />
-        </section>
-
-        <form className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="grid gap-3 md:grid-cols-[1fr_10rem_12rem_10rem_auto_auto] md:items-end">
-            <CampoFiltro label="Busca">
-              <input name="busca" defaultValue={filtros.busca ?? ""} className={inputCls} />
-            </CampoFiltro>
-            <CampoFiltro label="Rubrica">
-              <select name="rubrica" defaultValue={filtros.rubrica ?? ""} className={inputCls}>
-                <option value="">Todas</option>
-                {rubricas.map((rubrica) => <option key={rubrica} value={rubrica}>{rubrica}</option>)}
-              </select>
-            </CampoFiltro>
-            <CampoFiltro label="Origem">
-              <select name="origem" defaultValue={filtros.origem ?? ""} className={inputCls}>
-                <option value="">Todas</option>
-                <option value="kontrol">Kontrol</option>
-                <option value="orcamento_projetos_antigo">Importada</option>
-              </select>
-            </CampoFiltro>
-            <CampoFiltro label="Status">
-              <select name="status" defaultValue={filtros.status ?? ""} className={inputCls}>
-                <option value="">Todos</option>
-                <option value="ativo">Ativo</option>
-                <option value="arquivado">Arquivado</option>
-                <option value="inativo">Inativo</option>
-              </select>
-            </CampoFiltro>
-            <button className="rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500">Filtrar</button>
-            <Link href="/orcamento/modelos" className="rounded-md border border-input px-3 py-2 text-sm font-medium text-center hover:bg-muted">
+        {/* Barra de filtros no padrão do Histórico: busca de largura fixa, o resto num painel.
+            A rubrica fica nas abas do catálogo; o campo oculto a preserva ao filtrar. */}
+        <form
+          key={JSON.stringify(filtros)}
+          role="search"
+          aria-label="Filtrar modelos e catálogo"
+          className="mt-4 flex flex-wrap items-center gap-2"
+        >
+          {filtros.rubrica && <input type="hidden" name="rubrica" value={filtros.rubrica} />}
+          <div className="relative w-full sm:w-72">
+            <label htmlFor="modelos-busca" className="sr-only">Buscar por código, descrição ou categoria</label>
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <input
+              id="modelos-busca"
+              type="search"
+              name="busca"
+              defaultValue={filtros.busca ?? ""}
+              placeholder="Código, descrição ou categoria"
+              className={`${campoCls} w-full pl-8`}
+            />
+          </div>
+          <details className="relative">
+            <summary className={`${campoCls} flex cursor-pointer list-none items-center gap-1.5 font-medium hover:bg-accent [&::-webkit-details-marker]:hidden`}>
+              <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
+              Mais filtros
+              {filtrosAvancados > 0 && (
+                <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold text-primary-foreground tabular-nums">
+                  {filtrosAvancados}
+                </span>
+              )}
+            </summary>
+            <div className="absolute left-0 top-full z-20 mt-2 grid w-[min(24rem,calc(100vw-2rem))] grid-cols-2 gap-3 rounded-lg border border-border bg-card p-4 shadow-lg">
+              <CampoFiltro label="Origem">
+                <select name="origem" defaultValue={filtros.origem ?? ""} className={inputCls}>
+                  <option value="">Todas</option>
+                  <option value="kontrol">Kontrol</option>
+                  <option value="orcamento_projetos_antigo">Importada</option>
+                </select>
+              </CampoFiltro>
+              <CampoFiltro label="Status">
+                <select name="status" defaultValue={filtros.status ?? ""} className={inputCls}>
+                  <option value="">Todos</option>
+                  <option value="ativo">Ativo</option>
+                  <option value="arquivado">Arquivado</option>
+                  <option value="inativo">Inativo</option>
+                </select>
+              </CampoFiltro>
+            </div>
+          </details>
+          <button className="inline-flex h-9 items-center rounded-md bg-brand-600 px-4 text-sm font-medium text-white hover:bg-brand-500">
+            Filtrar
+          </button>
+          {temFiltro && (
+            <Link href="/orcamento/modelos" className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-muted-foreground hover:bg-accent hover:text-foreground">
               Limpar
             </Link>
-          </div>
+          )}
         </form>
 
-        <section id="templates" className="mt-6 scroll-mt-8 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Templates de projeto</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Duplique ou arquive modelos. Usar em orçamento: em breve.</p>
-            </div>
-            {USO_DIRETO_DE_TEMPLATE && <Link href="/orcamento/projetos" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Criar a partir de template</Link>}
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">Nome</th>
-                  <th className="px-3 py-2">Descrição</th>
-                  <th className="px-3 py-2">Origem</th>
-                  <th className="px-3 py-2 text-right">Itens</th>
-                  <th className="px-3 py-2">Parâmetros</th>
-                  <th className="px-3 py-2">Criado em</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {templatesFiltrados.map((template) => (
-                  <tr key={template.id}>
-                    <td className="px-3 py-3 font-medium">{nomeVisivel(template.nome)}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{template.descricao ?? "—"}</td>
-                    <td className="px-3 py-3"><Origem origem={template.origem} /></td>
-                    <td className="px-3 py-3 text-right tabular-nums">{contarItens(template.itens)}</td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground">{resumoParametros(template.parametros)}</td>
-                    <td className="px-3 py-3 text-muted-foreground">{formatDate(template.criado_em)}</td>
-                    <td className="px-3 py-3">{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</td>
-                    <td className="px-3 py-3">
-                      <div className="flex justify-end gap-2">
-                        {USO_DIRETO_DE_TEMPLATE && !isArquivado(template) && (
-                          <form action={criarProjetoDeTemplate} className="flex items-center gap-1">
-                            <input type="hidden" name="template_id" value={template.id} />
-                            <select name="projeto_id" defaultValue="" className="rounded-md border border-input bg-card px-2 py-1 text-xs">
-                              <option value="">Sem projeto</option>
-                              {((projetos ?? []) as ProjetoOpcao[]).map((projeto) => (
-                                <option key={projeto.id} value={projeto.id}>{projeto.nome}</option>
-                              ))}
-                            </select>
-                            <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Criando…">Usar</SubmitButton>
-                          </form>
-                        )}
-                        <form action={duplicarTemplateProjeto}>
-                          <input type="hidden" name="template_id" value={template.id} />
-                          <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
-                        </form>
-                        {!isArquivado(template) && (
-                          <ConfirmActionButton
-                            action={excluirTemplate}
-                            fields={{ template_id: template.id }}
-                            trigger="Arquivar"
-                            titulo="Arquivar template"
-                            mensagem={`Arquivar o template ${nomeVisivel(template.nome)}? Ele deixa de ser oferecido como ativo, mas o registro permanece no histórico.`}
-                            confirmLabel="Arquivar"
-                            triggerClassName="text-xs font-medium text-danger-strong hover:underline"
-                          />
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+        <section id="templates" aria-labelledby="templates-titulo" className="mt-4 scroll-mt-8 rounded-lg border border-border bg-card shadow-sm">
+          <Cabecalho
+            id="templates-titulo"
+            titulo="Templates de projeto"
+            subtitulo="Duplique ou arquive modelos. Usar em orçamento: em breve."
+            semBorda={templatesFiltrados.length === 0}
+            extra={
+              <>
                 {templatesFiltrados.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-3 py-6 text-center text-muted-foreground/80">Nenhum template encontrado.</td>
-                  </tr>
+                  <p className="text-xs text-muted-foreground/80">Nenhum template encontrado.</p>
                 )}
-              </tbody>
-            </table>
-          </div>
+                {USO_DIRETO_DE_TEMPLATE && (
+                  <Link href="/orcamento/projetos" className="ml-auto text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">
+                    Criar a partir de template
+                  </Link>
+                )}
+              </>
+            }
+          />
+          {templatesFiltrados.length > 0 && (
+            <div tabIndex={0} aria-label="Templates de projeto" className="overflow-x-auto">
+              <table className="w-full min-w-[60rem] table-fixed text-left text-sm">
+                <colgroup>
+                  <col className="w-[18%]" />
+                  <col />
+                  <col className="w-[6.5rem]" />
+                  <col className="w-[3.5rem]" />
+                  <col className="w-[22%]" />
+                  <col className="w-[6.5rem]" />
+                  <col className="w-[6.5rem]" />
+                  <col className="w-[9rem]" />
+                </colgroup>
+                <thead className={cabecalhoTabela}>
+                  <tr>
+                    <th className="px-3 py-1.5 font-medium">Nome</th>
+                    <th className="px-3 py-1.5 font-medium">Descrição</th>
+                    <th className="px-3 py-1.5 font-medium">Origem</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Itens</th>
+                    <th className="px-3 py-1.5 font-medium">Parâmetros</th>
+                    <th className="px-3 py-1.5 font-medium">Criado em</th>
+                    <th className="px-3 py-1.5 font-medium">Status</th>
+                    <th className="px-3 py-1.5 text-right font-medium">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border/70">
+                  {templatesFiltrados.map((template) => (
+                    <tr key={template.id}>
+                      <td className="truncate px-3 py-1.5 font-medium" title={nomeVisivel(template.nome)}>{nomeVisivel(template.nome)}</td>
+                      <td className="truncate px-3 py-1.5 text-muted-foreground" title={template.descricao ?? undefined}>{template.descricao ?? "—"}</td>
+                      <td className="px-3 py-1.5"><Origem origem={template.origem} /></td>
+                      <td className="px-3 py-1.5 text-right tabular-nums">{contarItens(template.itens)}</td>
+                      <td className="truncate px-3 py-1.5 text-xs text-muted-foreground" title={resumoParametros(template.parametros)}>{resumoParametros(template.parametros)}</td>
+                      <td className="px-3 py-1.5 tabular-nums text-muted-foreground">{formatDate(template.criado_em)}</td>
+                      <td className="px-3 py-1.5">{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</td>
+                      <td className="px-3 py-1.5">
+                        <div className="flex justify-end gap-3">
+                          {USO_DIRETO_DE_TEMPLATE && !isArquivado(template) && (
+                            <form action={criarProjetoDeTemplate} className="flex items-center gap-1">
+                              <input type="hidden" name="template_id" value={template.id} />
+                              <select name="projeto_id" defaultValue="" className="rounded-md border border-input bg-card px-2 py-1 text-xs">
+                                <option value="">Sem projeto</option>
+                                {((projetos ?? []) as ProjetoOpcao[]).map((projeto) => (
+                                  <option key={projeto.id} value={projeto.id}>{projeto.nome}</option>
+                                ))}
+                              </select>
+                              <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Criando…">Usar</SubmitButton>
+                            </form>
+                          )}
+                          <form action={duplicarTemplateProjeto}>
+                            <input type="hidden" name="template_id" value={template.id} />
+                            <SubmitButton variant="link" size="sm" className="h-auto p-0 text-xs font-medium text-brand-700 dark:text-brand-300" pendingLabel="Duplicando…">Duplicar</SubmitButton>
+                          </form>
+                          {!isArquivado(template) && (
+                            <ConfirmActionButton
+                              action={excluirTemplate}
+                              fields={{ template_id: template.id }}
+                              trigger="Arquivar"
+                              titulo="Arquivar template"
+                              mensagem={`Arquivar o template ${nomeVisivel(template.nome)}? Ele deixa de ser oferecido como ativo, mas o registro permanece no histórico.`}
+                              confirmLabel="Arquivar"
+                              triggerClassName="text-xs font-medium text-danger-strong hover:underline"
+                            />
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
 
-        <section id="catalogo" className="mt-6 scroll-mt-8 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">Catálogo institucional de custos</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Itens reutilizáveis por rubrica, com origem auditável e arquivamento sem remoção.</p>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full min-w-[1100px] text-left text-sm">
-              <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+        <div className="mt-4 grid gap-4 lg:grid-cols-2">
+          <FaixaResumo
+            id="parametros"
+            titulo="Parâmetros padrão em templates"
+            ajuda={
+              <HelpTip title="Parâmetros padrão em templates" className="h-6 w-6">
+                <p>Leitura consolidada dos parâmetros salvos nos modelos reutilizáveis: a <b>média</b> dos templates ativos.</p>
+              </HelpTip>
+            }
+            itens={parametrosPadrao.map((item) => [item.label, item.valor])}
+          />
+          <FaixaResumo
+            id="importados"
+            titulo="Importados do app antigo"
+            ajuda={
+              <HelpTip title="Importados do app antigo" className="h-6 w-6">
+                <p>Itens trazidos do sistema anterior de orçamento, por rubrica. A origem fica registrada para <b>auditoria</b>; no dia a dia, use o <b>catálogo institucional</b>.</p>
+              </HelpTip>
+            }
+            itens={rubricas.map((rubrica) => [
+              rubrica,
+              catalogo
+                .filter((item) => item.origem === "orcamento_projetos_antigo" && item.rubrica === rubrica)
+                .length.toLocaleString("pt-BR"),
+            ])}
+          />
+        </div>
+
+        <section id="catalogo" aria-labelledby="catalogo-titulo" className="mt-4 scroll-mt-8 rounded-lg border border-border bg-card shadow-sm">
+          <Cabecalho
+            id="catalogo-titulo"
+            titulo="Catálogo institucional de custos"
+            subtitulo="Itens reutilizáveis por rubrica, com origem auditável e arquivamento sem remoção."
+            semBorda
+          />
+          {/* Subabas por rubrica (como a visão interna da proposta): só as que têm itens. */}
+          <nav aria-label="Rubricas do catálogo" className="flex gap-1 overflow-x-auto border-b border-border px-1.5 [scrollbar-width:none]">
+            <AbaRubrica href={hrefRubrica(filtros, undefined)} ativa={!filtros.rubrica} rotulo="Todas" total={catalogoSemRubrica.length} />
+            {abasRubrica.map((aba) => (
+              <AbaRubrica
+                key={aba.id}
+                href={hrefRubrica(filtros, aba.id)}
+                ativa={filtros.rubrica === aba.id}
+                rotulo={aba.rotulo}
+                total={aba.total}
+              />
+            ))}
+          </nav>
+          <div tabIndex={0} aria-label="Itens do catálogo institucional" className="overflow-x-auto">
+            <table className="w-full min-w-[56rem] table-fixed text-left text-sm">
+              <colgroup>
+                <col className="w-[5.5rem]" />
+                {mostrarRubrica && <col className="w-[4.25rem]" />}
+                <col className="w-[16%]" />
+                <col />
+                <col className="w-[5.5rem]" />
+                <col className="w-[7.5rem]" />
+                <col className="w-[6rem]" />
+                <col className="w-[7rem]" />
+                <col className="w-[5.75rem]" />
+              </colgroup>
+              <thead className={cabecalhoTabela}>
                 <tr>
-                  <th className="px-3 py-2">Código</th>
-                  <th className="px-3 py-2">Rubrica</th>
-                  <th className="px-3 py-2">Categoria institucional</th>
-                  <th className="px-3 py-2">Descrição</th>
-                  <th className="px-3 py-2">Unidade</th>
-                  <th className="px-3 py-2 text-right">Custo padrão</th>
-                  <th className="px-3 py-2">Origem</th>
-                  <th className="px-3 py-2">Válido desde</th>
-                  <th className="px-3 py-2">Ativo</th>
-                  <th className="px-3 py-2 text-right">Ação</th>
+                  <th className="px-3 py-1.5 font-medium">Código</th>
+                  {mostrarRubrica && <th className="px-3 py-1.5 font-medium">Rubrica</th>}
+                  <th className="px-3 py-1.5 font-medium">Categoria institucional</th>
+                  <th className="px-3 py-1.5 font-medium">Descrição</th>
+                  <th className="px-3 py-1.5 font-medium">Unidade</th>
+                  <th className="px-3 py-1.5 text-right font-medium">Custo padrão</th>
+                  <th className="px-3 py-1.5 font-medium">Origem</th>
+                  <th className="px-3 py-1.5 font-medium">Válido desde</th>
+                  <th className="px-3 py-1.5 text-right font-medium">Ação</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
                 {catalogoFiltrado.map((item) => (
                   <tr key={item.id}>
-                    <td className="px-3 py-3 font-medium">{item.id}</td>
-                    <td className="px-3 py-3"><Badge>{item.rubrica}</Badge></td>
-                    <td className="px-3 py-3">{item.categoria ?? "—"}</td>
-                    <td className="px-3 py-3">{item.descricao}</td>
-                    <td className="px-3 py-3">{item.unidade ?? "un"}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">
+                    <td className="truncate px-3 py-1.5 font-medium" title={item.id}>{item.id}</td>
+                    {mostrarRubrica && <td className="px-3 py-1.5"><Badge>{item.rubrica}</Badge></td>}
+                    <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.categoria ?? undefined}>{item.categoria ?? "—"}</td>
+                    <td className="truncate px-3 py-1.5" title={item.descricao}>{item.descricao}</td>
+                    <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.unidade ?? "un"}>{item.unidade ?? "un"}</td>
+                    <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
                       {precoCatalogoMascarado(item) ? (
                         <span title={NOTA_VALOR_MASCARADO}>
                           {VALOR_MASCARADO}
@@ -277,10 +385,9 @@ export default async function OrcamentoModelosPage({
                         brl(Number(item.preco_unitario ?? 0))
                       )}
                     </td>
-                    <td className="px-3 py-3"><Origem origem={item.origem} /></td>
-                    <td className="px-3 py-3 text-muted-foreground">{formatDate(item.valid_from)}</td>
-                    <td className="px-3 py-3">{item.ativo ? <Badge tom="brand">Sim</Badge> : <Badge tom="zinc">Não</Badge>}</td>
-                    <td className="px-3 py-3 text-right">
+                    <td className="px-3 py-1.5"><Origem origem={item.origem} /></td>
+                    <td className="px-3 py-1.5 tabular-nums text-muted-foreground">{formatDate(item.valid_from)}</td>
+                    <td className="px-3 py-1.5 text-right">
                       {item.ativo ? (
                         <ConfirmActionButton
                           action={arquivarCatalogoProjetoItem}
@@ -292,43 +399,18 @@ export default async function OrcamentoModelosPage({
                           triggerClassName="text-xs font-medium text-danger-strong hover:underline"
                         />
                       ) : (
-                        <span className="text-xs text-muted-foreground/80">Arquivado</span>
+                        <Badge tom="zinc">Arquivado</Badge>
                       )}
                     </td>
                   </tr>
                 ))}
                 {catalogoFiltrado.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-3 py-6 text-center text-muted-foreground/80">Nenhum item de catálogo encontrado.</td>
+                    <td colSpan={mostrarRubrica ? 9 : 8} className="px-3 py-2 text-muted-foreground/80">Nenhum item de catálogo encontrado.</td>
                   </tr>
                 )}
               </tbody>
             </table>
-          </div>
-        </section>
-
-        <section id="parametros" className="mt-6 scroll-mt-8 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">Parâmetros padrão em templates</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Leitura consolidada dos parâmetros salvos nos modelos reutilizáveis.</p>
-          <div className="mt-3 grid gap-3 md:grid-cols-6">
-            {parametrosPadrao.map((item) => (
-              <Resumo key={item.label} titulo={item.label} valor={item.valor} />
-            ))}
-          </div>
-        </section>
-
-        <section id="importados" className="mt-6 scroll-mt-8 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div className="flex items-center gap-1">
-            <h2 className="text-sm font-semibold">Importados do app antigo</h2>
-            <HelpTip title="Importados do app antigo">
-              <p>Itens trazidos do sistema anterior de orçamento. A origem fica registrada para <b>auditoria</b>; no dia a dia, use o <b>catálogo institucional</b>.</p>
-            </HelpTip>
-          </div>
-          <div className="mt-3 grid gap-3 md:grid-cols-4">
-            {rubricas.map((rubrica) => {
-              const itens = ((catalogo ?? []) as CatalogoItem[]).filter((item) => item.origem === "orcamento_projetos_antigo" && item.rubrica === rubrica);
-              return <Resumo key={rubrica} titulo={`${rubrica} importados`} valor={itens.length.toLocaleString("pt-BR")} />;
-            })}
           </div>
         </section>
       </main>
@@ -336,8 +418,21 @@ export default async function OrcamentoModelosPage({
   );
 }
 
+const campoCls = "h-9 rounded-md border border-input bg-card px-3 text-sm";
+
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-card px-2 py-2 text-sm";
+
+const cabecalhoTabela = "whitespace-nowrap bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground";
+
+/** Mesmo endereço, com a rubrica trocada e os demais filtros preservados. */
+function hrefRubrica(filtros: SearchParams, rubrica: string | undefined) {
+  const params = new URLSearchParams(
+    Object.entries({ ...filtros, rubrica }).filter((entrada): entrada is [string, string] => Boolean(entrada[1])),
+  );
+  const consulta = params.toString();
+  return consulta ? `/orcamento/modelos?${consulta}` : "/orcamento/modelos";
+}
 
 function filtrarTemplates(templates: TemplateProjeto[], filtros: SearchParams) {
   const busca = (filtros.busca ?? "").toLocaleLowerCase("pt-BR");
@@ -404,17 +499,101 @@ function resumirParametrosPadrao(templates: TemplateProjeto[]) {
   };
   return [
     { label: "Meses", valor: media("project_months") },
-    { label: "Impostos", valor: `${media("impostos_legacy")}%` },
-    { label: "Incubação", valor: `${media("incubacao")}%` },
-    { label: "Reserva", valor: `${media("reserva")}%` },
-    { label: "Investimentos", valor: `${media("investimentos")}%` },
-    { label: "Lucro", valor: `${media("lucro")}%` },
+    { label: "Impostos", valor: percentual(media("impostos_legacy")) },
+    { label: "Incubação", valor: percentual(media("incubacao")) },
+    { label: "Reserva", valor: percentual(media("reserva")) },
+    { label: "Investimentos", valor: percentual(media("investimentos")) },
+    { label: "Lucro", valor: percentual(media("lucro")) },
   ];
+}
+
+/** Sem templates ativos a média é "—": o símbolo de % só acompanha número. */
+function percentual(valor: string) {
+  return valor === "—" ? valor : `${valor}%`;
 }
 
 function jsonRecord(value: Json): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   return value as Record<string, unknown>;
+}
+
+function Numero({ valor }: { valor: number }) {
+  return <b className="font-semibold tabular-nums text-foreground">{valor.toLocaleString("pt-BR")}</b>;
+}
+
+/** Cabeçalho de bloco em uma linha: título, explicação curta e extras ao lado. */
+function Cabecalho({
+  id,
+  titulo,
+  subtitulo,
+  extra,
+  semBorda = false,
+}: {
+  id: string;
+  titulo: string;
+  subtitulo?: string;
+  extra?: ReactNode;
+  semBorda?: boolean;
+}) {
+  return (
+    <div className={`flex flex-wrap items-center gap-x-2 gap-y-0.5 px-3 py-2 ${semBorda ? "" : "border-b border-border"}`}>
+      <h2 id={id} className="text-sm font-semibold">{titulo}</h2>
+      {subtitulo && <p className="min-w-0 text-xs text-muted-foreground">{subtitulo}</p>}
+      {extra}
+    </div>
+  );
+}
+
+/** Bloco-resumo numa faixa: título à esquerda e os valores em linha. */
+function FaixaResumo({
+  id,
+  titulo,
+  ajuda,
+  itens,
+}: {
+  id: string;
+  titulo: string;
+  ajuda: ReactNode;
+  itens: Array<[string, string]>;
+}) {
+  return (
+    <section
+      id={id}
+      aria-labelledby={`${id}-titulo`}
+      className="flex scroll-mt-8 flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-border bg-card px-3 py-2 shadow-sm"
+    >
+      <div className="flex items-center gap-0.5">
+        <h2 id={`${id}-titulo`} className="text-sm font-semibold">{titulo}</h2>
+        {ajuda}
+      </div>
+      <dl className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm">
+        {itens.map(([rotulo, valor]) => (
+          <div key={rotulo} className="flex items-baseline gap-1">
+            <dt className="text-xs text-muted-foreground">{rotulo}</dt>
+            <dd className="font-semibold tabular-nums">{valor}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function AbaRubrica({ href, ativa, rotulo, total }: { href: string; ativa: boolean; rotulo: string; total: number }) {
+  return (
+    <Link
+      href={href}
+      scroll={false}
+      aria-current={ativa ? "page" : undefined}
+      className={`inline-flex items-center gap-1.5 whitespace-nowrap border-b-2 px-3 py-1.5 text-sm transition-colors ${
+        ativa
+          ? "border-brand-600 font-medium text-brand-800 dark:border-brand-400 dark:text-brand-200"
+          : "border-transparent text-muted-foreground hover:text-foreground"
+      }`}
+    >
+      {rotulo}
+      <span className="text-xs tabular-nums text-muted-foreground">{total.toLocaleString("pt-BR")}</span>
+    </Link>
+  );
 }
 
 function CampoFiltro({ label, children }: { label: string; children: React.ReactNode }) {
@@ -439,13 +618,4 @@ function Badge({ children, tom = "zinc" }: { children: React.ReactNode; tom?: "b
         ? "bg-warning-soft text-warning-strong"
         : "bg-muted text-muted-foreground";
   return <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cls}`}>{children}</span>;
-}
-
-function Resumo({ titulo, valor }: { titulo: string; valor: string }) {
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">{valor}</p>
-    </div>
-  );
 }
