@@ -716,7 +716,7 @@ export default async function DemandaDetalhe({
           </div>
         </section>
 
-        <section id="laboratorio" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("laboratorio")}`}>
+        <section id="laboratorio" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("laboratorio")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
@@ -740,12 +740,13 @@ export default async function DemandaDetalhe({
             </div>
           ) : (
             <>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
-                <Info titulo="Orçamentos" texto={String(todosOrcamentosAnalises.length)} />
-                <Info titulo="Itens laboratoriais" texto={String(itensAnalises)} />
-                <Info titulo="Custo recebido" texto={brl(totalAnalisesCusto)} />
-                <Info titulo="Preço recebido" texto={brl(totalAnalisesPreco)} />
-              </div>
+              {/* Resumo numa linha (28/09): os cartões repetiam a tabela logo abaixo. */}
+              <p className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm tabular-nums">
+                <span><span className="text-muted-foreground">Orçamentos</span> <b className="font-semibold">{todosOrcamentosAnalises.length}</b></span>
+                <span><span className="text-muted-foreground">Itens</span> <b className="font-semibold">{itensAnalises}</b></span>
+                <span><span className="text-muted-foreground">Custo recebido</span> <b className="font-semibold">{brl(totalAnalisesCusto)}</b></span>
+                <span><span className="text-muted-foreground">Preço de tabela</span> <b className="font-semibold">{brl(totalAnalisesPreco)}</b> <span className="text-xs text-muted-foreground">(referência)</span></span>
+              </p>
               <TabelaSimples
                 colunas={["Orçamento", "Status", "Data", "Itens", "Custo", "Preço", "Ação"]}
                 vazio="Nenhum orçamento laboratorial gerado."
@@ -769,7 +770,7 @@ export default async function DemandaDetalhe({
           )}
         </section>
 
-        <section id="projeto" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("projeto")}`}>
+        <section id="projeto" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("projeto")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Custos do projeto</h2>
@@ -829,7 +830,7 @@ export default async function DemandaDetalhe({
           />
         </section>
 
-        <section id="parametros" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
+        <section id="parametros" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
@@ -873,7 +874,7 @@ export default async function DemandaDetalhe({
           />
         </section>
 
-        <section id="final" className={`mt-6 scroll-mt-20 space-y-4 ${passo("final")}`}>
+        <section id="final" className={`mt-3 scroll-mt-20 space-y-4 ${passo("final")}`}>
           {/* A — Cabeçalho da proposta + ações */}
           <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             {/* Total e emissão numa faixa só; título e cliente já estão no cabeçalho. */}
@@ -1070,7 +1071,7 @@ export default async function DemandaDetalhe({
         </section>
 
 
-        <section id="historico" className={`mt-6 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("historico")}`}>
+        <section id="historico" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("historico")}`}>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Histórico e auditoria</h2>
@@ -1181,15 +1182,6 @@ function ModuloAcao({
         Criar orçamento {rotulo}
       </button>
     </form>
-  );
-}
-
-function Info({ titulo, texto }: { titulo: string; texto: string | null }) {
-  return (
-    <div className="rounded-lg bg-muted/50 p-3">
-      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-sm font-medium">{texto || "—"}</p>
-    </div>
   );
 }
 
