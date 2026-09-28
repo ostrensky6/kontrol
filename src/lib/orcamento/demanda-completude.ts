@@ -1,4 +1,4 @@
-import { modalidadeExigeLaboratorio, modalidadeExigeProjeto } from "./orcamento-economico";
+import { modalidadeExigeLaboratorio } from "./orcamento-economico";
 
 export type DemandaCompletudeInput = {
   titulo?: string | null;
@@ -42,12 +42,8 @@ export function avaliarCompletudeDemanda(demanda: DemandaCompletudeInput) {
     pendencias.push("descrever o escopo ou a descrição");
   }
 
-  if (modalidadeExigeProjeto(modalidade)) {
-    criterios.push(Boolean(demanda.projeto_id));
-    if (!criterios.at(-1)) {
-      pendencias.push("vincular um projeto para modalidades com projeto");
-    }
-  }
+  // Projeto vinculado é opcional (dono, 28/09): o orçamento nasce ANTES de o projeto
+  // existir no cadastro, e exigir o vínculo travava a etapa de custos do projeto.
 
   if (modalidadeExigeLaboratorio(modalidade)) {
     criterios.push(preenchido(demanda.matriz_amostra));
