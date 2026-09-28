@@ -129,7 +129,8 @@ tabela). O link público mostra o texto novo.
 - `empresas_emissoras` (id, codigo `ATGC`/`GIA` único, nome_legal, cnpj,
   endereco, telefone, email, site, atualizado_em) — semeada com as duas
   empresas; leitura autenticada, escrita `cadastros.editar`; auditada. Editada
-  em Cadastros.
+  em Orçamentos › Documento da proposta (junto das seções padrão; o cadastro
+  genérico exigiria mexer em código compartilhado por todos os cadastros).
 - `proposta_secoes_padrao` (id, empresa_codigo, chave, titulo, texto jsonb,
   ordem, ativo; único por empresa+chave) — semeada com prazos,
   responsabilidades, condições comerciais e confidencialidade para ATGC e GIA;
