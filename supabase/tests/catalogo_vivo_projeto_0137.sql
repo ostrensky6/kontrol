@@ -1,5 +1,5 @@
 -- Executar apenas em banco descartavel, como owner de migrations, com psql -v ON_ERROR_STOP=1
--- e PGCLIENTENCODING=UTF8. Os valores de referencia (MC-6, MC-14, MC-30, MC-36) sao os da
+-- e PGCLIENTENCODING=UTF8. Os itens proprios do teste (TS0137-*) sao criados e desfeitos aqui; MC-14 e MC-30 sao os da
 -- carga da 0012 (banco novo do CI).
 -- Valida a 0137: identidade do item, unificacao dos repetidos, historico, previa e
 -- conclusao (item novo, valor alterado, vinculo, repetido no orcamento, vale o ultimo a
@@ -175,11 +175,16 @@ begin
     perform set_config('ts0137.demanda_' || v_nome, v_demanda::text, true);
   end loop;
 
+  -- Itens proprios do teste: nao dependem dos valores atuais do catalogo do banco.
+  insert into public.orcamento_projeto_catalogo (id, rubrica, descricao, unidade, preco_unitario, origem)
+  values ('TS0137-ALC', 'MC', 'TS-0137 Álcool etílico', 'litro', 130, 'kontrol'),
+         ('TS0137-PAP', 'MC', 'TS-0137 Papel toalha', 'fardo', 50, 'kontrol');
+
   -- A (coord_pessoal): novo, inalterado, atualizar, vincular, pessoal novo
   perform set_config('ts0137.a1', pg_temp.linha('a', 'MC', 'TS-0137 Reagente Alfa', 'un', 100)::text, true);
-  perform set_config('ts0137.a2', pg_temp.linha('a', 'MC', 'Álcool etílico', 'litro', 130, 'MC-36', 130)::text, true);
-  perform set_config('ts0137.a3', pg_temp.linha('a', 'MC', 'Papel toalha', 'fardo', 55, 'MC-6', 50)::text, true);
-  perform set_config('ts0137.a4', pg_temp.linha('a', 'MC', 'alcool ETILICO', 'Litro', 130)::text, true);
+  perform set_config('ts0137.a2', pg_temp.linha('a', 'MC', 'TS-0137 Álcool etílico', 'litro', 130, 'TS0137-ALC', 130)::text, true);
+  perform set_config('ts0137.a3', pg_temp.linha('a', 'MC', 'TS-0137 Papel toalha', 'fardo', 55, 'TS0137-PAP', 50)::text, true);
+  perform set_config('ts0137.a4', pg_temp.linha('a', 'MC', 'ts-0137 alcool ETILICO', 'Litro', 130)::text, true);
   perform set_config('ts0137.a5', pg_temp.linha('a', 'PE', 'TS-0137 Pesquisador', 'mês', 9000)::text, true);
   -- B (coord_sem): pessoal sem permissao fica pendente; material novo entra
   perform set_config('ts0137.b1', pg_temp.linha('b', 'PE', 'TS-0137 Bolsista', 'mês', 4000)::text, true);
@@ -188,7 +193,7 @@ begin
   perform set_config('ts0137.c1', pg_temp.linha('c', 'MC', 'TS-0137 Reagente Gama', 'un', 100)::text, true);
   perform set_config('ts0137.d1', pg_temp.linha('d', 'MC', 'ts-0137 reagente  GAMA', 'UN', 120)::text, true);
   -- E: linha antiga do catalogo, sem alteracao (Papel toalha a 50)
-  perform set_config('ts0137.e1', pg_temp.linha('e', 'MC', 'Papel toalha', 'fardo', 50, 'MC-6', 50)::text, true);
+  perform set_config('ts0137.e1', pg_temp.linha('e', 'MC', 'TS-0137 Papel toalha', 'fardo', 50, 'TS0137-PAP', 50)::text, true);
   -- F: o mesmo item duas vezes no mesmo orcamento; vale a ultima linha
   perform set_config('ts0137.f1', pg_temp.linha('f', 'ST', 'TS-0137 Frete', 'un', 300)::text, true);
   perform set_config('ts0137.f2', pg_temp.linha('f', 'ST', 'TS-0137 frete', 'unid', 350)::text, true);
@@ -223,7 +228,7 @@ begin
   if pg_temp.acao('a', 'a1') <> 'novo' then raise exception '0137: a1 deveria ser novo'; end if;
   if pg_temp.acao('a', 'a2') <> 'inalterado' then raise exception '0137: a2 deveria ser inalterado'; end if;
   if pg_temp.acao('a', 'a3') <> 'atualizar' then raise exception '0137: a3 deveria atualizar'; end if;
-  if pg_temp.acao('a', 'a4') <> 'vincular' then raise exception '0137: a4 deveria vincular ao MC-36'; end if;
+  if pg_temp.acao('a', 'a4') <> 'vincular' then raise exception '0137: a4 deveria vincular ao TS0137-ALC'; end if;
   if pg_temp.acao('a', 'a5') <> 'novo' then raise exception '0137: a5 (pessoal, com permissao) deveria ser novo'; end if;
   select valor_catalogo into v_catalogo
     from public.previa_catalogo_revisao_projeto(current_setting('ts0137.a')::bigint)
@@ -313,19 +318,19 @@ begin
      or (select catalogo_valor_base from public.orcamento_projeto_custos where id = current_setting('ts0137.a1')::bigint) is distinct from 100 then
     raise exception '0137: linha a1 nao ficou ligada ao item novo';
   end if;
-  if (select catalogo_item_id from public.orcamento_projeto_custos where id = current_setting('ts0137.a4')::bigint) is distinct from 'MC-36'
-     or (select preco_unitario from public.orcamento_projeto_catalogo where id = 'MC-36') <> 130 then
-    raise exception '0137: vinculo de a4 ao MC-36 errado';
+  if (select catalogo_item_id from public.orcamento_projeto_custos where id = current_setting('ts0137.a4')::bigint) is distinct from 'TS0137-ALC'
+     or (select preco_unitario from public.orcamento_projeto_catalogo where id = 'TS0137-ALC') <> 130 then
+    raise exception '0137: vinculo de a4 ao TS0137-ALC errado';
   end if;
-  if (select preco_unitario from public.orcamento_projeto_catalogo where id = 'MC-6') <> 55 then
+  if (select preco_unitario from public.orcamento_projeto_catalogo where id = 'TS0137-PAP') <> 55 then
     raise exception '0137: Papel toalha deveria ficar em 55 (A alterou; E, sem alteracao, nao desfaz)';
   end if;
   if not exists (
     select 1 from public.orcamento_projeto_catalogo_valores
-     where catalogo_item_id = 'MC-6' and evento = 'valor_alterado' and preco_unitario = 55 and preco_anterior = 50
+     where catalogo_item_id = 'TS0137-PAP' and evento = 'valor_alterado' and preco_unitario = 55 and preco_anterior = 50
        and orcamento_projeto_id = current_setting('ts0137.a')::bigint and aplicado
   ) then
-    raise exception '0137: historico da alteracao do MC-6 ausente';
+    raise exception '0137: historico da alteracao do TS0137-PAP ausente';
   end if;
   if not exists (select 1 from public.orcamento_projeto_catalogo
                   where rubrica = 'PE' and chave_descricao = 'ts-0137 pesquisador' and preco_unitario = 9000) then

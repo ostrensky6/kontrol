@@ -4744,6 +4744,39 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      catalogo_projeto_definir_ativo: {
+        Args: { p_ativo: boolean; p_id: string }
+        Returns: undefined
+      }
+      catalogo_projeto_historico: {
+        Args: { p_id: string }
+        Returns: {
+          aplicado: boolean
+          demanda_id: number | null
+          demanda_titulo: string | null
+          evento: string
+          observacao: string | null
+          preco_anterior: number | null
+          preco_unitario: number | null
+          registrado_em: string
+          usuario: string | null
+        }[]
+      }
+      catalogo_projeto_salvar_item: {
+        Args: {
+          p_categoria: string | null
+          p_descricao: string
+          p_id: string | null
+          p_preco: number | null
+          p_rubrica: string
+          p_unidade: string | null
+        }
+        Returns: string
+      }
+      catalogo_projeto_unificar: {
+        Args: { p_manter: string; p_remover: string }
+        Returns: undefined
+      }
       concluir_revisao_custos_projeto: {
         Args: { p_observacao?: string; p_orcamento_projeto_id: number }
         Returns: Json
