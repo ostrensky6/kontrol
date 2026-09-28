@@ -224,23 +224,22 @@ export function DemandaForm({
     <form action={formAction} {...formularioSemPerda(state)} aria-busy={pending} className="space-y-3">
       {demanda.id > 0 ? <input type="hidden" name="demanda_id" value={demanda.id} /> : null}
       <input type="hidden" name="escopo_salvamento" value={modo} />
-      {/* Cabeçalho em uma linha: título, orientação curta e legenda dos tipos de campo. */}
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        {mostraDemanda && (
-          <>
-            <h2 className="text-sm font-semibold">Dados do orçamento</h2>
-            <p className="text-xs text-muted-foreground">O número é gerado ao criar; depois vêm os custos e a proposta.</p>
-          </>
-        )}
-        <p className="ml-auto flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[11px] text-muted-foreground">
-          <span className="font-medium">Campos:</span>
-          <Legenda texto="Editável" classe="border-input bg-card" textoClasse={TOM_ENTRADA} />
-          <Legenda texto="Herdado" classe="border-input bg-muted" />
-          <Legenda texto="Calculado" classe="border-dashed border-input bg-muted" />
-          <Legenda texto="Operacional" classe="border-warning-strong/30 bg-warning-soft" />
-          <Legenda texto="Bloqueado após emissão" classe="border-input bg-muted" />
-        </p>
-      </div>
+      {/* Título + "?" e nada mais: orientação e legenda dos campos ficam no "?" (28/09). */}
+      {mostraDemanda && (
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold">Dados do orçamento</h2>
+          <HelpTip title="Dados do orçamento">
+            <p>O número é gerado ao criar; depois vêm os custos e a proposta. Campos com <b className="text-danger-strong">*</b> são obrigatórios.</p>
+            <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <Legenda texto="Editável" classe="border-input bg-card" textoClasse={TOM_ENTRADA} />
+              <Legenda texto="Vem do cadastro" classe="border-input bg-muted" />
+              <Legenda texto="Calculado" classe="border-dashed border-input bg-muted" />
+              <Legenda texto="Operacional" classe="border-warning-strong/30 bg-warning-soft" />
+            </p>
+            <p>Depois da emissão, os dados ficam bloqueados na proposta emitida.</p>
+          </HelpTip>
+        </div>
+      )}
       {!mostraDemanda && (
         <CamposDemandaLeitura
           demanda={demanda}
@@ -270,8 +269,8 @@ export function DemandaForm({
                 </select>
               </div>
               <div className="col-span-6 sm:col-span-3">
-                <label htmlFor="demanda-instituicao" className={lbl} title="Instituição emissora (cabeçalho da proposta)">
-                  Instituição emissora <span className="font-normal">(cabeçalho)</span>
+                <label htmlFor="demanda-instituicao" className={lbl} title="Empresa que emite a proposta (cabeçalho do documento)">
+                  Empresa emissora
                 </label>
                 <select id="demanda-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>
                   <option value="">Escolha…</option>
@@ -279,7 +278,7 @@ export function DemandaForm({
                 </select>
               </div>
               <div className="col-span-6">
-                <label htmlFor="nd-projeto" className={lbl}>Projeto <Selo texto="Quando aplicável" /></label>
+                <label htmlFor="nd-projeto" className={lbl}>Projeto</label>
                 <select id="nd-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
                   <option value="">Sem projeto vinculado</option>
                   {projetos.map((p) => <option key={p.id} value={p.id}>{p.nome}</option>)}
@@ -302,7 +301,7 @@ export function DemandaForm({
                 </select>
               </div>
               <div className="col-span-6 sm:col-span-4">
-                <label htmlFor="nd-cliente-nome" className={lbl}>Nome do cliente <Selo texto="Editável" /></label>
+                <label htmlFor="nd-cliente-nome" className={lbl}>Nome do cliente</label>
                 <input id="nd-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
               </div>
               <div className="col-span-6 sm:col-span-2">
@@ -310,8 +309,8 @@ export function DemandaForm({
                 <input id="nd-cliente-cnpj" name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={campo} />
               </div>
               <div className="col-span-6">
-                <label htmlFor="nd-cliente-contato" className={lbl}>Contato <Selo texto="Herdado do cliente quando selecionado" /></label>
-                <input id="nd-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={campoHerdado} />
+                <label htmlFor="nd-cliente-contato" className={lbl}>Contato</label>
+                <input id="nd-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} placeholder="Vem do cadastro do cliente" className={campoHerdado} />
               </div>
             </div>
           </fieldset>
@@ -320,7 +319,7 @@ export function DemandaForm({
             <legend className={legenda}>Controle e prazos</legend>
             <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
               <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
-                <p className={lbl} title="Número do orçamento">Nº do orçamento <Selo texto="Calculado" /></p>
+                <p className={lbl} title="Número do orçamento">Nº do orçamento</p>
                 <div className={campoCalculado}>{demanda.id > 0 ? `#${demanda.id}` : "Gerado ao salvar"}</div>
               </div>
               <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
@@ -400,13 +399,14 @@ export function DemandaForm({
               {/* id do grupo existente: permite atualizar em vez de recriar,
                   preservando o vínculo de demanda_analises.grupo_amostra_id */}
               <input type="hidden" name="grupo_id" value={grupo.id ?? ""} />
-              {/* Grupo, tipo/matriz, quantidade, unidade e observação numa linha (lg). */}
-              <div className="grid grid-cols-6 items-end gap-x-2 gap-y-1.5 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)_5.5rem_7rem_minmax(0,3fr)_2rem]">
-                <div className="col-span-3 sm:col-span-2 lg:col-span-1">
+              {/* Uma linha com largura pelo conteúdo: grupo, matriz, quantidade,
+                  unidade, observação e, à direita, as análises do grupo. */}
+              <div className="grid grid-cols-6 items-end gap-x-2 gap-y-1.5 sm:flex sm:flex-wrap">
+                <div className="col-span-3 sm:w-32">
                   <label htmlFor={`grupo-${grupo.key}`} className={lbl}>Grupo</label>
                   <input id={`grupo-${grupo.key}`} name="grupo_identificacao" value={grupo.identificacao} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, identificacao: event.target.value } : item))} className={campo} />
                 </div>
-                <div className="col-span-3 sm:col-span-2 lg:col-span-1">
+                <div className="col-span-3 sm:w-52">
                   <label htmlFor={`matriz-${grupo.key}`} className={lbl}>Tipo/matriz</label>
                   {matrizes.length > 0 ? (
                     <select id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={campo}>
@@ -418,7 +418,7 @@ export function DemandaForm({
                     <input id={`matriz-${grupo.key}`} name="grupo_tipo_matriz" value={grupo.tipo_matriz ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, tipo_matriz: event.target.value } : item))} className={campo} />
                   )}
                 </div>
-                <div className="col-span-3 sm:col-span-1 lg:col-span-1">
+                <div className="col-span-2 sm:w-24">
                   <label htmlFor={`quantidade-${grupo.key}`} className={lbl}>Quantidade</label>
                   <input id={`quantidade-${grupo.key}`} name="grupo_quantidade" type="number" min="1" step="1" required value={grupo.quantidade_amostras} onChange={(event) => {
                     const quantidade = lerQuantidade(event.target.value);
@@ -427,16 +427,35 @@ export function DemandaForm({
                     if (quantidade !== "") setSelecionadas((atuais) => atuais.map((atual) => atual.grupoKey === grupo.key && atual.origem === "padrao" ? { ...atual, quantidade } : atual));
                   }} className={`${campoOperacional} mt-0.5 w-full`} />
                 </div>
-                <div className="col-span-3 sm:col-span-1 lg:col-span-1">
+                <div className="col-span-2 sm:w-28">
                   <label htmlFor={`unidade-${grupo.key}`} className={lbl}>Unidade</label>
                   <input id={`unidade-${grupo.key}`} name="grupo_unidade" value={grupo.unidade} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, unidade: event.target.value } : item))} className={campo} />
                 </div>
-                <div className={grupos.length > 1 ? "col-span-5 lg:col-span-1" : "col-span-6 lg:col-span-2"}>
+                <div className="col-span-2 sm:w-52 2xl:w-72">
                   <label htmlFor={`observacao-${grupo.key}`} className={lbl}>Observação</label>
                   <input id={`observacao-${grupo.key}`} name="grupo_observacao" value={grupo.observacao ?? ""} onChange={(event) => setGrupos((atuais) => atuais.map((item) => item.key === grupo.key ? { ...item, observacao: event.target.value } : item))} className={campo} />
                 </div>
+                {/* Análises do grupo na mesma linha, à direita. */}
+                <div className="col-span-6 flex items-center gap-2 sm:ml-auto sm:h-8">
+                  <span className="text-xs text-muted-foreground">
+                    {selecionadasDoGrupo.length > 0
+                      ? `${selecionadasDoGrupo.length} análise(s) no grupo`
+                      : "Nenhuma análise"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setGrupoAtivo(grupo.key);
+                      setSeletorAberto((atual) => atual === grupo.key ? null : grupo.key);
+                    }}
+                    aria-expanded={seletorAberto === grupo.key}
+                    className="inline-flex h-8 items-center rounded-md bg-brand-600 px-3 text-xs font-medium text-white hover:bg-brand-500"
+                  >
+                    Selecionar análises
+                  </button>
+                </div>
                 {grupos.length > 1 && (
-                  <div className="col-span-1 flex justify-end">
+                  <div className="flex justify-end">
                     <button
                       type="button"
                       onClick={() => {
@@ -452,32 +471,13 @@ export function DemandaForm({
                   </div>
                 )}
               </div>
-              <div className="mt-2 rounded-md border border-border bg-card px-2.5 py-2">
-                <div className={cabecalhoSecao}>
-                  <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Análises deste grupo</h4>
-                  <p className="text-xs text-muted-foreground">
-                    {selecionadasDoGrupo.length > 0
-                      ? `${selecionadasDoGrupo.length} análise(s) selecionada(s) para ${grupo.identificacao || "grupo"}.`
-                      : "Nenhuma análise selecionada para este grupo."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGrupoAtivo(grupo.key);
-                      setSeletorAberto((atual) => atual === grupo.key ? null : grupo.key);
-                    }}
-                    aria-expanded={seletorAberto === grupo.key}
-                    className="ml-auto inline-flex h-8 items-center rounded-md bg-brand-600 px-3 text-xs font-medium text-white hover:bg-brand-500"
-                  >
-                    Selecionar análises
-                  </button>
-                </div>
+              <div className="empty:hidden">
                 {selecionadasDoGrupo.length > 0 && (
                   <div tabIndex={0} aria-label="Análises selecionadas do grupo" className="mt-1.5 overflow-x-auto">
                     {/* Largura pelo conteúdo em telas largas: a lixeira fica junto da quantidade. */}
                     <table className="min-w-full divide-y divide-border/70 text-sm lg:min-w-[40rem]">
                       <thead className="text-left text-xs text-muted-foreground">
-                        <tr><th className="py-1 pr-6 font-medium">Código da análise</th><th className="pr-6 font-medium">Nome da análise</th><th className="pr-3 font-medium">Quantidade de amostras para esta análise</th><th className="w-10 text-right"></th></tr>
+                        <tr><th className="py-1 pr-6 font-medium">Código</th><th className="pr-6 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="w-10 text-right"></th></tr>
                       </thead>
                       <tbody className="divide-y divide-border/70">
                         {selecionadasDoGrupo.map((item) => {
@@ -520,6 +520,7 @@ export function DemandaForm({
                   <div className="mt-2 rounded-md border border-brand-200 bg-brand-50/40 p-2 dark:border-brand-900 dark:bg-brand-950/20">
                     <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       <input value={busca} onChange={(event) => setBusca(event.target.value)} placeholder="Buscar por código, nome ou método" aria-label="Buscar análises" className={`${campo} mt-0 sm:max-w-md`} />
+                      <p className="text-xs text-muted-foreground">{analises.length} análise(s) oficial(is) disponível(is).</p>
                       {totalEncontradas > filtradas.length && (
                         <p role="status" className="text-xs text-muted-foreground">
                           Mostrando {filtradas.length} de {totalEncontradas}. Refine a busca para ver as demais.
@@ -571,40 +572,34 @@ export function DemandaForm({
                     { tom: "atencao", rotulo: "Pendente", texto: "falta custo calculado ou há reagente sem cadastro no estoque." },
                   ]}
                 />
+                <p>Resumo das análises escolhidas em todos os grupos acima.</p>
                 <HelpExample>30 amostras e lote de 12 → 3 lotes previstos.</HelpExample>
               </HelpTip>
             </div>
-            <p className="text-xs text-muted-foreground">Resumo consolidado das análises selecionadas nos grupos acima. {analises.length} análise(s) oficial(is) disponível(is).</p>
           </div>
-          {/* Resumo numa faixa só (rótulo: valor · detalhe), aviso técnico e
-              pendências de cadastro de insumo (antes uma seção à parte). */}
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <dl className="flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-1.5">
-              <ResumoLaboratorio titulo="Análises" valor={`${selecionadas.length}`} detalhe={`${totalAmostras} amostra(s)`} />
-              <ResumoLaboratorio titulo="Custo direto estimado" valor={formatCurrency(custoDiretoLaboratorio)} detalhe="insumos/reagentes" />
-              <ResumoLaboratorio titulo="Prazo técnico" valor={prazoMaximoLaboratorio > 0 ? `${prazoMaximoLaboratorio} dia(s)` : "a calcular"} detalhe="maior prazo previsto" />
-              <ResumoLaboratorio titulo="Pendências" valor={`${pendentesCusteio}`} detalhe={pendentesCusteio > 0 ? "custeio pendente" : "custeio disponível"} />
-            </dl>
-            <p className="rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-1.5 text-xs text-warning-strong">
-              Confirme tecnicamente se cada análise serve para a matriz antes de emitir.
+          {/* Resumo numa linha; aviso e pendências só quando existem (28/09). */}
+          <dl className="mt-1.5 flex flex-wrap items-baseline gap-x-5 gap-y-1 rounded-md border border-border bg-muted/40 px-3 py-1.5">
+            <ResumoLaboratorio titulo="Análises" valor={`${selecionadas.length}`} detalhe={`${totalAmostras} amostra(s)`} />
+            <ResumoLaboratorio titulo="Custo direto estimado" valor={formatCurrency(custoDiretoLaboratorio)} detalhe="insumos/reagentes" />
+            <ResumoLaboratorio titulo="Prazo técnico" valor={prazoMaximoLaboratorio > 0 ? `${prazoMaximoLaboratorio} dia(s)` : "a calcular"} />
+            <ResumoLaboratorio titulo="Custeio pendente" valor={`${pendentesCusteio}`} />
+          </dl>
+          {selecionadas.length > 0 && (
+            <p className="mt-1.5 text-xs text-warning-strong">Confirme tecnicamente se cada análise serve para a matriz antes de emitir.</p>
+          )}
+          {pendenciasInsumos.length > 0 && (
+            <p className="mt-1 text-xs text-warning-strong">
+              <span className="font-semibold">Insumos sem cadastro:</span>{" "}
+              {[...new Set(pendenciasInsumos.map((item) => `${item.codigo}: ${item.especificacao}`))].join(" · ")}
             </p>
-            <div className={`flex flex-wrap items-baseline gap-x-2 gap-y-1 rounded-md border border-border px-3 py-1.5 text-xs ${pendenciasInsumos.length > 0 ? "w-full" : ""}`}>
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Pendências</h4>
-              {pendenciasInsumos.length > 0 ? (
-                <ul className="flex flex-wrap gap-x-4 gap-y-1 text-warning-strong">
-                  {[...new Set(pendenciasInsumos.map((item) => `${item.codigo}: ${item.especificacao}`))].map((item) => (
-                    <li key={item}><Selo texto="Pendente" /> {item}</li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted-foreground">Sem pendências de cadastro de insumo para as análises carregadas.</p>
-              )}
-            </div>
-          </div>
+          )}
+          {selecionadas.length === 0 ? (
+            <p className="mt-1.5 text-xs text-muted-foreground">Nenhuma análise selecionada. Use “Selecionar análises” em cada grupo.</p>
+          ) : (
           <div tabIndex={0} aria-label="Resumo de análises por grupo" className="mt-2 overflow-x-auto">
             <table className="min-w-full divide-y divide-border text-sm">
               <thead className="text-left text-xs text-muted-foreground">
-                <tr><th className="py-1.5 pr-3 font-medium">Grupo</th><th className="pr-3 font-medium">Tipo/matriz da amostra</th><th className="pr-3 font-medium">Código da análise</th><th className="pr-3 font-medium">Nome da análise</th><th className="pr-3 font-medium">Quantidade de amostras para esta análise</th><th className="pr-3 font-medium">Prazo técnico calculado</th><th className="pr-3 font-medium">Lotes previstos</th><th className="pr-3 font-medium">Status do custeio</th><th className="pr-3 font-medium">Status dos insumos</th><th className="w-16 text-right"></th></tr>
+                <tr><th className="py-1.5 pr-3 font-medium">Grupo</th><th className="pr-3 font-medium">Matriz</th><th className="pr-3 font-medium">Código</th><th className="pr-3 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="pr-3 font-medium">Prazo</th><th className="pr-3 font-medium">Lotes</th><th className="pr-3 font-medium">Custeio</th><th className="pr-3 font-medium">Insumos</th><th className="w-16 text-right"></th></tr>
               </thead>
               <tbody className="divide-y divide-border/70">
                 {selecionadas.map((item) => {
@@ -645,12 +640,10 @@ export function DemandaForm({
                     </tr>
                   );
                 })}
-                {selecionadas.length === 0 && (
-                  <tr><td colSpan={10} className="py-2 text-xs text-muted-foreground/80">Nenhuma análise selecionada.</td></tr>
-                )}
               </tbody>
             </table>
           </div>
+          )}
           {previsoesOperacionais.length > 0 && (
             <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
               <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Previsão operacional calculada</h4>
@@ -807,7 +800,12 @@ function ResumoLeitura({ rotulo, valor, largo = false }: { rotulo: string; valor
 
 
 function Obrigatorio() {
-  return <span className="ml-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger-strong">Obrigatório</span>;
+  return (
+    <>
+      <span aria-hidden className="ml-0.5 font-semibold text-danger-strong">*</span>
+      <span className="sr-only">(obrigatório)</span>
+    </>
+  );
 }
 
 /** Selo de estado do campo, na mesma linha do rótulo (não ocupa linha extra). */
@@ -836,12 +834,12 @@ function Legenda({ texto, classe, textoClasse = "" }: { texto: string; classe: s
 }
 
 /** Um par "rótulo valor · detalhe" da faixa de resumo do laboratório. */
-function ResumoLaboratorio({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe: string }) {
+function ResumoLaboratorio({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1.5">
       <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titulo}</dt>
       <dd className="text-sm font-semibold tabular-nums text-foreground">{valor}</dd>
-      <dd className="text-xs text-muted-foreground">· {detalhe}</dd>
+      {detalhe && <dd className="text-xs text-muted-foreground">· {detalhe}</dd>}
     </div>
   );
 }
