@@ -17,6 +17,7 @@ import {
 import { ratesDoOrcamentoProjeto } from "@/lib/orcamento/parametros-proposta";
 import { validarParametrosProjetoGrossUp } from "@/lib/project-budget/orcamento-projeto";
 import { linhasViagemFaltantes, normalizarMeses } from "@/lib/project-budget/editor";
+import { mensagemConclusaoCatalogo } from "@/lib/project-budget/catalogo-vivo";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
@@ -477,13 +478,15 @@ async function salvarDuracaoProjetoInterno(formData: FormData) {
 }
 
 /**
- * Conclui a revisão dos custos de projeto (rascunho → enviado pelo RPC transacional).
- * É o que marca o módulo como "revisado" e libera parâmetros e emissão da proposta.
+ * Conclui a revisão dos custos de projeto (rascunho → enviado) pela RPC que também
+ * alimenta o catálogo vivo (0137): item novo entra, valor digitado sobrepõe, vale a
+ * última conclusão. É o que marca o módulo como "revisado" e libera parâmetros e
+ * emissão da proposta. Devolve o resumo para a tela.
  */
-async function concluirRevisaoCustosProjetoInterno(formData: FormData) {
+async function concluirRevisaoCustosProjetoInterno(formData: FormData): Promise<string> {
   await exigirPapelOrcamento("revisar_modulo");
   const id = numero(formData, "orcamento_projeto_id");
-  if (!id) return;
+  if (!id) throw new Error("Orçamento de projeto não informado.");
 
   const supabase = await createClient();
   const { data: projeto } = await supabase
@@ -505,13 +508,14 @@ async function concluirRevisaoCustosProjetoInterno(formData: FormData) {
     throw new Error("Adicione ao menos um custo ou análise antes de concluir a revisão.");
   }
 
-  const { error } = await supabase.rpc("transicionar_orcamento_projeto", {
+  const { data, error } = await supabase.rpc("concluir_revisao_custos_projeto", {
     p_orcamento_projeto_id: id,
-    p_status_destino: "enviado",
     p_observacao: texto(formData, "observacao") ?? "Revisão dos custos de projeto concluída.",
   });
   if (error) throw new Error(error.message);
   revalidarEtapaProjeto(demandaDe(atual, formData));
+  revalidatePath("/orcamento/modelos");
+  return mensagemConclusaoCatalogo(data);
 }
 
 /** Reabre custos recusados para edição (recusado → rascunho). "Enviado" não volta a rascunho no RPC. */
@@ -739,7 +743,12 @@ export async function salvarDuracaoProjeto(formData: FormData): Promise<EstadoAc
 }
 
 export async function concluirRevisaoCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {
-  return comRetorno(() => concluirRevisaoCustosProjetoInterno(formData));
+  try {
+    return sucesso(await concluirRevisaoCustosProjetoInterno(formData));
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
 }
 
 export async function reabrirCustosProjeto(formData: FormData): Promise<EstadoAcao | void> {

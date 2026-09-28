@@ -386,22 +386,27 @@ describe("actions de orcamento de projetos", () => {
     await expect(salvarDuracaoProjeto(formData)).resolves.toMatchObject({ ok: false, message: expect.stringContaining("1 a 60 meses") });
   });
 
-  it("conclui a revisão dos custos de projeto pelo RPC transacional", async () => {
+  it("conclui a revisão pela RPC que alimenta o catálogo e devolve o resumo", async () => {
     const { concluirRevisaoCustosProjeto } = await import("./orcamento-projetos");
     single.mockResolvedValue({
       data: { status: "rascunho", demanda_id: 5, orcamento_projeto_custos: [{ id: 1 }], orcamento_projeto_analises: [] },
       error: null,
     });
+    rpc.mockResolvedValue({ data: { novos: 2, atualizados: 1, pendentes: 0, repetidos: 0 }, error: null });
     const formData = new FormData();
     formData.set("orcamento_projeto_id", "77");
 
-    await concluirRevisaoCustosProjeto(formData);
+    const resultado = await concluirRevisaoCustosProjeto(formData);
 
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("revisar_modulo");
-    expect(rpc).toHaveBeenCalledWith("transicionar_orcamento_projeto", {
+    expect(rpc).toHaveBeenCalledWith("concluir_revisao_custos_projeto", {
       p_orcamento_projeto_id: 77,
-      p_status_destino: "enviado",
       p_observacao: "Revisão dos custos de projeto concluída.",
+    });
+    expect(rpc).not.toHaveBeenCalledWith("transicionar_orcamento_projeto", expect.anything());
+    expect(resultado).toEqual({
+      ok: true,
+      message: "Revisão dos custos concluída. Catálogo: 2 itens novos, 1 valor atualizado.",
     });
     expect(update).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/orcamento/demandas/5");

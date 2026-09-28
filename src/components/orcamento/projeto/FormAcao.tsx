@@ -30,18 +30,21 @@ export function FormAcao({
   "aria-label"?: string;
 }) {
   async function enviar(formData: FormData) {
+    let mensagem = sucesso;
     try {
       const resultado = await action(formData);
       if (resultado && !resultado.ok) {
         toast.error(resultado.message ?? "Não foi possível salvar. Tente novamente.");
         return;
       }
+      // A ação pode devolver um texto de sucesso mais preciso (ex.: resumo do catálogo).
+      if (resultado?.ok && resultado.message) mensagem = resultado.message;
     } catch (erro) {
-      const mensagem = erro instanceof Error && erro.message ? erro.message : "Tente novamente.";
-      toast.error(`Não foi possível salvar. ${mensagem}`);
+      const texto = erro instanceof Error && erro.message ? erro.message : "Tente novamente.";
+      toast.error(`Não foi possível salvar. ${texto}`);
       return;
     }
-    if (sucesso) toast.success(sucesso);
+    if (mensagem) toast.success(mensagem);
     aoConcluir?.();
   }
 

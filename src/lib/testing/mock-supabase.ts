@@ -1980,6 +1980,23 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         versao.textos_proposta = args.p_textos;
         return { data: { id: versao.id, status: versao.status }, error: null };
       }
+      // 0137: o simulado não reproduz o catálogo vivo (coberto pelo teste SQL);
+      // conclui pela mesma transição e devolve o resumo vazio.
+      if (fn === "previa_catalogo_revisao_projeto") {
+        return { data: [], error: null };
+      }
+      if (fn === "concluir_revisao_custos_projeto") {
+        try {
+          transicionarOrcamentoProjeto({
+            p_orcamento_projeto_id: args.p_orcamento_projeto_id,
+            p_status_destino: "enviado",
+            p_observacao: args.p_observacao ?? null,
+          });
+          return { data: { novos: 0, atualizados: 0, pendentes: 0, repetidos: 0 }, error: null };
+        } catch (error) {
+          return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC" } };
+        }
+      }
       if (fn === "transicionar_orcamento_projeto") {
         try {
           return { data: transicionarOrcamentoProjeto(args), error: null };
