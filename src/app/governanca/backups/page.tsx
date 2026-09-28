@@ -48,11 +48,11 @@ export default async function BackupsPage() {
   return (
     <main className="mx-auto max-w-[1720px] px-3 py-5 font-sans text-foreground sm:px-4 sm:py-6 lg:px-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
+        <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Backups</h1>
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-            Cópias locais administradas para aplicativo e banco de dados em nuvem.
-          </p>
+          <HelpTip title="Backups">
+            <p>Cópias locais administradas para aplicativo e banco de dados em nuvem.</p>
+          </HelpTip>
         </div>
         <span className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm">
           <ShieldCheck className="h-4 w-4" aria-hidden="true" />
@@ -62,13 +62,16 @@ export default async function BackupsPage() {
 
       <section className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-start gap-3">
-            <FolderArchive className="mt-0.5 h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <div>
+          <div className="flex items-center gap-3">
+            <FolderArchive className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <div className="flex items-center gap-1">
               <h2 className="text-lg font-semibold">Aplicativo local</h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Backup manual da versão atual em localhost, salvo em {resumo.appDir}.
-              </p>
+              <HelpTip title="Aplicativo local">
+                <p>
+                  Backup manual da versão atual em localhost, salvo em{" "}
+                  <b className="break-all">{resumo.appDir}</b>.
+                </p>
+              </HelpTip>
             </div>
           </div>
           <div className="mt-5">
@@ -89,13 +92,15 @@ export default async function BackupsPage() {
         </div>
 
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
-          <div className="flex items-start gap-3">
-            <DatabaseBackup className="mt-0.5 h-5 w-5 text-muted-foreground" aria-hidden="true" />
-            <div>
+          <div className="flex items-center gap-3">
+            <DatabaseBackup className="h-5 w-5 text-muted-foreground" aria-hidden="true" />
+            <div className="flex items-center gap-1">
               <h2 className="text-lg font-semibold">Banco da nuvem</h2>
-              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                Dump automático da nuvem salvo em {resumo.dbDir}.
-              </p>
+              <HelpTip title="Banco da nuvem">
+                <p>
+                  Dump automático da nuvem salvo em <b className="break-all">{resumo.dbDir}</b>.
+                </p>
+              </HelpTip>
             </div>
           </div>
           <div className="mt-5 rounded-md border border-border/70 bg-muted/50 p-4 text-sm">

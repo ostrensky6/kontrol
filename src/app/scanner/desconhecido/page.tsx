@@ -60,7 +60,6 @@ export default async function CodigoDesconhecidoPage({
           <p>Assim não se cria um cadastro pela metade.</p>
         </HelpTip>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">Registre uma triagem para conferência posterior.</p>
 
       {codigo ? (
         <>

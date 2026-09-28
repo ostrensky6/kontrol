@@ -72,6 +72,7 @@ export default async function InsumosPage({
             Insumos por análise
           </h1>
           <HelpTip title="Grupo e cobrança">
+            <p>Edite grupo e modo de cobrança dos insumos; as mudanças recalculam o custeio.</p>
             <p>
               <b>Grupo</b>: linhas do mesmo grupo são alternativas; entra só uma, por padrão a mais
               barata.
@@ -83,9 +84,6 @@ export default async function InsumosPage({
             <HelpExample>Controle de R$ 60 por execução e lote de 12: R$ 5 por amostra.</HelpExample>
           </HelpTip>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Edite grupo e modo de cobrança dos insumos; as mudanças recalculam o custeio.
-        </p>
 
         <nav className="mt-6 flex flex-wrap gap-2">
           {analises?.map((a) => (

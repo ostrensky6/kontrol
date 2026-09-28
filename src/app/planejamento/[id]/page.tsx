@@ -617,21 +617,19 @@ export default async function PlanoDetalhe({
         {/* demanda */}
         <section id="materiais" className="mt-8 scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
+            <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
                 Insumos necessários {temFalta && <span className="text-warning-strong">· há faltas</span>}
               </h2>
               {temFalta && (
-                <p className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                  Faltas viram pedido interno, não compra direta.
-                  <HelpTip title="O que acontece com as faltas">
-                    <p>
-                      <b>Gerar pedido interno</b> cria um pedido com os itens em falta. Ele segue o
-                      caminho normal: validação, compra e recebimento no estoque.
-                    </p>
-                    <p>A <b>Qtd. pedido</b> arredonda a falta para a embalagem ou a compra mínima do insumo.</p>
-                  </HelpTip>
-                </p>
+                <HelpTip title="O que acontece com as faltas">
+                  <p>
+                    Faltas viram pedido interno, não compra direta. <b>Gerar pedido interno</b> cria um
+                    pedido com os itens em falta. Ele segue o caminho normal: validação, compra e
+                    recebimento no estoque.
+                  </p>
+                  <p>A <b>Qtd. pedido</b> arredonda a falta para a embalagem ou a compra mínima do insumo.</p>
+                </HelpTip>
               )}
             </div>
             {temFalta && podeCriarPedido && (

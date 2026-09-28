@@ -177,22 +177,17 @@ export default async function PedidoPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Pedido</h1>
-              <HelpTip title="Pedido interno">
-                <p>
-                  Solicitação de materiais, serviços ou equipamentos feita pela equipe. Passa pela{" "}
-                  <b>validação do coordenador</b>, pela análise administrativa e pela cotação antes de
-                  virar compra formal.
-                </p>
-                <p>Abra um pedido para ver em que etapa ele está e qual é a próxima ação.</p>
-              </HelpTip>
-            </div>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Pedidos internos do GATGF de materiais e serviços, antes da compra formal.
-            </p>
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-1">
+            <h1 className="text-xl font-semibold tracking-tight">Pedido</h1>
+            <HelpTip title="Pedido interno">
+              <p>
+                Solicitação de materiais, serviços ou equipamentos feita pela equipe do GATGF. Passa
+                pela <b>validação do coordenador</b>, pela análise administrativa e pela cotação antes
+                de virar compra formal.
+              </p>
+              <p>Abra um pedido para ver em que etapa ele está e qual é a próxima ação.</p>
+            </HelpTip>
           </div>
           <div className="flex items-center gap-2">
             <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} />

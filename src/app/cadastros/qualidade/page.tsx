@@ -95,21 +95,18 @@ export default async function QualidadeCadastrosPage() {
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <Breadcrumbs items={[{ label: "Cadastros", href: "/cadastros" }, { label: "Qualidade dos dados" }]} />
-        <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Qualidade dos cadastros</h1>
-              <HelpTip title="Qualidade dos cadastros">
-                <p>
-                  Lista o que falta nos cadastros e pode <b>distorcer</b> custo, planejamento, compra ou
-                  proposta. Corrija antes que o problema chegue à operação.
-                </p>
-                <HelpExample>
-                  Um insumo sem custo entra como R$ 0 no custeio e barateia a análise.
-                </HelpExample>
-              </HelpTip>
-            </div>
-            <p className="mt-1 text-sm text-muted-foreground">Pendências que afetam custo, compra ou operação.</p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <h1 className="text-xl font-semibold tracking-tight">Qualidade dos cadastros</h1>
+            <HelpTip title="Qualidade dos cadastros">
+              <p>
+                Lista o que falta nos cadastros e pode <b>distorcer</b> custo, planejamento, compra ou
+                proposta. Corrija antes que o problema chegue à operação.
+              </p>
+              <HelpExample>
+                Um insumo sem custo entra como R$ 0 no custeio e barateia a análise.
+              </HelpExample>
+            </HelpTip>
           </div>
           <span className={`rounded-full px-3 py-1 text-sm font-semibold ${pendencias > 0 ? "bg-warning-soft text-warning-strong" : "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"}`}>
             {pendencias} pendência(s)

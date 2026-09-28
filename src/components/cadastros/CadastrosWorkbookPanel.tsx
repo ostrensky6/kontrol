@@ -4,7 +4,7 @@ import { useActionState, useEffect, useRef } from "react";
 import { DownloadButton } from "@/components/common/DownloadButton";
 import { Upload } from "lucide-react";
 import { importarCadastrosWorkbook, type ImportCadastrosState } from "@/lib/actions/cadastros";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
@@ -41,19 +41,17 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
   return (
     <Card className="mt-6">
       <CardHeader className="gap-1">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="flex items-center gap-1">
-              <CardTitle>Todos os cadastros</CardTitle>
-              <HelpTip title="Importação por planilha">
-                <p>
-                  A planilha tem uma aba por cadastro e uma aba de instruções. A importação só{" "}
-                  <b>adiciona e atualiza</b>: nada é excluído.
-                </p>
-                <p>Células vazias mantêm o valor atual.</p>
-              </HelpTip>
-            </div>
-            <CardDescription>Baixe a planilha XLSX, preencha e importe de volta.</CardDescription>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <CardTitle>Todos os cadastros</CardTitle>
+            <HelpTip title="Importação por planilha">
+              <p>Baixe a planilha XLSX, preencha e importe de volta.</p>
+              <p>
+                A planilha tem uma aba por cadastro e uma aba de instruções. A importação só{" "}
+                <b>adiciona e atualiza</b>: nada é excluído.
+              </p>
+              <p>Células vazias mantêm o valor atual.</p>
+            </HelpTip>
           </div>
           <DownloadButton href="/cadastros/export" fileName="todos-os-cadastros.xlsx">
             Baixar XLSX

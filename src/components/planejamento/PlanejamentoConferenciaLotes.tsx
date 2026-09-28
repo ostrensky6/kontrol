@@ -154,20 +154,16 @@ export function PlanejamentoConferenciaLotes({
   return (
     <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <div className="flex items-center gap-1">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Separar material</h2>
-            <HelpTip title="Separar material">
-              <p>
-                A retirada acontece ao clicar em <b>Retirar insumos e iniciar</b>. Ela sai do lote
-                conferido aqui quando ele tem saldo livre para a reserva; senão, do lote{" "}
-                <b>reservado</b>.
-              </p>
-            </HelpTip>
-          </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Escaneie o lote separado para conferir com a reserva. Não dá baixa no estoque.
-          </p>
+        <div className="flex items-center gap-1">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Separar material</h2>
+          <HelpTip title="Separar material">
+            <p>Escaneie o lote separado para conferir com a reserva. Não dá baixa no estoque.</p>
+            <p>
+              A retirada acontece ao clicar em <b>Retirar insumos e iniciar</b>. Ela sai do lote
+              conferido aqui quando ele tem saldo livre para a reserva; senão, do lote{" "}
+              <b>reservado</b>.
+            </p>
+          </HelpTip>
         </div>
         <span className="rounded-md bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground">
           {cameraStatus === "ativa"

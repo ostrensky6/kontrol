@@ -52,14 +52,13 @@ export function CusteioSimulator({
             <h2 className="text-lg font-semibold text-foreground dark:text-white">Simulador de cenário</h2>
             <HelpTip title="Simulador de cenário">
               <p>
-                Teste outro tamanho de lote, a escolha de reagente e uma <b>margem adicional</b>. Nada
-                é gravado: os parâmetros do laboratório não mudam.
+                Teste outro tamanho de lote, a escolha de reagente e uma <b>margem adicional</b> e veja
+                o preço recalcular ao vivo. Nada é gravado: os parâmetros do laboratório não mudam.
               </p>
               <p>A margem adicional soma pontos percentuais (p.p.) à margem de lucro atual.</p>
               <HelpExample>Margem de 20% com +10 p.p. → preço simulado com 30% de margem.</HelpExample>
             </HelpTip>
           </div>
-          <p className="mt-1 text-sm text-muted-foreground">Veja o preço recalcular ao vivo.</p>
         </div>
         <div className="text-right">
           <div className="text-xs uppercase text-muted-foreground">Preço simulado</div>

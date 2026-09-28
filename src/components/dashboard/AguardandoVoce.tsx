@@ -1,18 +1,18 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { SectionCard } from "@/components/app/SectionCard";
+import { HelpTip } from "@/components/common/HelpTip";
 import type { Pendencia } from "./aguardando";
 
 /** Bloco da página inicial com o que espera a ação do usuário (PER2-10). */
 export function AguardandoVoce({ pendencias }: { pendencias: Pendencia[] }) {
-  const total = pendencias.reduce((soma, p) => soma + p.quantidade, 0);
   return (
     <SectionCard
       title="Aguardando você"
-      description={
-        total > 0
-          ? "Etapas que dependem da sua ação, conforme as suas permissões."
-          : "Nada depende da sua ação agora."
+      help={
+        <HelpTip title="Aguardando você">
+          <p>Etapas que dependem da sua ação, conforme as suas permissões.</p>
+        </HelpTip>
       }
       contentClassName="p-3 sm:p-3"
     >

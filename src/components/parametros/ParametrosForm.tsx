@@ -189,10 +189,12 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
 
       {operacionais.length > 0 && (
         <section>
-          <h2 className={sec}>Parâmetros operacionais</h2>
-          <p className="mt-1 text-xs text-muted-foreground/80">
-            Bases de rateio e constantes usadas por custeio, estoque e alertas.
-          </p>
+          <div className="flex items-center gap-1">
+            <h2 className={sec}>Parâmetros operacionais</h2>
+            <HelpTip title="Parâmetros operacionais">
+              <p>Bases de rateio e constantes usadas por custeio, estoque e alertas.</p>
+            </HelpTip>
+          </div>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {operacionais.map((p) => campo(p))}
           </div>

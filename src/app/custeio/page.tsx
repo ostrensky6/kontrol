@@ -43,32 +43,29 @@ export default async function CusteioPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Custeio por análise</h1>
-          <HelpTip title="Como o custo é calculado">
-            <p>
-              O <b>custo analítico</b> de uma amostra soma reagentes, equipamento e pessoal. Com o{" "}
-              <b>overhead</b> (custos fixos do laboratório por hora de bancada), forma o custo total.
-            </p>
-            <p>
-              O preço de tabela aplica os fatores de preço, que hoje somam {fatoresPct}%
-              {verRemuneracao ? <>; hora de pessoal {brl(valorHoraPessoal)}</> : null}; hora de
-              overhead {brl(custoHoraOverhead)}.
-            </p>
-            <HelpFormula>preço = custo total × (1 + fatores)</HelpFormula>
-          </HelpTip>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Custo e preço por amostra, com fatores de preço somando {fatoresPct}%.
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-1">
+            <h1 className="text-xl font-semibold tracking-tight">Custeio por análise</h1>
+            <HelpTip title="Como o custo é calculado">
+              <p>Custo e preço por amostra de cada análise.</p>
+              <p>
+                O <b>custo analítico</b> de uma amostra soma reagentes, equipamento e pessoal. Com o{" "}
+                <b>overhead</b> (custos fixos do laboratório por hora de bancada), forma o custo total.
+              </p>
+              <p>
+                O preço de tabela aplica os fatores de preço, que hoje somam {fatoresPct}%
+                {verRemuneracao ? <>; hora de pessoal {brl(valorHoraPessoal)}</> : null}; hora de
+                overhead {brl(custoHoraOverhead)}.
+              </p>
+              <HelpFormula>preço = custo total × (1 + fatores)</HelpFormula>
+            </HelpTip>
+          </div>
           {podeAjustarFatores && (
-            <>
-              {" "}
-              <Link href="/parametros" className="font-medium text-primary hover:underline">
-                Ajustar fatores
-              </Link>
-            </>
+            <Link href="/parametros" className="text-sm font-medium text-primary hover:underline">
+              Ajustar fatores
+            </Link>
           )}
-        </p>
+        </div>
 
         <div className="mt-8">
           <CusteioTable rows={linhas} />
