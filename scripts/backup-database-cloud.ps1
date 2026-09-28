@@ -3,7 +3,7 @@ param(
   [string]$EnvFile = ".env.local",
   [string]$PgDumpPath = $env:PG_DUMP_PATH,
   # Cópia dos arquivos do Storage (anexos, assinaturas): o pg_dump não leva o conteúdo deles.
-  [string]$ArquivosPath = "D:DropboxAplicativosKontrolARQUIVOS",
+  [string]$ArquivosPath = "D:\Dropbox\Aplicativos\Kontrol\ARQUIVOS",
   [switch]$SemArquivos
 )
 
