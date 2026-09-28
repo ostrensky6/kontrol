@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AlertTriangle, RotateCcw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { reportarErroDaTela } from "@/lib/monitoramento/reportar-no-navegador";
 
 /**
  * Erro inesperado numa tela: mantém o menu, explica em linguagem simples e
@@ -20,6 +21,7 @@ export default function ErrorPage({
 }) {
   useEffect(() => {
     console.error(error);
+    reportarErroDaTela(error);
   }, [error]);
 
   const mensagem =

@@ -60,6 +60,65 @@ export default async function BackupsPage() {
         </span>
       </div>
 
+      <section className="mt-6 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="flex items-center gap-1 border-b border-border/70 px-4 py-3">
+          <h2 className="text-sm font-semibold">Registro dos backups</h2>
+          <HelpTip title="Registro dos backups">
+            <p>
+              Cada execução do backup do banco e da cópia dos arquivos grava uma linha aqui. Se o
+              último backup bom passar de 26 horas ou houver falha, os administradores recebem aviso
+              em Notificações.
+            </p>
+          </HelpTip>
+        </div>
+        {resumo.registroIndisponivel ? (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground/80">
+            Não foi possível ler o registro dos backups neste banco.
+          </p>
+        ) : resumo.registro.length === 0 ? (
+          <p className="px-4 py-6 text-center text-sm text-muted-foreground/80">
+            Nenhuma execução registrada ainda.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-3 text-left">Quando</th>
+                  <th className="px-4 py-3 text-left">Tipo</th>
+                  <th className="px-4 py-3 text-left">Resultado</th>
+                  <th className="px-4 py-3 text-right">Tamanho</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border/70">
+                {resumo.registro.map((execucao) => (
+                  <tr key={execucao.id}>
+                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                      {formatDateTime(execucao.concluido_em)}
+                    </td>
+                    <td className="px-4 py-3">{execucao.tipo === "banco" ? "Banco" : "Arquivos"}</td>
+                    <td className="px-4 py-3">
+                      {execucao.status === "ok" ? (
+                        "Concluído"
+                      ) : (
+                        <span className="font-semibold text-destructive" title={execucao.detalhe ?? undefined}>
+                          Falhou{execucao.detalhe ? `: ${execucao.detalhe}` : ""}
+                        </span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                      {execucao.tamanho_bytes != null ? formatBytes(execucao.tamanho_bytes) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {resumo.local ? (
+        <>
       <section className="mt-6 grid gap-4 md:grid-cols-2">
         <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
           <div className="flex items-center gap-3">
@@ -209,6 +268,13 @@ export default async function BackupsPage() {
           </table>
         </div>
       </section>
+        </>
+      ) : (
+        <p className="mt-6 rounded-md border border-border bg-card p-4 text-sm text-muted-foreground">
+          As cópias ficam no computador do laboratório. Aqui no site publicado aparece só o
+          registro acima; a lista de arquivos e o backup do aplicativo abrem no Kontrol local.
+        </p>
+      )}
     </main>
   );
 }

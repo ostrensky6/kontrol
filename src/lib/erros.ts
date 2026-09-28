@@ -26,6 +26,33 @@ const PADRAO = "Não foi possível concluir. Tente de novo; se continuar, avise 
 /** Mensagens em inglês do Postgres/PostgREST que nunca devem chegar à tela. */
 const TECNICA = /violates|duplicate key|row-level security|permission denied|foreign key|null value|syntax|relation "|column "|function .*does not exist|invalid input|JSON|fetch failed|timeout|ECONN/i;
 
+const CHAVE_RELATOR = Symbol.for("kontrol.relatorErroBanco");
+
+type RelatorErroBanco = (erro: ErroBanco) => void;
+
+/**
+ * Quem recebe as recusas técnicas que mensagemDoBanco esconde do usuário. O
+ * `instrumentation.ts` liga o registro em `erros_app` (0141) no servidor; fora
+ * dele (navegador, testes) ninguém escuta. Fica em globalThis porque o
+ * instrumentation e as telas são empacotados separadamente.
+ */
+export function definirRelatorErroBanco(relator: RelatorErroBanco | null): void {
+  (globalThis as Record<symbol, unknown>)[CHAVE_RELATOR] = relator ?? undefined;
+}
+
+function relatarErroTecnico(error: ErroBanco): void {
+  const relator = (globalThis as Record<symbol, unknown>)[CHAVE_RELATOR];
+  if (typeof relator !== "function") return;
+  try {
+    (relator as RelatorErroBanco)(error);
+  } catch {
+    // registrar nunca pode atrapalhar a resposta ao usuário
+  }
+}
+
+/** Conflito de concorrência: esperado, e a mensagem já diz o que fazer. */
+const CONCORRENCIA = new Set(["40001", "40P01", "55P03"]);
+
 /**
  * Traduz uma recusa do banco para o usuário. As exceções escritas nas RPCs do
  * Kontrol já estão em português e são mantidas; as mensagens técnicas do
@@ -33,10 +60,18 @@ const TECNICA = /violates|duplicate key|row-level security|permission denied|for
  */
 export function mensagemDoBanco(error: unknown, padrao: string = PADRAO): string {
   if (!error) return padrao;
-  if (typeof error === "string") return TECNICA.test(error) ? padrao : error;
+  if (typeof error === "string") {
+    if (!TECNICA.test(error)) return error;
+    relatarErroTecnico({ message: error });
+    return padrao;
+  }
   if (typeof error !== "object") return padrao;
   const { code, message } = error as ErroBanco;
   const texto = (message ?? "").trim();
+  // O texto original some da tela; o registro guarda para quem vai corrigir.
+  if ((!texto || TECNICA.test(texto)) && !CONCORRENCIA.has(code ?? "")) {
+    relatarErroTecnico(error as ErroBanco);
+  }
 
   switch (code) {
     case "42501":
