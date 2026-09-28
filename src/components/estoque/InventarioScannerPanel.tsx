@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, Camera, Keyboard, Loader2, ScanLine } from "lucide-react";
@@ -59,6 +59,7 @@ export function InventarioScannerPanel({
   const [resultadoScanner, setResultadoScanner] = useState<ResultadoScannerInventario | null>(null);
   const [cameraStatus, setCameraStatus] = useState<StatusCamera>("parada");
   const [cameraMessage, setCameraMessage] = useState<string | null>(null);
+  const uid = useId();
   const [cicloId, setCicloId] = useState(ciclos[0]?.id ? String(ciclos[0].id) : "");
   const [localId, setLocalId] = useState("");
   const [loteId, setLoteId] = useState("");
@@ -224,12 +225,15 @@ export function InventarioScannerPanel({
             </button>
           </div>
 
-          {cameraMessage && (
-            <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {cameraMessage}
-            </p>
-          )}
+          {/* regiões fixas: aviso da câmera e resultado da leitura são anunciados */}
+          <div aria-live="polite">
+            {cameraMessage && (
+              <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {cameraMessage}
+              </p>
+            )}
+          </div>
 
           <div className="mt-3 flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -238,6 +242,7 @@ export function InventarioScannerPanel({
                 value={codigoScanner}
                 onChange={(event) => setCodigoScanner(event.target.value)}
                 className={`${inp} mt-0 pl-8`}
+                aria-label="Etiqueta do local ou do lote"
                 placeholder="Etiqueta do local ou do lote"
               />
             </div>
@@ -252,6 +257,7 @@ export function InventarioScannerPanel({
             </button>
           </div>
 
+          <div role="status" aria-live="polite" aria-atomic="true">
           {resultadoScanner && (
             <div
               className={`mt-3 rounded-md px-3 py-2 text-xs ${
@@ -277,12 +283,14 @@ export function InventarioScannerPanel({
               )}
             </div>
           )}
+          </div>
         </div>
 
         <form onSubmit={enviarSemReset(salvarContagem)} className="grid gap-3">
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Campanha</label>
+            <label htmlFor={`${uid}-ciclo_id`} className="block text-xs font-medium text-muted-foreground">Campanha</label>
             <select
+              id={`${uid}-ciclo_id`}
               name="ciclo_id"
               value={cicloId}
               onChange={(event) => setCicloId(event.target.value)}
@@ -298,8 +306,9 @@ export function InventarioScannerPanel({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Local</label>
+            <label htmlFor={`${uid}-local_id`} className="block text-xs font-medium text-muted-foreground">Local</label>
             <select
+              id={`${uid}-local_id`}
               name="local_id"
               value={localId}
               onChange={(event) => setLocalId(event.target.value)}
@@ -314,8 +323,9 @@ export function InventarioScannerPanel({
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Lote</label>
+            <label htmlFor={`${uid}-lote_id`} className="block text-xs font-medium text-muted-foreground">Lote</label>
             <select
+              id={`${uid}-lote_id`}
               name="lote_id"
               value={loteId}
               onChange={(event) => {
@@ -343,8 +353,9 @@ export function InventarioScannerPanel({
           )}
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Quantidade contada</label>
+            <label htmlFor={`${uid}-quantidade_contada`} className="block text-xs font-medium text-muted-foreground">Quantidade contada</label>
             <input
+              id={`${uid}-quantidade_contada`}
               name="quantidade_contada"
               type="number"
               min="0"
@@ -370,8 +381,9 @@ export function InventarioScannerPanel({
           )}
 
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Justificativa</label>
+            <label htmlFor={`${uid}-justificativa`} className="block text-xs font-medium text-muted-foreground">Justificativa</label>
             <textarea
+              id={`${uid}-justificativa`}
               name="justificativa"
               rows={3}
               value={justificativa}
@@ -384,17 +396,19 @@ export function InventarioScannerPanel({
             )}
           </div>
 
-          {state.message && (
-            <p
-              className={`rounded-md px-3 py-2 text-sm ${
-                state.ok
-                  ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
-                  : "bg-danger-soft text-danger-strong"
-              }`}
-            >
-              {state.message}
-            </p>
-          )}
+          <div role="status" aria-live="polite">
+            {state.message && (
+              <p
+                className={`rounded-md px-3 py-2 text-sm ${
+                  state.ok
+                    ? "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
+                    : "bg-danger-soft text-danger-strong"
+                }`}
+              >
+                {state.message}
+              </p>
+            )}
+          </div>
 
           <button
             disabled={submitPending || ciclos.length === 0}

@@ -14,6 +14,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Rows3, Rows4, Search } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { chaveFiltros, restaurarFiltros, serializarFiltros } from "@/lib/tabela-filtros";
 
 export type DataTableFilter = {
   columnId: string;
@@ -167,6 +169,37 @@ export function DataTable<TData>({
     initialState: { pagination: { pageSize } },
   });
 
+  // Busca e filtros sobrevivem ao recarregar a página (guardados na aba).
+  const pathname = usePathname();
+  const idsColunas = table.getAllLeafColumns().map((coluna) => coluna.id).join(",");
+  const chave = chaveFiltros(pathname ?? "", idsColunas.split(","));
+  const filtrosRestaurados = React.useRef<string | null>(null);
+
+  React.useEffect(() => {
+    if (filtrosRestaurados.current === chave) return;
+    try {
+      const salvos = restaurarFiltros(window.sessionStorage.getItem(chave), idsColunas.split(","));
+      if (salvos) {
+        setGlobalFilter(salvos.busca);
+        setColumnFilters(salvos.colunas);
+      }
+    } catch {
+      // Sem sessionStorage (modo privado restrito): segue sem restaurar.
+    }
+    filtrosRestaurados.current = chave;
+  }, [chave, idsColunas]);
+
+  React.useEffect(() => {
+    if (filtrosRestaurados.current !== chave) return;
+    try {
+      const texto = serializarFiltros({ busca: globalFilter, colunas: columnFilters });
+      if (texto) window.sessionStorage.setItem(chave, texto);
+      else window.sessionStorage.removeItem(chave);
+    } catch {
+      // Preferência opcional.
+    }
+  }, [chave, globalFilter, columnFilters]);
+
   const totalFiltrado = table.getFilteredRowModel().rows.length;
   const semLinhas = table.getRowModel().rows.length === 0;
   const temFiltro = globalFilter !== "" || columnFilters.length > 0;
@@ -183,6 +216,7 @@ export function DataTable<TData>({
             value={globalFilter}
             onChange={(event) => setGlobalFilter(event.target.value)}
             placeholder={searchPlaceholder}
+            aria-label={searchPlaceholder.replace(/[.…]+$/, "") || "Buscar"}
             className="pl-8"
             autoComplete="off"
             data-lpignore="true"
@@ -216,7 +250,7 @@ export function DataTable<TData>({
           );
         })}
 
-        <Badge variant={temFiltro ? "secondary" : "muted"} className="ml-auto">
+        <Badge variant={temFiltro ? "secondary" : "muted"} className="ml-auto" role="status" aria-live="polite">
           {temFiltro ? `${totalFiltrado} de ${data.length}` : `${data.length} registro(s)`}
         </Badge>
         <Button

@@ -290,12 +290,15 @@ export function ScannerRecebimentoCompra({
             </button>
           </div>
 
-          {cameraMessage && (
-            <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
-              <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              {cameraMessage}
-            </p>
-          )}
+          {/* região fixa: o leitor de tela anuncia o aviso da câmera quando ele aparece */}
+          <div aria-live="polite">
+            {cameraMessage && (
+              <p className="mt-3 flex items-start gap-2 rounded-md bg-warning-soft px-3 py-2 text-xs text-warning-strong">
+                <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                {cameraMessage}
+              </p>
+            )}
+          </div>
 
           <div className="mt-3 flex gap-2">
             <div className="relative min-w-0 flex-1">
@@ -327,6 +330,8 @@ export function ScannerRecebimentoCompra({
             </button>
           </div>
 
+          {/* região fixa: o resultado de cada leitura é anunciado */}
+          <div role="status" aria-live="polite" aria-atomic="true">
           {resultadoScanner && (
             <div
               className={`mt-3 rounded-md px-3 py-2 text-xs ${
@@ -349,6 +354,7 @@ export function ScannerRecebimentoCompra({
               )}
             </div>
           )}
+          </div>
         </section>
 
         <form action={action} className="mt-4 grid grid-cols-2 gap-3">
