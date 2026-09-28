@@ -58,6 +58,19 @@ Pendências fora do módulo: a página geral `/auditoria` tem o mesmo defeito
 "[object Object]" (pode usar `resumoDiffAuditoria`); o título "Governança e
 permissões" difere do menu "Regras do orçamento".
 
+## Regra "título + ?" (pedido do dono, vale para o app todo)
+
+A explicação de uma página ou seção fica dentro do "?" ao lado do título, não
+em texto cinza ao lado ou embaixo; obrigatório é um asterisco vermelho, sem
+selos de estado nos rótulos; tabela vazia vira uma linha. Aplicada em todo o
+módulo Orçamentos (o Novo orçamento cabe numa tela de 1440 px) e nos demais
+módulos (início, cadastros, parâmetros, custeio, insumos, análises, estoque,
+governança, notificações, projetos, recebimento, usuários, pedidos,
+planejamento). Mantidos visíveis de propósito: mensagens de lista vazia,
+avisos de consequência junto de botões, números/indicadores, diálogos,
+descrições de cartões que são links (um "?" dentro de um link é inválido) e
+páginas legais. Arquivos dos PRs #47 e #51 não foram tocados.
+
 ## Banco: migration 0135 (aditiva)
 
 `supabase/migrations/0135_proposta_documento_textos.sql` — tabelas
