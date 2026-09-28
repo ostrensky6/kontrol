@@ -94,6 +94,8 @@ begin
         when 'coordenador_sem' then '{"cadastros.editar": true, "orcamentos.modelos": true}'::jsonb
         when 'suspenso' then '{"cadastros.editar": true, "tecnicos.salario.ver": true}'::jsonb
         else '{"cadastros.editar": true}'::jsonb end
+        -- 0137: valores de pessoal no orçamento têm permissão própria; aqui só o salário conta.
+        || '{"orcamentos.pessoal": false}'::jsonb
     where id = uid;
     if not found then raise exception '0112: perfil fixture ausente para %', rotulo; end if;
   end loop;
