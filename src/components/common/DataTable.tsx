@@ -15,7 +15,7 @@ import {
 } from "@tanstack/react-table";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Rows3, Rows4, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Rows3, Rows4, Search, SlidersHorizontal } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +52,11 @@ type DataTableProps<TData> = {
   emptyTitle?: string;
   emptyAction?: React.ReactNode;
   filters?: DataTableFilter[];
+  /**
+   * Quantos filtros ficam à vista na barra; os demais vão para "Mais filtros"
+   * (painel com contador, como no Histórico de orçamentos). Sem valor: todos à vista.
+   */
+  filtrosVisiveis?: number;
   getMobileTitle?: (row: TData) => React.ReactNode;
   getMobileDescription?: (row: TData) => React.ReactNode;
   getMobileMeta?: (row: TData) => React.ReactNode;
@@ -104,6 +109,7 @@ export function DataTable<TData>({
   emptyTitle = "Nada para mostrar",
   emptyAction,
   filters = [],
+  filtrosVisiveis,
   getMobileTitle,
   getMobileDescription,
   getMobileMeta,
@@ -209,7 +215,7 @@ export function DataTable<TData>({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-56">
+        <div className={cn("relative", filtrosVisiveis != null ? "w-full sm:w-72" : "min-w-56")}>
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -225,30 +231,85 @@ export function DataTable<TData>({
           />
         </div>
 
-        {filters.map((filter) => {
-          const column = table.getAllLeafColumns().find((col) => col.id === filter.columnId);
-          if (!column) return null;
-          const value = (column.getFilterValue() as string | undefined) ?? "";
-          const options = uniqueFilterOptions(filter.options);
-          return (
-            <Select
-              key={filter.columnId}
-              value={value}
-              onChange={(event) => column.setFilterValue(event.target.value || undefined)}
-              className="h-9 w-auto min-w-36 text-xs"
-              aria-label={`Filtrar por ${filter.label}`}
-            >
-              <option key={`${filter.columnId}:all`} value="">
-                {filter.label}: todos
-              </option>
-              {options.map((option) => (
-                <option key={`${filter.columnId}:${String(option.value ?? "")}`} value={option.value}>
-                  {option.label}
+        {(() => {
+          // Mesmo método do Histórico de orçamentos: os primeiros filtros à
+          // vista, com largura fixa; o resto em "Mais filtros", com contador.
+          const limite = filtrosVisiveis ?? filters.length;
+          const seletor = (filter: DataTableFilter, noPainel: boolean) => {
+            const column = table.getAllLeafColumns().find((col) => col.id === filter.columnId);
+            if (!column) return null;
+            const value = (column.getFilterValue() as string | undefined) ?? "";
+            const options = uniqueFilterOptions(filter.options);
+            const select = (
+              <Select
+                key={filter.columnId}
+                id={noPainel ? `filtro-${filter.columnId}` : undefined}
+                value={value}
+                onChange={(event) => column.setFilterValue(event.target.value || undefined)}
+                className={cn(
+                  "h-9 text-xs",
+                  noPainel ? "w-full" : filtrosVisiveis != null ? "w-full sm:w-48" : "w-auto min-w-36",
+                )}
+                aria-label={`Filtrar por ${filter.label}`}
+              >
+                <option key={`${filter.columnId}:all`} value="">
+                  {noPainel ? "Todos" : `${filter.label}: todos`}
                 </option>
-              ))}
-            </Select>
+                {options.map((option) => (
+                  <option key={`${filter.columnId}:${String(option.value ?? "")}`} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </Select>
+            );
+            if (!noPainel) return select;
+            return (
+              <div key={filter.columnId}>
+                <label htmlFor={`filtro-${filter.columnId}`} className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {filter.label}
+                </label>
+                {select}
+              </div>
+            );
+          };
+          const extras = filters.slice(limite);
+          const ativosExtras = extras.filter((f) => columnFilters.some((c) => c.id === f.columnId && c.value)).length;
+          return (
+            <>
+              {filters.slice(0, limite).map((filter) => seletor(filter, false))}
+              {extras.length > 0 && (
+                <details className="relative">
+                  <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent [&::-webkit-details-marker]:hidden">
+                    <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
+                    Mais filtros
+                    {ativosExtras > 0 && (
+                      <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+                        {ativosExtras}
+                      </span>
+                    )}
+                  </summary>
+                  <div className="absolute left-0 top-full z-20 mt-2 grid w-[min(34rem,calc(100vw-2rem))] grid-cols-1 gap-3 rounded-lg border border-border bg-card p-4 shadow-lg sm:grid-cols-2">
+                    {extras.map((filter) => seletor(filter, true))}
+                  </div>
+                </details>
+              )}
+              {filtrosVisiveis != null && temFiltro && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-9 text-muted-foreground"
+                  onClick={() => {
+                    setGlobalFilter("");
+                    setColumnFilters([]);
+                  }}
+                >
+                  Limpar
+                </Button>
+              )}
+            </>
           );
-        })}
+        })()}
 
         <Badge variant={temFiltro ? "secondary" : "muted"} className="ml-auto" role="status" aria-live="polite">
           {temFiltro ? `${totalFiltrado} de ${data.length}` : `${data.length} registro(s)`}

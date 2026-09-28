@@ -368,9 +368,12 @@ export default async function DemandaDetalhe({
   const inp =
     `rounded-md border border-input bg-card px-3 py-2 text-sm font-medium ${TOM_ENTRADA}`;
   const lbl = "block text-xs font-medium text-muted-foreground";
-  const campo = `${inp} mt-1 h-9 w-full py-1.5`;
-  const grupo = "rounded-md border border-border px-3 pb-3 pt-1";
-  const legenda = "px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+  // formulário Dados do orçamento: campos de 32 px, grupos aos pares (28/09)
+  const campo = `rounded-md border border-input bg-card px-2.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 h-8 w-full`;
+  const areaTexto = `rounded-md border border-input bg-card px-2.5 py-1.5 text-sm font-medium ${TOM_ENTRADA} mt-0.5 block min-h-14 w-full`;
+  const grupo = "min-w-0 rounded-md border border-border bg-muted/20 px-2.5 pb-2.5 pt-2";
+  const legenda = "float-left mb-1 w-full text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+  const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
   const operacaoEmissaoId = randomUUID();
 
@@ -489,160 +492,159 @@ export default async function DemandaDetalhe({
           </div>
         </nav>
 
-        <section id="demanda" className={`mt-4 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("demanda")}`}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold">Dados do orçamento</h2>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                Identificação, cliente, amostras e textos. Com tudo preenchido, as etapas de custo são liberadas.
-              </p>
-            </div>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
+        <section id="demanda" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card px-4 pb-4 pt-3 shadow-sm ${passo("demanda")}`}>
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
+            <h2 className="text-sm font-semibold">Dados do orçamento</h2>
+            <p className="text-xs text-muted-foreground">Com tudo preenchido, as etapas de custo são liberadas.</p>
+            <span className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${completudeDemanda.completa ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
               {completudeDemanda.completa ? "Completa" : `${completudeDemanda.faltante}% faltante`}
             </span>
           </div>
           <SalvarDemandaForm>
             <input {...hydrationSafe} type="hidden" name="demanda_id" value={demandaId} />
-            <fieldset className={grupo}>
-              <legend className={legenda}>Identificação</legend>
-              <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-                <div className="col-span-12 sm:col-span-7">
-                  <label htmlFor="d-titulo" className={lbl}>Título</label>
-                  <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
+            {/* Grupos lado a lado em telas largas (3 colunas), campos aos pares. */}
+            <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
+              <fieldset className={grupo}>
+                <legend className={legenda}>Identificação</legend>
+                <div className={grade}>
+                  <div className="col-span-6">
+                    <label htmlFor="d-titulo" className={lbl}>Título</label>
+                    <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-4">
+                    <label htmlFor="d-modalidade" className={lbl}>Modalidade</label>
+                    <select {...hydrationSafe} id="d-modalidade" name="modalidade" defaultValue={demanda.modalidade ?? "analises"} className={campo}>
+                      {opcoesModalidade.map(([value, label]) => (
+                        <option key={value} value={value}>{label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2">
+                    <label htmlFor="d-prioridade" className={lbl}>Prioridade</label>
+                    <select {...hydrationSafe} id="d-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
+                      <option value="baixa">Baixa</option>
+                      <option value="normal">Normal</option>
+                      <option value="alta">Alta</option>
+                      <option value="urgente">Urgente</option>
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="orcamento-instituicao" className={lbl}>Empresa emissora</label>
+                    <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>
+                      <option value="">Escolha…</option>
+                      {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-projeto" className={lbl}>Projeto</label>
+                    <select {...hydrationSafe} id="d-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
+                      <option value="">—</option>
+                      {(projetos ?? []).map((p) => (
+                        <option key={p.id} value={p.id}>{p.nome}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-responsavel" className={lbl}>Responsável interno</label>
+                    <input {...hydrationSafe} id="d-responsavel" name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-origem" className={lbl}>Origem</label>
+                    <input {...hydrationSafe} id="d-origem" name="origem" defaultValue={demanda.origem ?? ""} className={campo} />
+                  </div>
                 </div>
-                <div className="col-span-8 sm:col-span-3">
-                  <label htmlFor="d-modalidade" className={lbl}>Modalidade</label>
-                  <select {...hydrationSafe} id="d-modalidade" name="modalidade" defaultValue={demanda.modalidade ?? "analises"} className={campo}>
-                    {opcoesModalidade.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-span-4 sm:col-span-2">
-                  <label htmlFor="d-prioridade" className={lbl}>Prioridade</label>
-                  <select {...hydrationSafe} id="d-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
-                    <option value="baixa">Baixa</option>
-                    <option value="normal">Normal</option>
-                    <option value="alta">Alta</option>
-                    <option value="urgente">Urgente</option>
-                  </select>
-                </div>
-                <div className="col-span-12 sm:col-span-3">
-                  <label htmlFor="orcamento-instituicao" className={lbl}>Empresa emissora</label>
-                  <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>
-                    <option value="">Escolha…</option>
-                    {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
-                  </select>
-                </div>
-                <div className="col-span-12 sm:col-span-3">
-                  <label htmlFor="d-responsavel" className={lbl}>Responsável interno</label>
-                  <input {...hydrationSafe} id="d-responsavel" name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={campo} />
-                </div>
-                <div className="col-span-6 sm:col-span-3">
-                  <label htmlFor="d-origem" className={lbl}>Origem</label>
-                  <input {...hydrationSafe} id="d-origem" name="origem" defaultValue={demanda.origem ?? ""} className={campo} />
-                </div>
-                <div className="col-span-6 sm:col-span-3">
-                  <label htmlFor="d-projeto" className={lbl}>Projeto</label>
-                  <select {...hydrationSafe} id="d-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
-                    <option value="">—</option>
-                    {(projetos ?? []).map((p) => (
-                      <option key={p.id} value={p.id}>{p.nome}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </fieldset>
+              </fieldset>
 
-            <fieldset className={grupo}>
-              <legend className={legenda}>Cliente</legend>
-              <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-                <div className="col-span-12 sm:col-span-4">
-                  <label htmlFor="d-cliente" className={lbl}>Cliente cadastrado</label>
-                  <ClienteCadastradoSelect
-                    id="d-cliente"
-                    name="cliente_id"
-                    clientes={(clientes ?? []) as ClienteCadastro[]}
-                    valorInicial={demanda.cliente_id ?? null}
-                    className={campo}
-                  />
+              <fieldset className={grupo}>
+                <legend className={legenda}>Cliente</legend>
+                <div className={grade}>
+                  <div className="col-span-6">
+                    <label htmlFor="d-cliente" className={lbl}>Cliente cadastrado <span className="font-normal">(preenche os dados abaixo)</span></label>
+                    <ClienteCadastradoSelect
+                      id="d-cliente"
+                      name="cliente_id"
+                      clientes={(clientes ?? []) as ClienteCadastro[]}
+                      valorInicial={demanda.cliente_id ?? null}
+                      className={campo}
+                    />
+                  </div>
+                  <div className="col-span-4">
+                    <label htmlFor="d-cliente-nome" className={lbl}>Razão social / nome</label>
+                    <input {...hydrationSafe} id="d-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-2">
+                    <label htmlFor="d-cliente-cnpj" className={lbl}>CNPJ/CPF</label>
+                    <input {...hydrationSafe} id="d-cliente-cnpj" name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-contato" className={lbl}>Contato</label>
+                    <input {...hydrationSafe} id="d-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-telefone" className={lbl}>Telefone</label>
+                    <input {...hydrationSafe} id="d-cliente-telefone" name="cliente_telefone" defaultValue={demanda.cliente_telefone ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-email" className={lbl}>E-mail</label>
+                    <input {...hydrationSafe} id="d-cliente-email" name="cliente_email" type="email" defaultValue={demanda.cliente_email ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3">
+                    <label htmlFor="d-cliente-endereco" className={lbl}>Endereço</label>
+                    <input {...hydrationSafe} id="d-cliente-endereco" name="cliente_endereco" defaultValue={demanda.cliente_endereco ?? ""} placeholder="Rua, nº · cidade/UF" className={campo} />
+                  </div>
                 </div>
-                <div className="col-span-12 sm:col-span-5">
-                  <label htmlFor="d-cliente-nome" className={lbl}>Razão social / nome</label>
-                  <input {...hydrationSafe} id="d-cliente-nome" name="cliente_nome" defaultValue={demanda.cliente_nome ?? ""} className={campo} />
-                </div>
-                <div className="col-span-12 sm:col-span-3">
-                  <label htmlFor="d-cliente-cnpj" className={lbl}>CNPJ/CPF</label>
-                  <input {...hydrationSafe} id="d-cliente-cnpj" name="cliente_cnpj" defaultValue={demanda.cliente_cnpj ?? ""} className={campo} />
-                </div>
-                <div className="col-span-12 sm:col-span-3">
-                  <label htmlFor="d-cliente-contato" className={lbl}>Contato</label>
-                  <input {...hydrationSafe} id="d-cliente-contato" name="cliente_contato" defaultValue={demanda.cliente_contato ?? ""} className={campo} />
-                </div>
-                <div className="col-span-12 sm:col-span-3">
-                  <label htmlFor="d-cliente-email" className={lbl}>E-mail</label>
-                  <input {...hydrationSafe} id="d-cliente-email" name="cliente_email" type="email" defaultValue={demanda.cliente_email ?? ""} className={campo} />
-                </div>
-                <div className="col-span-12 sm:col-span-2">
-                  <label htmlFor="d-cliente-telefone" className={lbl}>Telefone</label>
-                  <input {...hydrationSafe} id="d-cliente-telefone" name="cliente_telefone" defaultValue={demanda.cliente_telefone ?? ""} className={campo} />
-                </div>
-                <div className="col-span-12 sm:col-span-4">
-                  <label htmlFor="d-cliente-endereco" className={lbl}>Endereço</label>
-                  <input {...hydrationSafe} id="d-cliente-endereco" name="cliente_endereco" defaultValue={demanda.cliente_endereco ?? ""} placeholder="Rua, número · cidade/UF" className={campo} />
-                </div>
-              </div>
-            </fieldset>
+              </fieldset>
 
-            <fieldset className={grupo}>
-              <legend className={legenda}>Amostras e prazos</legend>
-              <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-                <div className="col-span-12 sm:col-span-4">
-                  <label htmlFor="d-matriz" className={lbl}>Matriz ou tipo de amostra</label>
-                  <input {...hydrationSafe} id="d-matriz" name="matriz_amostra" defaultValue={demanda.matriz_amostra ?? ""} className={campo} />
+              <fieldset className={`${grupo} lg:col-span-2 2xl:col-span-1`}>
+                <legend className={legenda}>Amostras e prazos</legend>
+                <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
+                  <div className="col-span-6 lg:col-span-4 2xl:col-span-6">
+                    <label htmlFor="d-matriz" className={lbl}>Matriz ou tipo de amostra</label>
+                    <input {...hydrationSafe} id="d-matriz" name="matriz_amostra" defaultValue={demanda.matriz_amostra ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-qtd" className={lbl}>Qtd. de amostras</label>
+                    <input {...hydrationSafe} id="d-qtd" name="quantidade_amostras_estimada" type="number" min="1" step="1" defaultValue={demanda.quantidade_amostras_estimada ?? ""} className={`${campo} text-right tabular-nums`} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-prazo-tecnico" className={lbl}>Prazo técnico (dias)</label>
+                    <input {...hydrationSafe} id="d-prazo-tecnico" name="prazo_tecnico_dias" type="number" min="1" step="1" defaultValue={demanda.prazo_tecnico_dias ?? ""} className={`${campo} text-right tabular-nums`} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-solicitacao" className={lbl}>Solicitado em</label>
+                    <input {...hydrationSafe} id="d-solicitacao" name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={campo} />
+                  </div>
+                  <div className="col-span-3 lg:col-span-2 2xl:col-span-3">
+                    <label htmlFor="d-prazo" className={lbl}>Prazo esperado</label>
+                    <input {...hydrationSafe} id="d-prazo" name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={campo} />
+                  </div>
                 </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <label htmlFor="d-qtd" className={lbl}>Qtd. de amostras</label>
-                  <input {...hydrationSafe} id="d-qtd" name="quantidade_amostras_estimada" type="number" min="1" step="1" defaultValue={demanda.quantidade_amostras_estimada ?? ""} className={`${campo} text-right tabular-nums`} />
-                </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <label htmlFor="d-solicitacao" className={lbl}>Solicitado em</label>
-                  <input {...hydrationSafe} id="d-solicitacao" name="data_solicitacao" type="date" defaultValue={demanda.data_solicitacao ?? ""} className={campo} />
-                </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <label htmlFor="d-prazo" className={lbl}>Prazo esperado</label>
-                  <input {...hydrationSafe} id="d-prazo" name="prazo_esperado" type="date" defaultValue={demanda.prazo_esperado ?? ""} className={campo} />
-                </div>
-                <div className="col-span-6 sm:col-span-2">
-                  <label htmlFor="d-prazo-tecnico" className={lbl}>Prazo técnico (dias)</label>
-                  <input {...hydrationSafe} id="d-prazo-tecnico" name="prazo_tecnico_dias" type="number" min="1" step="1" defaultValue={demanda.prazo_tecnico_dias ?? ""} className={`${campo} text-right tabular-nums`} />
-                </div>
-              </div>
-            </fieldset>
+              </fieldset>
 
-            <fieldset className={grupo}>
-              <legend className={legenda}>Textos</legend>
-              <div className="grid grid-cols-12 gap-x-3 gap-y-2">
-                <div className="col-span-12 md:col-span-4">
-                  <label htmlFor="d-descricao" className={lbl}>Descrição</label>
-                  <textarea {...hydrationSafe} id="d-descricao" name="descricao" rows={3} defaultValue={demanda.descricao ?? ""} className={`${inp} mt-1 w-full`} />
+              <fieldset className={`${grupo} lg:col-span-2 2xl:col-span-3`}>
+                <legend className={legenda}>Textos</legend>
+                <div className="clear-both grid gap-x-2.5 gap-y-1.5 md:grid-cols-3">
+                  <div>
+                    <label htmlFor="d-descricao" className={lbl}>Descrição</label>
+                    <textarea {...hydrationSafe} id="d-descricao" name="descricao" rows={2} defaultValue={demanda.descricao ?? ""} className={areaTexto} />
+                  </div>
+                  <div>
+                    <label htmlFor="d-escopo" className={lbl}>
+                      Escopo preliminar <span className="font-normal">(texto inicial da proposta)</span>
+                    </label>
+                    <textarea {...hydrationSafe} id="d-escopo" name="escopo_preliminar" rows={2} defaultValue={demanda.escopo_preliminar ?? ""} className={areaTexto} />
+                  </div>
+                  <div>
+                    <label htmlFor="d-observacoes" className={lbl}>Observações internas</label>
+                    <textarea {...hydrationSafe} id="d-observacoes" name="observacoes" rows={2} defaultValue={demanda.observacoes ?? ""} className={areaTexto} />
+                  </div>
                 </div>
-                <div className="col-span-12 md:col-span-4">
-                  <label htmlFor="d-escopo" className={lbl}>
-                    Escopo preliminar <span className="font-normal text-muted-foreground/80">(texto inicial da proposta)</span>
-                  </label>
-                  <textarea {...hydrationSafe} id="d-escopo" name="escopo_preliminar" rows={3} defaultValue={demanda.escopo_preliminar ?? ""} className={`${inp} mt-1 w-full`} />
-                </div>
-                <div className="col-span-12 md:col-span-4">
-                  <label htmlFor="d-observacoes" className={lbl}>Observações internas</label>
-                  <textarea {...hydrationSafe} id="d-observacoes" name="observacoes" rows={3} defaultValue={demanda.observacoes ?? ""} className={`${inp} mt-1 w-full`} />
-                </div>
-              </div>
-            </fieldset>
+              </fieldset>
+            </div>
           </SalvarDemandaForm>
         </section>
 
-        <section id="acoes" className={`mt-6 scroll-mt-20 grid gap-4 lg:grid-cols-3 2xl:grid-cols-4 ${passo("demanda")}`}>
+        <section id="acoes" className={`mt-3 scroll-mt-20 grid gap-3 lg:grid-cols-3 ${passo("demanda")}`}>
           <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
             <h2 className="text-sm font-semibold">Próximos módulos</h2>
             <p className="mt-1 text-xs leading-5 text-muted-foreground">

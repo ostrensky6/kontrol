@@ -110,6 +110,8 @@ export function DemandasTable({ rows }: { rows: DemandaRow[] }) {
       columns={columns}
       searchPlaceholder="Buscar orçamento, cliente ou projeto…"
       emptyText="Nenhum orçamento ainda."
+      // Busca e Fase à vista; Modalidade, Completude e Projeto em "Mais filtros" (como no Histórico).
+      filtrosVisiveis={1}
       filters={[
         {
           columnId: "faseLabel",
