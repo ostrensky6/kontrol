@@ -575,6 +575,8 @@ async function adicionarCustoCatalogoProjetoInterno(formData: FormData) {
     unidade: item.unidade,
     custo_unitario: Number(item.preco_unitario ?? 0),
     preco_unitario: Number(item.preco_unitario ?? 0),
+    // Valor do catálogo quando a linha entrou: a conclusão só grava se for alterado (0137).
+    catalogo_valor_base: Number(item.preco_unitario ?? 0),
     meses_selecionados: mesesSelecionados,
     origem: "catalogo",
     etapa: texto(formData, "etapa") || etapaPorRubrica(item.rubrica),
@@ -660,6 +662,7 @@ async function salvarViagensProjetoInterno(formData: FormData) {
           unidade: item.unidade,
           custo_unitario: Number(item.preco_unitario ?? 0),
           preco_unitario: Number(item.preco_unitario ?? 0),
+          catalogo_valor_base: Number(item.preco_unitario ?? 0),
           meses_selecionados: [],
           origem: "catalogo",
           etapa: etapaPorRubrica("VD"),

@@ -480,4 +480,45 @@ describe("actions de orcamento de projetos", () => {
     expect(insert).not.toHaveBeenCalled();
     expect(revalidatePath).toHaveBeenCalledWith("/orcamento/demandas/5");
   });
+  it("item do catálogo guarda o valor de referência para a conclusão saber se foi alterado", async () => {
+    const { adicionarCustoCatalogoProjeto } = await import("./orcamento-projetos");
+    rpc.mockResolvedValue({
+      data: [{ id: "MC-6", rubrica: "MC", descricao: "Papel toalha", unidade: "fardo", preco_unitario: 50, preco_mascarado: false, categoria: "Geral", ativo: true }],
+      error: null,
+    });
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("catalogo_item_id", "MC-6");
+    formData.set("quantidade", "3");
+
+    await expect(adicionarCustoCatalogoProjeto(formData)).resolves.toBeUndefined();
+
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      catalogo_item_id: "MC-6",
+      custo_unitario: 50,
+      catalogo_valor_base: 50,
+      quantidade: 3,
+      origem: "catalogo",
+    }));
+  });
+
+  it("linhas de viagem criadas do catálogo guardam o valor de referência", async () => {
+    const { salvarViagensProjeto } = await import("./orcamento-projetos");
+    lista = [];
+    rpc.mockResolvedValue({
+      data: [{ id: "VD-2", rubrica: "VD", descricao: "Hospedagem", unidade: "diárias de hotel", preco_unitario: 250, categoria: "Hospedagem", ativo: true }],
+      error: null,
+    });
+    const formData = new FormData();
+    formData.set("orcamento_projeto_id", "77");
+    formData.set("diarias_hospedagem", "4");
+    formData.set("quartos", "1");
+    formData.set("criar_linhas_padrao", "1");
+
+    await salvarViagensProjeto(formData);
+
+    expect(insert).toHaveBeenCalledWith([
+      expect.objectContaining({ catalogo_item_id: "VD-2", custo_unitario: 250, catalogo_valor_base: 250, quantidade: 4 }),
+    ]);
+  });
 });
