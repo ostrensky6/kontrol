@@ -35,6 +35,29 @@ plano: `docs/superpowers/plans/2026-09-28-reorganizacao-modulo-orcamentos.md`.
   emissão passa a guardar descrição/unidade/categoria dos custos do projeto e
   o nome das análises; impressão não leva o logo do Kontrol.
 
+## Auditoria de ocupação das telas (pedido do dono)
+
+Critérios: campos de 32 px aos pares, grupos lado a lado, nada esticado pela
+largura, filtros como no Histórico ("Mais filtros"), cartões numa faixa,
+detalhe recolhido. Altura da página em 1440 px:
+
+| Tela | Antes | Depois |
+|---|---|---|
+| Dados do orçamento (etapa 1) | ~1.600 | ~1.050 (formulário cabe numa tela) |
+| Novo orçamento | 2.006 | 1.324 |
+| Orçamento laboratorial | 2.737 | 1.579 |
+| Parâmetros econômicos | 2.482 | 1.133 |
+| Modelos e catálogo (aba Todas, 100 itens) | 6.986 | 3.959 (uma rubrica: ~2.200) |
+| Regras do orçamento | 3.383 | 1.598 |
+
+Também: etapa Laboratório com resumo numa linha; auditoria por campo sem
+"[object Object]" (`src/lib/orcamento/auditoria-resumo.ts`, mostra o
+subcampo alterado e agrupa alterações seguidas).
+
+Pendências fora do módulo: a página geral `/auditoria` tem o mesmo defeito
+"[object Object]" (pode usar `resumoDiffAuditoria`); o título "Governança e
+permissões" difere do menu "Regras do orçamento".
+
 ## Banco: migration 0135 (aditiva)
 
 `supabase/migrations/0135_proposta_documento_textos.sql` — tabelas
@@ -61,7 +84,8 @@ textos. Teste: `supabase/tests/proposta_documento_textos_0135.sql`.
 
 ## Verificação
 
-- Unitários: `npx vitest run` — 810 testes passando (após a junção do PR #50).
+- Unitários: `npx vitest run` — 822 testes passando (após a junção do PR #50
+  e a auditoria de telas).
 - `tsc` e `eslint` limpos; `next build` sem erros.
 - E2E (Supabase simulado): 50 de 50 passando, numa cópia limpa da branch sem
   `.env.local`. O teste da onda C (`e2e/orcamento-onda-c.spec.ts`, vindo do
