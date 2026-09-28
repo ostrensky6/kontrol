@@ -562,7 +562,10 @@ describe("actions de orcamento de projetos", () => {
   it("salva o orçamento como modelo guardando o vínculo com o catálogo", async () => {
     const { salvarComoTemplate } = await import("./orcamento-projetos");
     single.mockResolvedValue({ data: { demanda_id: 5, project_months: 12, lucro: 10 }, error: null });
-    lista = [{ rubrica: "MC", descricao: "Papel toalha", catalogo_item_id: "MC-6", quantidade: 2, custo_unitario: 55 }];
+    lista = [
+      { rubrica: "MC", descricao: "Papel toalha", catalogo_item_id: "MC-6", quantidade: 2, custo_unitario: 55 },
+      { rubrica: "PE", descricao: "Bolsista", catalogo_item_id: "PE-1", quantidade: 1, custo_unitario: 4000, preco_unitario: 4000 },
+    ];
     const formData = new FormData();
     formData.set("orcamento_projeto_id", "77");
     formData.set("nome", "Monitoramento padrão");
@@ -570,7 +573,11 @@ describe("actions de orcamento de projetos", () => {
     expect(await salvarComoTemplate(formData)).toEqual({ ok: true, message: "Modelo “Monitoramento padrão” salvo." });
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("gerir_modelos");
     expect(select).toHaveBeenCalledWith(expect.stringContaining("catalogo_item_id"));
-    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ nome: "Monitoramento padrão", itens: lista }));
+    // Pessoal vai sem valor para o modelo (quem lê modelos pode não ver pessoal).
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({
+      nome: "Monitoramento padrão",
+      itens: [lista[0], { ...lista[1], custo_unitario: null, preco_unitario: null }],
+    }));
   });
 
   it("salva viagens, recalcula linhas VD e cria as linhas padrão que faltam", async () => {

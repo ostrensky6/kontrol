@@ -970,7 +970,11 @@ export async function salvarComoTemplate(formData: FormData): Promise<EstadoAcao
       nome,
       descricao: texto(formData, "descricao"),
       origem: "kontrol",
-      itens: (custos ?? []) as unknown as Json,
+      // Pessoal sai sem valor: o modelo é lido por quem tem "Modelos e catálogos", que pode não ter
+      // a permissão de pessoal. Ao usar o modelo, o valor vem do catálogo (0139).
+      itens: (custos ?? []).map((item) =>
+        item.rubrica === "PE" ? { ...item, custo_unitario: null, preco_unitario: null } : item,
+      ) as unknown as Json,
       parametros: parametros as unknown as Json,
     });
     if (error) return falha(mensagemDoBanco(error));

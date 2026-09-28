@@ -86,6 +86,9 @@ jobs:
       - name: Validar reabrir, reformulação, modelos, pendências de pessoal e importação do catálogo
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/reformulacao_modelos_0139.sql
 
+      - name: Validar pessoal (PE) nas linhas de custo de projeto só com a permissão
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/pessoal_linhas_projeto_0140.sql
+
   check:
     runs-on: ubuntu-latest
     steps:
