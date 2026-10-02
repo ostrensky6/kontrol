@@ -184,9 +184,15 @@ export const APP_MODULES: AppModule[] = [
         showInTopNav: false,
       },
       {
+        href: "/estoque/leitura",
+        label: "Entrada e saída por leitura",
+        desc: "código de barras do fabricante: entrada e abertura de embalagem",
+        icon: "ScanLine",
+      },
+      {
         href: "/estoque/inventario",
         label: "Inventário",
-        desc: "contagem por local e lote, com ajuste de divergências",
+        desc: "contagem por insumo ou por lote, com ajuste de divergências",
         icon: "ClipboardCheck",
       },
       {

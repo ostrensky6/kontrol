@@ -13,6 +13,8 @@ import {
   type TipoResolucaoTriagem,
 } from "@/lib/scanner/triagem-resolucao";
 import { prepararTriagemCadastro } from "@/lib/scanner/triagem";
+import { chaveCodigoBarras } from "@/lib/scanner/codigo-barras";
+import { buscarIdentificadorAtivo } from "@/lib/scanner/vinculos-codigo";
 import type { FormState } from "./cadastros";
 
 function texto(formData: FormData, chave: string) {
@@ -109,14 +111,22 @@ async function vincularCodigoTriagem(args: {
   criadoPor: string | null;
 }): Promise<FormState | null> {
   const entidadeTipo = entidadeTipoParaResolucao(args.tipo);
-  const codigoNormalizado = normalizarCodigo(args.triagem.codigo);
+  // Código do fabricante (GS1 com lote/validade, GTIN-14) vira a chave do
+  // produto, para a próxima leitura ser reconhecida sozinha.
+  const ehCodigoKontrol = args.triagem.formato === "kontrol_interno" || args.triagem.formato === "url_kontrol";
+  const codigo = ehCodigoKontrol ? args.triagem.codigo : chaveCodigoBarras(args.triagem.codigo);
+  const codigoNormalizado = ehCodigoKontrol ? normalizarCodigo(args.triagem.codigo) : codigo;
   let identificadorCriadoId: number | null = null;
-  const { data: existente } = await args.supabase
-    .from("identificadores")
-    .select("id, entidade_tipo, entidade_id")
-    .eq("codigo_normalizado", codigoNormalizado)
-    .eq("ativo", true)
-    .maybeSingle();
+  const existente = ehCodigoKontrol
+    ? ((
+        await args.supabase
+          .from("identificadores")
+          .select("id, entidade_tipo, entidade_id")
+          .eq("codigo_normalizado", codigoNormalizado)
+          .eq("ativo", true)
+          .maybeSingle()
+      ).data as { entidade_tipo: string; entidade_id: number } | null)
+    : await buscarIdentificadorAtivo(args.supabase, args.triagem.codigo);
 
   if (existente) {
     const mesmoDestino =
@@ -132,12 +142,15 @@ async function vincularCodigoTriagem(args: {
     const { data: criado, error } = await args.supabase
       .from("identificadores")
       .insert({
-        codigo: args.triagem.codigo,
+        // tipo e valor: colunas obrigatórias da 0067 (sem elas o vínculo falhava)
+        tipo: ehCodigoKontrol ? "qr_interno" : "codigo_barras",
+        valor: codigo,
+        codigo,
         codigo_normalizado: codigoNormalizado,
-        formato: args.triagem.formato ?? "manual",
+        formato: ehCodigoKontrol ? args.triagem.formato : "codigo_barras",
         entidade_tipo: entidadeTipo,
         entidade_id: args.entidadeId,
-        origem: "manual",
+        origem: ehCodigoKontrol ? "kontrol" : entidadeTipo === "insumo" ? "fabricante" : "manual",
         metadata: { triagem_id: args.triagem.id },
         ativo: true,
         criado_por: args.criadoPor,
@@ -172,6 +185,10 @@ async function vincularCodigoTriagem(args: {
   }
 
   revalidarTriagem();
+  if (entidadeTipo === "insumo") {
+    revalidatePath("/cadastros/insumos");
+    revalidatePath("/estoque/leitura");
+  }
   return null;
 }
 

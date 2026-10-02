@@ -6,6 +6,8 @@ import {
 } from "@/lib/cadastros/config";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { CrudShell } from "@/components/cadastros/CrudShell";
+import { CODIGO_BARRAS_MAX, chaveCodigoBarras } from "@/lib/scanner/codigo-barras";
+import { codigosBarrasPorInsumo } from "@/lib/scanner/vinculos-codigo";
 import { HelpTip, TextoAjuda } from "@/components/common/HelpTip";
 import { loteBaixaDeDb, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
 import { equipCustoDia } from "@/lib/costing/engine";
@@ -181,8 +183,11 @@ export default async function CadastroPage({
       lotesPorInsumo.set(chave, [...(lotesPorInsumo.get(chave) ?? []), lote]);
     }
     const validadePorInsumo = menorValidadePorInsumo((lotes ?? []) as LoteValidade[]);
+    // códigos de barras do fabricante (identificadores), editados no formulário
+    const codigosPorInsumo = await codigosBarrasPorInsumo(supabase);
     linhas = linhas.map((r) => ({
       ...r,
+      codigos_barras: codigosPorInsumo.get(String(r.id)) ?? [],
       // a validade é do lote: a coluna mostra o lote com saldo que vence primeiro
       validade_lotes: validadePorInsumo.get(String(r.id)) ?? null,
       // embalagem de R$ 0: o insumo entra sem custo nas análises (CAD2-11)
@@ -302,6 +307,11 @@ export default async function CadastroPage({
             somenteLeitura={!podeEditar}
             podeMovimentarEstoque={podeMovimentarEstoque}
             podeCorrigirEstoque={podeCorrigirEstoque}
+            novoComCodigo={
+              slug === "insumos" && query.novo === "1" && typeof query.codigo === "string"
+                ? chaveCodigoBarras(query.codigo).slice(0, CODIGO_BARRAS_MAX) || undefined
+                : undefined
+            }
           />
         </div>
       </main>

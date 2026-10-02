@@ -429,6 +429,7 @@ export default async function SuprimentosPage() {
         <nav className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm" aria-label="Ferramentas de estoque">
           <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Ferramentas</span>
           <Link href="/estoque/controle" className="font-medium text-primary hover:underline">Controle de estoque</Link>
+          <Link href="/estoque/leitura" className="font-medium text-primary hover:underline">Entrada e saída por leitura</Link>
           <Link href="/estoque/inventario" className="font-medium text-primary hover:underline">Inventário (contagem)</Link>
           <Link href="/etiquetas" className="font-medium text-primary hover:underline">Etiquetas QR</Link>
           <Link href="/scanner/triagem" className="font-medium text-primary hover:underline">Códigos não reconhecidos</Link>

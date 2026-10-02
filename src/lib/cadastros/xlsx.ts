@@ -1,6 +1,8 @@
 import ExcelJS from "exceljs";
 import { CADASTROS, getCadastrosOrdenados, type CadastroConfig, type Campo } from "@/lib/cadastros/config";
 import {
+  CODIGOS_BARRAS_KEY,
+  CODIGOS_BARRAS_LABEL,
   QUANTIDADE_INSUMO_KEY,
   QUANTIDADE_INSUMO_LABEL,
   TECH_ID_HEADER,
@@ -11,6 +13,7 @@ import { VALOR_MASCARADO, estaMascarado } from "@/lib/cadastros/mascara";
 import { lerLinhasCadastro } from "@/lib/cadastros/salario";
 import { podeVerSalario } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { codigosBarrasPorInsumo } from "@/lib/scanner/vinculos-codigo";
 
 export { TECH_ID_HEADER, TECH_SUFFIX };
 
@@ -184,6 +187,7 @@ export function instrucoesImportacao(cadastros: CadastroConfig[]): string[] {
     "• Em registros existentes, célula vazia mantém o valor atual. Para limpar um campo, edite o registro no Kontrol.",
     "• Números aceitam o formato brasileiro (1.234,56) e datas aceitam dd/mm/aaaa.",
     `• Insumos: a coluna "${QUANTIDADE_INSUMO_LABEL}" só vale para itens novos e cria o estoque inicial (número inteiro de embalagens). Para itens existentes ela é ignorada; entradas e baixas são feitas em Estoque.`,
+    `• Insumos: na coluna "${CODIGOS_BARRAS_LABEL}" separe vários códigos por ponto e vírgula. A importação só acrescenta códigos; para tirar um código, edite o insumo no Kontrol. Código já vinculado a outro insumo é ignorado com aviso.`,
     '• Colunas terminadas em "ID" e colunas ocultas são técnicas: não as altere.',
     "",
     TITULO_OBRIGATORIAS,
@@ -260,6 +264,8 @@ export async function buildCadastrosWorkbook(slug?: string) {
         .select("insumo_id, status, quantidade_atual, validade, validade_apos_abertura, data_abertura");
       if (lotesError) throw new Error(lotesError.message);
       rows = projetarQuantidadeInsumos(rows, (lotes ?? []) as LoteInsumo[]);
+      const codigos = await codigosBarrasPorInsumo(supabase);
+      rows = rows.map((row) => ({ ...row, [CODIGOS_BARRAS_KEY]: (codigos.get(String(row.id)) ?? []).join("; ") }));
     }
     await addCadastroWorksheet(workbook, cfg, rows);
   }

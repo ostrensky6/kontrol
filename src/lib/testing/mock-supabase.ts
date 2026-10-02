@@ -379,6 +379,7 @@ const baseStore = (): Store => {
       insumo_id: 900,
       especificacao: "Kit extração E2E",
       unidade: "kit",
+      modelo_quantidade: "EMBALAGEM_FECHADA",
       em_maos: 60,
       em_quarentena: 0,
       reservado: 0,
@@ -430,6 +431,24 @@ const baseStore = (): Store => {
   ],
   estoque_movimentacoes: [],
   reservas_estoque: [],
+  // código de barras do fabricante do "Kit extração E2E" (0143)
+  identificadores: [
+    {
+      id: 1,
+      tipo: "codigo_barras",
+      valor: "7890000000900",
+      codigo: "7890000000900",
+      codigo_normalizado: "7890000000900",
+      formato: "codigo_barras",
+      entidade_tipo: "insumo",
+      entidade_id: 900,
+      origem: "fabricante",
+      ativo: true,
+      criado_em: "2026-01-01T00:00:00.000Z",
+    },
+  ],
+  scan_eventos: [],
+  cadastros_triagem: [],
   perfis: [{ id: "user-e2e", nome: "Admin E2E", email: "admin@example.com", papel: "admin" }],
   permissoes_categorias: MOCK_PERMISSOES_CATEGORIAS,
   notificacoes: [
@@ -1237,6 +1256,111 @@ function registrarSaidaManual(lote: Row, quantidade: number, motivo: string, ref
   }
 }
 
+/** Espelha as RPCs de leitura de código de barras (0143), sem pedido de compra. */
+function leituraRepetida(operacaoId: string) {
+  return (store.scan_eventos ?? []).find(
+    (e) =>
+      ["entrada_leitura", "saida_leitura"].includes(String(e.acao)) &&
+      (e.contexto as Row | undefined)?.operacao_id === operacaoId,
+  );
+}
+
+function resultadoLeitura(insumoId: number, lote: Row, quantidade: number, repetido: boolean) {
+  const fechadas = store.lotes_estoque
+    .filter((l) => Number(l.insumo_id) === insumoId && l.status === "aceito" && l.modelo_quantidade === "EMBALAGEM_FECHADA")
+    .reduce((acc, l) => acc + Number(l.quantidade_atual ?? 0), 0);
+  const saldo = store.v_estoque_saldo.find((item) => Number(item.insumo_id) === insumoId);
+  return {
+    insumo_id: insumoId,
+    especificacao: saldo?.especificacao ?? null,
+    lote_id: lote.id,
+    codigo_lote: lote.codigo_lote ?? null,
+    validade: lote.validade ?? null,
+    quantidade_embalagens: quantidade,
+    fechadas,
+    repetido,
+  };
+}
+
+function abrirEmbalagemPorLeitura(args: Row) {
+  const operacaoId = String(args.p_operacao_id ?? "");
+  const insumoId = Number(args.p_insumo_id);
+  const anterior = leituraRepetida(operacaoId);
+  if (anterior) return { ...(anterior.contexto as Row).resultado as Row, repetido: true };
+  const lote = store.lotes_estoque
+    .filter(
+      (l) =>
+        Number(l.insumo_id) === insumoId &&
+        l.status === "aceito" &&
+        l.modelo_quantidade === "EMBALAGEM_FECHADA" &&
+        (!l.validade || String(l.validade) >= hojeMock()) &&
+        Number(l.quantidade_atual ?? 0) - reservadoNoLote(Number(l.id)) >= 1,
+    )
+    .sort((a, b) => String(a.validade ?? "9999").localeCompare(String(b.validade ?? "9999")) || Number(a.id) - Number(b.id))[0];
+  if (!lote) throw new Error("Não há embalagem fechada deste insumo. Nada foi registrado.");
+  lote.quantidade_atual = Number(lote.quantidade_atual) - 1;
+  if (Number(lote.quantidade_atual) === 0) lote.status = "consumido";
+  registrarSaidaManual(lote, 1, "abertura de embalagem", operacaoId);
+  const resultado = resultadoLeitura(insumoId, lote, 1, false);
+  store.scan_eventos.push({
+    id: nextId("scan_eventos"),
+    codigo: args.p_codigo,
+    acao: "saida_leitura",
+    usuario_id: MOCK_USER_ID,
+    contexto: { operacao_id: operacaoId, lote_id: lote.id, resultado },
+  });
+  return resultado;
+}
+
+function registrarEntradaPorLeitura(args: Row) {
+  const operacaoId = String(args.p_operacao_id ?? "");
+  const insumoId = Number(args.p_insumo_id);
+  const anterior = leituraRepetida(operacaoId);
+  if (anterior) return { ...(anterior.contexto as Row).resultado as Row, repetido: true };
+  const quantidade = Number(args.p_quantidade_embalagens);
+  if (!Number.isInteger(quantidade) || quantidade <= 0) throw new Error("Informe ao menos 1 embalagem.");
+  const lote: Row = {
+    id: nextId("lotes_estoque"),
+    insumo_id: insumoId,
+    codigo_lote: `LEIT-${operacaoId.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+    validade: args.p_validade ?? null,
+    quantidade_inicial: quantidade,
+    quantidade_atual: quantidade,
+    status: "aceito",
+    modelo_quantidade: "EMBALAGEM_FECHADA",
+  };
+  store.lotes_estoque.push(lote);
+  const resultado = resultadoLeitura(insumoId, lote, quantidade, false);
+  store.scan_eventos.push({
+    id: nextId("scan_eventos"),
+    codigo: args.p_codigo,
+    acao: "entrada_leitura",
+    usuario_id: MOCK_USER_ID,
+    contexto: { operacao_id: operacaoId, lote_id: lote.id, resultado },
+  });
+  return resultado;
+}
+
+function desfazerLeituraEstoque(args: Row) {
+  const operacaoId = String(args.p_operacao_id ?? "");
+  const evento = leituraRepetida(operacaoId);
+  if (!evento) throw new Error("Leitura não encontrada.");
+  if ((store.scan_eventos ?? []).some((e) => e.acao === "desfazer_leitura" && (e.contexto as Row)?.operacao_id === operacaoId)) {
+    return { tipo: evento.acao === "saida_leitura" ? "saida" : "entrada", repetido: true };
+  }
+  const lote = store.lotes_estoque.find((l) => Number(l.id) === Number((evento.contexto as Row).lote_id));
+  if (!lote) throw new Error("Lote não encontrado.");
+  if (evento.acao === "saida_leitura") {
+    lote.quantidade_atual = Number(lote.quantidade_atual) + 1;
+    lote.status = "aceito";
+  } else {
+    lote.quantidade_atual = 0;
+    lote.status = "descartado";
+  }
+  store.scan_eventos.push({ id: nextId("scan_eventos"), acao: "desfazer_leitura", contexto: { operacao_id: operacaoId } });
+  return { tipo: evento.acao === "saida_leitura" ? "saida" : "entrada", repetido: false };
+}
+
 /** Espelha baixa_manual_lote (0028 + guardas de 0110). */
 function baixarManualLote(args: Row) {
   const lote = store.lotes_estoque.find((row) => Number(row.id) === Number(args.p_lote_id));
@@ -1960,6 +2084,19 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           return { data: null, error: null };
         } catch (error) {
           return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC" } };
+        }
+      }
+      if (fn === "abrir_embalagem_por_leitura" || fn === "registrar_entrada_por_leitura" || fn === "desfazer_leitura_estoque") {
+        try {
+          const data =
+            fn === "abrir_embalagem_por_leitura"
+              ? abrirEmbalagemPorLeitura(args)
+              : fn === "registrar_entrada_por_leitura"
+                ? registrarEntradaPorLeitura(args)
+                : desfazerLeituraEstoque(args);
+          return { data, error: null };
+        } catch (error) {
+          return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC", code: "22023" } };
         }
       }
       if (fn === "baixa_manual_embalagens") {

@@ -1,5 +1,6 @@
 "use server";
 
+import { unidadeDoLote } from "@/lib/inventario/contagem";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { usuarioAtual } from "@/lib/auth/roles";
@@ -15,6 +16,7 @@ import {
   normalizarCodigo,
   resolverIdentificadorInterno,
 } from "@/lib/scanner/identificadores";
+import { buscarIdentificadorAtivo } from "@/lib/scanner/vinculos-codigo";
 import type { FormState } from "./cadastros";
 
 function texto(formData: FormData, chave: string) {
@@ -61,6 +63,20 @@ export type ResultadoScannerRecebimento =
     };
 
 export type ResultadoScannerInventario =
+  | {
+      ok: true;
+      encontrado: true;
+      codigo: string;
+      /** código de barras do fabricante: contagem por insumo (embalagens fechadas, sem lote) */
+      tipo: "insumo";
+      id: number;
+      insumoDescricao: string | null;
+      /** embalagens fechadas no sistema (mesmo "em mãos" do Controle de Estoque) */
+      quantidadeAtual: number;
+      unidade: string | null;
+      porInsumo: boolean;
+      message: string;
+    }
   | {
       ok: true;
       encontrado: true;
@@ -140,6 +156,8 @@ async function registrarEventoScan(args: {
     const supabase = await createClientUntyped();
     await supabase.from("scan_eventos").insert({
       codigo: args.codigo,
+      // coluna obrigatória da 0067; sem ela nenhuma leitura ficava registrada
+      valor_lido: args.codigo,
       formato: args.formato ?? null,
       entidade_tipo: args.tipo ? entidadeScannerParaTipo(args.tipo) : null,
       entidade_id: args.id ?? null,
@@ -180,21 +198,13 @@ async function resolverCodigo(codigo: string): Promise<{
   if (rota) return { ...rota, formato: "url_kontrol" };
 
   const supabase = await createClientUntyped();
-  const { data } = await supabase
-    .from("identificadores")
-    .select("entidade_tipo, entidade_id, formato")
-    .eq("codigo_normalizado", normalizarCodigo(codigo))
-    .eq("ativo", true)
-    .maybeSingle();
+  // EAN-13, GTIN-14 e GS1 com lote/validade do mesmo produto caem no mesmo vínculo
+  const data = await buscarIdentificadorAtivo(supabase, codigo);
 
   const tipo = data?.entidade_tipo ? entidadeTipoRotaCurta(String(data.entidade_tipo)) : null;
   const id = Number(data?.entidade_id);
   if (tipo && Number.isInteger(id) && id > 0) {
-    return {
-      tipo,
-      id,
-      formato: data?.formato ? String(data.formato) : "identificador",
-    };
+    return { tipo, id, formato: "identificador" };
   }
 
   const interno = resolverIdentificadorInterno(codigo);
@@ -263,6 +273,34 @@ async function detalheRecebimento(tipo: EntidadeScanner, id: number) {
 async function detalheInventario(tipo: EntidadeScanner, id: number) {
   const supabase = await createClientUntyped();
 
+  if (tipo === "insumo") {
+    const { data } = await supabase
+      .from("v_estoque_saldo")
+      .select("insumo_id, especificacao, em_maos, unidade_saldo, modelo_quantidade")
+      .eq("insumo_id", id)
+      .maybeSingle();
+    if (!data?.insumo_id) return null;
+    // contagem sem lote = embalagens fechadas aceitas (mesma soma que o ajuste usa)
+    const { data: fechados } = await supabase
+      .from("lotes_estoque")
+      .select("quantidade_atual")
+      .eq("insumo_id", id)
+      .eq("status", "aceito")
+      .eq("modelo_quantidade", "EMBALAGEM_FECHADA");
+    const fechadas = ((fechados ?? []) as { quantidade_atual: number | null }[]).reduce(
+      (soma, lote) => soma + Number(lote.quantidade_atual ?? 0),
+      0,
+    );
+    return {
+      tipo: "insumo" as const,
+      id: Number(data.insumo_id),
+      insumoDescricao: data.especificacao ? String(data.especificacao) : null,
+      quantidadeAtual: data.modelo_quantidade === "EMBALAGEM_FECHADA" ? fechadas : Number(data.em_maos ?? 0),
+      unidade: data.unidade_saldo ? String(data.unidade_saldo) : null,
+      porInsumo: data.modelo_quantidade === "EMBALAGEM_FECHADA",
+    };
+  }
+
   if (tipo === "local") {
     const { data } = await supabase
       .from("locais")
@@ -282,7 +320,7 @@ async function detalheInventario(tipo: EntidadeScanner, id: number) {
   if (tipo === "lote") {
     const { data } = await supabase
       .from("lotes_estoque")
-      .select("id, codigo_lote, validade, quantidade_atual, local_id, locais(nome), insumos(especificacao, unidade)")
+      .select("id, codigo_lote, validade, quantidade_atual, local_id, modelo_quantidade, conteudo_embalagem_snapshot, unidade_fisica_snapshot, locais(nome), insumos(especificacao, unidade)")
       .eq("id", id)
       .maybeSingle();
 
@@ -305,7 +343,8 @@ async function detalheInventario(tipo: EntidadeScanner, id: number) {
       localId: data.local_id == null ? null : Number(data.local_id),
       localNome: local?.nome ?? null,
       insumoDescricao: insumo?.especificacao ?? null,
-      unidade: insumo?.unidade ?? null,
+      // mesma unidade do Controle de Estoque ("frasco(s) de 1000 Un")
+      unidade: unidadeDoLote(data, insumo?.unidade ?? null),
     };
   }
 
@@ -450,9 +489,9 @@ export async function resolverCodigoInventario(
       codigo,
       triagemUrl: `/scanner/desconhecido?codigo=${encodeURIComponent(codigo)}`,
       message:
-        resolvido.tipo === "local" || resolvido.tipo === "lote"
+        resolvido.tipo === "local" || resolvido.tipo === "lote" || resolvido.tipo === "insumo"
           ? "O item escaneado não está disponível para inventário."
-          : "Este código não corresponde a um local ou lote contável.",
+          : "Este código não corresponde a um local, insumo ou lote contável.",
     };
   }
 
@@ -464,7 +503,11 @@ export async function resolverCodigoInventario(
     message:
       detalhe.tipo === "local"
         ? "Local identificado para a contagem."
-        : "Lote identificado. Informe a quantidade contada antes de salvar.",
+        : detalhe.tipo === "insumo"
+          ? detalhe.porInsumo
+            ? "Insumo identificado. Conte as embalagens fechadas (sem separar por lote)."
+            : "Este insumo ainda é controlado por volume: leia a etiqueta do lote para contar."
+          : "Lote identificado. Informe a quantidade contada antes de salvar.",
   };
 }
 

@@ -28,6 +28,9 @@ import { lerLinhasCadastro, prepararSalarioTecnico } from "@/lib/cadastros/salar
 import { podeVerSalario } from "@/lib/auth/permissao-efetiva";
 import { dadosCriacaoInsumo } from "@/lib/cadastros/insumo-rpc";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { usuarioAtual } from "@/lib/auth/roles";
+import { CODIGO_BARRAS_MAX, codigoBarrasValido, separarCodigosBarras } from "@/lib/scanner/codigo-barras";
+import { conflitosCodigos, mensagemConflitos, sincronizarCodigosInsumo } from "@/lib/scanner/vinculos-codigo";
 
 /** Retorno padrão (EstadoAcao, src/lib/erros.ts) + id do registro criado. */
 export type FormState = EstadoAcao & {
@@ -297,6 +300,38 @@ function revalidarDependentes(slug: string) {
   for (const p of DEPENDENTES) revalidatePath(p);
 }
 
+/**
+ * Códigos de barras do formulário do insumo (campo próprio, não o "Código do
+ * fabricante"). null = o campo não veio no envio (nada a sincronizar).
+ */
+function codigosBarrasDoFormulario(formData: FormData): { codigos: string[]; erro: string | null } | null {
+  if (formData.get("_codigos_barras_enviado") !== "1") return null;
+  const codigos = separarCodigosBarras(formData.get("_codigos_barras"));
+  const invalido = codigos.find((codigo) => !codigoBarrasValido(codigo));
+  return {
+    codigos,
+    erro: invalido ? `Código de barras inválido ou maior que ${CODIGO_BARRAS_MAX} caracteres: ${invalido.slice(0, 30)}…` : null,
+  };
+}
+
+async function gravarCodigosBarras(
+  supabase: Awaited<ReturnType<typeof createClientUntyped>>,
+  insumoId: number,
+  codigos: string[],
+  remover: boolean,
+) {
+  const usuario = await usuarioAtual();
+  const resultado = await sincronizarCodigosInsumo(supabase, insumoId, codigos, {
+    remover,
+    criadoPor: usuario?.email ?? usuario?.id ?? null,
+  });
+  if (!resultado.erro) {
+    revalidatePath("/estoque/leitura");
+    revalidatePath("/scanner/triagem");
+  }
+  return resultado.erro;
+}
+
 function formToObject(formData: FormData): Record<string, unknown> {
   const o: Record<string, unknown> = {};
   for (const [k, v] of formData.entries()) {
@@ -443,6 +478,22 @@ export async function salvarRegistro(
 
   const supabase = await createClientUntyped();
 
+  const codigosBarras = slug === "insumos" ? codigosBarrasDoFormulario(formData) : null;
+  if (codigosBarras?.erro) {
+    return { ok: false, message: "Verifique os campos destacados.", errors: { codigos_barras: codigosBarras.erro } };
+  }
+  if (codigosBarras && codigosBarras.codigos.length > 0) {
+    // um código ativo aponta para um só cadastro: recusa antes de salvar
+    const conflitos = await conflitosCodigos(supabase, id, codigosBarras.codigos);
+    if (conflitos.length > 0) {
+      return {
+        ok: false,
+        message: "Verifique os campos destacados.",
+        errors: { codigos_barras: mensagemConflitos(conflitos) },
+      };
+    }
+  }
+
   if (slug === "locais") {
     const erroHierarquia = await conferirHierarquiaLocal(supabase, id, parsed.data.parent_id);
     if (erroHierarquia) {
@@ -456,6 +507,14 @@ export async function salvarRegistro(
     const { data, error } = await supabase.from(tabela).update(payload).eq("id", id).select("id");
     if (error) return { ok: false, message: mensagemRecusa(error) };
     if (!data?.length) return { ok: false, message: NADA_ALTERADO };
+
+    if (codigosBarras) {
+      const erroCodigos = await gravarCodigosBarras(supabase, id, codigosBarras.codigos, true);
+      if (erroCodigos) {
+        revalidarDependentes(slug);
+        return { ok: false, message: `Dados salvos, mas os códigos de barras não: ${erroCodigos}`, errors: { codigos_barras: erroCodigos } };
+      }
+    }
 
     revalidarDependentes(slug);
     return { ok: true, message: `Atualizado.${avisoSemCusto(slug, payload)}` };
@@ -494,8 +553,17 @@ export async function salvarRegistro(
       };
     }
 
+    const erroCodigos =
+      codigosBarras && codigosBarras.codigos.length > 0
+        ? await gravarCodigosBarras(supabase, createdId, codigosBarras.codigos, false)
+        : null;
+
     revalidarDependentes(slug);
-    return { ok: true, message: `Criado.${avisoSemCusto(slug, payload)}`, createdId };
+    return {
+      ok: true,
+      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}`,
+      createdId,
+    };
   }
 
   const { data, error } = await supabase.from(tabela).insert(payload).select("id").single();
@@ -621,6 +689,32 @@ async function importarCadastro(
     resumo.erros.push(...mensagens);
   };
 
+  // Insumos: códigos de barras da planilha só são acrescentados (nunca
+  // removidos); código de outro insumo vira aviso e não bloqueia a linha.
+  let usuarioImportacao: Awaited<ReturnType<typeof usuarioAtual>> | undefined;
+  const vincularCodigosDaLinha = async (insumoId: number, linha: { excelRow: number; codigosBarras: string[] | null }) => {
+    if (cfg.slug !== "insumos" || !linha.codigosBarras?.length) return 0;
+    const conflitos = await conflitosCodigos(supabase, insumoId, linha.codigosBarras);
+    for (const conflito of conflitos) {
+      resumo.avisos.push(
+        `Linha ${linha.excelRow}: código de barras ${conflito.codigo} já é de “${conflito.descricao}”; não foi vinculado.`,
+      );
+    }
+    const livres = linha.codigosBarras.filter((codigo) => !conflitos.some((c) => c.codigo === codigo));
+    if (livres.length === 0) return 0;
+    usuarioImportacao ??= await usuarioAtual();
+    const resultado = await sincronizarCodigosInsumo(supabase, insumoId, livres, {
+      remover: false,
+      criadoPor: usuarioImportacao?.email ?? usuarioImportacao?.id ?? null,
+      origem: "manual",
+    });
+    if (resultado.erro) {
+      resumo.avisos.push(`Linha ${linha.excelRow}: códigos de barras não gravados (${resultado.erro}).`);
+      return 0;
+    }
+    return resultado.adicionados;
+  };
+
   // Técnicos: "XXX"/em branco no salário = manter o atual; sem permissão o
   // salário da planilha é sempre ignorado (o banco rejeitaria a alteração).
   const validar = (registro: Record<string, unknown>) => {
@@ -665,6 +759,8 @@ async function importarCadastro(
       idsTocados.add(alvoId);
       if (naturalKey) naturaisImportados.add(naturalKey);
 
+      const codigosAdicionados = await vincularCodigosDaLinha(alvoId, linha);
+
       if (quantidadeAtual && linha.quantidade != null) {
         const atual = quantidadeAtual.get(String(alvoId)) ?? 0;
         if (!valoresEquivalentes(linha.quantidade, atual)) {
@@ -676,7 +772,12 @@ async function importarCadastro(
 
       const payload = diferencas(parsed.data, alvo);
       if (Object.keys(payload).length === 0) {
-        resumo.inalterados += 1;
+        if (codigosAdicionados > 0) {
+          resumo.atualizados += 1;
+          houveMudanca = true;
+        } else {
+          resumo.inalterados += 1;
+        }
         continue;
       }
       const { error } = await supabase.from(tabela).update(payload).eq("id", alvoId);
@@ -724,6 +825,8 @@ async function importarCadastro(
         continue;
       }
       if (naturalKey) naturaisImportados.add(naturalKey);
+      const novoId = Number((data as { insumo_id?: number } | null)?.insumo_id);
+      if (Number.isSafeInteger(novoId) && novoId > 0) await vincularCodigosDaLinha(novoId, linha);
       if ((data as { repetido?: boolean } | null)?.repetido) {
         resumo.inalterados += 1;
         resumo.avisos.push(
