@@ -12,6 +12,7 @@
  *   ausentes na planilha não são tocadas;
  * - a coluna de quantidade de insumos só vale para itens novos.
  */
+import { codigoBarrasValido, separarCodigosBarras } from "@/lib/scanner/codigo-barras";
 import { createHash } from "node:crypto";
 import type ExcelJS from "exceljs";
 import type { CadastroConfig, Campo } from "@/lib/cadastros/config";
@@ -26,6 +27,8 @@ export const TECH_SUFFIX = "__id";
 /** Chave e rótulo da coluna de quantidade (embalagens fechadas) de insumos. */
 export const QUANTIDADE_INSUMO_KEY = "quantidade";
 export const QUANTIDADE_INSUMO_LABEL = "Quantidade (embalagens fechadas)";
+export const CODIGOS_BARRAS_KEY = "codigos_barras";
+export const CODIGOS_BARRAS_LABEL = "Códigos de barras";
 
 /** Campos aceitos por public.criar_insumo_com_quantidade (migration 0109). */
 export const CAMPOS_RPC_INSUMO = [
@@ -157,6 +160,9 @@ export function mapaCabecalhos(cfg: CadastroConfig) {
   if (cfg.slug === "insumos") {
     mapa.set(normalizarChave(QUANTIDADE_INSUMO_LABEL), QUANTIDADE_INSUMO_KEY);
     mapa.set(normalizarChave("Quantidade"), QUANTIDADE_INSUMO_KEY);
+    mapa.set(normalizarChave(CODIGOS_BARRAS_LABEL), CODIGOS_BARRAS_KEY);
+    mapa.set(normalizarChave("Código de barras"), CODIGOS_BARRAS_KEY);
+    mapa.set(normalizarChave(CODIGOS_BARRAS_KEY), CODIGOS_BARRAS_KEY);
   }
   return mapa;
 }
@@ -164,6 +170,7 @@ export function mapaCabecalhos(cfg: CadastroConfig) {
 /** Rótulo amigável para mensagens de erro ("Valor da embalagem (R$)"). */
 export function rotuloCampo(cfg: CadastroConfig, chave: string) {
   if (cfg.slug === "insumos" && chave === QUANTIDADE_INSUMO_KEY) return QUANTIDADE_INSUMO_LABEL;
+  if (cfg.slug === "insumos" && chave === CODIGOS_BARRAS_KEY) return CODIGOS_BARRAS_LABEL;
   if (chave === "id") return TECH_ID_HEADER;
   return (
     cfg.campos.find((campo) => campo.name === chave)?.label ??
@@ -247,6 +254,8 @@ export type LinhaImportada = {
   valores: Record<string, unknown>;
   /** quantidade bruta (insumos), null quando a célula está vazia */
   quantidade: number | null;
+  /** insumos: códigos de barras da coluna própria (só acrescenta), null quando vazia */
+  codigosBarras: string[] | null;
   erros: string[];
 };
 
@@ -280,6 +289,7 @@ export function lerAbaCadastro(
     const erros: string[] = [];
     let id: unknown = null;
     let quantidade: number | null = null;
+    let codigosBarras: string[] | null = null;
     let temValor = false;
 
     row.eachCell({ includeEmpty: false }, (cell, colNumber) => {
@@ -300,6 +310,12 @@ export function lerAbaCadastro(
         const numero = parseNumeroBr(bruto);
         if (numero == null) erros.push(erroLinha(rowNumber, QUANTIDADE_INSUMO_LABEL, "número inválido"));
         else quantidade = numero;
+        return;
+      }
+      if (chave === CODIGOS_BARRAS_KEY && cfg.slug === "insumos") {
+        codigosBarras = separarCodigosBarras(bruto);
+        const longo = codigosBarras.find((codigo) => !codigoBarrasValido(codigo));
+        if (longo) erros.push(erroLinha(rowNumber, CODIGOS_BARRAS_LABEL, `código inválido (${longo.slice(0, 20)}…)`));
         return;
       }
       const campo = campoPorNome.get(chave);
@@ -334,6 +350,7 @@ export function lerAbaCadastro(
       id: idNumero != null && Number.isSafeInteger(idNumero) && idNumero > 0 ? idNumero : null,
       valores,
       quantidade,
+      codigosBarras,
       erros,
     });
   });

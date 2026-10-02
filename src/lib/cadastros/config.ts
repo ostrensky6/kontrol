@@ -250,6 +250,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       // Só vale para itens novos na importação (estoque inicial); para itens
       // existentes é informativa — entradas e baixas passam pelo Estoque.
       { key: "quantidade", label: "Quantidade (embalagens fechadas)", tipo: "number" },
+      // códigos de barras do fabricante (identificadores); na importação só acrescenta
+      { key: "codigos_barras", label: "Códigos de barras" },
     ],
     campos: [
       {

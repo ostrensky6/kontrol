@@ -9,8 +9,20 @@ import { resumoDiffAuditoria } from "@/lib/orcamento/auditoria-resumo";
 
 export const dynamic = "force-dynamic";
 
-const TABELAS = ["", "lotes_estoque", "insumos", "reservas_estoque", "pedidos_compra", "tecnicos"];
+const TABELAS = [
+  "",
+  "estoque_movimentacoes",
+  "lotes_estoque",
+  "insumos",
+  "identificadores",
+  "reservas_estoque",
+  "pedidos_compra",
+  "tecnicos",
+];
 const LABEL: Record<string, string> = {
+  // entradas, saídas (abertura de embalagem), baixas e ajustes, inclusive por leitura
+  estoque_movimentacoes: "Movimentações de estoque",
+  identificadores: "Códigos de barras",
   lotes_estoque: "Lotes",
   insumos: "Insumos",
   reservas_estoque: "Reservas",
@@ -56,6 +68,26 @@ export default async function AuditoriaPage({
     .limit(200);
   if (tabela) q = q.eq("tabela", tabela);
   const [{ data: registros }, podeVerSalarios] = await Promise.all([q, podeVerSalario()]);
+
+  // insumo de cada registro de estoque (movimento, lote, código de barras), para
+  // a trilha dizer "o quê" sem abrir o JSON
+  const insumoDoRegistro = (r: { tabela: string; valor_anterior: unknown; valor_novo: unknown }) => {
+    const v = (r.valor_novo ?? r.valor_anterior ?? {}) as Record<string, unknown>;
+    if (r.tabela === "identificadores") return v.entidade_tipo === "insumo" ? Number(v.entidade_id) : null;
+    if (["estoque_movimentacoes", "lotes_estoque", "reservas_estoque"].includes(r.tabela)) return Number(v.insumo_id);
+    return null;
+  };
+  const idsInsumos = [
+    ...new Set(
+      (registros ?? [])
+        .map(insumoDoRegistro)
+        .filter((id): id is number => Number.isSafeInteger(id) && Number(id) > 0),
+    ),
+  ];
+  const { data: insumosNomes } = idsInsumos.length
+    ? await supabase.from("insumos").select("id, especificacao").in("id", idsInsumos)
+    : { data: [] as { id: number; especificacao: string | null }[] };
+  const nomeInsumo = new Map((insumosNomes ?? []).map((i) => [Number(i.id), i.especificacao ?? `Insumo #${i.id}`]));
   const linhas: AuditoriaRow[] = (registros ?? []).map((original) => {
     // Defesa em profundidade: a policy da 0112 já esconde o salário; aqui ele
     // nunca é serializado para o cliente sem a permissão.
@@ -74,7 +106,7 @@ export default async function AuditoriaPage({
       usuario: r.usuario ?? "—",
       tabela: r.tabela,
       tabelaLabel: LABEL[r.tabela] ?? r.tabela,
-      registro: `#${r.registro_id}`,
+      registro: [`#${r.registro_id}`, nomeInsumo.get(Number(insumoDoRegistro(r)))].filter(Boolean).join(" · "),
       acao: r.acao,
       acaoLabel: a.label,
       alteracao: resumoDiff(r.acao, r.valor_anterior, r.valor_novo),

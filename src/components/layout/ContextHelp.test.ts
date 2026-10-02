@@ -24,6 +24,7 @@ describe("ajuda contextual", () => {
 
   it("escolhe a regra mais específica por rota", () => {
     expect(ajudaParaRota("/estoque/inventario").title).toBe("Inventário");
+    expect(ajudaParaRota("/estoque/leitura").title).toBe("Entrada e saída por leitura");
     expect(ajudaParaRota("/orcamento/demandas").title).toBe("Orçamento");
     expect(ajudaParaRota("/parametros").title).toBe("Custeio");
     expect(ajudaParaRota("/qualquer-coisa").title).toBe("Kontrol");

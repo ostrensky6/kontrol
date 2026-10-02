@@ -32,7 +32,15 @@ const registrarContagemSchema = z.object({
     (v) => (v === "" || v == null ? null : Number(v)),
     z.number().int().positive().nullable(),
   ),
-  lote_id: z.preprocess((v) => Number(v), z.number().int().positive()),
+  // contagem por lote ou por insumo (embalagens fechadas, sem lote; 0143)
+  lote_id: z.preprocess(
+    (v) => (v === "" || v == null ? null : Number(v)),
+    z.number().int().positive().nullable(),
+  ),
+  insumo_id: z.preprocess(
+    (v) => (v === "" || v == null ? null : Number(v)),
+    z.number().int().positive().nullable(),
+  ),
   quantidade_contada: z.preprocess(
     (v) => (v === "" || v == null ? undefined : Number(v)),
     z.number({ error: "Obrigatório" }).min(0, "Deve ser >= 0"),
@@ -93,33 +101,61 @@ export async function registrarContagemInventario(
     ciclo_id: formData.get("ciclo_id"),
     local_id: formData.get("local_id"),
     lote_id: formData.get("lote_id"),
+    insumo_id: formData.get("insumo_id"),
     quantidade_contada: formData.get("quantidade_contada"),
     justificativa: formData.get("justificativa"),
   });
   if (!parsed.success) {
     return { ok: false, message: "Verifique os campos.", errors: formErrors(parsed.error) };
   }
+  const porInsumo = parsed.data.lote_id == null;
+  if (porInsumo && parsed.data.insumo_id == null) {
+    return { ok: false, message: "Escolha o lote ou o insumo contado.", errors: { lote_id: "Obrigatório" } };
+  }
+  if (porInsumo && !Number.isInteger(parsed.data.quantidade_contada)) {
+    return {
+      ok: false,
+      message: "Na contagem por insumo, informe o número de embalagens fechadas (inteiro).",
+      errors: { quantidade_contada: "Número inteiro de embalagens" },
+    };
+  }
 
   const supabase = await createClientUntyped();
-  const [{ data: ciclo }, { data: lote }] = await Promise.all([
+  const [{ data: ciclo }, { data: lote }, { data: fechados }] = await Promise.all([
     supabase
       .from("inventario_ciclos")
       .select("id, status")
       .eq("id", parsed.data.ciclo_id)
       .maybeSingle(),
-    supabase
-      .from("lotes_estoque")
-      .select("id, quantidade_atual, local_id")
-      .eq("id", parsed.data.lote_id)
-      .maybeSingle(),
+    porInsumo
+      ? Promise.resolve({ data: null })
+      : supabase
+          .from("lotes_estoque")
+          .select("id, quantidade_atual, local_id")
+          .eq("id", parsed.data.lote_id as number)
+          .maybeSingle(),
+    porInsumo
+      ? supabase
+          .from("lotes_estoque")
+          .select("quantidade_atual")
+          .eq("insumo_id", parsed.data.insumo_id as number)
+          .eq("status", "aceito")
+          .eq("modelo_quantidade", "EMBALAGEM_FECHADA")
+      : Promise.resolve({ data: null }),
   ]);
 
   if (!ciclo?.id || ciclo.status !== "aberto") {
     return { ok: false, message: "Campanha de inventário não está aberta." };
   }
-  if (!lote?.id) return { ok: false, message: "Lote não encontrado." };
+  if (!porInsumo && !lote?.id) return { ok: false, message: "Lote não encontrado." };
 
-  const quantidadeSistema = Number(lote.quantidade_atual ?? 0);
+  // por insumo: embalagens fechadas aceitas, a mesma soma que o ajuste confere
+  const quantidadeSistema = porInsumo
+    ? ((fechados ?? []) as { quantidade_atual: number | null }[]).reduce(
+        (soma, item) => soma + Number(item.quantidade_atual ?? 0),
+        0,
+      )
+    : Number(lote?.quantidade_atual ?? 0);
   const divergencia = calcularDivergenciaInventario(
     quantidadeSistema,
     parsed.data.quantidade_contada,
@@ -138,8 +174,9 @@ export async function registrarContagemInventario(
   const usuario = await usuarioAtual();
   const { error } = await supabase.from("inventario_contagens").insert({
     ciclo_id: parsed.data.ciclo_id,
-    local_id: parsed.data.local_id ?? lote.local_id ?? null,
+    local_id: parsed.data.local_id ?? lote?.local_id ?? null,
     lote_id: parsed.data.lote_id,
+    insumo_id: porInsumo ? parsed.data.insumo_id : null,
     quantidade_sistema: divergencia.quantidadeSistema,
     quantidade_contada: divergencia.quantidadeContada,
     divergencia: divergencia.divergencia,
@@ -181,7 +218,7 @@ export async function aplicarAjusteContagemInventario(
 
   revalidatePath("/estoque");
   revalidatePath("/estoque/inventario");
-  return { ok: true, message: "Ajuste auditado aplicado ao lote." };
+  return { ok: true, message: "Ajuste auditado aplicado ao estoque." };
 }
 
 const fecharCicloSchema = z.object({

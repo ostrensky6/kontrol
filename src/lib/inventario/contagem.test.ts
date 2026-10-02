@@ -3,6 +3,7 @@ import {
   calcularDivergenciaInventario,
   descreverDiferencaInventario,
   exigeJustificativaInventario,
+  unidadeDoLote,
 } from "./contagem";
 
 describe("contagem de inventario", () => {
@@ -56,5 +57,16 @@ describe("frase da diferença de inventário", () => {
 
   it("usa vírgula decimal", () => {
     expect(descreverDiferencaInventario(2.5, 1, "L").curta).toBe("Faltam 1,5 L");
+  });
+
+  it("unidade do lote igual à do Controle de Estoque", () => {
+    expect(
+      unidadeDoLote(
+        { modelo_quantidade: "EMBALAGEM_FECHADA", conteudo_embalagem_snapshot: "1000", unidade_fisica_snapshot: "Un" },
+        "Un",
+      ),
+    ).toBe("frasco(s) de 1000 Un");
+    expect(unidadeDoLote({ modelo_quantidade: "LEGADO" }, "mL")).toBe("mL");
+    expect(unidadeDoLote(null, "mL")).toBe("mL");
   });
 });

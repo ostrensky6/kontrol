@@ -6,21 +6,28 @@ import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { formatDate, formatNumber } from "@/lib/formatters";
-import { descreverDiferencaInventario } from "@/lib/inventario/contagem";
+import { descreverDiferencaInventario, unidadeDoLote, type LoteUnidade } from "@/lib/inventario/contagem";
 import {
   InventarioScannerPanel,
   type InventarioCicloOpcao,
   type InventarioLocalOpcao,
+  type InventarioInsumoOpcao,
   type InventarioLoteOpcao,
 } from "@/components/estoque/InventarioScannerPanel";
 import { InventarioAjusteButton } from "@/components/estoque/InventarioAjusteButton";
 
 export const dynamic = "force-dynamic";
 
+type LoteDaContagem = LoteUnidade & {
+  codigo_lote: string | null;
+  insumos: { especificacao: string | null; unidade: string | null } | null;
+};
+
 type ContagemRow = {
   id: number;
   ciclo_id: number;
-  lote_id: number;
+  lote_id: number | null;
+  insumo_id: number | null;
   quantidade_sistema: number;
   quantidade_contada: number;
   divergencia: number;
@@ -29,22 +36,43 @@ type ContagemRow = {
   contado_em: string;
   inventario_ciclos: { nome: string | null } | null;
   locais: { nome: string | null } | null;
-  lotes_estoque: {
-    codigo_lote: string | null;
-    insumos: { especificacao: string | null; unidade: string | null } | null;
-  } | null;
+  lotes_estoque: LoteDaContagem | null;
+  insumos: { especificacao: string | null } | null;
 };
 
 type ContagemAberta = {
   id: number;
   ciclo_id: number;
-  lote_id: number;
+  lote_id: number | null;
+  insumo_id: number | null;
   quantidade_sistema: number;
   quantidade_contada: number;
   divergencia: number;
   ajuste_aplicado: boolean;
   lotes_estoque: ContagemRow["lotes_estoque"] | ContagemRow["lotes_estoque"][];
+  insumos: ContagemRow["insumos"] | ContagemRow["insumos"][];
 };
+
+/** O que foi contado e em que unidade: lote ("frasco(s) de 1000 Un") ou insumo inteiro (frascos fechados). */
+function descreverAlvo(c: {
+  lote_id: number | null;
+  lotes_estoque: unknown;
+  insumos: unknown;
+}) {
+  const lote = firstRelation(c.lotes_estoque as LoteDaContagem | LoteDaContagem[] | null);
+  if (c.lote_id != null) {
+    const insumo = firstRelation(lote?.insumos);
+    return {
+      lote: lote?.codigo_lote ? `#${c.lote_id} · ${lote.codigo_lote}` : `#${c.lote_id}`,
+      insumo: insumo?.especificacao ?? null,
+      unidade: unidadeDoLote(lote, insumo?.unidade ?? null),
+    };
+  }
+  const insumo = firstRelation(c.insumos as { especificacao: string | null } | { especificacao: string | null }[] | null);
+  return { lote: "todos os lotes", insumo: insumo?.especificacao ?? null, unidade: "frasco(s)" };
+}
+
+const LOTE_SELECT = "codigo_lote, modelo_quantidade, conteudo_embalagem_snapshot, unidade_fisica_snapshot, insumos(especificacao, unidade)";
 
 function firstRelation<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
@@ -55,7 +83,7 @@ export default async function InventarioPage() {
   const podeCriar = await pode("estoque.lote.gerir");
   const podeAjustar = await pode("estoque.lote.gerir");
 
-  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }] = await Promise.all([
+  const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }, { data: saldos }] = await Promise.all([
     supabase
       .from("inventario_ciclos")
       .select("id, nome")
@@ -64,14 +92,20 @@ export default async function InventarioPage() {
     supabase.from("locais").select("id, nome").order("nome"),
     supabase
       .from("lotes_estoque")
-      .select("id, codigo_lote, quantidade_atual, local_id, locais(nome), insumos(especificacao, unidade)")
+      .select("id, insumo_id, status, codigo_lote, quantidade_atual, local_id, modelo_quantidade, conteudo_embalagem_snapshot, unidade_fisica_snapshot, locais(nome), insumos(especificacao, unidade)")
       .not("status", "in", "(consumido,descartado)")
       .order("id", { ascending: false }),
     supabase
       .from("inventario_contagens")
-      .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, inventario_ciclos(nome), locais(nome), lotes_estoque(codigo_lote, insumos(especificacao, unidade))")
+      .select(`id, ciclo_id, lote_id, insumo_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, inventario_ciclos(nome), locais(nome), lotes_estoque(${LOTE_SELECT}), insumos(especificacao)`)
       .order("contado_em", { ascending: false })
       .limit(25),
+    // insumos contados em embalagens fechadas: contagem sem lote
+    supabase
+      .from("v_estoque_saldo")
+      .select("insumo_id, especificacao, unidade_saldo, modelo_quantidade")
+      .eq("modelo_quantidade", "EMBALAGEM_FECHADA")
+      .order("especificacao"),
   ]);
 
   // campanhas abertas: quantas contagens e quantas diferenças ainda sem ajuste
@@ -79,7 +113,7 @@ export default async function InventarioPage() {
   const { data: contagensAbertas } = idsAbertos.length
     ? await supabase
         .from("inventario_contagens")
-        .select("id, ciclo_id, lote_id, quantidade_sistema, quantidade_contada, divergencia, ajuste_aplicado, lotes_estoque(codigo_lote, insumos(especificacao, unidade))")
+        .select(`id, ciclo_id, lote_id, insumo_id, quantidade_sistema, quantidade_contada, divergencia, ajuste_aplicado, lotes_estoque(${LOTE_SELECT}), insumos(especificacao)`)
         .in("ciclo_id", idsAbertos)
     : { data: [] as ContagemAberta[] };
   const abertas = (contagensAbertas ?? []) as unknown as ContagemAberta[];
@@ -87,12 +121,11 @@ export default async function InventarioPage() {
   const diferencasPendentes = abertas
     .filter((c) => !c.ajuste_aplicado && Math.abs(Number(c.divergencia ?? 0)) > 0.000001)
     .map((c) => {
-      const lote = firstRelation(c.lotes_estoque);
-      const insumo = firstRelation(lote?.insumos);
+      const alvo = descreverAlvo(c);
       return {
         id: c.id,
-        item: [insumo?.especificacao, lote?.codigo_lote ? `lote ${lote.codigo_lote}` : `lote #${c.lote_id}`].filter(Boolean).join(" · "),
-        frase: descreverDiferencaInventario(Number(c.quantidade_sistema ?? 0), Number(c.quantidade_contada ?? 0), insumo?.unidade).frase,
+        item: [alvo.insumo, c.lote_id != null ? `lote ${alvo.lote}` : alvo.lote].filter(Boolean).join(" · "),
+        frase: descreverDiferencaInventario(Number(c.quantidade_sistema ?? 0), Number(c.quantidade_contada ?? 0), alvo.unidade).frase,
       };
     });
   const resumoCiclos = (ciclos ?? []).map((ciclo) => {
@@ -129,9 +162,22 @@ export default async function InventarioPage() {
       localId: lote.local_id == null ? null : Number(lote.local_id),
       localNome: local?.nome ?? null,
       insumoDescricao: insumo?.especificacao ?? null,
-      unidade: insumo?.unidade ?? null,
+      // mesma unidade do Controle de Estoque ("frasco(s) de 1000 Un")
+      unidade: unidadeDoLote(lote as LoteUnidade, insumo?.unidade ?? null),
     };
   });
+  const fechadasPorInsumo = new Map<number, number>();
+  for (const lote of lotes ?? []) {
+    if (lote.status !== "aceito" || lote.modelo_quantidade !== "EMBALAGEM_FECHADA") continue;
+    const id = Number(lote.insumo_id);
+    fechadasPorInsumo.set(id, (fechadasPorInsumo.get(id) ?? 0) + Number(lote.quantidade_atual ?? 0));
+  }
+  const insumosOpcoes: InventarioInsumoOpcao[] = (saldos ?? []).map((saldo) => ({
+    id: Number(saldo.insumo_id),
+    descricao: saldo.especificacao ? String(saldo.especificacao) : `Insumo #${saldo.insumo_id}`,
+    fechadas: fechadasPorInsumo.get(Number(saldo.insumo_id)) ?? 0,
+    unidade: saldo.unidade_saldo ? String(saldo.unidade_saldo) : null,
+  }));
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -250,7 +296,12 @@ export default async function InventarioPage() {
         )}
 
         <div className="mt-8">
-          <InventarioScannerPanel ciclos={ciclosOpcoes} locais={locaisOpcoes} lotes={lotesOpcoes} />
+          <InventarioScannerPanel
+            ciclos={ciclosOpcoes}
+            locais={locaisOpcoes}
+            lotes={lotesOpcoes}
+            insumos={insumosOpcoes}
+          />
         </div>
 
         <section className="mt-8 rounded-xl border border-border bg-card shadow-sm">
@@ -262,7 +313,7 @@ export default async function InventarioPage() {
               <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Campanha</th>
-                  <th className="px-4 py-3 text-left">Lote</th>
+                  <th className="px-4 py-3 text-left">Lote ou insumo</th>
                   <th className="px-4 py-3 text-left">Local</th>
                   <th className="px-4 py-3 text-right">Sistema</th>
                   <th className="px-4 py-3 text-right">Contado</th>
@@ -275,13 +326,12 @@ export default async function InventarioPage() {
                 {((contagens ?? []) as unknown as ContagemRow[]).map((contagem) => {
                   const ciclo = firstRelation(contagem.inventario_ciclos);
                   const local = firstRelation(contagem.locais);
-                  const lote = firstRelation(contagem.lotes_estoque);
-                  const insumo = firstRelation(lote?.insumos);
+                  const alvo = descreverAlvo(contagem);
                   const divergente = Math.abs(Number(contagem.divergencia ?? 0)) > 0.000001;
                   const diferenca = descreverDiferencaInventario(
                     Number(contagem.quantidade_sistema ?? 0),
                     Number(contagem.quantidade_contada ?? 0),
-                    insumo?.unidade,
+                    alvo.unidade,
                   );
                   return (
                     <tr key={contagem.id}>
@@ -289,13 +339,15 @@ export default async function InventarioPage() {
                         {ciclo?.nome ?? `#${contagem.ciclo_id}`}
                         <span className="block text-xs text-muted-foreground">{formatDate(contagem.contado_em)}</span>
                       </td>
-                      <td className="max-w-xs truncate px-4 py-3" title={insumo?.especificacao ?? ""}>
-                        #{contagem.lote_id}
-                        {lote?.codigo_lote ? ` · ${lote.codigo_lote}` : ""}
-                        {insumo?.especificacao ? ` · ${insumo.especificacao}` : ""}
+                      <td className="max-w-xs truncate px-4 py-3" title={alvo.insumo ?? ""}>
+                        {alvo.lote}
+                        {alvo.insumo ? ` · ${alvo.insumo}` : ""}
                       </td>
                       <td className="px-4 py-3">{local?.nome ?? "—"}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">{formatNumber(contagem.quantidade_sistema)}</td>
+                      <td className="px-4 py-3 text-right tabular-nums">
+                        {formatNumber(contagem.quantidade_sistema)}
+                        {alvo.unidade && <span className="block text-xs text-muted-foreground">{alvo.unidade}</span>}
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums">{formatNumber(contagem.quantidade_contada)}</td>
                       <td
                         className={`whitespace-nowrap px-4 py-3 text-right tabular-nums ${divergente ? "font-medium text-warning-strong" : "text-brand-700 dark:text-brand-300"}`}

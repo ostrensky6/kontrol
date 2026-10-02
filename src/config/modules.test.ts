@@ -46,6 +46,7 @@ describe("APP_MODULES", () => {
         "/projetos",
         "/parametros",
         "/estoque/inventario",
+        "/estoque/leitura",
         "/etiquetas",
         "/scanner/triagem",
       ]),
@@ -56,6 +57,7 @@ describe("APP_MODULES", () => {
     expect(moduleIsActive(modulo("orcamentos"), "/projetos/7")).toBe(true);
     expect(moduleIsActive(modulo("operacao"), "/parametros")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/estoque/inventario")).toBe(true);
+    expect(moduleIsActive(modulo("suprimentos"), "/estoque/leitura")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/etiquetas")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/scanner/triagem")).toBe(true);
     expect(moduleIsActive(modulo("orcamentos"), "/projetosx")).toBe(false);

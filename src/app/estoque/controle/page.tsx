@@ -135,6 +135,7 @@ export default async function EstoqueControlePage() {
               </HelpTip>
             </div>
             <nav aria-label="Ferramentas de estoque" className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
+              <Link href="/estoque/leitura" className="font-medium text-primary hover:underline">Entrada e saída por leitura</Link>
               <Link href="/estoque/inventario" className="font-medium text-primary hover:underline">Inventário (contagem)</Link>
               <Link href="/etiquetas?tipo=lotes" className="font-medium text-primary hover:underline">Etiquetas QR</Link>
               <Link href="/scanner/triagem" className="font-medium text-primary hover:underline">Códigos não reconhecidos</Link>

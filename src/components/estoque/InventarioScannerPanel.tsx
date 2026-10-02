@@ -41,14 +41,26 @@ export type InventarioLoteOpcao = {
   unidade: string | null;
 };
 
+/** Insumo contado sem lote: total de embalagens fechadas (0143). */
+export type InventarioInsumoOpcao = {
+  id: number;
+  descricao: string;
+  fechadas: number;
+  unidade: string | null;
+};
+
+type Alvo = "lote" | "insumo";
+
 export function InventarioScannerPanel({
   ciclos,
   locais,
   lotes,
+  insumos = [],
 }: {
   ciclos: InventarioCicloOpcao[];
   locais: InventarioLocalOpcao[];
   lotes: InventarioLoteOpcao[];
+  insumos?: InventarioInsumoOpcao[];
 }) {
   const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -62,7 +74,9 @@ export function InventarioScannerPanel({
   const uid = useId();
   const [cicloId, setCicloId] = useState(ciclos[0]?.id ? String(ciclos[0].id) : "");
   const [localId, setLocalId] = useState("");
+  const [alvo, setAlvo] = useState<Alvo>(insumos.length > 0 ? "insumo" : "lote");
   const [loteId, setLoteId] = useState("");
+  const [insumoId, setInsumoId] = useState("");
   const [quantidadeContada, setQuantidadeContada] = useState("");
   const [justificativa, setJustificativa] = useState("");
   const [state, setState] = useState<FormState>({ ok: false });
@@ -71,9 +85,16 @@ export function InventarioScannerPanel({
     () => lotes.find((lote) => String(lote.id) === loteId) ?? null,
     [loteId, lotes],
   );
-  const quantidadeSistema = loteSelecionado?.quantidadeAtual ?? 0;
+  const insumoSelecionado = useMemo(
+    () => insumos.find((insumo) => String(insumo.id) === insumoId) ?? null,
+    [insumoId, insumos],
+  );
+  const quantidadeSistema =
+    alvo === "insumo" ? (insumoSelecionado?.fechadas ?? 0) : (loteSelecionado?.quantidadeAtual ?? 0);
+  const unidadeSelecionada = alvo === "insumo" ? insumoSelecionado?.unidade : loteSelecionado?.unidade;
+  const temAlvo = alvo === "insumo" ? Boolean(insumoSelecionado) : Boolean(loteSelecionado);
   const quantidadeNumero = quantidadeContada === "" ? Number.NaN : Number(quantidadeContada);
-  const divergencia = Number.isFinite(quantidadeNumero)
+  const divergencia = temAlvo && Number.isFinite(quantidadeNumero)
     ? calcularDivergenciaInventario(quantidadeSistema, quantidadeNumero)
     : null;
 
@@ -90,7 +111,14 @@ export function InventarioScannerPanel({
     };
   }, []);
 
+  function aplicarInsumo(insumo: InventarioInsumoOpcao) {
+    setAlvo("insumo");
+    setInsumoId(String(insumo.id));
+    setQuantidadeContada(String(insumo.fechadas));
+  }
+
   function aplicarLote(lote: InventarioLoteOpcao) {
+    setAlvo("lote");
     setLoteId(String(lote.id));
     setQuantidadeContada(String(lote.quantidadeAtual));
     if (lote.localId) setLocalId(String(lote.localId));
@@ -102,6 +130,22 @@ export function InventarioScannerPanel({
 
     if (resultado.tipo === "local") {
       setLocalId(String(resultado.id));
+      return;
+    }
+
+    if (resultado.tipo === "insumo") {
+      // código de barras do fabricante: conta o total de embalagens fechadas
+      const insumo = insumos.find((item) => item.id === resultado.id);
+      if (resultado.porInsumo) {
+        aplicarInsumo(
+          insumo ?? {
+            id: resultado.id,
+            descricao: resultado.insumoDescricao ?? `Insumo #${resultado.id}`,
+            fechadas: resultado.quantidadeAtual,
+            unidade: resultado.unidade,
+          },
+        );
+      }
       return;
     }
 
@@ -182,6 +226,10 @@ export function InventarioScannerPanel({
               digite a quantidade encontrada na prateleira.
             </p>
             <p>
+              Sem lote: leia o <b>código de barras do fabricante</b> e digite quantas embalagens
+              fechadas há do insumo. A contagem vale para o total do insumo.
+            </p>
+            <p>
               Código não reconhecido vai para a triagem. Se a contagem diferir do sistema, a
               justificativa é obrigatória.
             </p>
@@ -242,8 +290,8 @@ export function InventarioScannerPanel({
                 value={codigoScanner}
                 onChange={(event) => setCodigoScanner(event.target.value)}
                 className={`${inp} mt-0 pl-8`}
-                aria-label="Etiqueta do local ou do lote"
-                placeholder="Etiqueta do local ou do lote"
+                aria-label="Etiqueta do local, do lote ou código de barras"
+                placeholder="Etiqueta do local, do lote ou código de barras"
               />
             </div>
             <button
@@ -271,6 +319,11 @@ export function InventarioScannerPanel({
                 <p className="mt-1 font-medium">
                   {resultadoScanner.insumoDescricao ?? `Lote #${resultadoScanner.id}`}
                   {resultadoScanner.loteCodigo ? ` · ${resultadoScanner.loteCodigo}` : ""}
+                </p>
+              )}
+              {resultadoScanner.ok && resultadoScanner.encontrado && resultadoScanner.tipo === "insumo" && (
+                <p className="mt-1 font-medium">
+                  {resultadoScanner.insumoDescricao ?? `Insumo #${resultadoScanner.id}`}
                 </p>
               )}
               {resultadoScanner.ok && resultadoScanner.encontrado && resultadoScanner.tipo === "local" && (
@@ -322,33 +375,90 @@ export function InventarioScannerPanel({
               ))}
             </select>
           </div>
-          <div>
-            <label htmlFor={`${uid}-lote_id`} className="block text-xs font-medium text-muted-foreground">Lote</label>
-            <select
-              id={`${uid}-lote_id`}
-              name="lote_id"
-              value={loteId}
-              onChange={(event) => {
-                const lote = lotes.find((item) => String(item.id) === event.target.value);
-                if (lote) aplicarLote(lote);
-                else setLoteId("");
-              }}
-              required
-              className={inp}
-            >
-              <option value="">Selecione</option>
-              {lotes.map((lote) => (
-                <option key={lote.id} value={lote.id}>
-                  #{lote.id} {lote.codigoLote ? `· ${lote.codigoLote}` : ""} · {lote.insumoDescricao ?? "Insumo"}
-                </option>
+          <fieldset>
+            <legend className="block text-xs font-medium text-muted-foreground">Contar por</legend>
+            <div className="mt-1 inline-flex rounded-md border border-input p-0.5 text-xs">
+              {(
+                [
+                  ["insumo", "Insumo (sem lote)"],
+                  ["lote", "Lote"],
+                ] as const
+              ).map(([valor, rotulo]) => (
+                <label
+                  key={valor}
+                  className={`cursor-pointer rounded px-3 py-1 ${alvo === valor ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"}`}
+                >
+                  <input
+                    type="radio"
+                    name="_alvo"
+                    value={valor}
+                    checked={alvo === valor}
+                    onChange={() => setAlvo(valor)}
+                    className="sr-only"
+                  />
+                  {rotulo}
+                </label>
               ))}
-            </select>
-          </div>
+            </div>
+          </fieldset>
 
-          {loteSelecionado && (
+          {alvo === "insumo" ? (
+            <div>
+              <label htmlFor={`${uid}-insumo_id`} className="block text-xs font-medium text-muted-foreground">Insumo</label>
+              <select
+                id={`${uid}-insumo_id`}
+                name="insumo_id"
+                value={insumoId}
+                onChange={(event) => {
+                  const insumo = insumos.find((item) => String(item.id) === event.target.value);
+                  if (insumo) aplicarInsumo(insumo);
+                  else setInsumoId("");
+                }}
+                required
+                className={inp}
+              >
+                <option value="">Selecione</option>
+                {insumos.map((insumo) => (
+                  <option key={insumo.id} value={insumo.id}>
+                    {insumo.descricao}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div>
+              <label htmlFor={`${uid}-lote_id`} className="block text-xs font-medium text-muted-foreground">Lote</label>
+              <select
+                id={`${uid}-lote_id`}
+                name="lote_id"
+                value={loteId}
+                onChange={(event) => {
+                  const lote = lotes.find((item) => String(item.id) === event.target.value);
+                  if (lote) aplicarLote(lote);
+                  else setLoteId("");
+                }}
+                required
+                className={inp}
+              >
+                <option value="">Selecione</option>
+                {lotes.map((lote) => (
+                  <option key={lote.id} value={lote.id}>
+                    #{lote.id} {lote.codigoLote ? `· ${lote.codigoLote}` : ""} · {lote.insumoDescricao ?? "Insumo"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {alvo === "lote" && loteSelecionado && (
             <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
               Sistema: <b>{loteSelecionado.quantidadeAtual}</b> {loteSelecionado.unidade ?? ""}
               {loteSelecionado.localNome ? ` · ${loteSelecionado.localNome}` : ""}
+            </p>
+          )}
+          {alvo === "insumo" && insumoSelecionado && (
+            <p className="rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
+              Sistema: <b>{insumoSelecionado.fechadas}</b> {insumoSelecionado.unidade ?? "embalagem(ns)"} · embalagens fechadas de todos os lotes
             </p>
           )}
 
@@ -359,7 +469,7 @@ export function InventarioScannerPanel({
               name="quantidade_contada"
               type="number"
               min="0"
-              step="any"
+              step={alvo === "insumo" ? 1 : "any"}
               value={quantidadeContada}
               onChange={(event) => setQuantidadeContada(event.target.value)}
               required
@@ -375,7 +485,7 @@ export function InventarioScannerPanel({
                   : "bg-brand-50 text-brand-800 dark:bg-brand-950/30 dark:text-brand-300"
               }`}
             >
-              <b>{descreverDiferencaInventario(divergencia.quantidadeSistema, divergencia.quantidadeContada, loteSelecionado?.unidade).frase}</b>
+              <b>{descreverDiferencaInventario(divergencia.quantidadeSistema, divergencia.quantidadeContada, unidadeSelecionada).frase}</b>
               {divergencia.temDivergencia ? " Explique o motivo na justificativa." : ""}
             </p>
           )}

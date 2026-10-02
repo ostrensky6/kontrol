@@ -43,12 +43,24 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path.startsWith("/estoque/leitura"),
+    content: {
+      title: "Entrada e saída por leitura",
+      description: "Leia o código de barras do fabricante com o leitor USB ou a câmera do celular.",
+      checks: [
+        "Entrada: confira as embalagens (1 por padrão) e a validade; o lote é criado sozinho.",
+        "Saída: cada leitura abre 1 embalagem do lote que vence primeiro.",
+        "Código novo: vincule a um insumo ou cadastre; errou, use Desfazer a última.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/estoque/inventario"),
     content: {
       title: "Inventário",
-      description: "Contagem física por local e lote, com ajuste das diferenças.",
+      description: "Contagem física por insumo (sem lote) ou por lote, com ajuste das diferenças.",
       checks: [
-        "Abra uma campanha de contagem e escaneie o local e o lote.",
+        "Abra uma campanha e leia o código de barras do insumo, ou o local e o lote.",
         "Informe a quantidade contada; a diferença aparece na hora.",
         "Ajustes precisam de justificativa e ficam na auditoria.",
       ],

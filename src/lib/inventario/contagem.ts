@@ -65,3 +65,27 @@ export function descreverDiferencaInventario(
     tipo: falta ? "falta" : "sobra",
   };
 }
+
+export type LoteUnidade = {
+  modelo_quantidade?: string | null;
+  conteudo_embalagem_snapshot?: number | string | null;
+  unidade_fisica_snapshot?: string | null;
+};
+
+/**
+ * Unidade do saldo de um lote como o Controle de Estoque mostra: lote de
+ * embalagens fechadas conta frascos ("frasco(s) de 1000 Un"); lote antigo
+ * conta na unidade do insumo. Mesma regra de v_estoque_saldo.unidade_saldo.
+ */
+export function unidadeDoLote(lote: LoteUnidade | null | undefined, unidadeInsumo?: string | null) {
+  if (lote?.modelo_quantidade === "EMBALAGEM_FECHADA") {
+    const conteudo = Number(lote.conteudo_embalagem_snapshot);
+    const unidade = (lote.unidade_fisica_snapshot ?? unidadeInsumo ?? "").trim();
+    if (Number.isFinite(conteudo) && conteudo > 0) {
+      // mesmo texto do banco (to_char sem separador de milhar)
+      return `frasco(s) de ${String(conteudo)}${unidade ? ` ${unidade}` : ""}`;
+    }
+    return "frasco(s)";
+  }
+  return unidadeInsumo ?? null;
+}

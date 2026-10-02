@@ -78,6 +78,7 @@ import {
 } from "@/lib/actions/cadastros";
 import { corrigirQuantidadeEmbalagens } from "@/lib/actions/estoque";
 import { cn } from "@/lib/utils";
+import { CodigosBarrasCampo } from "@/components/cadastros/CodigosBarrasCampo";
 import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/formatters";
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO, estaMascarado } from "@/lib/cadastros/mascara";
 
@@ -173,6 +174,7 @@ export function CrudShell({
   mascarar,
   podeMovimentarEstoque = false,
   podeCorrigirEstoque = false,
+  novoComCodigo,
 }: {
   slug: string;
   singular: string;
@@ -189,8 +191,11 @@ export function CrudShell({
   podeMovimentarEstoque?: boolean;
   /** insumos: permissão "estoque.lote.gerir" (Corrigir quantidade na seção Lotes) */
   podeCorrigirEstoque?: boolean;
+  /** insumos: abre "Novo insumo" com este código de barras (código lido e não reconhecido) */
+  novoComCodigo?: string;
 }) {
   const [aberto, setAberto] = useState(false);
+  const [codigosNovo, setCodigosNovo] = useState<string[]>([]);
   const [editando, setEditando] = useState<Registro | null>(null);
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
@@ -202,8 +207,16 @@ export function CrudShell({
 
   const novo = useCallback(() => {
     setEditando(null);
+    setCodigosNovo([]);
     setAberto(true);
   }, []);
+
+  useEffect(() => {
+    if (!novoComCodigo || somenteLeitura) return;
+    setEditando(null);
+    setCodigosNovo([novoComCodigo]);
+    setAberto(true);
+  }, [novoComCodigo, somenteLeitura]);
   const editar = useCallback((r: Registro) => {
     setEditando(r);
     setAberto(true);
@@ -623,6 +636,7 @@ export function CrudShell({
           onSalvo={setRetorno}
           podeMovimentarEstoque={podeMovimentarEstoque}
           podeCorrigirEstoque={podeCorrigirEstoque}
+          codigosNovo={codigosNovo}
         />
       )}
     </div>
@@ -782,6 +796,7 @@ function CadastroDrawer({
   onSalvo,
   podeMovimentarEstoque,
   podeCorrigirEstoque,
+  codigosNovo = [],
 }: {
   open: boolean;
   slug: string;
@@ -793,6 +808,7 @@ function CadastroDrawer({
   onSalvo: (estado: FormState) => void;
   podeMovimentarEstoque: boolean;
   podeCorrigirEstoque: boolean;
+  codigosNovo?: string[];
 }) {
   const router = useRouter();
   const [state, action] = useActionState<FormState, FormData>(
@@ -856,6 +872,13 @@ function CadastroDrawer({
               />
             </Fragment>
           ))}
+
+          {isInsumos && (
+            <CodigosBarrasCampo
+              valorInicial={registro ? ((registro.codigos_barras as string[] | undefined) ?? []) : codigosNovo}
+              erro={state.errors?.codigos_barras}
+            />
+          )}
 
           {isInsumos && !registro && (
             <>

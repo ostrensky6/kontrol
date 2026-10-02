@@ -13,10 +13,16 @@ const rpc = vi.fn();
 function from(table: string) {
   const resultado = () => ({ data: db[table] ?? [], error: null });
   return {
-    select: () => ({
-      order: async () => resultado(),
-      then: (resolve: (value: ReturnType<typeof resultado>) => unknown) => resolve(resultado()),
-    }),
+    select: () => {
+      const consulta = {
+        eq: () => consulta,
+        in: () => consulta,
+        limit: async () => resultado(),
+        order: async () => resultado(),
+        then: (resolve: (value: ReturnType<typeof resultado>) => unknown) => resolve(resultado()),
+      };
+      return consulta;
+    },
     update: (payload: Row) => ({
       eq: async (_coluna: string, id: unknown) => {
         updates.push({ table, payload, id });
@@ -35,6 +41,7 @@ function from(table: string) {
 }
 
 vi.mock("next/cache", () => ({ revalidatePath }));
+vi.mock("@/lib/auth/roles", () => ({ usuarioAtual: vi.fn(async () => ({ id: "u-1", email: "estoque@lab" })) }));
 vi.mock("@/lib/supabase/server", () => ({
   createClientUntyped: vi.fn(async () => ({ from, rpc })),
 }));
@@ -108,6 +115,41 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(inserts).toEqual([{ table: "clientes", payload: expect.objectContaining({ nome: "Cliente novo", ativo: true }) }]);
     expect(result.resumo?.map((r) => r.aba)).toEqual(["Clientes", "Insumos"]);
     expect(result.message).toContain("Nada foi excluído");
+  });
+
+  it("coluna Códigos de barras só acrescenta códigos ao insumo, sem repetir GTIN-14 e EAN-13", async () => {
+    db.insumos = [insumoExistente()];
+    db.identificadores = [];
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const result = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Insumos: [
+          [...CABECALHO_INSUMOS, "Códigos de barras"],
+          [9, "Kit existente", "Marca X", "kit", null, 100, 10, "7891234567895; 07891234567895"],
+        ],
+      }),
+    );
+
+    expect(result.ok).toBe(true);
+    expect(inserts).toEqual([
+      {
+        table: "identificadores",
+        payload: [
+          expect.objectContaining({
+            codigo: "7891234567895",
+            valor: "7891234567895",
+            tipo: "codigo_barras",
+            entidade_tipo: "insumo",
+            entidade_id: 9,
+            ativo: true,
+          }),
+        ],
+      },
+    ]);
+    expect(updates.filter((u) => u.table === "identificadores")).toEqual([]);
+    expect(result.resumo?.[0]).toMatchObject({ atualizados: 1 });
   });
 
   it("atualiza só as colunas alteradas, sem anular campos não exportados", async () => {
