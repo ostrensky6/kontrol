@@ -242,6 +242,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "custo_unitario", label: "Custo un.", tipo: "currency", alinhar: "right", largura: "sm", calculada: true },
       { key: "validade_lotes", label: "Validade", tipo: "date", largura: "sm", calculada: true },
       { key: "ponto_reposicao", label: "Repos.", tipo: "number", alinhar: "right", largura: "xs" },
+      { key: "ativo", label: "Ativo", tipo: "checkbox", largura: "xs" },
     ],
     colunasXlsx: [
       { key: "especificacao", label: "Item específico / SKU" },

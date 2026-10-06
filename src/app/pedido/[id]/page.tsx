@@ -279,6 +279,21 @@ function montarCatalogoItens(
   }));
 }
 
+function catalogoComVinculoAtual(
+  catalogo: PedidoItemCatalogo[],
+  item: PedidoInternoItem,
+): PedidoItemCatalogo[] {
+  if (!item.insumo_id || catalogo.some((insumo) => insumo.id === item.insumo_id)) return catalogo;
+  return [
+    {
+      id: item.insumo_id,
+      especificacao: `${item.insumos?.especificacao ?? item.especificacao} (inativo)`,
+      unidade: item.insumos?.unidade ?? item.unidade,
+    },
+    ...catalogo,
+  ];
+}
+
 function montarFornecedoresPedido(fornecedores: FornecedorRaw[], insumos: InsumoPedidoRaw[], historico: PedidoItemHistorico[]) {
   const opcoes = new Set<string>();
   for (const fornecedor of fornecedores) {
@@ -349,6 +364,7 @@ export default async function PedidoInternoDetalhe({
     supabase
       .from("insumos")
       .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, custo_total_embalagem, tipo_insumos(nome), fornecedores!insumos_fornecedor_id_fkey(nome)")
+      .eq("ativo", true)
       .order("especificacao"),
     supabase
       .from("pedidos_internos_itens")
@@ -645,7 +661,7 @@ export default async function PedidoInternoDetalhe({
                           fornecedorSugerido: item.fornecedor_sugerido,
                           orcamentoPrevio: item.orcamento_previo,
                         }}
-                        insumos={catalogoItens}
+                        insumos={catalogoComVinculoAtual(catalogoItens, item)}
                         podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
                         recebidoEm={item.recebido_em}
                         recebidoPor={item.recebido_por}
@@ -679,7 +695,7 @@ export default async function PedidoInternoDetalhe({
                     {podeEditarItens && (
                       <td className="px-4 py-2.5 text-right">
                         <div className="flex items-center justify-end gap-3">
-                          <PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoItens} fornecedores={fornecedoresPedido} />
+                          <PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoComVinculoAtual(catalogoItens, item)} fornecedores={fornecedoresPedido} />
                           <FormComMensagem action={removerItemPedidoInterno} className="flex flex-col items-end">
                             <input type="hidden" name="item_id" value={item.id} />
                             <input type="hidden" name="pedido_interno_id" value={pedidoId} />

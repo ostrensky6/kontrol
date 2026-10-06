@@ -160,6 +160,7 @@ export default async function AnaliseDetalhe({
     supabase
       .from("insumos")
       .select("id, especificacao, nome_item, unidade")
+      .eq("ativo", true)
       .order("especificacao"),
     supabase
       .from("equipamentos")

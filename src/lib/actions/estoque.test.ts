@@ -44,7 +44,11 @@ describe("actions de estoque", () => {
   beforeEach(() => {
     rpc.mockReset();
     single.mockReset();
-    single.mockResolvedValue({ data: { categoria_compra: "operacional" }, error: null });
+    single.mockResolvedValue({ data: { categoria_compra: "operacional", ativo: true }, error: null });
+    loteConsultado = {
+      data: { id: 9, modelo_quantidade: "LEGADO", insumos: { ativo: true } },
+      error: null,
+    };
     from.mockClear();
     origemLote = {
       pedidos_compra_item_recebimentos: { data: [], error: null },
@@ -67,7 +71,7 @@ describe("actions de estoque", () => {
   });
 
   it("exige validade para entrada de inventário de insumo crítico", async () => {
-    single.mockResolvedValue({ data: { categoria_compra: "critico" }, error: null });
+    single.mockResolvedValue({ data: { categoria_compra: "critico", ativo: true }, error: null });
     const { entradaInventario } = await import("./estoque");
     const formData = new FormData();
     formData.set("insumo_id", "7");
@@ -77,6 +81,22 @@ describe("actions de estoque", () => {
 
     expect(result.ok).toBe(false);
     expect(result.errors?.validade).toBe("Obrigatório para crítico");
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("recusa entrada de inventário para insumo inativo", async () => {
+    single.mockResolvedValue({ data: { categoria_compra: "operacional", ativo: false }, error: null });
+    const { entradaInventario } = await import("./estoque");
+    const formData = new FormData();
+    formData.set("insumo_id", "7");
+    formData.set("quantidade", "12.5");
+
+    const result = await entradaInventario({ ok: false }, formData);
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+    });
     expect(rpc).not.toHaveBeenCalled();
   });
 
@@ -169,6 +189,56 @@ describe("actions de estoque", () => {
       p_quantidade_nova: 8,
       p_motivo: "contagem cíclica",
     });
+  });
+
+  it("recusa baixa manual para lote de insumo inativo sem impedir ajustes de conciliação", async () => {
+    loteConsultado = {
+      data: { id: 9, modelo_quantidade: "LEGADO", insumos: { ativo: false } },
+      error: null,
+    };
+    rpc.mockResolvedValue({ error: null });
+    const { baixarManualLote, ajustarSaldoLote } = await import("./estoque");
+    const baixa = new FormData();
+    baixa.set("lote_id", "9");
+    baixa.set("quantidade", "2.5");
+    baixa.set("motivo", "consumo extra");
+    const ajuste = new FormData();
+    ajuste.set("lote_id", "9");
+    ajuste.set("quantidade_nova", "8");
+    ajuste.set("motivo", "contagem cíclica");
+
+    const result = await baixarManualLote({ ok: false }, baixa);
+    await ajustarSaldoLote({ ok: false }, ajuste);
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+    });
+    expect(rpc).toHaveBeenCalledOnce();
+    expect(rpc).toHaveBeenCalledWith("ajustar_saldo_lote", {
+      p_lote_id: 9,
+      p_quantidade_nova: 8,
+      p_motivo: "contagem cíclica",
+    });
+  });
+
+  it("recusa entrada manual de embalagens para insumo inativo", async () => {
+    single.mockResolvedValue({ data: { ativo: false }, error: null });
+    const { entradaEmbalagens } = await import("./estoque");
+    const formData = new FormData();
+    formData.set("insumo_id", "7");
+    formData.set("quantidade", "2");
+    formData.set("custo", "10");
+    formData.set("motivo", "entrada avulsa");
+    formData.set("operacao_id", "11111111-1111-4111-8111-111111111111");
+
+    const result = await entradaEmbalagens({ ok: false }, formData);
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+    });
+    expect(rpc).not.toHaveBeenCalled();
   });
 
   it("estorna uma entrada pela RPC auditavel e revalida o estoque", async () => {
@@ -345,7 +415,10 @@ describe("actions de estoque", () => {
     }
 
     beforeEach(() => {
-      loteConsultado = { data: { id: 12, modelo_quantidade: "EMBALAGEM_FECHADA" }, error: null };
+      loteConsultado = {
+        data: { id: 12, modelo_quantidade: "EMBALAGEM_FECHADA", insumos: { ativo: true } },
+        error: null,
+      };
       rpc.mockResolvedValue({ data: { lote_id: 12, quantidade_embalagens: 3, repetido: false }, error: null });
     });
 
@@ -392,8 +465,43 @@ describe("actions de estoque", () => {
       expect(rpc).not.toHaveBeenCalled();
     });
 
+    it("recusa baixa roteada para lote de insumo inativo", async () => {
+      loteConsultado = {
+        data: { id: 12, modelo_quantidade: "EMBALAGEM_FECHADA", insumos: { ativo: false } },
+        error: null,
+      };
+      const { darBaixaLote } = await import("./estoque");
+
+      const result = await darBaixaLote({ ok: false }, formBaixa());
+
+      expect(result).toEqual({
+        ok: false,
+        message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("recusa a action direta de baixa de embalagens para insumo inativo", async () => {
+      loteConsultado = {
+        data: { id: 12, modelo_quantidade: "EMBALAGEM_FECHADA", insumos: { ativo: false } },
+        error: null,
+      };
+      const { baixarEmbalagens } = await import("./estoque");
+
+      const result = await baixarEmbalagens({ ok: false }, formBaixa());
+
+      expect(result).toEqual({
+        ok: false,
+        message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+      });
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
     it("lote legado continua na baixa_manual_lote (quantidade fracionada na unidade do insumo)", async () => {
-      loteConsultado = { data: { id: 12, modelo_quantidade: "LEGADO" }, error: null };
+      loteConsultado = {
+        data: { id: 12, modelo_quantidade: "LEGADO", insumos: { ativo: true } },
+        error: null,
+      };
       rpc.mockResolvedValue({ data: null, error: null });
       const { darBaixaLote } = await import("./estoque");
 

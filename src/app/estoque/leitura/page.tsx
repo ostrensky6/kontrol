@@ -23,7 +23,7 @@ export default async function LeituraEstoquePage({
     pode("estoque.movimentar"),
     pode("compras.receber"),
     pode("insumos.editar"),
-    supabase.from("insumos").select("id, especificacao").order("especificacao"),
+    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
     supabase.from("locais").select("id, nome").order("nome"),
   ]);
 

@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   type ColumnDef,
@@ -72,6 +73,7 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import type { LoteBaixa } from "@/lib/estoque/baixa";
 import {
+  alterarAtivoRegistro,
   salvarRegistro,
   excluirRegistro,
   type FormState,
@@ -83,6 +85,14 @@ import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/f
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO, estaMascarado } from "@/lib/cadastros/mascara";
 
 type Registro = Record<string, unknown>;
+
+export function enviarExclusaoSePermitida(
+  bloqueado: boolean,
+  action: (formData: FormData) => void,
+  formData: FormData,
+) {
+  if (!bloqueado) action(formData);
+}
 
 function fmt(value: unknown, tipo?: Coluna["tipo"]) {
   if (value == null || value === "") return "—";
@@ -255,6 +265,7 @@ export function CrudShell({
   const exibir = useCallback(
     (key: string, value: unknown, tipo?: Coluna["tipo"]) => {
       if (mascarar?.includes(key)) return "XXX";
+      if (key === "ativo" && typeof value === "boolean") return value ? "Ativo" : "Inativo";
       const map = rotuloSelect[key];
       if (map && value != null && value !== "") return map.get(String(value)) ?? fmt(value, tipo);
       return fmt(value, tipo);
@@ -276,7 +287,13 @@ export function CrudShell({
       id: c.key,
       accessorFn: (row) => row[c.key],
       header: c.label,
-      cell: (ctx) => exibir(c.key, ctx.getValue(), c.tipo),
+      cell: (ctx) => {
+        const value = ctx.getValue();
+        if (c.key === "ativo" && typeof value === "boolean") {
+          return <Badge variant={value ? "secondary" : "muted"}>{value ? "Ativo" : "Inativo"}</Badge>;
+        }
+        return exibir(c.key, value, c.tipo);
+      },
       enableSorting: true,
       sortingFn:
         c.tipo === "currency" || c.tipo === "number" || c.tipo === "percent"
@@ -308,11 +325,13 @@ export function CrudShell({
       enableGlobalFilter: false,
       cell: (ctx) => (
         <RowActions
+          key={`${slug}-${String(ctx.row.original.id)}-${String(ctx.row.original.ativo)}-${String(ctx.row.original[rotulo] ?? "")}`}
           onEdit={() => editar(ctx.row.original)}
           onRetorno={setRetorno}
           slug={slug}
           id={ctx.row.original.id as number}
           rotulo={String(ctx.row.original[rotulo] ?? "")}
+          ativo={typeof ctx.row.original.ativo === "boolean" ? ctx.row.original.ativo : undefined}
         />
       ),
     });
@@ -359,14 +378,20 @@ export function CrudShell({
         }
 
         if (campo.tipo === "checkbox") {
+          const opcoes = campo.name === "ativo"
+            ? [
+                { value: "true", label: "Ativo" },
+                { value: "false", label: "Inativo" },
+              ]
+            : [
+                { value: "true", label: "Sim" },
+                { value: "false", label: "Não" },
+              ];
           return {
             fieldId: campo.name,
             columnId,
             label: campo.label,
-            opcoes: [
-              { value: "true", label: "Sim" },
-              { value: "false", label: "Não" },
-            ],
+            opcoes,
           };
         }
 
@@ -649,14 +674,28 @@ function RowActions({
   slug,
   id,
   rotulo,
+  ativo,
 }: {
   onEdit: () => void;
   onRetorno: (estado: FormState) => void;
   slug: string;
   id: number;
   rotulo: string;
+  ativo?: boolean;
 }) {
   const [confirmar, setConfirmar] = useState(false);
+  const [alterandoAtivo, setAlterandoAtivo] = useState(false);
+  const [exclusaoState, exclusaoAction, exclusaoPending] = useActionState<FormState, FormData>(
+    excluirRegistro,
+    { ok: false },
+  );
+  const acaoAtivoDisponivel = slug === "insumos" && typeof ativo === "boolean";
+  const exclusaoBloqueada = slug === "insumos" && !exclusaoState.ok && Boolean(exclusaoState.message);
+  const exclusaoProtegida = useCallback(
+    (formData: FormData) =>
+      enviarExclusaoSePermitida(exclusaoBloqueada, exclusaoAction, formData),
+    [exclusaoBloqueada, exclusaoAction],
+  );
 
   return (
     <>
@@ -670,25 +709,130 @@ function RowActions({
         </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onSelect={onEdit}>Editar</DropdownMenuItem>
+          {acaoAtivoDisponivel && (
+            <DropdownMenuItem onSelect={() => setAlterandoAtivo(true)}>
+              {ativo ? "Inativar" : "Reativar"}
+            </DropdownMenuItem>
+          )}
           <DropdownMenuItem variant="destructive" onSelect={() => setConfirmar(true)}>
             Excluir
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-      <DeleteRegistroDialog
-        open={confirmar}
-        onOpenChange={setConfirmar}
-        slug={slug}
-        id={id}
-        rotulo={rotulo}
-        onExcluido={onRetorno}
-      />
+      {confirmar && (
+        <DeleteRegistroDialog
+          open={confirmar}
+          onOpenChange={setConfirmar}
+          slug={slug}
+          id={id}
+          rotulo={rotulo}
+          state={exclusaoState}
+          action={exclusaoProtegida}
+          pending={exclusaoPending}
+          bloqueado={exclusaoBloqueada}
+          onExcluido={onRetorno}
+          onInativar={acaoAtivoDisponivel && ativo ? () => {
+            setConfirmar(false);
+            setAlterandoAtivo(true);
+          } : undefined}
+        />
+      )}
+      {alterandoAtivo && acaoAtivoDisponivel && (
+        <AlterarAtivoDialog
+          open={alterandoAtivo}
+          onOpenChange={setAlterandoAtivo}
+          slug={slug}
+          id={id}
+          rotulo={rotulo}
+          ativo={ativo}
+          onAtualizado={onRetorno}
+        />
+      )}
     </>
   );
 }
 
 /** Cadastros que têm "Ativo": a saída para registro já usado é desativar. */
-const COM_ATIVO = new Set(["clientes", "fornecedores", "tipo_insumos", "tecnicos"]);
+const COM_ATIVO = new Set(["clientes", "fornecedores", "insumos", "tipo_insumos", "tecnicos"]);
+
+function AlterarAtivoDialog({
+  open,
+  onOpenChange,
+  slug,
+  id,
+  rotulo,
+  ativo,
+  onAtualizado,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  slug: string;
+  id: number;
+  rotulo: string;
+  ativo: boolean;
+  onAtualizado: (estado: FormState) => void;
+}) {
+  const router = useRouter();
+  const [state, action, pending] = useActionState<FormState, FormData>(
+    alterarAtivoRegistro,
+    { ok: false },
+  );
+  const rotuloAcao = ativo ? "Inativar" : "Reativar";
+
+  useEffect(() => {
+    if (!state.ok) return;
+    onAtualizado(state);
+    onOpenChange(false);
+    router.refresh();
+  }, [state, router, onAtualizado, onOpenChange]);
+
+  return (
+    <Dialog open={open} onOpenChange={(nextOpen) => !pending && onOpenChange(nextOpen)}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto"
+        showCloseButton={!pending}
+      >
+        <DialogHeader>
+          <DialogTitle>{rotuloAcao} insumo</DialogTitle>
+          <DialogDescription>
+            {ativo
+              ? <>O insumo <b>“{rotulo}”</b> deixa de aparecer como opção para novos usos, mas seus vínculos e todo o histórico são preservados.</>
+              : <>O insumo <b>“{rotulo}”</b> volta a ficar disponível para novos usos. O histórico existente permanece preservado.</>}
+          </DialogDescription>
+        </DialogHeader>
+
+        <MensagemAcao
+          estado={state.ok ? null : state}
+          className="rounded-md bg-destructive/10 px-3 py-2 text-xs empty:p-0"
+        />
+
+        <form action={action} {...formularioSemPerda(state)}>
+          <input type="hidden" name="_slug" value={slug} />
+          <input type="hidden" name="_id" value={id} />
+          <input type="hidden" name="ativo" value={String(!ativo)} />
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => onOpenChange(false)}
+              disabled={pending}
+            >
+              Voltar
+            </Button>
+            <SubmitButton
+              variant={ativo ? "outline" : "default"}
+              size="sm"
+              pendingLabel={ativo ? "Inativando…" : "Reativando…"}
+            >
+              {rotuloAcao}
+            </SubmitButton>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 function DeleteRegistroDialog({
   open,
@@ -696,20 +840,26 @@ function DeleteRegistroDialog({
   slug,
   id,
   rotulo,
+  state,
+  action,
+  pending,
+  bloqueado,
   onExcluido,
+  onInativar,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   slug: string;
   id: number;
   rotulo: string;
+  state: FormState;
+  action: (formData: FormData) => void;
+  pending: boolean;
+  bloqueado: boolean;
   onExcluido: (estado: FormState) => void;
+  onInativar?: () => void;
 }) {
   const router = useRouter();
-  const [state, action, pending] = useActionState<FormState, FormData>(
-    excluirRegistro,
-    { ok: false },
-  );
   useEffect(() => {
     // sucesso: a linha some no refresh e este modal desmonta junto; a
     // confirmação é anunciada pela lista.
@@ -717,19 +867,62 @@ function DeleteRegistroDialog({
     onExcluido(state);
     router.refresh();
   }, [state, router, onExcluido]);
+  const blockers = state.blockers ?? [];
 
   return (
     <Dialog open={open} onOpenChange={(nextOpen) => !pending && onOpenChange(nextOpen)}>
-      <DialogContent className="max-w-sm" showCloseButton={!pending}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto"
+        showCloseButton={!pending}
+      >
         <DialogHeader>
           <DialogTitle>Excluir registro</DialogTitle>
           <DialogDescription>
             Tem certeza que deseja excluir <b>“{rotulo}”</b>? Esta ação não pode
             ser desfeita.
-            {COM_ATIVO.has(slug) && " Se ele já foi usado, a exclusão é recusada: desmarque “Ativo”."}
+            {COM_ATIVO.has(slug) && " Se houver vínculos, o Kontrol preserva o histórico e impede a exclusão; inative o registro."}
           </DialogDescription>
         </DialogHeader>
         <MensagemAcao estado={state.ok ? null : state} className="rounded-md bg-destructive/10 px-3 py-2 text-xs empty:p-0" />
+        {bloqueado && (
+          <section className="rounded-md border border-border bg-muted/50 p-3 text-xs" aria-labelledby={`vinculos-${id}`}>
+            <h3 id={`vinculos-${id}`} className="font-semibold text-foreground">
+              Vínculos que preservam o histórico
+            </h3>
+            <ul className="mt-2 grid gap-1.5">
+              {blockers.map((blocker, index) => {
+                const conteudo = (
+                  <>
+                    <span className="min-w-0 break-words">
+                      {blocker.rotulo}
+                      {blocker.identificador ? ` (${blocker.identificador})` : ""}
+                    </span>
+                    <span className="shrink-0 tabular-nums">{blocker.contagem}</span>
+                  </>
+                );
+                return (
+                  <li key={`${blocker.tipo}-${blocker.identificador ?? index}`}>
+                    {blocker.href ? (
+                      <Link
+                        href={blocker.href}
+                        className="flex min-h-11 items-start justify-between gap-3 rounded px-2 py-1.5 text-brand-700 hover:bg-accent hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:text-brand-400"
+                      >
+                        {conteudo}
+                      </Link>
+                    ) : (
+                      <div className="flex min-h-11 items-start justify-between gap-3 px-2 py-1.5">
+                        {conteudo}
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-muted-foreground">
+              Nada foi removido. Os vínculos e o histórico permanecem preservados.
+            </p>
+          </section>
+        )}
         <DialogFooter>
           <Button
             type="button"
@@ -740,10 +933,20 @@ function DeleteRegistroDialog({
           >
             Voltar
           </Button>
+          {bloqueado && onInativar && (
+            <Button type="button" variant="outline" size="sm" onClick={onInativar}>
+              Inativar
+            </Button>
+          )}
           <form action={action} {...formularioSemPerda(state)}>
             <input type="hidden" name="_slug" value={slug} />
             <input type="hidden" name="_id" value={id} />
-            <SubmitButton variant="destructive" size="sm" pendingLabel="Excluindo…">
+            <SubmitButton
+              variant="destructive"
+              size="sm"
+              pendingLabel="Excluindo…"
+              disabled={pending || bloqueado}
+            >
               Excluir
             </SubmitButton>
           </form>

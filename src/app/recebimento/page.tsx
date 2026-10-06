@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import {
   PEDIDO_INTERNO_AGUARDANDO_CHEGADA,
@@ -65,7 +65,7 @@ type CompraFormalItemRaw = {
 };
 
 export default async function RecebimentoPage() {
-  const supabase = await createClient();
+  const supabase = await createClientUntyped();
   const [{ data: itensData }, { data: insumos }, { data: comprasData }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
@@ -74,7 +74,7 @@ export default async function RecebimentoPage() {
       )
       .is("recebido_em", null)
       .order("id", { ascending: false }),
-    supabase.from("insumos").select("id, especificacao, unidade").order("especificacao"),
+    supabase.from("insumos").select("id, especificacao, unidade").eq("ativo", true).order("especificacao"),
     supabase
       .from("pedidos_compra_itens")
       .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_compra!inner(id, status, fornecedores(nome))")

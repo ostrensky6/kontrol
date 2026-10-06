@@ -159,3 +159,20 @@ describe("mock supabase comparadores", () => {
     expect(ids).toEqual([2, 3]);
   });
 });
+
+describe("mock supabase lifecycle de insumos", () => {
+  it("espelha ativo=true nas fixtures, relações de lote e novos cadastros", async () => {
+    const supabase = createMockSupabaseClient();
+
+    const [{ data: insumo }, { data: lote }] = await Promise.all([
+      supabase.from("insumos").select("id, ativo").eq("id", 900).single(),
+      supabase.from("lotes_estoque").select("id, insumos!inner(ativo)").eq("id", 1).single(),
+    ]);
+    await supabase.from("insumos").insert({ id: 901, especificacao: "Insumo novo" });
+    const { data: inserido } = await supabase.from("insumos").select("id, ativo").eq("id", 901).single();
+
+    expect(insumo).toMatchObject({ id: 900, ativo: true });
+    expect(lote).toMatchObject({ id: 1, insumos: { ativo: true } });
+    expect(inserido).toMatchObject({ id: 901, ativo: true });
+  });
+});

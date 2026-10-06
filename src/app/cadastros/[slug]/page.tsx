@@ -31,7 +31,7 @@ import type { PermissaoUsuario } from "@/lib/auth/permissions";
 export const dynamic = "force-dynamic";
 
 /** Tabelas com coluna `ativo`: inativos só aparecem no seletor como valor atual. */
-const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos"]);
+const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "insumos"]);
 
 /** Permissão que libera criar, editar e excluir em cada cadastro (mesma do RLS, 0108/0124). */
 const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {

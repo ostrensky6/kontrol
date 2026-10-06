@@ -38,6 +38,7 @@ export default async function EstoqueControlePage() {
     { data: vinculosInternos, error: vinculosInternosError },
     { data: previsaoRaw },
     { data: parametrosRaw },
+    { data: insumosAtivosRaw },
   ] = await Promise.all([
     supabase
       .from("notificacoes")
@@ -60,6 +61,7 @@ export default async function EstoqueControlePage() {
     supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, ponto_reposicao_sugerido"),
     // janela do "vence em breve" do lote: a mesma de v_alertas_estoque (padrão 60 dias)
     supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
+    supabaseSemTipos.from("insumos").select("id").eq("ativo", true),
   ]);
   const reservadoPorLote = somarReservasPorLote(reservasRaw ?? []);
   // estorno direto só quando é comprovado que o lote não veio de um pedido (mesma regra de /estoque)
@@ -78,14 +80,18 @@ export default async function EstoqueControlePage() {
   ]);
 
   const notificacoes = notificacoesRaw ?? [];
+  const insumosAtivos = new Set((insumosAtivosRaw ?? []).map((insumo) => Number(insumo.id)));
   // Uma regra de reposição só (0130): o painel usa a sugestão da previsão.
-  const previsaoPorInsumo = new Map((previsaoRaw ?? []).map((p) => [p.insumo_id, p]));
-  const saldo = (saldoRaw ?? []).map((s) => ({
+  const previsaoPorInsumo = new Map(
+    (previsaoRaw ?? []).filter((p) => insumosAtivos.has(Number(p.insumo_id))).map((p) => [p.insumo_id, p]),
+  );
+  const saldo = (saldoRaw ?? []).filter((s) => insumosAtivos.has(Number(s.insumo_id))).map((s) => ({
     ...s,
     qtd_sugerida_compra: Number(previsaoPorInsumo.get(s.insumo_id)?.qtd_sugerida_compra ?? 0),
   }));
-  const alertas = alertasRaw ?? [];
-  const dbLotes = (lotesRaw ?? []) as unknown as LoteDbRow[];
+  const alertas = (alertasRaw ?? []).filter((alerta) => insumosAtivos.has(Number(alerta.insumo_id)));
+  const dbLotes = ((lotesRaw ?? []) as unknown as LoteDbRow[])
+    .filter((lote) => insumosAtivos.has(Number(lote.insumo_id)));
 
   const hoje = hojeIso();
   const janelaVencimento = janelaVencimentoDias(parametrosRaw?.[0]?.valor);

@@ -88,12 +88,18 @@ export type ResultadoMovimentoLeitura =
   | { ok: false; message: string };
 
 const SEM_PERMISSAO = "Seu perfil não tem permissão para esta ação. Peça ao administrador para liberar em Usuários.";
+const MENSAGEM_INSUMO_INATIVO = "Insumo inativo. Reative o cadastro para iniciar uma nova operação.";
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type Supabase = Awaited<ReturnType<typeof createClientUntyped>>;
 
 function primeiro<T>(valor: T | T[] | null | undefined): T | null {
   return Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null);
+}
+
+async function insumoAtivo(supabase: Supabase, insumoId: number) {
+  const { data } = await supabase.from("insumos").select("ativo").eq("id", insumoId).maybeSingle();
+  return (data as { ativo?: boolean } | null)?.ativo === true;
 }
 
 function revalidarEstoque() {
@@ -336,6 +342,9 @@ export async function vincularCodigoLeitura(input: {
 
   try {
     const supabase = await createClientUntyped();
+    if (!(await insumoAtivo(supabase, insumoId))) {
+      return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+    }
     const conflitos = await conflitosCodigos(supabase, insumoId, [chave]);
     if (conflitos.length > 0) return { ok: false, message: mensagemConflitos(conflitos) };
     const usuario = await usuarioAtual();
@@ -434,6 +443,9 @@ export async function registrarEntradaLeitura(input: z.input<typeof entradaSchem
 
   try {
     const supabase = await createClientUntyped();
+    if (!d.pedido && !(await insumoAtivo(supabase, d.insumoId))) {
+      return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+    }
     const { data, error } = d.pedido
       ? await supabase.rpc("registrar_recebimento_por_leitura" as never, {
           p_insumo_id: d.insumoId,
@@ -476,6 +488,9 @@ export async function registrarSaidaLeitura(input: z.input<typeof saidaSchema>):
   const d = parsed.data;
   try {
     const supabase = await createClientUntyped();
+    if (!(await insumoAtivo(supabase, d.insumoId))) {
+      return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+    }
     const { data, error } = await supabase.rpc("abrir_embalagem_por_leitura" as never, {
       p_insumo_id: d.insumoId,
       p_codigo: d.codigo,

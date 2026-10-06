@@ -415,7 +415,7 @@ describe("recebimento de pedido formal de compra", () => {
         return {
           select: vi.fn(() => ({
             in: vi.fn().mockResolvedValue({
-              data: [{ id: 10, custo_unitario: 55, fornecedores: { nome: "Fornecedor A" } }],
+              data: [{ id: 10, ativo: true, custo_unitario: 55, fornecedores: { nome: "Fornecedor A" } }],
               error: null,
             }),
           })),
@@ -466,7 +466,12 @@ describe("recebimento de pedido formal de compra", () => {
       },
     ]);
     from.mockImplementation(() => ({
-      select: vi.fn(() => ({ in: vi.fn().mockResolvedValue({ data: [], error: null }) })),
+      select: vi.fn(() => ({
+        in: vi.fn().mockResolvedValue({
+          data: [{ id: 10, ativo: true, custo_unitario: 50, fornecedores: null }],
+          error: null,
+        }),
+      })),
     }));
     rpc.mockResolvedValue({
       data: null,
@@ -481,5 +486,78 @@ describe("recebimento de pedido formal de compra", () => {
       message: "As faltas deste planejamento já estão em pedido interno aberto (#77). Acompanhe por lá.",
     });
     expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it("comprarFaltasDoPlano recusa insumo inativo antes da RPC", async () => {
+    const { computarDemandaPlano } = await import("@/lib/costing/demanda");
+    vi.mocked(computarDemandaPlano).mockResolvedValue([
+      {
+        insumo_id: 10,
+        especificacao: "Solvente",
+        unidade: "L",
+        demanda: 1,
+        disponivel: 0,
+        falta: 1,
+        custoUnitario: 50,
+        custoEstimado: 50,
+        quantidadeMinimaCompra: null,
+        quantidadeEmbalagem: null,
+        quantidadeCompra: 1,
+        valorCompraEstimado: 50,
+      },
+    ]);
+    from.mockImplementation((table: string) => {
+      if (table === "insumos") {
+        return {
+          select: vi.fn(() => ({
+            in: vi.fn().mockResolvedValue({
+              data: [{ id: 10, ativo: false, custo_unitario: 50, fornecedores: null }],
+              error: null,
+            }),
+          })),
+        };
+      }
+      return {};
+    });
+    const { comprarFaltasDoPlano } = await import("./compras");
+    const formData = new FormData();
+    formData.set("planejamento_id", "5");
+
+    await expect(comprarFaltasDoPlano({ ok: false }, formData)).resolves.toEqual({
+      ok: false,
+      message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+    });
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("adicionarItemPedido falha fechado quando não comprova insumo ativo", async () => {
+    const insert = vi.fn().mockResolvedValue({ error: null });
+    from.mockImplementation((table: string) => {
+      if (table === "insumos") {
+        return {
+          select: vi.fn(() => ({
+            eq: vi.fn(() => ({
+              maybeSingle: vi.fn().mockResolvedValue({
+                data: null,
+                error: { message: "consulta indisponível" },
+              }),
+            })),
+          })),
+        };
+      }
+      if (table === "pedidos_compra_itens") return { insert };
+      return {};
+    });
+    const { adicionarItemPedido } = await import("./compras");
+    const formData = new FormData();
+    formData.set("pedido_id", "20");
+    formData.set("insumo_id", "10");
+    formData.set("quantidade", "1");
+
+    await expect(adicionarItemPedido({ ok: false }, formData)).resolves.toEqual({
+      ok: false,
+      message: "Insumo inativo. Reative o cadastro para iniciar uma nova operação.",
+    });
+    expect(insert).not.toHaveBeenCalled();
   });
 });
