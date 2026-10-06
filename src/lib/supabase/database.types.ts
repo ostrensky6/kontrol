@@ -1285,6 +1285,7 @@ export type Database = {
       }
       insumos: {
         Row: {
+          ativo: boolean
           categoria_compra: string | null
           codigo_fabricante: string | null
           codigo_interno: string | null
@@ -1315,6 +1316,7 @@ export type Database = {
           validade_dias: number | null
         }
         Insert: {
+          ativo?: boolean
           categoria_compra?: string | null
           codigo_fabricante?: string | null
           codigo_interno?: string | null
@@ -1345,6 +1347,7 @@ export type Database = {
           validade_dias?: number | null
         }
         Update: {
+          ativo?: boolean
           categoria_compra?: string | null
           codigo_fabricante?: string | null
           codigo_interno?: string | null
@@ -4399,6 +4402,7 @@ export type Database = {
       }
       v_estoque_saldo: {
         Row: {
+          ativo: boolean | null
           bloqueado: number | null
           categoria_compra: string | null
           classe_tipo_insumo: string | null

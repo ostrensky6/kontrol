@@ -43,7 +43,7 @@ export default async function ScannerTriagemPage({
       .select("id, codigo, formato, tipo_sugerido, criado_em")
       .in("status", ["pendente", "em_analise"])
       .order("criado_em", { ascending: true }),
-    supabase.from("insumos").select("id, especificacao").order("especificacao").limit(200),
+    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao").limit(200),
     supabase
       .from("lotes_estoque")
       .select("id, codigo_lote, insumos(especificacao)")

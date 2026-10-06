@@ -93,7 +93,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
       .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)")
       .eq("pedido_id", pedidoId)
       .order("id"),
-    supabase.from("insumos").select("id, especificacao").order("especificacao"),
+    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
     pode("compras.aprovar"),
     pode("compras.receber"),
     pode("compras.cancelar"),

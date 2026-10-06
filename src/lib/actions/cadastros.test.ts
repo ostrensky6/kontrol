@@ -7,7 +7,7 @@ const insert = vi.fn();
 const eq = vi.fn();
 const selectAtualizados = vi.fn();
 const update = vi.fn();
-const from = vi.fn(() => ({ insert, update }));
+const from = vi.fn((_tabela: string) => ({ insert, update }));
 const rpc = vi.fn();
 
 vi.mock("next/cache", () => ({ revalidatePath }));
@@ -335,5 +335,215 @@ describe("cadastros: auditoria de 26/09 (onda 2)", () => {
     const result = await excluirRegistro({ ok: false }, form({ _slug: "clientes", _id: "7" }));
     expect(result.message).toMatch(/^Não é possível excluir: o registro está em uso/);
     expect(result.message).not.toMatch(/violates/);
+  });
+
+  it("devolve blockers estruturados e links internos seguros ao recusar exclusão de insumo", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: "23503",
+        message: "Exclusão bloqueada por vínculos históricos.",
+        details: JSON.stringify({
+          blockers: [
+            {
+              tipo: "lote_estoque",
+              rotulo: "lotes de estoque",
+              contagem: 2,
+              identificador: "L-2026-01",
+              href: "/estoque/lotes/41",
+            },
+            {
+              tipo: "pedido_compra",
+              rotulo: "pedido de compra",
+              contagem: 1,
+              identificador: "PC-19",
+              href: "https://exemplo.invalid/roubo",
+            },
+          ],
+        }),
+      },
+    }));
+    from.mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result.blockers).toEqual([
+      {
+        tipo: "lote_estoque",
+        rotulo: "lotes de estoque",
+        contagem: 2,
+        identificador: "L-2026-01",
+        href: "/estoque/lotes/41",
+      },
+      {
+        tipo: "pedido_compra",
+        rotulo: "pedido de compra",
+        contagem: 1,
+        identificador: "PC-19",
+      },
+    ]);
+    expect(result.message).toContain("2 lotes de estoque (L-2026-01)");
+    expect(result.message).toContain("1 pedido de compra (PC-19)");
+  });
+
+  it("falha fechada se o banco não comprova os vínculos do insumo", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: { code: "23503", message: "foreign key constraint" },
+    }));
+    from.mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Não foi possível confirmar com segurança quais vínculos usam este insumo. Nada foi excluído.",
+    });
+  });
+
+  it("enriquece blockers comprovados com análise e pedido visíveis pela sessão", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: "23503",
+        message: "Exclusão bloqueada por vínculos históricos.",
+        details: JSON.stringify({
+          blockers: [
+            { tipo: "insumo_analise", rotulo: "Análises", contagem: 2 },
+            { tipo: "pedidos_compra_itens", rotulo: "Itens de compras", contagem: 1 },
+          ],
+        }),
+      },
+    }));
+    const consultaAnalise = {
+      select: () => ({
+        eq: () => ({ limit: async () => ({ data: [{ codigo_analise: "qPCR_F" }], error: null }) }),
+      }),
+    };
+    const consultaCompra = {
+      select: () => ({
+        eq: () => ({ limit: async () => ({ data: [{ pedido_id: 19 }], error: null }) }),
+      }),
+    };
+    from
+      .mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never)
+      .mockReturnValueOnce(consultaAnalise as never)
+      .mockReturnValueOnce(consultaCompra as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result.blockers).toEqual([
+      {
+        tipo: "insumo_analise",
+        rotulo: "Análises",
+        contagem: 2,
+        identificador: "qPCR_F",
+        href: "/analises/qPCR_F",
+      },
+      {
+        tipo: "pedidos_compra_itens",
+        rotulo: "Itens de compras",
+        contagem: 1,
+        identificador: "Compra #19",
+        href: "/compras/19",
+      },
+    ]);
+    expect(from.mock.calls.map(([tabela]) => tabela)).toEqual([
+      "insumos",
+      "insumo_analise",
+      "pedidos_compra_itens",
+    ]);
+  });
+
+  it("mantém somente a contagem quando a amostra está oculta por RLS", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: "23503",
+        message: "Exclusão bloqueada por vínculos históricos.",
+        details: JSON.stringify({
+          blockers: [{ tipo: "insumo_analise", rotulo: "Análises", contagem: 2 }],
+        }),
+      },
+    }));
+    from
+      .mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never)
+      .mockReturnValueOnce({
+        select: () => ({ eq: () => ({ limit: async () => ({ data: [], error: null }) }) }),
+      } as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result.blockers).toEqual([
+      { tipo: "insumo_analise", rotulo: "Análises", contagem: 2 },
+    ]);
+  });
+
+  it("mantém somente a contagem quando a consulta de amostra falha", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({
+      data: null,
+      error: {
+        code: "23503",
+        message: "Exclusão bloqueada por vínculos históricos.",
+        details: JSON.stringify({
+          blockers: [{ tipo: "pedidos_compra_itens", rotulo: "Itens de compras", contagem: 1 }],
+        }),
+      },
+    }));
+    from
+      .mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never)
+      .mockReturnValueOnce({
+        select: () => ({
+          eq: () => ({ limit: async () => ({ data: null, error: { message: "Sem permissão" } }) }),
+        }),
+      } as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result.blockers).toEqual([
+      { tipo: "pedidos_compra_itens", rotulo: "Itens de compras", contagem: 1 },
+    ]);
+  });
+
+  it("não consulta amostras quando a exclusão do insumo sem vínculos funciona", async () => {
+    const { excluirRegistro } = await import("./cadastros");
+    const deleteSelect = vi.fn(async () => ({ data: [{ id: 7 }], error: null }));
+    from.mockReturnValueOnce({ delete: () => ({ eq: () => ({ select: deleteSelect }) }) } as never);
+
+    const result = await excluirRegistro({ ok: false }, form({ _slug: "insumos", _id: "7" }));
+
+    expect(result).toEqual({ ok: true, message: "Excluído." });
+    expect(from).toHaveBeenCalledTimes(1);
+  });
+
+  it("inativa somente o insumo indicado e confirma a linha alterada", async () => {
+    const { alterarAtivoRegistro } = await import("./cadastros");
+    selectAtualizados.mockResolvedValueOnce({ data: [{ id: 7, ativo: false }], error: null });
+
+    const result = await alterarAtivoRegistro(
+      { ok: false },
+      form({ _slug: "insumos", _id: "7", ativo: "false" }),
+    );
+
+    expect(update).toHaveBeenCalledWith({ ativo: false });
+    expect(eq).toHaveBeenCalledWith("id", 7);
+    expect(result).toEqual({ ok: true, message: "Insumo inativado." });
+  });
+
+  it("não informa inativação quando RLS não devolve a linha", async () => {
+    const { alterarAtivoRegistro } = await import("./cadastros");
+    selectAtualizados.mockResolvedValueOnce({ data: [], error: null });
+
+    const result = await alterarAtivoRegistro(
+      { ok: false },
+      form({ _slug: "insumos", _id: "7", ativo: "false" }),
+    );
+
+    expect(result).toEqual({ ok: false, message: expect.stringMatching(/^Nada foi alterado/) });
   });
 });

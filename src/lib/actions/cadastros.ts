@@ -35,6 +35,15 @@ import { conflitosCodigos, mensagemConflitos, sincronizarCodigosInsumo } from "@
 /** Retorno padrão (EstadoAcao, src/lib/erros.ts) + id do registro criado. */
 export type FormState = EstadoAcao & {
   createdId?: number;
+  blockers?: ExclusaoBlocker[];
+};
+
+export type ExclusaoBlocker = {
+  tipo: string;
+  rotulo: string;
+  contagem: number;
+  identificador?: string;
+  href?: string;
 };
 
 export type ImportCadastroResumo = {
@@ -366,11 +375,150 @@ function schemaEObjeto(
  * exclusão (0120, 0129) já explicam em português por que o registro não pode
  * sair (código 23503): essa explicação é mantida.
  */
-function mensagemRecusa(error: { code?: string | null; message?: string | null }, emUso?: string) {
+type ErroBanco = {
+  code?: string | null;
+  message?: string | null;
+  details?: string | null;
+};
+
+function mensagemRecusa(error: ErroBanco, emUso?: string) {
   const texto = (error.message ?? "").trim();
   if (error.code === "23503" && texto && !/violates|foreign key|constraint/i.test(texto)) return texto;
   if (error.code === "23503" && emUso) return emUso;
   return mensagemDoBanco(error);
+}
+
+function textoCurto(valor: unknown, limite: number): string | undefined {
+  if (typeof valor !== "string") return undefined;
+  const texto = valor.trim();
+  return texto && texto.length <= limite ? texto : undefined;
+}
+
+function hrefInternoSeguro(valor: unknown): string | undefined {
+  const href = textoCurto(valor, 180);
+  if (!href) return undefined;
+  return /^\/(?:estoque\/lotes\/\d+|compras\/\d+|pedido\/\d+|analises\/[^/?#]+)$/.test(href)
+    ? href
+    : undefined;
+}
+
+/**
+ * Contrato do gatilho de proteção: DETAIL contém
+ * {"blockers":[{tipo,rotulo,contagem,identificador?,href?}]}.
+ * Dados fora do formato ou links externos são descartados; nunca são
+ * apresentados como prova de vínculo.
+ */
+function blockersDaRecusa(error: ErroBanco): ExclusaoBlocker[] {
+  if (!error.details) return [];
+  try {
+    const detalhe: unknown = JSON.parse(error.details);
+    if (!detalhe || typeof detalhe !== "object" || !("blockers" in detalhe)) return [];
+    const lista = (detalhe as { blockers?: unknown }).blockers;
+    if (!Array.isArray(lista)) return [];
+
+    return lista.flatMap((item): ExclusaoBlocker[] => {
+      if (!item || typeof item !== "object") return [];
+      const bruto = item as Record<string, unknown>;
+      const tipo = textoCurto(bruto.tipo, 80);
+      const rotulo = textoCurto(bruto.rotulo, 120);
+      const contagem = Number(bruto.contagem);
+      if (!tipo || !rotulo || !Number.isSafeInteger(contagem) || contagem <= 0) return [];
+
+      const identificador = textoCurto(bruto.identificador, 120);
+      const href = hrefInternoSeguro(bruto.href);
+      return [{
+        tipo,
+        rotulo,
+        contagem,
+        ...(identificador ? { identificador } : {}),
+        ...(href ? { href } : {}),
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function mensagemBlockers(blockers: ExclusaoBlocker[]) {
+  const resumo = blockers
+    .map(({ contagem, rotulo, identificador }) =>
+      `${contagem} ${rotulo}${identificador ? ` (${identificador})` : ""}`,
+    )
+    .join("; ");
+  return `Não é possível excluir este insumo: ${resumo}. Inative-o para impedir novos usos e preservar o histórico.`;
+}
+
+function idPositivo(valor: unknown): number | undefined {
+  const id = Number(valor);
+  return Number.isSafeInteger(id) && id > 0 ? id : undefined;
+}
+
+async function enriquecerBlockersInsumo(
+  supabase: Awaited<ReturnType<typeof createClientUntyped>>,
+  insumoId: number,
+  blockers: ExclusaoBlocker[],
+): Promise<ExclusaoBlocker[]> {
+  const resultado = blockers.map((blocker) => ({ ...blocker }));
+  const indice = (tipo: string) =>
+    resultado.findIndex((blocker) => blocker.tipo === tipo && !blocker.identificador);
+  const preencher = (i: number, identificador: string, href: string) => {
+    if (i >= 0) resultado[i] = { ...resultado[i], identificador, href };
+  };
+
+  let i = indice("insumo_analise");
+  if (i >= 0) {
+    try {
+      const { data, error } = await supabase
+        .from("insumo_analise")
+        .select("codigo_analise")
+        .eq("insumo_id", insumoId)
+        .limit(1);
+      const codigo = !error ? textoCurto(data?.[0]?.codigo_analise, 120) : undefined;
+      if (codigo) preencher(i, codigo, `/analises/${encodeURIComponent(codigo)}`);
+    } catch { /* RLS/erro mantém somente a contagem comprovada pelo banco. */ }
+  }
+
+  i = indice("pedidos_compra_itens");
+  if (i >= 0) {
+    try {
+      const { data, error } = await supabase
+        .from("pedidos_compra_itens")
+        .select("pedido_id")
+        .eq("insumo_id", insumoId)
+        .limit(1);
+      const pedidoId = !error ? idPositivo(data?.[0]?.pedido_id) : undefined;
+      if (pedidoId) preencher(i, `Compra #${pedidoId}`, `/compras/${pedidoId}`);
+    } catch { /* RLS/erro mantém somente a contagem comprovada pelo banco. */ }
+  }
+
+  i = indice("pedidos_internos_itens");
+  if (i >= 0) {
+    try {
+      const { data, error } = await supabase
+        .from("pedidos_internos_itens")
+        .select("pedido_interno_id")
+        .eq("insumo_id", insumoId)
+        .limit(1);
+      const pedidoId = !error ? idPositivo(data?.[0]?.pedido_interno_id) : undefined;
+      if (pedidoId) preencher(i, `Pedido #${pedidoId}`, `/pedido/${pedidoId}`);
+    } catch { /* RLS/erro mantém somente a contagem comprovada pelo banco. */ }
+  }
+
+  i = indice("lotes_estoque");
+  if (i >= 0) {
+    try {
+      const { data, error } = await supabase
+        .from("lotes_estoque")
+        .select("id, codigo_lote")
+        .eq("insumo_id", insumoId)
+        .limit(1);
+      const loteId = !error ? idPositivo(data?.[0]?.id) : undefined;
+      const codigo = !error ? textoCurto(data?.[0]?.codigo_lote, 120) : undefined;
+      if (loteId) preencher(i, codigo ?? `Lote #${loteId}`, `/estoque/lotes/${loteId}`);
+    } catch { /* RLS/erro mantém somente a contagem comprovada pelo banco. */ }
+  }
+
+  return resultado;
 }
 
 const NADA_ALTERADO =
@@ -593,11 +741,59 @@ export async function excluirRegistro(
   const supabase = await createClientUntyped();
   const { data, error } = await supabase.from(tabela).delete().eq("id", id).select("id");
 
-  if (error) return { ok: false, message: mensagemRecusa(error, EM_USO) };
+  if (error) {
+    const comprovados = slug === "insumos" ? blockersDaRecusa(error) : [];
+    if (comprovados.length > 0) {
+      const blockers = error.code === "23503"
+        ? await enriquecerBlockersInsumo(supabase, id, comprovados)
+        : comprovados;
+      return { ok: false, message: mensagemBlockers(blockers), blockers };
+    }
+    if (slug === "insumos" && error.code === "23503") {
+      return {
+        ok: false,
+        message: "Não foi possível confirmar com segurança quais vínculos usam este insumo. Nada foi excluído.",
+      };
+    }
+    return { ok: false, message: mensagemRecusa(error, EM_USO) };
+  }
   if (!data?.length) return { ok: false, message: NADA_ALTERADO };
 
   revalidarDependentes(slug);
   return { ok: true, message: "Excluído." };
+}
+
+/**
+ * Lifecycle mínimo do catálogo de insumos. Não reenvia o formulário completo
+ * nem altera estoque/histórico; RLS e o banco continuam sendo a autoridade.
+ */
+export async function alterarAtivoRegistro(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const slug = String(formData.get("_slug") ?? "");
+  const id = Number(formData.get("_id"));
+  const valor = String(formData.get("ativo") ?? "").trim().toLowerCase();
+  if (slug !== "insumos" || !Number.isSafeInteger(id) || id <= 0) {
+    return { ok: false, message: "Registro inválido." };
+  }
+  if (!["true", "false", "1", "0", "on", "off"].includes(valor)) {
+    return { ok: false, message: "Estado do cadastro inválido." };
+  }
+
+  const ativo = valor === "true" || valor === "1" || valor === "on";
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase
+    .from("insumos")
+    .update({ ativo })
+    .eq("id", id)
+    .select("id, ativo");
+
+  if (error) return { ok: false, message: mensagemRecusa(error) };
+  if (!data?.length) return { ok: false, message: NADA_ALTERADO };
+
+  revalidarDependentes("insumos");
+  return { ok: true, message: ativo ? "Insumo reativado." : "Insumo inativado." };
 }
 
 // ---- importação XLSX ("só adicionar e atualizar") ----

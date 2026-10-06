@@ -14,6 +14,7 @@ const SEM_PERMISSAO: FormState = {
   message: "Seu perfil não tem permissão para esta ação. Peça ao administrador para liberar em Usuários.",
 };
 const MSG_VALIDADE_CRITICO = "Validade é obrigatória para receber insumo crítico.";
+const MSG_INSUMO_INATIVO = "Insumo inativo. Reative o cadastro para iniciar uma nova operação.";
 const UUID_RECEBIMENTO = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 
 function leadTimeEfetivo(
@@ -91,11 +92,14 @@ export async function comprarFaltasDoPlano(_prev: EstadoAcao, formData: FormData
   const faltas = demanda.filter((d) => d.falta > 0);
   if (faltas.length === 0) return falha("Este plano não tem faltas para comprar.");
 
-  const { data: insumos } = await supabase
+  const { data: insumos, error: insumosError } = await supabase
     .from("insumos")
-    .select("id, custo_unitario, fornecedores!insumos_fornecedor_id_fkey(nome)")
+    .select("id, ativo, custo_unitario, fornecedores!insumos_fornecedor_id_fkey(nome)")
     .in("id", faltas.map((f) => f.insumo_id));
   const infoMap = new Map((insumos ?? []).map((i) => [i.id, i]));
+  if (insumosError || faltas.some((f) => infoMap.get(f.insumo_id)?.ativo !== true)) {
+    return falha(MSG_INSUMO_INATIVO);
+  }
 
   const itens = faltas.map((f) => {
     const info = infoMap.get(f.insumo_id) as {
@@ -158,11 +162,15 @@ export async function adicionarItemPedido(_prev: FormState, formData: FormData):
   const supabase = await createClient();
   // Compra em frascos: com embalagem cadastrada, a quantidade digitada é de
   // frascos e o volume de cada um vem do cadastro (ajustável na chegada).
-  const { data: insumo } = await supabase
+  const { data: insumoRaw, error: insumoError } = await supabase
     .from("insumos")
-    .select("quantidade_embalagem")
+    .select("quantidade_embalagem, ativo")
     .eq("id", insumo_id)
     .maybeSingle();
+  const insumo = insumoRaw as { quantidade_embalagem: number | null; ativo: boolean } | null;
+  if (insumoError || insumo?.ativo !== true) {
+    return { ok: false, message: MSG_INSUMO_INATIVO };
+  }
   const conteudo = Number(insumo?.quantidade_embalagem) > 0 ? Number(insumo?.quantidade_embalagem) : null;
   if (conteudo && !Number.isInteger(quantidade)) {
     return { ok: false, message: "Informe a quantidade em frascos inteiros." };

@@ -235,10 +235,12 @@ function CellSelect({
   editing: boolean;
 }) {
   if (!editing) return <span className="block max-w-56 truncate">{label}</span>;
+  const atualAusente = value != null && !options.some((option) => option.id === value);
 
   return (
     <select form={formId} name={name} defaultValue={value ?? ""} className={`${inputClass} w-56`}>
       <option value="">Sem vínculo</option>
+      {atualAusente && <option value={value}>{label} (inativo)</option>}
       {options.map((option) => (
         <option key={option.id} value={option.id}>
           {option.label}

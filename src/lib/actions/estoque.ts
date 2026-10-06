@@ -9,6 +9,8 @@ import type { FormState } from "./cadastros";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { MOTIVOS_BAIXA, montarMotivoBaixa, normalizarModelo } from "@/lib/estoque/baixa";
 
+const MENSAGEM_INSUMO_INATIVO = "Insumo inativo. Reative o cadastro para iniciar uma nova operação.";
+
 const schema = z.object({
   insumo_id: z.preprocess((v) => Number(v), z.number().int().positive()),
   quantidade: z.preprocess(
@@ -88,6 +90,23 @@ function formErrors(error: z.ZodError): Record<string, string> {
   return errors;
 }
 
+function relacaoAtiva(relacao: unknown) {
+  const insumo = Array.isArray(relacao) ? relacao[0] : relacao;
+  return Boolean(insumo && typeof insumo === "object" && "ativo" in insumo && insumo.ativo === true);
+}
+
+async function loteDeInsumoAtivo(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  loteId: number,
+) {
+  const { data } = await (supabase as unknown as SupabaseClient)
+    .from("lotes_estoque")
+    .select("insumos!inner(ativo)")
+    .eq("id", loteId)
+    .single();
+  return relacaoAtiva((data as { insumos?: unknown } | null)?.insumos);
+}
+
 /**
  * 2.4 — Entrada de inventário / ajuste (porta avulsa, EXPLÍCITA). O recebimento
  * "normal" de compra acontece pelo item do pedido (receberItemPedido). Aqui é a
@@ -112,11 +131,13 @@ export async function entradaInventario(
 
   const d = parsed.data;
   const supabase = await createClient();
-  const { data: insumo } = await supabase
+  const { data: insumoRaw } = await (supabase as unknown as SupabaseClient)
     .from("insumos")
-    .select("categoria_compra")
+    .select("categoria_compra, ativo")
     .eq("id", d.insumo_id)
     .single();
+  const insumo = insumoRaw as { categoria_compra?: string | null; ativo?: boolean } | null;
+  if (insumo?.ativo !== true) return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
   if (insumo?.categoria_compra === "critico" && !d.validade) {
     return {
       ok: false,
@@ -270,6 +291,9 @@ export async function baixarManualLote(
   }
 
   const supabase = await createClient();
+  if (!(await loteDeInsumoAtivo(supabase, parsed.data.lote_id))) {
+    return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+  }
   const operacaoRecebida = String(formData.get("operacao_id") ?? "");
   const { error } = await supabase.rpc("baixa_manual_lote" as never, {
     p_lote_id: parsed.data.lote_id,
@@ -388,6 +412,9 @@ export async function baixarEmbalagens(
   }
   try {
     const supabase = await createClient();
+    if (!(await loteDeInsumoAtivo(supabase, parsed.data.lote_id))) {
+      return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+    }
     return await executarBaixaEmbalagens(supabase, parsed.data);
   } catch (error) {
     return { ok: false, message: mensagemErro(error, "Não foi possível registrar a baixa.") };
@@ -414,10 +441,13 @@ export async function darBaixaLote(
     // modelo_quantidade (0109) ainda não está nos tipos gerados.
     const { data: lote, error: loteError } = await (supabase as unknown as SupabaseClient)
       .from("lotes_estoque")
-      .select("id, modelo_quantidade")
+      .select("id, modelo_quantidade, insumos!inner(ativo)")
       .eq("id", dados.lote_id)
       .single();
     if (loteError || !lote) return { ok: false, message: "Lote não encontrado." };
+    if (!relacaoAtiva((lote as { insumos?: unknown }).insumos)) {
+      return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+    }
 
     const modelo = normalizarModelo((lote as { modelo_quantidade?: unknown }).modelo_quantidade);
     if (modelo === "EMBALAGEM_FECHADA") return await executarBaixaEmbalagens(supabase, dados);
@@ -546,6 +576,14 @@ export async function entradaEmbalagens(
 
   const d = parsed.data;
   const supabase = await createClient();
+  const { data: insumo } = await (supabase as unknown as SupabaseClient)
+    .from("insumos")
+    .select("ativo")
+    .eq("id", d.insumo_id)
+    .single();
+  if ((insumo as { ativo?: boolean } | null)?.ativo !== true) {
+    return { ok: false, message: MENSAGEM_INSUMO_INATIVO };
+  }
   const { error } = await supabase.rpc("registrar_entrada_manual_embalagens" as never, {
     p_insumo_id: d.insumo_id,
     p_quantidade_embalagens: d.quantidade,

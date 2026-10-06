@@ -56,6 +56,17 @@ export function ReceberItemPedidoInterno({
   const [recebimentoPending, startRecebimentoTransition] = useTransition();
   const [scanPending, startScanTransition] = useTransition();
   const [insumoId, setInsumoId] = useState(item.insumoId ? String(item.insumoId) : "");
+  const insumosDisponiveis =
+    item.insumoId && !insumos.some((insumo) => insumo.id === item.insumoId)
+      ? [
+          {
+            id: item.insumoId,
+            especificacao: `${item.especificacao} (inativo)`,
+            unidade: item.unidade,
+          },
+          ...insumos,
+        ]
+      : insumos;
   const emFrascos = item.emFrascos ?? /^frasco/i.test((item.unidade ?? "").trim());
   const [codigoLote, setCodigoLote] = useState("");
   const [validade, setValidade] = useState("");
@@ -354,7 +365,7 @@ export function ReceberItemPedidoInterno({
               className={inp}
             >
               <option value="">— selecione —</option>
-              {insumos.map((insumo) => (
+              {insumosDisponiveis.map((insumo) => (
                 <option key={insumo.id} value={insumo.id}>
                   {insumo.especificacao}
                 </option>
