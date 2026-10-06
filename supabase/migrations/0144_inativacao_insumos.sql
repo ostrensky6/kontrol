@@ -111,7 +111,6 @@ begin
     from (
       select 'insumo_analise' as tipo, 'Análises' as rotulo, count(*) as contagem from public.insumo_analise where insumo_id = old.id
       union all select 'estoque_movimentacoes', 'Movimentações de estoque', count(*) from public.estoque_movimentacoes where insumo_id = old.id
-      union all select 'estoque_config', 'Configurações de estoque', count(*) from public.estoque_config where insumo_id = old.id
       union all select 'lotes_estoque', 'Lotes de estoque', count(*) from public.lotes_estoque where insumo_id = old.id
       union all select 'reservas_estoque', 'Reservas de estoque', count(*) from public.reservas_estoque where insumo_id = old.id
       union all select 'pedidos_compra_itens', 'Itens de compras', count(*) from public.pedidos_compra_itens where insumo_id = old.id

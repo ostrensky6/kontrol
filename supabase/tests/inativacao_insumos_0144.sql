@@ -94,7 +94,7 @@ begin
   from pg_constraint fk join pg_class c on c.oid = fk.conrelid
   where fk.contype = 'f' and fk.confrelid = 'public.insumos'::regclass;
   if v_familias is distinct from array[
-    'estoque_config','estoque_movimentacoes','insumo_analise','inventario_contagens','lotes_estoque',
+    'estoque_movimentacoes','insumo_analise','inventario_contagens','lotes_estoque',
     'pedidos_compra_item_recebimentos','pedidos_compra_itens','pedidos_internos_item_recebimentos',
     'pedidos_internos_itens','planejamento_lote_conferencias','reservas_estoque']::text[] then
     raise exception 'BLOCKERS: famílias FK divergentes: %', v_familias;
@@ -168,7 +168,6 @@ begin
     format('select public.criar_pedido_reposicao_estoque(''TS-0144'',''ensaio'',''normal'',current_date,''[{"insumo_id":%s,"quantidade":1}]''::jsonb)', v_a),
     format('select public.criar_pedido_faltas_planejamento(%s,''[{"insumo_id":%s,"quantidade":1}]''::jsonb)', current_setting('t0144.plano'), v_a),
     format('insert into public.pedidos_compra_itens(pedido_id,insumo_id,quantidade) values(%s,%s,1)', current_setting('t0144.ped'), v_a),
-    format('insert into public.reservas_estoque(planejamento_id,insumo_id,lote_id,quantidade,status) values(%s,%s,%s,1,''reservado'')', current_setting('t0144.plano'), v_a, v_lote),
     format('insert into public.identificadores(codigo,codigo_normalizado,formato,entidade_tipo,entidade_id,origem) values(''TS-0144-NOVO'',''TS-0144-NOVO'',''codigo_barras'',''insumo'',%s,''fabricante'')', v_a)
   ];
   foreach v_comando in array v_operacoes loop
@@ -188,7 +187,7 @@ begin
   end if;
 end $$;
 
--- RLS também fecha INSERT direto em lotes/movimentos. RPC histórica
+-- RLS também fecha INSERT direto em lotes/movimentos/reservas. RPC histórica
 -- SECURITY DEFINER continua controlada pelo contrato e é exercitada abaixo.
 do $$
 begin
@@ -202,6 +201,13 @@ begin
     insert into public.estoque_movimentacoes(insumo_id, tipo, quantidade, motivo)
     values(current_setting('t0144.a')::bigint, 'entrada', 1, 'TS-0144-DIRETO');
     raise exception 'RLS: movimento direto contornou ativo';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    insert into public.reservas_estoque(planejamento_id, insumo_id, lote_id, quantidade, status)
+    values(current_setting('t0144.plano')::bigint, current_setting('t0144.a')::bigint,
+      current_setting('t0144.lote')::bigint, 1, 'reservado');
+    raise exception 'RLS: reserva direta contornou a RPC controlada';
   exception when insufficient_privilege then null;
   end;
 end $$;
@@ -259,7 +265,7 @@ declare
   v_op uuid := gen_random_uuid();
   v_r jsonb;
 begin
-  update public.pedidos_compra_itens set observacao = 'TS-0144 histórico mantido'
+  update public.pedidos_compra_itens set insumo_id = insumo_id
     where id = current_setting('t0144.item')::bigint;
   v_r := public.registrar_recebimento_por_leitura(v_a, current_setting('t0144.ped')::bigint,
     current_setting('t0144.item')::bigint, 1, current_date+90, null, 'TS-0144-HIST', v_op);

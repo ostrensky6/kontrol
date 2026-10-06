@@ -246,6 +246,7 @@ const baseStore = (): Store => {
     unidade: "un",
     unidade_consumo: "un",
     fator_conversao: 1,
+    ativo: true,
   }));
   const custosEstoque = insumos.map((insumo) => ({
     insumo_id: insumo.id,
@@ -310,7 +311,18 @@ const baseStore = (): Store => {
       texto: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Pagamento conforme combinado." }] }] } },
   ]),
   analises: HISTORICAL_ANALISES,
-  insumos,
+  insumos: [
+    ...insumos,
+    {
+      id: 900,
+      especificacao: "Kit extração E2E",
+      custo_unitario: 100,
+      unidade: "kit",
+      unidade_consumo: "kit",
+      fator_conversao: 1,
+      ativo: true,
+    },
+  ],
   etapas: HISTORICAL_ANALISE_CODES.map((codigo) => ({
     codigo_analise: codigo,
     nome_etapa: "Preparo",
@@ -788,9 +800,14 @@ function withRelations(table: string, row: Row): Row {
   }
   if (table === "lotes_estoque") {
     const saldo = store.v_estoque_saldo.find((item) => item.insumo_id === row.insumo_id);
+    const insumo = store.insumos.find((item) => item.id === row.insumo_id);
     return {
       ...row,
-      insumos: { especificacao: saldo?.especificacao ?? "Mix PCR", unidade: saldo?.unidade ?? "uL" },
+      insumos: {
+        especificacao: saldo?.especificacao ?? "Mix PCR",
+        unidade: saldo?.unidade ?? "uL",
+        ativo: insumo?.ativo === true,
+      },
     };
   }
   return row;
@@ -1073,6 +1090,7 @@ class MockQuery {
       ...(this.table === "planejamento"
         ? { status_operacional: "rascunho", reserva_desatualizada: false }
         : {}),
+      ...(this.table === "insumos" ? { ativo: true } : {}),
       ...row,
     }));
     if (this.table === "planejamento_itens") {

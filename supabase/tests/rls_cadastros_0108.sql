@@ -42,7 +42,8 @@ begin
         and policyname = format('rls_permissao_%s_%s', op, t)
         and cmd = upper(op);
       if not found or p.roles <> array['authenticated']::name[]
-        or position(format('pode_editar_cadastro(''%s''', chave)
+        or position(format('%s(''%s''', case when t = 'insumos'
+                      then 'tem_permissao_efetiva' else 'pode_editar_cadastro' end, chave)
                     in coalesce(p.qual, '') || coalesce(p.with_check, '')) = 0 then
         raise exception '0108: policy incorreta em %/%', t, op;
       end if;

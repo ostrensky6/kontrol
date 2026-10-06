@@ -70,10 +70,11 @@ test('novos vínculos bloqueados, atualização do mesmo ID histórico continua'
   assert.doesNotMatch(sql, /create trigger[^;]+on public\.(?:lotes_estoque|estoque_movimentacoes)/i);
 });
 
-test('exclusão informa contagens reais das onze famílias FK, sem IDs protegidos', () => {
+test('exclusão informa contagens reais das dez famílias FK, sem IDs protegidos', () => {
   const counts = [...sql.matchAll(/select '([^']+)'[^\n]*count\(\*\)(?: as contagem)? from public\.(\w+) where insumo_id = old\.id/g)];
-  const expected = ['insumo_analise', 'estoque_movimentacoes', 'estoque_config', 'lotes_estoque', 'reservas_estoque', 'pedidos_compra_itens', 'pedidos_internos_itens', 'planejamento_lote_conferencias', 'pedidos_internos_item_recebimentos', 'pedidos_compra_item_recebimentos', 'inventario_contagens'];
+  const expected = ['insumo_analise', 'estoque_movimentacoes', 'lotes_estoque', 'reservas_estoque', 'pedidos_compra_itens', 'pedidos_internos_itens', 'planejamento_lote_conferencias', 'pedidos_internos_item_recebimentos', 'pedidos_compra_item_recebimentos', 'inventario_contagens'];
   assert.deepEqual(counts.map(m => m[2]).sort(), expected.sort());
+  assert.doesNotMatch(sql, /public\.estoque_config\b/, 'tabela retirada pela 0003 não pode quebrar a exclusão');
   assert.match(sql, /where contagem > 0/);
   assert.match(sql, /detail = jsonb_build_object\('blockers', v_blockers\)::text/);
   assert.doesNotMatch(sql, /jsonb_build_object\([^;]*(?:'identificador'|'href')/);
@@ -143,7 +144,7 @@ test('E2: UPDATE serializa guardas sem conversão e bloqueia inativação concor
   });
   let holder;
   try {
-    const probe = await execute("select inet_server_addr()::text || '|' || current_database();");
+    const probe = await execute("select host(inet_server_addr()) || '|' || current_database();");
     assert.equal(probe.code, 0, 'conexão ao alvo sintético');
     assert.equal(probe.output, `${process.env.PGHOST}|${process.env.PGDATABASE}`);
     const fixture = await execute(`insert into public.insumos(especificacao) values('${label}') returning id;`);
