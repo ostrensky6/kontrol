@@ -76,6 +76,7 @@ import {
   alterarAtivoRegistro,
   salvarRegistro,
   excluirRegistro,
+  excluirInsumoEmCascata,
   type FormState,
 } from "@/lib/actions/cadastros";
 import { corrigirQuantidadeEmbalagens } from "@/lib/actions/estoque";
@@ -689,6 +690,10 @@ function RowActions({
     excluirRegistro,
     { ok: false },
   );
+  const [cascataState, cascataAction, cascataPending] = useActionState<FormState, FormData>(
+    excluirInsumoEmCascata,
+    { ok: false },
+  );
   const acaoAtivoDisponivel = slug === "insumos" && typeof ativo === "boolean";
   const exclusaoBloqueada = slug === "insumos" && !exclusaoState.ok && Boolean(exclusaoState.message);
   const exclusaoProtegida = useCallback(
@@ -730,6 +735,7 @@ function RowActions({
           action={exclusaoProtegida}
           pending={exclusaoPending}
           bloqueado={exclusaoBloqueada}
+          cascata={slug === "insumos" ? { state: cascataState, action: cascataAction, pending: cascataPending } : undefined}
           onExcluido={onRetorno}
           onInativar={acaoAtivoDisponivel && ativo ? () => {
             setConfirmar(false);
@@ -844,6 +850,7 @@ function DeleteRegistroDialog({
   action,
   pending,
   bloqueado,
+  cascata,
   onExcluido,
   onInativar,
 }: {
@@ -856,31 +863,39 @@ function DeleteRegistroDialog({
   action: (formData: FormData) => void;
   pending: boolean;
   bloqueado: boolean;
+  cascata?: { state: FormState; action: (formData: FormData) => void; pending: boolean };
   onExcluido: (estado: FormState) => void;
   onInativar?: () => void;
 }) {
   const router = useRouter();
+  const [entendeuCascata, setEntendeuCascata] = useState(false);
+  const estadoFinal = cascata?.state.ok ? cascata.state : state;
   useEffect(() => {
     // sucesso: a linha some no refresh e este modal desmonta junto; a
     // confirmação é anunciada pela lista.
-    if (!state.ok) return;
-    onExcluido(state);
+    if (!estadoFinal.ok) return;
+    onExcluido(estadoFinal);
     router.refresh();
-  }, [state, router, onExcluido]);
+  }, [estadoFinal, router, onExcluido]);
   const blockers = state.blockers ?? [];
+  const ocupado = pending || Boolean(cascata?.pending);
+  // A cascata só é oferecida quando o banco comprovou o que será apagado.
+  const ofereceCascata = Boolean(cascata) && bloqueado && blockers.length > 0;
 
   return (
-    <Dialog open={open} onOpenChange={(nextOpen) => !pending && onOpenChange(nextOpen)}>
+    <Dialog open={open} onOpenChange={(nextOpen) => !ocupado && onOpenChange(nextOpen)}>
       <DialogContent
         className="max-h-[calc(100dvh-2rem)] max-w-sm overflow-y-auto"
-        showCloseButton={!pending}
+        showCloseButton={!ocupado}
       >
         <DialogHeader>
           <DialogTitle>Excluir registro</DialogTitle>
           <DialogDescription>
             Tem certeza que deseja excluir <b>“{rotulo}”</b>? Esta ação não pode
             ser desfeita.
-            {COM_ATIVO.has(slug) && " Se houver vínculos, o Kontrol preserva o histórico e impede a exclusão; inative o registro."}
+            {slug === "insumos"
+              ? " Se houver vínculos, o Kontrol mostra o que seria apagado junto antes de excluir."
+              : COM_ATIVO.has(slug) && " Se houver vínculos, o Kontrol preserva o histórico e impede a exclusão; inative o registro."}
           </DialogDescription>
         </DialogHeader>
         <MensagemAcao estado={state.ok ? null : state} className="rounded-md bg-destructive/10 px-3 py-2 text-xs empty:p-0" />
@@ -923,13 +938,51 @@ function DeleteRegistroDialog({
             </p>
           </section>
         )}
+        {ofereceCascata && cascata && (
+          <section className="rounded-md border border-destructive/40 bg-destructive/5 p-3 text-xs" aria-labelledby={`cascata-${id}`}>
+            <h3 id={`cascata-${id}`} className="font-semibold text-destructive">
+              Excluir junto com o histórico
+            </h3>
+            <p className="mt-1 text-muted-foreground">
+              Apaga o insumo e tudo o que está listado acima: lotes, movimentações, itens de compras e
+              pedidos, recebimentos, reservas e códigos. Os saldos e relatórios passados mudam. Não pode
+              ser desfeito; a auditoria registra a exclusão.
+            </p>
+            <MensagemAcao
+              estado={cascata.state.ok ? null : cascata.state}
+              className="mt-2 rounded-md bg-destructive/10 px-3 py-2 empty:p-0"
+            />
+            <form action={cascata.action} className="mt-2 grid gap-2">
+              <input type="hidden" name="_id" value={id} />
+              <input type="hidden" name="confirmacao" value={entendeuCascata ? "apagar" : ""} />
+              <label className="flex items-start gap-2">
+                <Checkbox
+                  checked={entendeuCascata}
+                  onChange={(e) => setEntendeuCascata(e.target.checked)}
+                  disabled={ocupado}
+                  className="mt-px shrink-0"
+                />
+                <span>Entendo que o histórico deste insumo será apagado.</span>
+              </label>
+              <SubmitButton
+                variant="destructive"
+                size="sm"
+                pendingLabel="Excluindo tudo…"
+                disabled={ocupado || !entendeuCascata}
+                className="justify-self-end"
+              >
+                Excluir tudo
+              </SubmitButton>
+            </form>
+          </section>
+        )}
         <DialogFooter>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             onClick={() => onOpenChange(false)}
-            disabled={pending}
+            disabled={ocupado}
           >
             Voltar
           </Button>

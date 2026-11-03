@@ -764,6 +764,29 @@ export async function excluirRegistro(
 }
 
 /**
+ * Exclusão definitiva de insumo junto com lotes, movimentações, itens de
+ * compra/pedido e demais vínculos (0145). Só depois da recusa da exclusão
+ * simples e de confirmação explícita na tela; o banco exige admin.
+ */
+export async function excluirInsumoEmCascata(
+  _prev: FormState,
+  formData: FormData,
+): Promise<FormState> {
+  const id = Number(formData.get("_id"));
+  if (!Number.isSafeInteger(id) || id <= 0) return { ok: false, message: "Registro inválido." };
+  if (formData.get("confirmacao") !== "apagar") {
+    return { ok: false, message: "Confirme que entende que o histórico será apagado." };
+  }
+
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("excluir_insumo_em_cascata", { p_insumo_id: id });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+
+  revalidarDependentes("insumos");
+  return { ok: true, message: "Insumo e histórico excluídos." };
+}
+
+/**
  * Lifecycle mínimo do catálogo de insumos. Não reenvia o formulário completo
  * nem altera estoque/histórico; RLS e o banco continuam sendo a autoridade.
  */
