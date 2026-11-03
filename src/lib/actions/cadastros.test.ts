@@ -521,6 +521,42 @@ describe("cadastros: auditoria de 26/09 (onda 2)", () => {
     expect(from).toHaveBeenCalledTimes(1);
   });
 
+  it("exclusão em cascata exige a confirmação explícita antes de chamar o banco", async () => {
+    const { excluirInsumoEmCascata } = await import("./cadastros");
+
+    const result = await excluirInsumoEmCascata({ ok: false }, form({ _id: "7" }));
+
+    expect(result.ok).toBe(false);
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it("exclusão em cascata chama a RPC do insumo indicado", async () => {
+    const { excluirInsumoEmCascata } = await import("./cadastros");
+    rpc.mockResolvedValueOnce({ data: { insumo_id: 7, removidos: {} }, error: null });
+
+    const result = await excluirInsumoEmCascata({ ok: false }, form({ _id: "7", confirmacao: "apagar" }));
+
+    expect(rpc).toHaveBeenCalledWith("excluir_insumo_em_cascata", { p_insumo_id: 7 });
+    expect(result).toEqual({ ok: true, message: "Insumo e histórico excluídos." });
+    expect(revalidatePath).toHaveBeenCalled();
+  });
+
+  it("exclusão em cascata repassa a recusa de permissão do banco", async () => {
+    const { excluirInsumoEmCascata } = await import("./cadastros");
+    rpc.mockResolvedValueOnce({
+      data: null,
+      error: { code: "42501", message: "Somente administradores podem excluir um insumo junto com o histórico." },
+    });
+
+    const result = await excluirInsumoEmCascata({ ok: false }, form({ _id: "7", confirmacao: "apagar" }));
+
+    expect(result).toEqual({
+      ok: false,
+      message: "Somente administradores podem excluir um insumo junto com o histórico.",
+    });
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
   it("inativa somente o insumo indicado e confirma a linha alterada", async () => {
     const { alterarAtivoRegistro } = await import("./cadastros");
     selectAtualizados.mockResolvedValueOnce({ data: [{ id: 7, ativo: false }], error: null });

@@ -76,6 +76,14 @@ describe("CrudShell: ciclo de vida e exclusao protegida de insumos", () => {
     expect(source).toContain("Nada foi removido");
   });
 
+  it("oferece excluir em cascata so apos o bloqueio comprovado e com confirmacao", () => {
+    expect(source).toContain("excluirInsumoEmCascata");
+    expect(source).toContain("bloqueado && blockers.length > 0");
+    expect(source).toContain("Excluir junto com o histórico");
+    expect(source).toContain('value={entendeuCascata ? "apagar" : ""}');
+    expect(source).toContain("disabled={ocupado || !entendeuCascata}");
+  });
+
   it("permite inativar apos o bloqueio sem reenviar a exclusao", () => {
     expect(source).toMatch(/type="button"[\s\S]*onClick={onInativar}[\s\S]*Inativar/);
     expect(source).toMatch(/<form action={action}[\s\S]*name="_slug"[\s\S]*name="_id"/);
