@@ -27,7 +27,7 @@ export function InventarioAjusteButton({ contagemId }: { contagemId: number }) {
         type="button"
         onClick={aplicar}
         disabled={pending}
-        className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-white hover:bg-primary/90 disabled:opacity-50"
+        className="inline-flex items-center gap-1 rounded-md bg-primary px-2 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
       >
         {pending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
         Aplicar ajuste

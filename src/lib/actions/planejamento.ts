@@ -18,6 +18,18 @@ import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type SupabaseUntyped = Awaited<ReturnType<typeof createClientUntyped>>;
 type DemandaInsumo = Awaited<ReturnType<typeof computarDemandaPlano>>[number];
+
+/** Demanda do plano; falha de leitura de saldo/reserva vira mensagem, não falta inventada. */
+async function lerDemandaPlano(
+  supabase: Parameters<typeof computarDemandaPlano>[0],
+  planId: number,
+): Promise<DemandaInsumo[] | { message: string }> {
+  try {
+    return await computarDemandaPlano(supabase, planId);
+  } catch (error) {
+    return { message: error instanceof Error ? error.message : "Não foi possível ler o estoque do plano." };
+  }
+}
 type Shortfall = { insumo_id: number; falta: number };
 
 function texto(formData: FormData, key: string) {
@@ -468,7 +480,8 @@ export async function reservarPlano(
   } as never);
   if (validacaoErr) return { ok: false, message: mensagemDoBanco(validacaoErr) };
 
-  const demanda = await computarDemandaPlano(supabase, planId);
+  const demanda = await lerDemandaPlano(supabase, planId);
+  if ("message" in demanda) return { ok: false, message: demanda.message };
   if (demanda.length === 0)
     return { ok: false, message: "Adicione análises ao plano antes de reservar." };
 
@@ -519,7 +532,8 @@ export async function iniciarPlano(
     .maybeSingle();
   if (marca?.reserva_desatualizada) return { ok: false, message: MENSAGEM_RESERVA_DESATUALIZADA };
 
-  const demanda = await computarDemandaPlano(supabase, planId);
+  const demanda = await lerDemandaPlano(supabase, planId);
+  if ("message" in demanda) return { ok: false, message: demanda.message };
   const faltasAntesDaBaixa = demanda.filter((d) => d.falta > 0);
   if (faltasAntesDaBaixa.length > 0) {
     await notificarFaltasPlano(supabase, planId, faltasAntesDaBaixa, "baixa");

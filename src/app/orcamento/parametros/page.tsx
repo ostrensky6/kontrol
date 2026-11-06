@@ -369,7 +369,7 @@ export default async function ParametrosEconomicosPage() {
                       <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground">
                         {pct(b.fatores * 100)}
                       </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 font-semibold tabular-nums text-brand-700 dark:text-brand-400">
+                      <td className="whitespace-nowrap px-3 py-1.5 font-semibold tabular-nums text-brand-700 dark:text-brand-300">
                         {brl(b.preco)}
                       </td>
                     </tr>
@@ -477,7 +477,7 @@ function Indicador({
         {rotulo}
         {ajuda}
       </dt>
-      <dd className={`font-semibold tabular-nums ${destaque ? "text-brand-700 dark:text-brand-400" : "text-foreground"}`}>
+      <dd className={`font-semibold tabular-nums ${destaque ? "text-brand-700 dark:text-brand-300" : "text-foreground"}`}>
         {valor}
       </dd>
     </div>

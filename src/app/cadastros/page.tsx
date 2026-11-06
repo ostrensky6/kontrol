@@ -8,6 +8,7 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { hojeIso } from "@/lib/estoque/baixa";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 import {
   inicioJanelaMeses,
   montarInsumosPainel,
@@ -17,22 +18,6 @@ import {
 } from "@/lib/cadastros/painel-insumos";
 
 export const dynamic = "force-dynamic";
-
-const LOTE = 1000;
-
-/** Lê todas as linhas, de mil em mil (o PostgREST corta cada resposta em mil). */
-async function lerTudo<T>(
-  consulta: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
-): Promise<{ linhas: T[]; erro: string | null }> {
-  const linhas: T[] = [];
-  for (let de = 0; ; de += LOTE) {
-    const { data, error } = await consulta(de, de + LOTE - 1);
-    if (error) return { linhas, erro: error.message };
-    const pagina = (data ?? []) as T[];
-    linhas.push(...pagina);
-    if (pagina.length < LOTE) return { linhas, erro: null };
-  }
-}
 
 async function carregarPainel(supabase: SupabaseClient, hoje: string) {
   const inicio = inicioJanelaMeses(hoje, 12);
@@ -58,10 +43,11 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
         .range(de, ate),
     ),
   ]);
-  const erros = [insumos.erro, saldos.erro, movimentos.erro].filter(Boolean);
+  const erros = [insumos.error, saldos.error, movimentos.error].filter(Boolean).map((erro) => erro!.message);
   return {
-    insumos: montarInsumosPainel(insumos.linhas, saldos.linhas),
-    movimentos: movimentos.linhas,
+    // saldo que não deu para ler fica "indisponível", nunca zero/crítico
+    insumos: montarInsumosPainel(insumos.data, saldos.data, { saldosCompletos: !saldos.error }),
+    movimentos: movimentos.data,
     erro: erros.length ? `Parte do painel não carregou: ${erros.join("; ")}` : null,
   };
 }
@@ -78,13 +64,14 @@ export default async function CadastrosIndex() {
     pode("projetos.editar"),
   ]);
   const podeImportar = permissoes.some(Boolean);
+  const podeCadastrarInsumo = permissoes[1];
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight">Cadastros — painel de insumos</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Painel de insumos</h1>
             <HelpTip title="Painel de insumos">
               <p>Visão geral dos insumos ativos do laboratório: quanto há disponível e o que está em falta.</p>
               <p>
@@ -99,9 +86,22 @@ export default async function CadastrosIndex() {
               <p>Clique num indicador ou numa categoria da lista para filtrar.</p>
             </HelpTip>
           </div>
-          <a href="#todos-os-cadastros" className="text-sm font-medium text-primary hover:underline">
-            Ir para todos os cadastros ↓
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            {podeCadastrarInsumo ? (
+              <Link
+                href="/cadastros/insumos?novo=1"
+                className="inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                + Cadastrar insumo
+              </Link>
+            ) : null}
+            <Link href="/cadastros/insumos" className="inline-flex rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
+              Consultar insumos
+            </Link>
+            <a href="#todos-os-cadastros" className="px-1 text-sm font-medium text-primary hover:underline">
+              Todos os cadastros ↓
+            </a>
+          </div>
         </div>
 
         <PainelInsumos insumos={painel.insumos} movimentos={painel.movimentos} hojeIso={hoje} erro={painel.erro} />

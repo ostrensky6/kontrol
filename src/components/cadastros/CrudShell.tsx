@@ -27,6 +27,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Lock, MoreHorizontal, Plus, Search } from "lucide-react";
+import { contemBusca } from "@/lib/busca";
 import type { Campo, Coluna } from "@/lib/cadastros/config";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -186,6 +187,7 @@ export function CrudShell({
   podeMovimentarEstoque = false,
   podeCorrigirEstoque = false,
   novoComCodigo,
+  abrirNovo,
 }: {
   slug: string;
   singular: string;
@@ -204,6 +206,8 @@ export function CrudShell({
   podeCorrigirEstoque?: boolean;
   /** insumos: abre "Novo insumo" com este código de barras (código lido e não reconhecido) */
   novoComCodigo?: string;
+  /** abre o formulário de novo registro ao entrar (link "Cadastrar insumo" do painel) */
+  abrirNovo?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   const [codigosNovo, setCodigosNovo] = useState<string[]>([]);
@@ -223,11 +227,11 @@ export function CrudShell({
   }, []);
 
   useEffect(() => {
-    if (!novoComCodigo || somenteLeitura) return;
+    if (!(novoComCodigo || abrirNovo) || somenteLeitura) return;
     setEditando(null);
-    setCodigosNovo([novoComCodigo]);
+    setCodigosNovo(novoComCodigo ? [novoComCodigo] : []);
     setAberto(true);
-  }, [novoComCodigo, somenteLeitura]);
+  }, [novoComCodigo, abrirNovo, somenteLeitura]);
   const editar = useCallback((r: Registro) => {
     setEditando(r);
     setAberto(true);
@@ -278,7 +282,7 @@ export function CrudShell({
   const globalFilterFn = useCallback<FilterFn<Registro>>(
     (row, columnId, filterValue) => {
       const formatted = exibir(columnId, row.getValue(columnId), tipoPorKey[columnId]);
-      return String(formatted).toLowerCase().includes(String(filterValue).toLowerCase());
+      return contemBusca(formatted, filterValue);
     },
     [exibir, tipoPorKey],
   );
@@ -525,6 +529,16 @@ export function CrudShell({
                   return (
                     <TableHead
                       key={header.id}
+                      scope="col"
+                      aria-sort={
+                        header.column.getCanSort()
+                          ? sorted === "asc"
+                            ? "ascending"
+                            : sorted === "desc"
+                              ? "descending"
+                              : "none"
+                          : undefined
+                      }
                       className={cn(
                         "h-9 px-3 py-2 text-xs",
                         alinhaDir ? "text-right" : "text-left",
@@ -920,7 +934,7 @@ function DeleteRegistroDialog({
                     {blocker.href ? (
                       <Link
                         href={blocker.href}
-                        className="flex min-h-11 items-start justify-between gap-3 rounded px-2 py-1.5 text-brand-700 hover:bg-accent hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:text-brand-400"
+                        className="flex min-h-11 items-start justify-between gap-3 rounded px-2 py-1.5 text-brand-700 hover:bg-accent hover:underline focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring dark:text-brand-300"
                       >
                         {conteudo}
                       </Link>
@@ -1295,7 +1309,7 @@ function LotesInsumoResumo({
             <li key={lote.id} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-2.5 py-1.5">
               <a
                 href={`/estoque/lotes/${lote.id}`}
-                className="font-medium text-brand-700 hover:underline dark:text-brand-400"
+                className="font-medium text-brand-700 hover:underline dark:text-brand-300"
               >
                 Lote {lote.codigoLote}
               </a>

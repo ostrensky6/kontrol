@@ -163,10 +163,10 @@ export async function EditorCustosProjeto({
 }) {
   const supabase = await createClient();
   const [
-    { data: orc },
-    { data: custosData },
-    { data: analisesData },
-    { data: catalogoData },
+    { data: orc, error: orcError },
+    { data: custosData, error: custosError },
+    { data: analisesData, error: analisesError },
+    { data: catalogoData, error: catalogoError },
     podeRevisar,
     { data: demandaInst },
     podePreencher,
@@ -211,6 +211,17 @@ export async function EditorCustosProjeto({
         .maybeSingle(),
     ]);
 
+  // Falha de leitura não pode virar "orçamento sem custos": o editor mostraria
+  // a planilha vazia e uma gravação por cima apagaria o que já existe.
+  const erroLeitura = (orc ? null : orcError && orcError.code !== "PGRST116" ? orcError : null) ?? custosError ?? analisesError ?? catalogoError;
+  if (erroLeitura) {
+    return (
+      <p role="alert" className="mt-4 rounded-md border border-danger-strong/30 bg-danger-soft px-3 py-2 text-sm text-danger-strong">
+        Não foi possível carregar os custos deste orçamento ({erroLeitura.message}). Nada foi alterado; recarregue a página
+        para tentar de novo.
+      </p>
+    );
+  }
   if (!orc) {
     return <p className="mt-4 text-sm text-muted-foreground">Orçamento de projeto não encontrado.</p>;
   }

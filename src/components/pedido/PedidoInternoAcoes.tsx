@@ -80,7 +80,7 @@ function Botao({
       </form>
       {disabled && disabledReason && <p className="max-w-64 text-xs text-muted-foreground">{disabledReason}</p>}
       {state.message && (
-        <p className={`max-w-64 text-xs ${state.ok ? "text-brand-700 dark:text-brand-400" : "text-danger-strong"}`}>
+        <p className={`max-w-64 text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
           {state.message}
         </p>
       )}

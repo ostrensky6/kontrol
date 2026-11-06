@@ -118,7 +118,7 @@ export function PlanoContextoForm({
       {state.message && (
         <p
           role={state.ok ? "status" : "alert"}
-          className={`mt-2 text-xs ${state.ok ? "text-brand-700 dark:text-brand-400" : "text-danger-strong"}`}
+          className={`mt-2 text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}
         >
           {state.message}
         </p>

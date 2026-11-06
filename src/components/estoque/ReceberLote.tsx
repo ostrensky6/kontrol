@@ -101,7 +101,7 @@ export function AjusteInventarioButton({
           ref={triggerRef}
           className={
             triggerClassName ??
-            "rounded px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30"
+            "rounded px-2 py-1 text-xs font-medium text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30"
           }
         >
           {triggerLabel}

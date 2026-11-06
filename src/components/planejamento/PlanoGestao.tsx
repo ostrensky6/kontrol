@@ -81,7 +81,7 @@ export function ExcluirOuCancelarPlano({
   }, { ok: false });
 
   const sucesso = state.ok && state.message && !compacto ? (
-    <span role="status" className="text-xs text-brand-700 dark:text-brand-400">
+    <span role="status" className="text-xs text-brand-700 dark:text-brand-300">
       {state.message}
     </span>
   ) : null;
@@ -160,7 +160,7 @@ export function ExcluirOuCancelarPlano({
               <button
                 type="submit"
                 disabled={pending}
-                className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-white hover:bg-destructive/90 disabled:opacity-60"
+                className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-60"
               >
                 {pending ? "Processando…" : textos.confirmar}
               </button>

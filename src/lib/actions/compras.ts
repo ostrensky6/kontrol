@@ -88,7 +88,12 @@ export async function comprarFaltasDoPlano(_prev: EstadoAcao, formData: FormData
   }
   const supabase = await createClientUntyped();
 
-  const demanda = await computarDemandaPlano(supabase, planId);
+  let demanda: Awaited<ReturnType<typeof computarDemandaPlano>>;
+  try {
+    demanda = await computarDemandaPlano(supabase, planId);
+  } catch (error) {
+    return falha(error instanceof Error ? error.message : "Não foi possível calcular as faltas do plano.");
+  }
   const faltas = demanda.filter((d) => d.falta > 0);
   if (faltas.length === 0) return falha("Este plano não tem faltas para comprar.");
 

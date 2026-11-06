@@ -25,7 +25,7 @@ const LOTE_STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 const TIPO_MOV: Record<string, { label: string; cls: string }> = {
-  entrada: { label: "Entrada", cls: "text-brand-700 dark:text-brand-400" },
+  entrada: { label: "Entrada", cls: "text-brand-700 dark:text-brand-300" },
   saida: { label: "Saída", cls: "text-danger-strong" },
   ajuste: { label: "Ajuste", cls: "text-warning-strong" },
 };
@@ -68,7 +68,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
   const [
     { data: movs },
     { data: local },
-    { data: reservas },
+    { data: reservas, error: reservasError },
     podeAceitar,
     podeGerir,
     podeCorrigir,
@@ -142,6 +142,8 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
       ? `frasco(s)${loteModelo.conteudo_embalagem_snapshot ? ` de ${fmt(loteModelo.conteudo_embalagem_snapshot)} ${ins?.unidade ?? ""}` : ""}`.trim()
       : ins?.unidade ?? "";
   const s = LOTE_STATUS[lote.status] ?? { label: lote.status, cls: "bg-muted text-muted-foreground" };
+  // reserva não lida não pode virar "nada reservado" (o disponível do lote ficaria maior)
+  if (reservasError) throw new Error(`Não foi possível ler as reservas do lote: ${reservasError.message}`);
   // modelo_quantidade (0109) ainda não está nos tipos gerados.
   const loteBaixa = loteBaixaDeDb(
     lote as unknown as LoteDbBaixa,

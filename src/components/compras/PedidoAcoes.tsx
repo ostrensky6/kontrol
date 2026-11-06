@@ -71,7 +71,7 @@ function Botao({
       {state.message && (
         <p
           role={state.ok ? "status" : "alert"}
-          className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-400" : "text-danger-strong"}`}
+          className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}
         >
           {state.message}
         </p>
@@ -151,7 +151,7 @@ function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
       {state.message && (
         <p
           role={state.ok ? "status" : "alert"}
-          className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-400" : "text-danger-strong"}`}
+          className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}
         >
           {state.message}
         </p>
@@ -203,7 +203,7 @@ export function PedidoAcoes({
       )}
       {status === "solicitado" && podeAprovar && !seguraPeloPedido && (
         <Botao pedidoId={pedidoId} action={aprovarPedido} label="Aprovar"
-          cls="rounded-md bg-primary px-4 py-2 text-sm font-medium text-white hover:bg-primary/90 disabled:opacity-50" />
+          cls="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50" />
       )}
       {status === "aprovado" && podeAprovar && !seguraPeloPedido && (
         <Botao pedidoId={pedidoId} action={marcarEnviado} label="Marcar enviado"

@@ -6,6 +6,8 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { hojeIso, loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
 import { janelaVencimentoDias, loteVenceEmBreve } from "@/lib/estoque/situacao-insumo";
 import { StockControlHub } from "./StockControlHub";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
+import type { Tables } from "@/lib/supabase/database.types";
 
 export const dynamic = "force-dynamic";
 
@@ -30,10 +32,10 @@ export default async function EstoqueControlePage() {
   const supabaseSemTipos = await createClientUntyped();
   const [
     { data: notificacoesRaw },
-    { data: saldoRaw },
+    { data: saldoRaw, error: saldoError },
     { data: alertasRaw },
-    { data: lotesRaw },
-    { data: reservasRaw },
+    { data: lotesRaw, error: lotesError },
+    { data: reservasRaw, error: reservasError },
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
     { data: previsaoRaw },
@@ -45,24 +47,38 @@ export default async function EstoqueControlePage() {
       .select("id, tipo, titulo, corpo, entidade_tipo, entidade_id, papel_destino, canal, status, criado_em")
       .not("status", "in", "(arquivada)")
       .order("criado_em", { ascending: false }),
-    supabase.from("v_estoque_saldo").select("*").order("especificacao"),
+    // listas de estoque lidas de mil em mil (o PostgREST corta em 1.000 linhas)
+    lerTudo<Tables<"v_estoque_saldo">>((de, ate) =>
+      supabase.from("v_estoque_saldo").select("*").order("especificacao").order("insumo_id").range(de, ate),
+    ),
     supabase.from("v_alertas_estoque").select("*"),
-    supabaseSemTipos
-      .from("lotes_estoque")
-      .select("id, insumo_id, codigo_lote, validade, validade_apos_abertura, quantidade_atual, status, modelo_quantidade, insumos(especificacao, unidade, categoria_compra)")
-      .not("status", "in", "(consumido,descartado)")
-      .order("validade", { nullsFirst: false }),
-    supabase
-      .from("reservas_estoque")
-      .select("lote_id, quantidade, quantidade_consumida, status")
-      .in("status", ["reservado", "parcial"]),
-    supabase.from("pedidos_compra_item_recebimentos").select("lote_id"),
-    supabase.from("pedidos_internos_item_recebimentos").select("lote_id"),
+    lerTudo<Record<string, unknown>>((de, ate) =>
+      supabaseSemTipos
+        .from("lotes_estoque")
+        .select("id, insumo_id, codigo_lote, validade, validade_apos_abertura, quantidade_atual, status, modelo_quantidade, insumos(especificacao, unidade, categoria_compra)")
+        .not("status", "in", "(consumido,descartado)")
+        .order("validade", { nullsFirst: false })
+        .order("id")
+        .range(de, ate),
+    ),
+    lerTudo<Pick<Tables<"reservas_estoque">, "lote_id" | "quantidade" | "quantidade_consumida" | "status">>((de, ate) =>
+      supabase
+        .from("reservas_estoque")
+        .select("id, lote_id, quantidade, quantidade_consumida, status")
+        .in("status", ["reservado", "parcial"])
+        .order("id")
+        .range(de, ate),
+    ),
+    lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_compra_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
+    lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_internos_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
     supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, ponto_reposicao_sugerido"),
     // janela do "vence em breve" do lote: a mesma de v_alertas_estoque (padrão 60 dias)
     supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
     supabaseSemTipos.from("insumos").select("id").eq("ativo", true),
   ]);
+  // reserva não lida não pode virar "nada reservado" (o disponível ficaria maior)
+  if (saldoError || lotesError) throw new Error(`Não foi possível ler o saldo do estoque: ${(saldoError ?? lotesError)!.message}`);
+  if (reservasError) throw new Error(`Não foi possível ler as reservas do estoque: ${reservasError.message}`);
   const reservadoPorLote = somarReservasPorLote(reservasRaw ?? []);
   // estorno direto só quando é comprovado que o lote não veio de um pedido (mesma regra de /estoque)
   const origemEstornoComprovada = !vinculosCompraError && !vinculosInternosError;

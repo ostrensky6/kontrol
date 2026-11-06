@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Campo } from "@/lib/cadastros/config";
 import { VALOR_MASCARADO, estaMascarado } from "@/lib/cadastros/mascara";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 
 /**
  * Salário dos técnicos (tecnicos.valor_mes) — preparo SERVER-SIDE.
@@ -91,8 +92,9 @@ export async function lerLinhasCadastro(
   opcoes: { podeVerSalario: boolean },
 ): Promise<{ data: Row[] | null; error: ErroLeitura }> {
   if (tabela === "tecnicos") return carregarTecnicos(supabase, opcoes.podeVerSalario);
-  const { data, error } = await supabase.from(tabela).select("*").order("id");
-  return { data: (data ?? null) as Row[] | null, error };
+  // de mil em mil: cadastro com mais de 1.000 linhas não pode ficar cortado
+  const { data, error } = await lerTudo<Row>((de, ate) => supabase.from(tabela).select("*").order("id").range(de, ate));
+  return { data: error ? null : data, error };
 }
 
 /**
