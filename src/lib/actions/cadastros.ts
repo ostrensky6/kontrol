@@ -12,6 +12,7 @@ import {
   QUANTIDADE_INSUMO_KEY,
   QUANTIDADE_INSUMO_LABEL,
   aplicarPadroesCadastro,
+  completarInsumoNovo,
   diferencas,
   erroLinha,
   hashConteudo,
@@ -537,7 +538,9 @@ function errosZod(error: z.ZodError) {
   const errors: Record<string, string> = {};
   for (const issue of error.issues) {
     const path = String(issue.path[0] ?? "");
-    if (path && !errors[path]) errors[path] = issue.message;
+    // Campo obrigatório ausente: a mensagem padrão do zod sai em inglês.
+    const ausente = issue.code === "invalid_type" && /received undefined/.test(issue.message);
+    if (path && !errors[path]) errors[path] = ausente ? "obrigatório" : issue.message;
   }
   return errors;
 }
@@ -952,6 +955,7 @@ async function importarCadastro(
       falhar(linha.erros);
       continue;
     }
+    resumo.avisos.push(...linha.avisos);
 
     const naturalKey = normalizarChave(linha.valores[cfg.rotulo]);
     let alvo: Record<string, unknown> | null = null;
@@ -1016,7 +1020,13 @@ async function importarCadastro(
       falhar([`Linha ${linha.excelRow}: ${rotuloNatural} repetido na planilha.`]);
       continue;
     }
-    const parsed = validar(registroNovo(cfg, linha.valores));
+    let valoresNovos = linha.valores;
+    if (cfg.slug === "insumos") {
+      const completo = completarInsumoNovo(linha.valores, linha.excelRow);
+      valoresNovos = completo.valores;
+      resumo.avisos.push(...completo.avisos);
+    }
+    const parsed = validar(registroNovo(cfg, valoresNovos));
     if (!parsed.success) {
       falhar(errosDaLinha(cfg, linha.excelRow, parsed.error));
       continue;

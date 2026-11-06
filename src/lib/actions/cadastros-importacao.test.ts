@@ -265,12 +265,39 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     );
 
     expect(result.ok).toBe(false);
-    expect(result.resumo?.[0]).toMatchObject({ inseridos: 1, ignorados: 2 });
+    // Sem valor: entra sem custo, com aviso (não recusa a linha).
+    expect(result.resumo?.[0]).toMatchObject({ inseridos: 2, ignorados: 1 });
     expect(result.resumo?.[0].erros).toEqual([
-      "Linha 3, Valor da embalagem (R$): obrigatório",
       "Linha 4, Quantidade (embalagens fechadas): use um número inteiro de embalagens",
     ]);
-    expect(rpc).toHaveBeenCalledOnce();
+    expect(result.resumo?.[0].avisos).toContain("Linha 3: sem Valor da embalagem; cadastrado sem custo (preencha depois).");
+    expect(rpc).toHaveBeenCalledTimes(2);
+  });
+
+  it("completa insumo novo com campos vazios e não perde a linha por fornecedor desconhecido", async () => {
+    db.fornecedores = [{ id: 7, nome: "KASVI IMPORTACAO E DISTRIBUICAO DE PRODUTOS PARA LABORATORIO LTDA" }];
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const result = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Insumos: [
+          ["Item específico / SKU", "Unidade de consumo", "Fornecedor principal", "Fornecedor alternativo"],
+          ["Tubo PCR", "caixa", "KASVI IMPORTACAO E DISTRIBUICAO DE PRODUTOS PARA LABOR", "Fornecedor que não existe"],
+          ["Luva", null, null, null],
+        ],
+      }),
+    );
+
+    expect(result.resumo?.[0]).toMatchObject({ inseridos: 2, ignorados: 0 });
+    const dados = rpc.mock.calls.map((chamada) => chamada[1].p_dados_insumo);
+    expect(dados[0]).toMatchObject({ especificacao: "Tubo PCR", unidade: "caixa", quantidade_embalagem: 1, custo_total_embalagem: 0, fornecedor_id: 7 });
+    expect(dados[0].fornecedor_alt_id ?? null).toBeNull();
+    expect(dados[1]).toMatchObject({ especificacao: "Luva", unidade: "unidade" });
+    const avisos = result.resumo?.[0].avisos.join("\n") ?? "";
+    expect(avisos).toContain('Linha 2, Fornecedor alternativo: "Fornecedor que não existe" não encontrado no cadastro; ficou em branco');
+    expect(avisos).toContain('Linha 2: sem Unidade da embalagem; usada a Unidade de consumo ("caixa").');
+    expect(avisos).toContain('Linha 3: sem Unidade da embalagem nem de consumo; considerado "unidade"');
   });
 
   it("modelo exportado traz Instruções, quantidade atual e volta sem alterações ao ser reimportado", async () => {
