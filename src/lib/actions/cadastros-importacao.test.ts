@@ -349,6 +349,26 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(singular.resumo?.map((r) => r.aba)).toEqual(["Insumos"]);
   });
 
+  it("importa planilha que o ExcelJS não abre, pelos valores das células", async () => {
+    const JSZip = (await import("jszip")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Minha lista");
+    ws.addRow(["Insumo", "Unidade da embalagem", "Valor da embalagem (R$)", "Quantidade na embalagem"]);
+    ws.addRow(["Etanol absoluto", "frasco", 120, 1]);
+    const zip = await JSZip.loadAsync(await wb.xlsx.writeBuffer());
+    const sheet = await zip.file("xl/worksheets/sheet1.xml")!.async("string");
+    zip.file("xl/worksheets/sheet1.xml", sheet.replace("</worksheet>", '<drawing r:id="rId99"/></worksheet>'));
+    const formData = new FormData();
+    formData.set("arquivo", new File([await zip.generateAsync({ type: "arraybuffer" })], "qualquer nome.xlsx"));
+
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+    const resultado = await importarCadastrosWorkbook({ ok: false }, formData);
+
+    expect(resultado.resumo?.map((r) => r.aba)).toEqual(["Insumos"]);
+    expect(resultado.resumo?.[0].avisos.join(" ")).toContain("só pelos valores");
+    expect(rpc.mock.calls[0][1].p_dados_insumo).toMatchObject({ especificacao: "Etanol absoluto" });
+  });
+
   it("explica o que fazer com .xls antigo e com texto salvo como planilha", async () => {
     const { importarCadastrosWorkbook } = await import("./cadastros");
     const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0, 0]);

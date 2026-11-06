@@ -24,6 +24,11 @@ const CABECALHOS_SEGURANCA = [
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ["exceljs"],
+  experimental: {
+    // Planilhas de importação (cadastros, catálogo) passam de 1 MB com
+    // facilidade. A Vercel aceita até 4,5 MB por requisição.
+    serverActions: { bodySizeLimit: "4mb" },
+  },
   async headers() {
     return [{ source: "/:path*", headers: CABECALHOS_SEGURANCA }];
   },

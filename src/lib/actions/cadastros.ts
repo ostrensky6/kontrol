@@ -1,9 +1,11 @@
 "use server";
 
-import ExcelJS from "exceljs";
+import type ExcelJS from "exceljs";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getCadastrosParaImportacao, type CadastroConfig } from "@/lib/cadastros/config";
+import { carregarPlanilha } from "@/lib/cadastros/leitura-planilha";
+import { registrarErro } from "@/lib/monitoramento/erros";
 import { mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
 import { criariaCicloLocal } from "@/lib/cadastros/locais";
 import {
@@ -1087,57 +1089,95 @@ export async function importarCadastrosWorkbook(
     return { ok: false, message: "Selecione uma planilha do Excel (.xlsx) para importar." };
   }
 
+  const conteudo = await file.arrayBuffer();
+  const tipo = tipoArquivoPlanilha(new Uint8Array(conteudo.slice(0, 512)));
+  if (tipo !== "xlsx") return { ok: false, message: MENSAGEM_ARQUIVO[tipo] };
+
+  let planilha: Awaited<ReturnType<typeof carregarPlanilha>>;
   try {
-    const conteudo = await file.arrayBuffer();
-    const tipo = tipoArquivoPlanilha(new Uint8Array(conteudo.slice(0, 512)));
-    if (tipo !== "xlsx") return { ok: false, message: MENSAGEM_ARQUIVO[tipo] };
-
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(conteudo);
-    const arquivoHash = hashConteudo(conteudo);
-
-    const configs = getCadastrosParaImportacao();
-    const abas = localizarAbasCadastro(workbook, configs);
-    if (abas.length === 0) {
-      return { ok: false, message: mensagemSemAbaReconhecida(workbook, configs) };
-    }
-
-    const resumo: ImportCadastroResumo[] = [];
-    for (const { cfg, sheet, linhaCabecalho, pelo } of abas) {
-      const item = await importarCadastro(cfg, sheet, arquivoHash, linhaCabecalho);
-      if (pelo === "cabecalho") {
-        item.avisos.unshift(
-          `A aba "${sheet.name}" foi importada como ${cfg.titulo} pelos nomes das colunas.`,
-        );
-      }
-      if (linhaCabecalho > 1) {
-        item.avisos.unshift(`Cabeçalho encontrado na linha ${linhaCabecalho} da aba "${sheet.name}".`);
-      }
-      resumo.push(item);
-    }
-
-    const soma = (campo: "inseridos" | "atualizados" | "inalterados" | "ignorados") =>
-      resumo.reduce((acc, item) => acc + item[campo], 0);
-    const totalErros = resumo.reduce((acc, item) => acc + item.erros.length, 0);
-    const partes = [
-      `${soma("inseridos")} inserido(s)`,
-      `${soma("atualizados")} atualizado(s)`,
-      `${soma("inalterados")} sem alteração`,
-    ];
-    if (soma("ignorados") > 0) partes.push(`${soma("ignorados")} linha(s) com erro não importada(s)`);
-
-    return {
-      ok: totalErros === 0,
-      message: `${totalErros === 0 ? "Importação concluída" : "Importação concluída com erros"}: ${partes.join(", ")}. Nada foi excluído; células vazias mantêm o valor atual.`,
-      resumo,
-    };
+    planilha = await carregarPlanilha(conteudo);
   } catch (error) {
-    console.error("importarCadastrosWorkbook", error);
+    const detalhe = error instanceof Error ? error.message : String(error);
+    await registrarErro({
+      origem: "servidor",
+      mensagem: `Importação de cadastros: arquivo não pôde ser aberto (${file.name})`,
+      rota: "/cadastros",
+      detalhe,
+    });
     return {
       ok: false,
-      message:
-        'Não foi possível ler a planilha. Se ela estiver aberta no Excel, feche e tente de novo; se continuar, salve de novo como "Pasta de Trabalho do Excel (*.xlsx)".',
+      message: `Não foi possível abrir o arquivo "${file.name}" como planilha do Excel (${detalhe.slice(0, 160)}). Se ele estiver protegido por senha ou com rótulo de confidencialidade, salve uma cópia sem proteção como "Pasta de Trabalho do Excel (*.xlsx)" e importe essa cópia.`,
     };
   }
+  if (planilha.leitor === "reserva") {
+    // O leitor principal falhou; os valores vieram do leitor simples. Fica
+    // registrado para sabermos que tipo de arquivo o ExcelJS não aceita.
+    await registrarErro({
+      origem: "servidor",
+      mensagem: `Importação de cadastros: leitor de reserva usado (${file.name})`,
+      rota: "/cadastros",
+      detalhe: planilha.falhaPrincipal ?? null,
+    });
+  }
+  const { workbook } = planilha;
+  const arquivoHash = hashConteudo(conteudo);
+
+  const configs = getCadastrosParaImportacao();
+  const abas = localizarAbasCadastro(workbook, configs);
+  if (abas.length === 0) {
+    return { ok: false, message: mensagemSemAbaReconhecida(workbook, configs) };
+  }
+
+  const resumo: ImportCadastroResumo[] = [];
+  for (const { cfg, sheet, linhaCabecalho, pelo } of abas) {
+    let item: ImportCadastroResumo;
+    try {
+      item = await importarCadastro(cfg, sheet, arquivoHash, linhaCabecalho);
+    } catch (error) {
+      // Uma aba com problema não derruba as outras nem esconde a causa.
+      const detalhe = error instanceof Error ? error.message : String(error);
+      await registrarErro({
+        origem: "servidor",
+        mensagem: `Importação de cadastros: falha na aba "${sheet.name}" (${cfg.titulo})`,
+        rota: "/cadastros",
+        detalhe: error instanceof Error ? `${error.message}\n${error.stack ?? ""}` : detalhe,
+      });
+      item = {
+        aba: cfg.titulo,
+        inseridos: 0,
+        atualizados: 0,
+        inalterados: 0,
+        ignorados: 0,
+        erros: [`A aba "${sheet.name}" não pôde ser importada: ${detalhe.slice(0, 200)}`],
+        avisos: [],
+      };
+    }
+    if (planilha.leitor === "reserva") {
+      item.avisos.unshift("Planilha lida só pelos valores das células (formatos, fórmulas e imagens foram ignorados).");
+    }
+    if (pelo === "cabecalho") {
+      item.avisos.unshift(`A aba "${sheet.name}" foi importada como ${cfg.titulo} pelos nomes das colunas.`);
+    }
+    if (linhaCabecalho > 1) {
+      item.avisos.unshift(`Cabeçalho encontrado na linha ${linhaCabecalho} da aba "${sheet.name}".`);
+    }
+    resumo.push(item);
+  }
+
+  const soma = (campo: "inseridos" | "atualizados" | "inalterados" | "ignorados") =>
+    resumo.reduce((acc, item) => acc + item[campo], 0);
+  const totalErros = resumo.reduce((acc, item) => acc + item.erros.length, 0);
+  const partes = [
+    `${soma("inseridos")} inserido(s)`,
+    `${soma("atualizados")} atualizado(s)`,
+    `${soma("inalterados")} sem alteração`,
+  ];
+  if (soma("ignorados") > 0) partes.push(`${soma("ignorados")} linha(s) com erro não importada(s)`);
+
+  return {
+    ok: totalErros === 0,
+    message: `${totalErros === 0 ? "Importação concluída" : "Importação concluída com erros"}: ${partes.join(", ")}. Nada foi excluído; células vazias mantêm o valor atual.`,
+    resumo,
+  };
 }
 
