@@ -36,7 +36,7 @@ async function lerTudo<T>(
 
 async function carregarPainel(supabase: SupabaseClient, hoje: string) {
   const inicio = inicioJanelaMeses(hoje, 12);
-  const [insumos, saldos, movimentos] = await Promise.all([
+  const [insumos, saldos, movimentos, leiturasDesfeitas] = await Promise.all([
     lerTudo<InsumoPainelDb>((de, ate) =>
       supabase
         .from("insumos")
@@ -57,11 +57,21 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
         .order("id")
         .range(de, ate),
     ),
+    // ajustes: os que desfazem uma leitura anulam a entrada ou a saída no gráfico
+    lerTudo<MovimentoPainelDb>((de, ate) =>
+      supabase
+        .from("estoque_movimentacoes")
+        .select("insumo_id, tipo, data, motivo")
+        .eq("tipo", "ajuste")
+        .gte("data", inicio)
+        .order("id")
+        .range(de, ate),
+    ),
   ]);
-  const erros = [insumos.erro, saldos.erro, movimentos.erro].filter(Boolean);
+  const erros = [insumos.erro, saldos.erro, movimentos.erro, leiturasDesfeitas.erro].filter(Boolean);
   return {
     insumos: montarInsumosPainel(insumos.linhas, saldos.linhas),
-    movimentos: movimentos.linhas,
+    movimentos: [...movimentos.linhas, ...leiturasDesfeitas.linhas],
     erro: erros.length ? `Parte do painel não carregou: ${erros.join("; ")}` : null,
   };
 }
@@ -95,6 +105,11 @@ export default async function CadastrosIndex() {
                 <b>Mínimo</b> é o ponto de reposição do cadastro do insumo. <b>Nível crítico</b> = disponível abaixo do
                 mínimo, incluindo o que está em falta (zerado). Insumo sem ponto de reposição aparece como{" "}
                 <b>Sem mínimo definido</b>.
+              </p>
+              <p>
+                O nível crítico não é o <b>Repor</b> do Estoque. O Repor também conta o que já está a caminho e o
+                prazo da compra: um insumo crítico com compra a caminho pode não aparecer em Repor, e um insumo
+                acima do mínimo pode já pedir compra.
               </p>
               <p>Clique num indicador ou numa categoria da lista para filtrar.</p>
             </HelpTip>

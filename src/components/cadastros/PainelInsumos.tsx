@@ -87,8 +87,9 @@ export function PainelInsumos({
   );
   const filtrosDeSelecao = Boolean(filtros.categoriaCompra || filtros.categoriaCurta || filtros.codigoFabricante || filtros.busca);
   const movimentosMes = useMemo(
-    () => movimentosPorMes(movimentos, filtrosDeSelecao ? new Set(recorte.map((item) => item.id)) : null, hojeIso),
-    [movimentos, recorte, filtrosDeSelecao, hojeIso],
+    // sempre só os insumos do painel (ativos), mesmo sem filtro
+    () => movimentosPorMes(movimentos, new Set((filtrosDeSelecao ? recorte : insumos).map((item) => item.id)), hojeIso),
+    [movimentos, recorte, insumos, filtrosDeSelecao, hojeIso],
   );
   const temMovimento = movimentosMes.some((mes) => mes.entradas + mes.saidas > 0);
 

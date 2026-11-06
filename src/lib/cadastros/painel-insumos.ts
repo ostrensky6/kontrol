@@ -47,7 +47,12 @@ export type MovimentoPainelDb = {
   insumo_id: Numerico;
   tipo: string | null;
   data: string | null;
+  motivo?: string | null;
 };
+
+/** Motivos que `desfazer_leitura_estoque` (0143) grava no ajuste que anula a leitura. */
+const DESFAZ_SAIDA = "leitura desfeita: abertura de embalagem";
+const DESFAZ_ENTRADA = "leitura desfeita: entrada por código de barras";
 
 export type InsumoPainel = {
   id: number;
@@ -272,7 +277,8 @@ export function inicioJanelaMeses(hojeIso: string, meses = 12): string {
 /**
  * Registros de entrada e de saída por mês, só dos insumos do recorte.
  * Conta registros (não soma quantidades), porque cada insumo tem sua unidade.
- * Ajustes de inventário ficam de fora.
+ * Ajustes de inventário ficam de fora; o ajuste que desfaz uma leitura anula a
+ * entrada ou a saída que ela tinha registrado.
  */
 export function movimentosPorMes(
   movimentos: readonly MovimentoPainelDb[],
@@ -302,6 +308,12 @@ export function movimentosPorMes(
     if (!linha) continue;
     if (movimento.tipo === "entrada") linha.entradas += 1;
     else if (movimento.tipo === "saida") linha.saidas += 1;
+    else if (movimento.tipo === "ajuste" && movimento.motivo === DESFAZ_SAIDA) linha.saidas -= 1;
+    else if (movimento.tipo === "ajuste" && movimento.motivo === DESFAZ_ENTRADA) linha.entradas -= 1;
+  }
+  for (const linha of serie) {
+    linha.entradas = Math.max(0, linha.entradas);
+    linha.saidas = Math.max(0, linha.saidas);
   }
   return serie;
 }
