@@ -34,8 +34,9 @@ cuida do sistema.
    fica na Auditoria (desde a 0148, também as contagens de inventário, as conferências do
    planejamento e as leituras).
 
-Quem pode excluir de vez muda com a 0147 (PR #63): passa a valer a caixinha de edição do
-módulo, sem precisar ser administrador.
+Desde a 0147, excluir de vez segue a caixinha do módulo, sem precisar ser administrador:
+"Editar insumos" para o insumo com histórico e "Corrigir estoque" para um lote lançado por
+engano. Lote que veio de compra ou de pedido interno precisa ser estornado antes.
 
 ## Leitura de código de barras
 

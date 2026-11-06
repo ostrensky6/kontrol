@@ -156,7 +156,7 @@ Uma linha por migration: o que ela muda e o teste que a valida no CI (job
 | 0144 | Inativar insumo sem apagar historico | `inativacao_insumos_0144.sql` e `inativacao_insumos_0144.test.mjs` |
 | 0145 | Excluir insumo junto com o historico (cascata), com auditoria | `excluir_insumo_em_cascata_0145.sql` |
 | 0146 | Seis funcoes (Laboratorio, Compra, Cadastro, Coordenador, Gestor, Administrador) | `seis_funcoes_0146.sql` |
-| 0147 | Exclusao definitiva por privilegio do modulo (PR #63) | `exclusao_por_privilegio_0147.sql` |
+| 0147 | Exclusao definitiva pela caixinha do modulo (Editar insumos, Corrigir estoque) e exclusao de lote | `exclusao_por_privilegio_0147.sql` |
 | 0148 | Registro de leituras protegido; auditoria de contagens, conferencias e leituras apagadas | `registro_leituras_0148.sql` |
 
 As seis funcoes e a exclusao estao explicadas para quem usa em
