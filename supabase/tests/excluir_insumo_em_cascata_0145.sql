@@ -1,6 +1,6 @@
 -- SOMENTE clone sintético local. Exemplo: psql -X -v ON_ERROR_STOP=1
 -- -v kontrol_test_local=1 -f supabase/tests/excluir_insumo_em_cascata_0145.sql
--- Valida a 0145: só admin apaga em cascata; a exclusão simples continua
+-- Valida a 0145: só quem tem Editar insumos (0147) apaga em cascata; a exclusão simples continua
 -- bloqueada; a cascata remove o insumo e todo o histórico dele (inclusive
 -- compra já recebida), sem tocar em outro insumo, e deixa a auditoria.
 -- Tudo termina no ROLLBACK final.
@@ -46,7 +46,7 @@ begin
     values ('00000000-0000-0000-0000-000000000000', md5('kontrol-0145-' || v_rotulo)::uuid,
       'authenticated', 'authenticated', 'ts-0145-' || v_rotulo || '@example.invalid', now(), now());
     update public.perfis set papel = case when v_rotulo = 'tecnico' then 'laboratorio' else v_rotulo end, suspenso = false, senha_provisoria = false,
-      permissoes = case when v_rotulo = 'tecnico' then '{"insumos.editar":true}'::jsonb else '{}'::jsonb end
+      permissoes = case when v_rotulo = 'tecnico' then '{"insumos.editar":false}'::jsonb else '{}'::jsonb end
     where id = md5('kontrol-0145-' || v_rotulo)::uuid;
   end loop;
 
@@ -88,7 +88,7 @@ begin
   exception when foreign_key_violation then null;
   end;
 
-  -- Técnico com insumos.editar não apaga em cascata.
+  -- Técnico sem insumos.editar não apaga em cascata (0147: a caixinha manda).
   perform pg_temp.como('tecnico');
   begin
     perform public.excluir_insumo_em_cascata(v_a);

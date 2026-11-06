@@ -9,6 +9,7 @@ import {
   desbloquearLote,
   descartarLote,
   estornarRecebimentoLote,
+  excluirLote,
 } from "@/lib/actions/estoque";
 import type { FormState } from "@/lib/actions/cadastros";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
@@ -47,6 +48,7 @@ export function LoteAcoes({
   podeCorrigir = podeAceitar,
   // sem a permissão explícita, o botão de baixa não aparece (o banco recusaria)
   podeBaixar = false,
+  exclusaoBloqueadaMotivo,
 }: {
   loteId: number;
   codigoLote?: string;
@@ -78,11 +80,17 @@ export function LoteAcoes({
   podeCorrigir?: boolean;
   /** permissão "Dar baixa e registrar entradas" */
   podeBaixar?: boolean;
+  /**
+   * Exclusão definitiva (0147, permissão "Corrigir estoque"). Quando há
+   * motivo, o botão não aparece e o motivo é mostrado no lugar.
+   * undefined: a tela não oferece exclusão (ex.: listas).
+   */
+  exclusaoBloqueadaMotivo?: string | null;
 }) {
   const router = useRouter();
   const [pending, start] = useTransition();
   const executando = useRef(false);
-  const [modal, setModal] = useState<null | "aceitar" | "estornar" | "bloquear" | "descartar" | "ajuste">(null);
+  const [modal, setModal] = useState<null | "aceitar" | "estornar" | "bloquear" | "descartar" | "ajuste" | "excluir">(null);
   const [motivo, setMotivo] = useState("");
   const [quantidade, setQuantidade] = useState("");
   const [responsavel, setResponsavel] = useState("");
@@ -144,6 +152,26 @@ export function LoteAcoes({
     });
   }
 
+  function excluirDefinitivo() {
+    if (executando.current) return;
+    executando.current = true;
+    start(async () => {
+      try {
+        const res = await excluirLote({ ok: false }, fd({ motivo }));
+        setState(res);
+        // O lote deixa de existir: volta para o estoque em vez de recarregar a página dele.
+        if (res.ok) router.push("/estoque");
+      } catch (error) {
+        setState({
+          ok: false,
+          message: error instanceof Error ? error.message : "Não foi possível concluir a ação.",
+        });
+      } finally {
+        executando.current = false;
+      }
+    });
+  }
+
   function fechar() {
     setModal(null);
     setState({ ok: false });
@@ -161,7 +189,9 @@ export function LoteAcoes({
           ? "Motivo do bloqueio"
           : modal === "descartar"
             ? "Justificativa do descarte"
-            : "Motivo do ajuste";
+            : modal === "excluir"
+              ? "Motivo da exclusão"
+              : "Motivo do ajuste";
   const btn = "rounded px-2 py-1 text-xs font-medium disabled:opacity-50";
   const loteAtivo = status === "aceito" || status === "em_uso";
   const emEmbalagens = modeloQuantidade === "EMBALAGEM_FECHADA";
@@ -223,6 +253,11 @@ export function LoteAcoes({
           Descartar
         </button>
       )}
+      {podeCorrigir && exclusaoBloqueadaMotivo === null && (
+        <button disabled={pending} onClick={() => setModal("excluir")} className={`${btn} text-danger-strong hover:bg-danger-soft`}>
+          Excluir lote
+        </button>
+      )}
       {!podeAceitar && !podeGerir && status === "quarentena" && (
         <span className="text-xs text-muted-foreground/80">aguardando aceitação</span>
       )}
@@ -256,7 +291,9 @@ export function LoteAcoes({
                   ? "Bloquear lote"
                   : modal === "descartar"
                     ? "Descartar lote"
-                    : "Ajustar saldo"}
+                    : modal === "excluir"
+                      ? "Excluir lote definitivamente"
+                      : "Ajustar saldo"}
               </DialogTitle>
               {modal === "estornar" && (
                 <HelpTip title="Estorno de entrada">
@@ -295,6 +332,8 @@ export function LoteAcoes({
                 ? "Informe o motivo do bloqueio (não conformidade, recall, investigação…)."
                 : modal === "descartar"
                   ? "Informe a justificativa do descarte. O saldo será zerado."
+                : modal === "excluir"
+                  ? "Para lote lançado por engano. Apaga o lote com as movimentações, reservas, contagens e códigos dele; saldos e relatórios passados mudam. Não pode ser desfeito; a auditoria guarda o que foi apagado e o motivo."
                   : `Informe o saldo contado no inventário. Saldo atual: ${quantidadeAtual} ${emEmbalagens ? "frasco(s)" : unidade}.`}
             </DialogDescription>
           </DialogHeader>
@@ -372,6 +411,7 @@ export function LoteAcoes({
                 if (modal === "bloquear") run(bloquearLote, { motivo });
                 if (modal === "descartar") run(descartarLote, { justificativa: motivo });
                 if (modal === "ajuste") runState(ajustarSaldoLote, { motivo, quantidade_nova: quantidade });
+                if (modal === "excluir") excluirDefinitivo();
               }}
               className={`rounded-md px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
                 modal === "bloquear"
@@ -393,7 +433,9 @@ export function LoteAcoes({
                   ? "Bloquear"
                   : modal === "descartar"
                     ? "Descartar"
-                    : "Ajustar saldo"}
+                    : modal === "excluir"
+                      ? "Excluir definitivamente"
+                      : "Ajustar saldo"}
             </button>
           </DialogFooter>
         </DialogContent>

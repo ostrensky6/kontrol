@@ -97,8 +97,8 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     pode("estoque.lote.gerir"),
     pode("estoque.movimentar"),
     origemPublicaKontrol(),
-    supabase.from("pedidos_compra_item_recebimentos").select("lote_id").eq("lote_id", id).limit(1),
-    supabase.from("pedidos_internos_item_recebimentos").select("lote_id").eq("lote_id", id).limit(1),
+    supabase.from("pedidos_compra_item_recebimentos").select("lote_id, estornado_em").eq("lote_id", id),
+    supabase.from("pedidos_internos_item_recebimentos").select("lote_id, estornado_em").eq("lote_id", id),
     usuarioAtual(),
   ]);
 
@@ -114,6 +114,13 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     !vinculoInterno.error &&
     (vinculoCompra.data ?? []).length === 0 &&
     (vinculoInterno.data ?? []).length === 0;
+  // Exclusão definitiva (0147): lote de recebimento ainda valendo precisa do
+  // estorno antes, para a compra/pedido voltar a esperar o material.
+  const recebimentoValendo =
+    Boolean(vinculoCompra.error || vinculoInterno.error) ||
+    [...(vinculoCompra.data ?? []), ...(vinculoInterno.data ?? [])].some(
+      (vinculo) => (vinculo as { estornado_em?: string | null }).estornado_em == null,
+    );
   // Lote de compra/pedido interno ainda sem consumo: estorno bilateral (EST-2).
   const estornoRecebimento =
     !estornoDiretoPermitido &&
@@ -195,6 +202,11 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
             podeGerir={podeGerir}
             podeCorrigir={podeCorrigir}
             podeBaixar={podeBaixar}
+            exclusaoBloqueadaMotivo={
+              recebimentoValendo
+                ? "Lote de compra ou pedido interno: estorne o recebimento antes de excluir."
+                : null
+            }
           />
         </div>
 

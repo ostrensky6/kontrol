@@ -13,13 +13,17 @@ import {
   diferencas,
   erroLinha,
   hashConteudo,
+  MENSAGEM_ARQUIVO,
   lerAbaCadastro,
+  localizarAbasCadastro,
+  mensagemSemAbaReconhecida,
   normalizarChave,
   operacaoIdDeterministico,
   payloadRpcInsumo,
   registroAtualizado,
   registroNovo,
   rotuloCampo,
+  tipoArquivoPlanilha,
   valoresEquivalentes,
 } from "@/lib/cadastros/importacao";
 import { projetarQuantidadeInsumos, type LoteInsumo } from "@/lib/cadastros/insumos";
@@ -766,7 +770,8 @@ export async function excluirRegistro(
 /**
  * Exclusão definitiva de insumo junto com lotes, movimentações, itens de
  * compra/pedido e demais vínculos (0145). Só depois da recusa da exclusão
- * simples e de confirmação explícita na tela; o banco exige admin.
+ * simples e de confirmação explícita na tela; o banco exige "Editar insumos"
+ * (0147), a mesma caixinha de Privilégios que libera editar insumos.
  */
 export async function excluirInsumoEmCascata(
   _prev: FormState,
@@ -838,11 +843,6 @@ function errosDaLinha(cfg: CadastroConfig, excelRow: number, error: z.ZodError) 
   return erros.length ? erros : [`Linha ${excelRow}: dados inválidos.`];
 }
 
-function localizarAba(workbook: ExcelJS.Workbook, cfg: CadastroConfig) {
-  const nomes = new Set([normalizarChave(cfg.titulo), normalizarChave(cfg.titulo.slice(0, 31))]);
-  return workbook.worksheets.find((sheet) => nomes.has(normalizarChave(sheet.name)));
-}
-
 async function quantidadesAtuaisInsumos(
   supabase: Awaited<ReturnType<typeof createClientUntyped>>,
   existingRows: Record<string, unknown>[],
@@ -863,6 +863,7 @@ async function importarCadastro(
   cfg: CadastroConfig,
   sheet: ExcelJS.Worksheet,
   arquivoHash: string,
+  linhaCabecalho = 1,
 ): Promise<ImportCadastroResumo> {
   const resumo: ImportCadastroResumo = {
     aba: cfg.titulo,
@@ -893,7 +894,7 @@ async function importarCadastro(
   const existingById = new Map(existingRows.map((row) => [Number(row.id), row]));
   const existingByNatural = mapaNatural(existingRows, cfg.rotulo);
   const opcoes = await opcoesParaCampos(cfg.campos);
-  const { linhas, colunas } = lerAbaCadastro(sheet, cfg, opcoes);
+  const { linhas, colunas } = lerAbaCadastro(sheet, cfg, opcoes, linhaCabecalho);
   const rotuloNatural = rotuloCampo(cfg, cfg.rotulo);
   const quantidadeAtual =
     cfg.slug === "insumos" && colunas.has(QUANTIDADE_INSUMO_KEY) && existingRows.length > 0
@@ -1083,28 +1084,36 @@ export async function importarCadastrosWorkbook(
 ): Promise<ImportCadastrosState> {
   const file = formData.get("arquivo");
   if (!(file instanceof File) || file.size === 0) {
-    return { ok: false, message: "Selecione uma planilha XLSX para importar." };
+    return { ok: false, message: "Selecione uma planilha do Excel (.xlsx) para importar." };
   }
 
   try {
     const conteudo = await file.arrayBuffer();
+    const tipo = tipoArquivoPlanilha(new Uint8Array(conteudo.slice(0, 512)));
+    if (tipo !== "xlsx") return { ok: false, message: MENSAGEM_ARQUIVO[tipo] };
+
     const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(conteudo);
     const arquivoHash = hashConteudo(conteudo);
 
-    const resumo: ImportCadastroResumo[] = [];
-    for (const cfg of getCadastrosParaImportacao()) {
-      const sheet = localizarAba(workbook, cfg);
-      if (!sheet) continue;
-      resumo.push(await importarCadastro(cfg, sheet, arquivoHash));
+    const configs = getCadastrosParaImportacao();
+    const abas = localizarAbasCadastro(workbook, configs);
+    if (abas.length === 0) {
+      return { ok: false, message: mensagemSemAbaReconhecida(workbook, configs) };
     }
 
-    if (resumo.length === 0) {
-      return {
-        ok: false,
-        message:
-          'Nenhuma aba de cadastro encontrada. Use os nomes de aba da planilha modelo (Baixar XLSX), por exemplo "Insumos".',
-      };
+    const resumo: ImportCadastroResumo[] = [];
+    for (const { cfg, sheet, linhaCabecalho, pelo } of abas) {
+      const item = await importarCadastro(cfg, sheet, arquivoHash, linhaCabecalho);
+      if (pelo === "cabecalho") {
+        item.avisos.unshift(
+          `A aba "${sheet.name}" foi importada como ${cfg.titulo} pelos nomes das colunas.`,
+        );
+      }
+      if (linhaCabecalho > 1) {
+        item.avisos.unshift(`Cabeçalho encontrado na linha ${linhaCabecalho} da aba "${sheet.name}".`);
+      }
+      resumo.push(item);
     }
 
     const soma = (campo: "inseridos" | "atualizados" | "inalterados" | "ignorados") =>
@@ -1126,7 +1135,8 @@ export async function importarCadastrosWorkbook(
     console.error("importarCadastrosWorkbook", error);
     return {
       ok: false,
-      message: "Não foi possível ler a planilha. Confira se é um arquivo .xlsx (Excel) e tente de novo.",
+      message:
+        'Não foi possível ler a planilha. Se ela estiver aberta no Excel, feche e tente de novo; se continuar, salve de novo como "Pasta de Trabalho do Excel (*.xlsx)".',
     };
   }
 }
