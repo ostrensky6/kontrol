@@ -148,7 +148,7 @@ describe("leitura server-side com o mock do banco", () => {
 
   it("lerLinhasCadastro usa colunas explícitas só para tecnicos", async () => {
     semear();
-    const { data } = await lerLinhasCadastro(cliente("laboratorio"), "tecnicos", { podeVerSalario: false });
+    const { data } = await lerLinhasCadastro(cliente("tecnico"), "tecnicos", { podeVerSalario: false });
     expect(Object.keys(data![0]).sort()).toEqual(
       ["ativo", "horas_mes_base", "id", "nome", "percentual_dedicado", "processo", "valor_mes"].sort(),
     );
@@ -157,7 +157,7 @@ describe("leitura server-side com o mock do banco", () => {
 
   it("valor-hora de pessoal só existe como agregado", async () => {
     semear();
-    const { data } = await cliente("laboratorio").rpc("valor_hora_pessoal_total");
+    const { data } = await cliente("tecnico").rpc("valor_hora_pessoal_total");
     // 8000/160×50% + 5000/100×10% = 25 + 5
     expect(data).toBeCloseTo(30);
   });
@@ -210,7 +210,7 @@ describe("catálogo PE e auditoria", () => {
       { id: "MC-1", rubrica: "MC", descricao: "Balde", preco_unitario: 50 },
     ];
     // 0137: técnico não faz orçamento e não vê pessoal; coordenador tem "Valores de pessoal no orçamento".
-    const { data } = await cliente("laboratorio").rpc("orcamento_projeto_catalogo_listar");
+    const { data } = await cliente("tecnico").rpc("orcamento_projeto_catalogo_listar");
     const porId = Object.fromEntries((data as { id: string }[]).map((item) => [item.id, item]));
     expect(porId["PE-1"]).toMatchObject({ preco_unitario: null, preco_mascarado: true });
     expect(porId["MC-1"]).toMatchObject({ preco_unitario: 50, preco_mascarado: false });

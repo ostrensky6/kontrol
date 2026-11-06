@@ -17,8 +17,8 @@ test("admin acessa itens de Governança incluindo Privilégios", async ({ page }
   await page.goto("/governanca/privilegios");
   await expect(page.getByRole("heading", { name: "Privilégios", exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Privilégios por função" })).toBeVisible();
-  // 06/11: seis funções, uma caixinha por função e privilégio (o admin fica travado em "pode").
-  for (const funcao of ["Laboratório", "Compra", "Cadastro", "Coordenador", "Gestor", "Administrador"]) {
+  // 06/11: uma caixinha por função e privilégio (o admin fica travado em "pode").
+  for (const funcao of ["Laboratório", "Coordenador", "Gestor", "Administrador"]) {
     await expect(page.getByRole("columnheader", { name: funcao, exact: true })).toBeVisible();
   }
   await expect(page.getByRole("checkbox", { name: "Administrador: Ver auditoria" })).toBeChecked();

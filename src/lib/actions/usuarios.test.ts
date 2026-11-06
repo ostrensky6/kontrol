@@ -144,7 +144,7 @@ describe("excluirUsuario", () => {
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Usuário sem permissão");
-    formData.set("papel", "laboratorio");
+    formData.set("papel", "tecnico");
     formData.set("permissoes_presentes", "1");
     const { editarUsuario } = await import("./usuarios");
 
@@ -169,7 +169,7 @@ describe("excluirUsuario", () => {
     const formData = new FormData();
     formData.set("email", "novo@kontrol.test");
     formData.set("nome", "Novo usuário");
-    formData.set("papel", "laboratorio");
+    formData.set("papel", "tecnico");
     const { criarUsuario } = await import("./usuarios");
 
     const result = await criarUsuario({ ok: false }, formData);
@@ -187,7 +187,7 @@ describe("excluirUsuario", () => {
     for (const email of ["a@kontrol.test", "b@kontrol.test"]) {
       const formData = new FormData();
       formData.set("email", email);
-      formData.set("papel", "laboratorio");
+      formData.set("papel", "tecnico");
       const result = await criarUsuario({ ok: false }, formData);
       expect(result.ok).toBe(true);
       expect(result.message).not.toContain(result.senhaProvisoria ?? "?");

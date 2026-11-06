@@ -213,7 +213,7 @@ describe("editarUsuario", () => {
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Nome novo");
-    formData.set("papel", "laboratorio");
+    formData.set("papel", "tecnico");
     const { editarUsuario } = await import("./usuarios");
 
     const result = await editarUsuario({ ok: false }, formData);

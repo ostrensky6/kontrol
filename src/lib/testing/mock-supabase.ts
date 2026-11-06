@@ -100,7 +100,7 @@ const HISTORICAL_ANALISE_CODES = HISTORICAL_ANALISES.map((analise) => String(ana
 
 const MOCK_PERMISSOES_CATEGORIAS = [
   {
-    papel: "laboratorio",
+    papel: "tecnico",
     permissoes: {
       "orcamentos.visualizar": true,
       "orcamentos.criar_editar": true,
@@ -840,7 +840,7 @@ function mockTemPermissao(chave: unknown, sessao: SessaoMock): boolean {
   if (!perfil || perfil.suspenso === true) return false;
   const papel = String(sessao.papel ?? perfil.papel ?? "");
   if (papel === "admin") return true;
-  if (!["laboratorio", "compra", "cadastro", "coordenador", "gestor"].includes(papel)) return false;
+  if (!["tecnico", "coordenador", "gestor"].includes(papel)) return false;
   // Com papel simulado, vale só a categoria (perfil individual é do admin).
   const individuais = sessao.papel ? {} : ((perfil.permissoes ?? {}) as Row);
   const valor =
@@ -1733,7 +1733,7 @@ function limparReservaDesatualizada(reservas: Row[]) {
 
 function papelMockAtual() {
   const perfil = (store.perfis ?? []).find((row) => row.id === "user-e2e");
-  return String(perfil?.papel ?? "laboratorio");
+  return String(perfil?.papel ?? "tecnico");
 }
 
 function exigirCoordenadorMock() {

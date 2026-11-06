@@ -145,7 +145,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Governança",
       description: "Usuários, privilégios, auditoria e backups.",
       checks: [
-        "Privilégios define, por caixinha, o que cada uma das seis funções pode fazer; ajustes de uma pessoa ficam em Usuários.",
+        "Privilégios define, por caixinha, o que cada função pode fazer; ajustes de uma pessoa ficam em Usuários.",
         "Ver salário dos técnicos vem ligada só para administrador.",
         "Auditoria mostra quem alterou o quê, e quando.",
       ],

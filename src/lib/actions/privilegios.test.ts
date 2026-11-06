@@ -71,26 +71,26 @@ describe("privilegios", () => {
     const atual = buildPermissoesPorCategoria([]);
     const formData = new FormData();
     formData.set("permissoes_presentes", "1");
-    // todas as funções repetem o que já vale, menos Gestor (perde auditoria) e Compra (ganha cadastros.editar)
-    for (const papel of ["laboratorio", "compra", "cadastro", "coordenador", "gestor"] as const) {
+    // todas as funções repetem o que já vale, menos Gestor (perde auditoria) e Laboratório (ganha cadastros.editar)
+    for (const papel of ["tecnico", "coordenador", "gestor"] as const) {
       for (const [chave, pode] of Object.entries(atual[papel])) {
         if (!pode) continue;
         if (papel === "gestor" && chave === "auditoria.visualizar") continue;
         formData.append(`permissoes:${papel}`, chave);
       }
     }
-    formData.append("permissoes:compra", "cadastros.editar");
-    formData.append("permissoes:compra", "chave.inventada");
+    formData.append("permissoes:tecnico", "cadastros.editar");
+    formData.append("permissoes:tecnico", "chave.inventada");
     // o admin nunca é gravado
     formData.append("permissoes:admin", "analises.ver");
     const { salvarMatrizPrivilegios } = await import("./privilegios");
 
     const result = await salvarMatrizPrivilegios({ ok: false }, formData);
 
-    expect(result).toEqual({ ok: true, message: "Privilégios salvos: Compra, Gestor." });
+    expect(result).toEqual({ ok: true, message: "Privilégios salvos: Laboratório, Gestor." });
     expect(upsert).toHaveBeenCalledOnce();
     const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
-    expect(linhas.map((linha) => linha.papel)).toEqual(["compra", "gestor"]);
+    expect(linhas.map((linha) => linha.papel)).toEqual(["tecnico", "gestor"]);
     expect(linhas[0].permissoes["cadastros.editar"]).toBe(true);
     expect(linhas[0].permissoes).not.toHaveProperty("chave.inventada");
     expect(linhas[1].permissoes["auditoria.visualizar"]).toBe(false);
@@ -107,7 +107,7 @@ describe("privilegios", () => {
     await salvarMatrizPrivilegios({ ok: false }, formData);
 
     const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
-    expect(linhas.map((linha) => linha.papel)).toEqual(["laboratorio", "compra", "cadastro", "coordenador", "gestor"]);
+    expect(linhas.map((linha) => linha.papel)).toEqual(["tecnico", "coordenador", "gestor"]);
     for (const linha of linhas) {
       expect(Object.values(linha.permissoes).every((pode) => pode === false)).toBe(true);
     }

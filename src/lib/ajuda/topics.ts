@@ -565,8 +565,6 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Funções",
         itens: [
           "Laboratório: operação do dia a dia (análises, retiradas, baixas, pedidos e recebimentos). Antes se chamava Técnico.",
-          "Compra: acompanha o que falta, solicita, conduz e recebe compras.",
-          "Cadastro: mantém cadastros, insumos e projetos.",
           "Coordenador: valida, aprova e faz orçamentos.",
           "Gestor: tudo do coordenador mais parâmetros econômicos, fundos, modelos e Auditoria.",
           "Administrador: controle total, incluindo usuários, privilégios e backups.",
@@ -588,7 +586,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Privilégios",
     grupo: "Governança",
     href: "/governanca/privilegios",
-    resumo: "O que cada uma das seis funções pode ver e fazer, módulo por módulo.",
+    resumo: "O que cada função pode ver e fazer, módulo por módulo.",
     intro:
       "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Cadastros, Operação, Suprimentos, Orçamentos e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
     secoes: [
