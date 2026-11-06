@@ -12,6 +12,8 @@ const select = vi.fn();
 const single = vi.fn();
 const eq = vi.fn();
 const deleteRow = vi.fn();
+const deleteEq = vi.fn();
+const deleteSelect = vi.fn();
 const update = vi.fn();
 const registrarEvento = vi.fn();
 const exigirPapelOrcamento = vi.fn();
@@ -43,6 +45,10 @@ describe("actions de orcamentos", () => {
     single.mockClear();
     eq.mockReset();
     deleteRow.mockReset();
+    deleteEq.mockReset();
+    deleteSelect.mockReset();
+    deleteEq.mockReturnValue({ eq: deleteEq, select: deleteSelect });
+    deleteSelect.mockResolvedValue({ data: [{ id: 42 }], error: null });
     update.mockReset();
     registrarEvento.mockReset();
     exigirPapelOrcamento.mockReset();
@@ -52,7 +58,7 @@ describe("actions de orcamentos", () => {
     insert.mockReturnValue({ select });
     select.mockReturnValue({ single, eq });
     eq.mockReturnValue({ single });
-    deleteRow.mockReturnValue({ eq });
+    deleteRow.mockReturnValue({ eq: deleteEq });
     update.mockReturnValue({ eq });
     single.mockResolvedValue({ data: { id: 42 }, error: null });
   });
@@ -80,7 +86,10 @@ describe("actions de orcamentos", () => {
 
     expect(exigirPapelOrcamento).toHaveBeenCalledWith("cancelar_documento");
     expect(deleteRow).toHaveBeenCalled();
-    expect(eq).toHaveBeenCalledWith("id", 42);
+    expect(deleteEq).toHaveBeenCalledWith("id", 42);
+    expect(deleteEq).toHaveBeenCalledWith("status", "rascunho");
+    expect(deleteSelect).toHaveBeenCalledWith("id");
+    expect(from.mock.calls.map(([table]) => table)).toEqual(["orcamentos", "orcamentos"]);
     expect(revalidatePath).toHaveBeenCalledWith("/orcamento");
     expect(redirect).toHaveBeenCalledWith("/orcamento");
   });
@@ -90,10 +99,55 @@ describe("actions de orcamentos", () => {
     const formData = new FormData();
     formData.set("orcamento_id", "42");
     single.mockResolvedValue({ data: { status: "rascunho" }, error: null });
-    deleteRow.mockReturnValue({ eq: vi.fn(async () => ({ error: { message: "violação de chave" } })) });
+    deleteSelect.mockResolvedValue({ data: null, error: { message: "violação de chave" } });
 
     await expect(excluirOrcamento(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/42?erro_exclusao=");
     expect(revalidatePath).not.toHaveBeenCalledWith("/orcamento");
+  });
+
+  it.each(["aprovado", "recusado", "cancelado", "arquivado"])("não tenta excluir estado %s", async (status) => {
+    const { excluirOrcamento } = await import("./orcamentos");
+    single.mockResolvedValue({ data: { status }, error: null });
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    await expect(excluirOrcamento(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/42?erro_exclusao=");
+    expect(deleteRow).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("nega sem permissão antes de qualquer acesso ao banco", async () => {
+    const { excluirOrcamento } = await import("./orcamentos");
+    exigirPapelOrcamento.mockRejectedValueOnce(new Error("Sem permissão"));
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    await expect(excluirOrcamento(formData)).rejects.toThrow("Sem permissão");
+    expect(from).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
+  });
+
+  it.each([{ data: [] }, { data: [{ id: 99 }] }])("não anuncia exclusão sem o ID removido exato: %j", async ({ data }) => {
+    const { excluirOrcamento } = await import("./orcamentos");
+    single.mockResolvedValue({ data: { status: "rascunho" }, error: null });
+    deleteSelect.mockResolvedValue({ data, error: null });
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    await expect(excluirOrcamento(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/42?erro_exclusao=");
+    expect(redirect).not.toHaveBeenCalledWith("/orcamento");
+    expect(revalidatePath).not.toHaveBeenCalled();
+    expect(from.mock.calls.map(([table]) => table)).toEqual(["orcamentos", "orcamentos"]);
+  });
+
+  it.each([
+    { data: null, error: null },
+    { data: { status: "rascunho" }, error: { message: "leitura negada" } },
+  ])("não escreve quando a leitura não confirma rascunho: %j", async (result) => {
+    const { excluirOrcamento } = await import("./orcamentos");
+    single.mockResolvedValue(result);
+    const formData = new FormData();
+    formData.set("orcamento_id", "42");
+    await expect(excluirOrcamento(formData)).rejects.toThrow("NEXT_REDIRECT:/orcamento/42?erro_exclusao=");
+    expect(deleteRow).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("remove análise pela RPC e devolve a recusa do banco sem lançar", async () => {

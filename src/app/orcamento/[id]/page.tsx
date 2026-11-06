@@ -731,7 +731,7 @@ export default async function OrcamentoDetalhe({
               confirmLabel="Cancelar orçamento"
               triggerClassName="text-xs text-warning-strong hover:underline"
             />
-          ) : (
+          ) : orc.status === "rascunho" ? (
             <ConfirmActionButton
               action={excluirOrcamento}
               fields={{ orcamento_id: orcId }}
@@ -740,7 +740,7 @@ export default async function OrcamentoDetalhe({
               mensagem={`Excluir o orçamento de “${orc.cliente_nome}”? Esta ação não pode ser desfeita.`}
               confirmLabel="Excluir orçamento"
             />
-          )}
+          ) : null}
         </div>
         {demanda && <NavegacaoEtapas demandaId={demanda.id} modalidade={demanda.modalidade} atual="laboratorio" />}
       </main>

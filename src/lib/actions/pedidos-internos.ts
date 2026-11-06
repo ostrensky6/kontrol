@@ -447,8 +447,17 @@ export async function excluirPedidoInterno(_prev: FormState, formData: FormData)
       message: "Só é possível excluir rascunhos sem compra formal. Para pedidos em andamento, use Cancelar.",
     };
   }
-  const { error } = await supabase.from("pedidos_internos").delete().eq("id", pedidoId);
+  const { data: excluidos, error } = await supabase
+    .from("pedidos_internos")
+    .delete()
+    .eq("id", pedidoId)
+    .eq("status", "rascunho")
+    .is("pedido_compra_id", null)
+    .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível excluir.") };
+  if (!excluidos?.length) {
+    return { ok: false, message: "Pedido não excluído. Atualize a lista e confira o status, a compra formal e sua permissão." };
+  }
   revalidatePath("/pedido");
   redirect("/pedido");
 }

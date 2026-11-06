@@ -504,21 +504,30 @@ export async function recalcularOrcamento(
 
 export async function excluirOrcamento(formData: FormData) {
   await exigirPapelOrcamento("cancelar_documento");
-  const id = Number(formData.get("orcamento_id"));
+  const id = idValido(formData.get("orcamento_id"));
+  if (!id) throw new Error("Orçamento não identificado.");
   const supabase = await createClient();
-  const { data: atual } = await supabase
+  const { data: atual, error: erroLeitura } = await supabase
     .from("orcamentos")
     .select("status")
     .eq("id", id)
     .single();
 
-  if (atual && ["enviado", "aprovado"].includes(atual.status)) {
-    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent("Orçamento enviado ou aprovado não pode ser excluído. Cancele-o com um motivo.")}`);
+  if (erroLeitura || !atual || atual.status !== "rascunho") {
+    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent("Somente orçamento em rascunho com permissão pode ser excluído. Para os demais estados, preserve o histórico pelo cancelamento.")}`);
   }
 
-  const { error } = await supabase.from("orcamentos").delete().eq("id", id);
+  const { data: removidos, error } = await supabase
+    .from("orcamentos")
+    .delete()
+    .eq("id", id)
+    .eq("status", "rascunho")
+    .select("id");
   if (error) {
     redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent(`Não foi possível excluir o orçamento: ${mensagemDoBanco(error)}`)}`);
+  }
+  if (removidos?.length !== 1 || removidos[0].id !== id) {
+    redirect(`/orcamento/${id}?erro_exclusao=${encodeURIComponent("Exclusão não confirmada. O orçamento pode ter mudado de estado ou você não tem permissão. Atualize a página e tente novamente.")}`);
   }
   revalidatePath("/orcamento");
   redirect("/orcamento");

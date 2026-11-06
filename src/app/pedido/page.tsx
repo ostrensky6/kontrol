@@ -163,6 +163,7 @@ export default async function PedidoPage() {
       documentos: docsCotacao ? "ok" : "pendente",
       modalidade: pedido.modalidade_compra ? LABEL_MODALIDADE[pedido.modalidade_compra] ?? pedido.modalidade_compra : "—",
       compraFormal,
+      pedidoCompraId: pedido.pedido_compra_id,
       recebimento: itens.length ? `${recebidos}/${itens.length}` : "—",
       pendencias: pendenciasPedido(pedido),
     };
