@@ -1,10 +1,9 @@
 import type { Accent, NavGroup, NavIcon, NavLink } from "@/components/layout/SideNav";
 import { getCadastrosOrdenados } from "@/lib/cadastros/config";
 import { acessoDaRota } from "@/config/acesso-modulos";
+import { nivelPapel, papelAlcanca, type PapelUsuario } from "@/lib/auth/permissions";
 
-export const ORDEM_PAPEIS = ["tecnico", "coordenador", "gestor", "admin"] as const;
-
-export type Role = (typeof ORDEM_PAPEIS)[number];
+export type Role = PapelUsuario;
 export type NavigationProfile = {
   papel?: string | null;
   /** permissões efetivas (0124); sem elas, vale só o papel mínimo */
@@ -37,14 +36,12 @@ export type AppModule = {
 };
 
 export function nivelDoPapel(papel?: string | null) {
-  return papel ? ORDEM_PAPEIS.indexOf(papel as Role) : -1;
+  return nivelPapel(papel);
 }
 
 export function permiteMinRole(perfil: NavigationProfile, minRole?: Role) {
   if (!minRole) return true;
-  const papelAtual = nivelDoPapel(perfil?.papel);
-  const papelMinimo = ORDEM_PAPEIS.indexOf(minRole);
-  return papelAtual >= papelMinimo;
+  return papelAlcanca(perfil?.papel, minRole);
 }
 
 const cadastroChildren = getCadastrosOrdenados().map((cadastro) => ({
@@ -303,7 +300,7 @@ export const APP_MODULES: AppModule[] = [
     id: "governanca",
     label: "Governança",
     href: "/governanca",
-    desc: "auditoria, backups, erros e permissões",
+    desc: "auditoria, backups, erros, usuários e privilégios",
     icon: "ShieldCheck",
     accent: "slate",
     activePaths: ["/governanca", "/auditoria", "/usuarios"],
@@ -330,15 +327,15 @@ export const APP_MODULES: AppModule[] = [
       },
       {
         href: "/usuarios",
-        label: "Usuários e permissões",
-        desc: "acessos, assinaturas e matriz de permissões",
+        label: "Usuários",
+        desc: "acessos, funções, assinaturas e senhas",
         icon: "UserCog",
         minRole: "admin",
       },
       {
         href: "/governanca/privilegios",
         label: "Privilégios",
-        desc: "matriz granular de permissões por papel",
+        desc: "o que cada função pode ver e fazer",
         icon: "ShieldCheck",
         minRole: "admin",
       },

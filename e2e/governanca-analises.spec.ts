@@ -16,7 +16,16 @@ const HISTORICAL_CODES = [
 test("admin acessa itens de Governança incluindo Privilégios", async ({ page }) => {
   await page.goto("/governanca/privilegios");
   await expect(page.getByRole("heading", { name: "Privilégios", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Privilégios por papel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Privilégios por função" })).toBeVisible();
+  // 06/11: seis funções, uma caixinha por função e privilégio (o admin fica travado em "pode").
+  for (const funcao of ["Laboratório", "Compra", "Cadastro", "Coordenador", "Gestor", "Administrador"]) {
+    await expect(page.getByRole("columnheader", { name: funcao, exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("checkbox", { name: "Administrador: Ver auditoria" })).toBeChecked();
+  await expect(page.getByRole("checkbox", { name: "Administrador: Ver auditoria" })).toBeDisabled();
+  await expect(page.getByText(/^(Sim|Não)$/)).toHaveCount(0);
+  // módulos em faixas: um bloco por módulo
+  await expect(page.locator("tbody[data-modulo]")).toHaveCount(5);
   // UI2-13: a tabela de engenharia "Papéis antigos" saiu da tela.
   await expect(page.getByRole("heading", { name: /Papéis antigos/ })).toHaveCount(0);
 
@@ -24,7 +33,7 @@ test("admin acessa itens de Governança incluindo Privilégios", async ({ page }
   await expect(page.getByRole("link", { name: "Auditoria" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Backups" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Erros do app" })).toBeVisible();
-  await expect(page.getByRole("link", { name: "Usuários e permissões" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Usuários", exact: true })).toBeVisible();
   await expect(page.getByRole("link", { name: "Privilégios" })).toBeVisible();
 
   await page.goto("/auditoria");
@@ -35,7 +44,9 @@ test("admin acessa itens de Governança incluindo Privilégios", async ({ page }
   await page.goto("/governanca/erros");
   await expect(page.getByRole("heading", { name: "Erros do app" })).toBeVisible();
   await page.goto("/usuarios");
-  await expect(page.getByRole("heading", { name: "Usuários e permissões" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Usuários", exact: true })).toBeVisible();
+  // a matriz por função saiu de Usuários: fica só em Privilégios
+  await expect(page.getByRole("heading", { name: /Tabela de permissões/ })).toHaveCount(0);
 });
 
 test("tela administrativa lista as 10 análises históricas", async ({ page }) => {

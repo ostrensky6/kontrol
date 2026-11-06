@@ -21,7 +21,10 @@ export default async function PrivilegiosPage() {
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Privilégios</h1>
           <HelpTip title="Privilégios">
-            <p>O que cada papel pode ver e fazer. O administrador sempre tem tudo.</p>
+            <p>
+              O que cada função pode ver e fazer, separado por módulo. Marque ou desmarque a caixinha e
+              salve. O administrador sempre tem tudo. Quem está em cada função fica em Usuários.
+            </p>
           </HelpTip>
         </div>
 

@@ -10,7 +10,18 @@ import { pode, podeVerSalario } from "@/lib/auth/permissao-efetiva";
 import { mascararAuditoriaSigilosa } from "@/lib/cadastros/salario";
 import { LABEL_PAPEL, PERMISSOES_ORCAMENTO } from "@/lib/orcamento/governanca";
 import { agruparAlteracoesSeguidas, type GrupoAuditoria } from "@/lib/orcamento/auditoria-resumo";
-import { PERMISSOES } from "@/lib/auth/permissions";
+import { PAPEIS, PERMISSOES, defaultPermissionsForRole, papelAlcanca } from "@/lib/auth/permissions";
+
+/** Funções que já vêm com a caixinha marcada (padrão de Privilégios). */
+function funcoesComPadrao(chave: string | null, papelMinimo: (typeof PAPEIS)[number]["value"]) {
+  return PAPEIS.filter((papel) =>
+    chave
+      ? defaultPermissionsForRole(papel.value).some((item) => item === chave)
+      : papelAlcanca(papel.value, papelMinimo),
+  )
+    .map((papel) => papel.label)
+    .join(", ");
+}
 
 function rotuloPermissao(chave: string) {
   const permissao = PERMISSOES.find((item) => item.key === chave);
@@ -156,7 +167,7 @@ export default async function GovernancaOrcamentoPage() {
           <p className="rounded-md border border-border bg-card px-3 py-1.5 text-sm shadow-sm">
             <span className="text-xs text-muted-foreground">Sessão atual: </span>
             <strong className="font-semibold">{usuario?.nome || usuario?.email || "Usuário autenticado"}</strong>
-            <span className="text-muted-foreground"> · {usuario?.papel ? LABEL_PAPEL[usuario.papel] : "Técnico"}</span>
+            <span className="text-muted-foreground"> · {usuario?.papel ? LABEL_PAPEL[usuario.papel] : "Laboratório"}</span>
           </p>
         </div>
 
@@ -168,7 +179,7 @@ export default async function GovernancaOrcamentoPage() {
             ajuda={
               <HelpTip title="Como a regra é aplicada" className="h-6 w-6">
                 <p>Cada ação é <b>conferida na ação do servidor e no banco</b>: esconder um botão na tela não basta para liberar ou bloquear.</p>
-                <p><b>Quem pode</b>: quem tiver a permissão indicada em Usuários. Ela vem marcada por padrão para o papel mínimo e os papéis acima dele.</p>
+                <p><b>Quem pode</b>: quem tiver a permissão indicada em Usuários. Ela vem marcada por padrão para as funções indicadas, e o administrador muda isso em Governança → Privilégios.</p>
               </HelpTip>
             }
           />
@@ -192,7 +203,7 @@ export default async function GovernancaOrcamentoPage() {
                 {PERMISSOES_ORCAMENTO.map((permissao) => {
                   const quemPode = permissao.chave
                     ? rotuloPermissao(permissao.chave)
-                    : `${LABEL_PAPEL[permissao.papelMinimo]} ou superior`;
+                    : funcoesComPadrao(null, permissao.papelMinimo);
                   return (
                     <tr key={permissao.acao} className="align-top">
                       <td className="px-3 py-1.5">
@@ -206,7 +217,7 @@ export default async function GovernancaOrcamentoPage() {
                           {quemPode}
                         </span>
                         <span className="block text-xs text-muted-foreground">
-                          Padrão: {LABEL_PAPEL[permissao.papelMinimo].toLowerCase()} e acima
+                          Padrão: {funcoesComPadrao(permissao.chave, permissao.papelMinimo)}
                         </span>
                       </td>
                       <td className="px-3 py-1.5">

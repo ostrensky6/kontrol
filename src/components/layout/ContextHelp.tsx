@@ -143,9 +143,9 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     match: (path) => path.startsWith("/usuarios") || path.startsWith("/governanca") || path.startsWith("/auditoria"),
     content: {
       title: "Governança",
-      description: "Usuários, permissões, auditoria e backups.",
+      description: "Usuários, privilégios, auditoria e backups.",
       checks: [
-        "Privilégios define o padrão de cada papel; ajustes individuais ficam em Usuários.",
+        "Privilégios define, por caixinha, o que cada uma das seis funções pode fazer; ajustes de uma pessoa ficam em Usuários.",
         "Ver salário dos técnicos vem ligada só para administrador.",
         "Auditoria mostra quem alterou o quê, e quando.",
       ],

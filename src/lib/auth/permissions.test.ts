@@ -32,11 +32,11 @@ describe("permissoes reconciliadas", () => {
   });
 
   it("padrões por papel reproduzem o acesso anterior à 0124", () => {
-    expect(defaultPermissionsForRole("tecnico")).toEqual(expect.arrayContaining([
+    expect(defaultPermissionsForRole("laboratorio")).toEqual(expect.arrayContaining([
       "recebimento.registrar",
       "planejamento.executar",
     ]));
-    expect(defaultPermissionsForRole("tecnico")).not.toContain("estoque.lote.aceitar");
+    expect(defaultPermissionsForRole("laboratorio")).not.toContain("estoque.lote.aceitar");
     expect(defaultPermissionsForRole("coordenador")).toEqual(expect.arrayContaining([
       "orcamentos.cancelar",
       "compras.cancelar",
@@ -59,7 +59,7 @@ describe("permissoes reconciliadas", () => {
   });
 
   it("nao reduz os defaults funcionais ja existentes", () => {
-    expect(defaultPermissionsForRole("tecnico")).toEqual(expect.arrayContaining([
+    expect(defaultPermissionsForRole("laboratorio")).toEqual(expect.arrayContaining([
       "orcamentos.visualizar",
       "orcamentos.criar_editar",
       "compras.solicitar",
@@ -77,12 +77,12 @@ describe("permissoes reconciliadas", () => {
     expect(salario).toMatchObject({ label: "Ver salário dos técnicos", modulo: "Cadastros" });
 
     expect(normalizePermissions("admin", {})["tecnicos.salario.ver"]).toBe(true);
-    for (const papel of ["tecnico", "coordenador", "gestor"]) {
+    for (const papel of ["laboratorio", "coordenador", "gestor"]) {
       expect(defaultPermissionsForRole(papel)).not.toContain("tecnicos.salario.ver");
       expect(normalizePermissions(papel, {})["tecnicos.salario.ver"]).toBe(false);
     }
     // concessao individual (perfis.permissoes) prevalece sobre o padrao da categoria
-    expect(normalizePermissions("tecnico", { "tecnicos.salario.ver": true })["tecnicos.salario.ver"]).toBe(true);
+    expect(normalizePermissions("laboratorio", { "tecnicos.salario.ver": true })["tecnicos.salario.ver"]).toBe(true);
   });
 
   it("valores de pessoal no orçamento: coordenador, gestor e admin por padrão; técnico não", () => {
@@ -92,8 +92,8 @@ describe("permissoes reconciliadas", () => {
     for (const papel of ["coordenador", "gestor", "admin"]) {
       expect(normalizePermissions(papel, {})["orcamentos.pessoal"]).toBe(true);
     }
-    expect(defaultPermissionsForRole("tecnico")).not.toContain("orcamentos.pessoal");
-    expect(normalizePermissions("tecnico", {})["orcamentos.pessoal"]).toBe(false);
+    expect(defaultPermissionsForRole("laboratorio")).not.toContain("orcamentos.pessoal");
+    expect(normalizePermissions("laboratorio", {})["orcamentos.pessoal"]).toBe(false);
     // o administrador pode tirar de um coordenador específico
     expect(normalizePermissions("coordenador", { "orcamentos.pessoal": false })["orcamentos.pessoal"]).toBe(false);
   });
@@ -111,13 +111,71 @@ describe("permissoes reconciliadas", () => {
     const semFormularioExplicito = new FormData();
 
     expect(
-      Object.values(selectedPermissionsFromForm(explicitamenteVazio, "tecnico")).every(
+      Object.values(selectedPermissionsFromForm(explicitamenteVazio, "laboratorio")).every(
         (enabled) => enabled === false,
       ),
     ).toBe(true);
-    expect(selectedPermissionsFromForm(semFormularioExplicito, "tecnico")).toMatchObject(
-      normalizePermissions("tecnico", {}),
+    expect(selectedPermissionsFromForm(semFormularioExplicito, "laboratorio")).toMatchObject(
+      normalizePermissions("laboratorio", {}),
     );
     expect(Object.values(selectedPermissionsFromForm(explicitamenteVazio, "admin")).every(Boolean)).toBe(true);
+  });
+});
+
+describe("seis funções (06/11/2026, migration 0146)", () => {
+  it("substitui as quatro funções por Administrador, Gestor, Laboratório, Compra, Cadastro e Coordenador", async () => {
+    const { PAPEIS } = await import("./permissions");
+    expect(PAPEIS.map((papel) => papel.label).sort()).toEqual(
+      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório"].sort(),
+    );
+    expect(PAPEIS.map((papel) => papel.value)).not.toContain("tecnico");
+  });
+
+  it("Laboratório herda exatamente o padrão do antigo Técnico, que segue como apelido", () => {
+    expect(defaultPermissionsForRole("tecnico")).toEqual(defaultPermissionsForRole("laboratorio"));
+  });
+
+  it("nível: Laboratório = Compra = Cadastro < Coordenador < Gestor < Administrador", async () => {
+    const { nivelPapel, papelAlcanca } = await import("./permissions");
+    expect(nivelPapel("laboratorio")).toBe(nivelPapel("compra"));
+    expect(nivelPapel("compra")).toBe(nivelPapel("cadastro"));
+    expect(nivelPapel("tecnico")).toBe(nivelPapel("laboratorio"));
+    expect(nivelPapel("cadastro")).toBeLessThan(nivelPapel("coordenador"));
+    expect(nivelPapel("coordenador")).toBeLessThan(nivelPapel("gestor"));
+    expect(nivelPapel("gestor")).toBeLessThan(nivelPapel("admin"));
+    expect(nivelPapel("inventado")).toBe(-1);
+    expect(papelAlcanca("compra", "coordenador")).toBe(false);
+    expect(papelAlcanca("compra", "laboratorio")).toBe(true);
+    expect(papelAlcanca("inventado", "laboratorio")).toBe(false);
+  });
+
+  it("Compra e Cadastro começam só com o que a função faz, sem salário, orçamento ou auditoria", () => {
+    const compra = defaultPermissionsForRole("compra");
+    expect(compra).toEqual(expect.arrayContaining(["compras.ver", "compras.solicitar", "compras.receber", "recebimento.registrar"]));
+    const cadastro = defaultPermissionsForRole("cadastro");
+    expect(cadastro).toEqual(expect.arrayContaining(["cadastros.ver", "cadastros.editar", "insumos.editar", "projetos.editar"]));
+    for (const chave of ["tecnicos.salario.ver", "orcamentos.visualizar", "orcamentos.pessoal", "auditoria.visualizar"] as const) {
+      expect(compra).not.toContain(chave);
+      expect(cadastro).not.toContain(chave);
+    }
+  });
+
+  it("a migration 0146 grava a mesma marcação inicial de Compra e Cadastro que o app usa", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const sql = readFileSync(join(process.cwd(), "supabase/migrations/0146_seis_funcoes.sql"), "utf8");
+    for (const papel of ["compra", "cadastro"]) {
+      const linha = new RegExp(`\\('${papel}', '(\\{[^']+\\})'::jsonb`).exec(sql);
+      expect(linha, papel).not.toBeNull();
+      const gravado = JSON.parse(linha![1]) as Record<string, boolean>;
+      const padrao = new Set(defaultPermissionsForRole(papel));
+      expect(Object.keys(gravado).sort()).toEqual(PERMISSOES.map((p) => p.key).sort());
+      for (const [chave, pode] of Object.entries(gravado)) expect(pode, `${papel} ${chave}`).toBe(padrao.has(chave as never));
+    }
+    // aditiva: troca CHECK, não remove tabela, coluna, RLS nem trigger
+    const semComentarios = sql.replace(/--.*$/gm, "");
+    expect(semComentarios).not.toMatch(/drop\s+(table|column|policy|trigger|function|schema)/i);
+    expect(semComentarios).not.toMatch(/\btruncate\b|disable\s+row\s+level/i);
+    expect(sql).toContain("when 'tecnico' then 0");
   });
 });
