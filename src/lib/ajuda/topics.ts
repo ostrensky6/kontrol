@@ -182,7 +182,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Estoque → 'Planilha de insumos' baixa a lista completa de insumos em Excel.",
           "Cadastros → Insumos → 'Planilha' baixa a mesma lista.",
-          "Para importar alterações, use Cadastros → Todos os cadastros → 'Planilha preenchida' → 'Importar XLSX' (no fim do painel de insumos).",
+          "Para importar alterações, use Cadastros → 'Importar XLSX' (no topo do painel de insumos, ao lado de 'Cadastrar insumo'); escolher o arquivo já envia.",
         ],
       },
       {

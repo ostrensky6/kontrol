@@ -5,6 +5,9 @@ test("painel de insumos: alertas com os itens que os disparam, filtro na URL", a
   await expect(page.getByRole("heading", { name: "Painel de insumos", level: 1 })).toBeVisible();
   // a lista completa saiu do painel: ela fica em Cadastros → Insumos
   await expect(page.getByRole("link", { name: "Cadastros → Insumos" })).toHaveAttribute("href", "/cadastros/insumos");
+  // importar e baixar a planilha ficam no topo, ao lado de "Cadastrar insumo"
+  await expect(page.getByText("Importar XLSX")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Baixar XLSX" })).toBeVisible();
 
   // no mock, os insumos não têm ponto de reposição: o alerta lista quais são
   const semMinimo = page.getByRole("region", { name: "Sem mínimo definido" });

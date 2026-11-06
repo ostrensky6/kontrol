@@ -2,7 +2,11 @@ import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCadastrosOrdenados } from "@/lib/cadastros/config";
 import { CadastrosCards } from "@/components/cadastros/CadastrosCards";
-import { CadastrosWorkbookPanel } from "@/components/cadastros/CadastrosWorkbookPanel";
+import {
+  BotoesPlanilhaCadastros,
+  ImportacaoCadastrosProvider,
+  ResultadoImportacaoCadastros,
+} from "@/components/cadastros/CadastrosWorkbookPanel";
 import { PainelInsumos } from "@/components/cadastros/PainelInsumos";
 import { HelpTip } from "@/components/common/HelpTip";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -112,6 +116,7 @@ export default async function CadastrosIndex() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <ImportacaoCadastrosProvider>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Painel de insumos</h1>
@@ -145,6 +150,7 @@ export default async function CadastrosIndex() {
                 + Cadastrar insumo
               </Link>
             ) : null}
+            <BotoesPlanilhaCadastros podeImportar={podeImportar} />
             <Link href="/cadastros/insumos" className="inline-flex rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
               Consultar insumos
             </Link>
@@ -153,6 +159,8 @@ export default async function CadastrosIndex() {
             </a>
           </div>
         </div>
+
+        <ResultadoImportacaoCadastros />
 
         <PainelInsumos insumos={painel.insumos} lotesVencendo={painel.lotesVencendo} lotes={painel.lotes} movimentos={painel.movimentos} hojeIso={hoje} erro={painel.erro} />
 
@@ -165,9 +173,9 @@ export default async function CadastrosIndex() {
               Revisar qualidade dos cadastros
             </Link>
           </div>
-          <CadastrosWorkbookPanel podeImportar={podeImportar} />
           <CadastrosCards cadastros={cadastros} />
         </section>
+        </ImportacaoCadastrosProvider>
       </main>
     </div>
   );
