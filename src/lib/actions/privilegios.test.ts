@@ -57,33 +57,69 @@ describe("privilegios", () => {
 
   it("bloqueia salvamento de privilegios para nao-admin", async () => {
     temPapel.mockResolvedValue(false);
-    const { salvarPrivilegiosPapel } = await import("./privilegios");
+    const { salvarMatrizPrivilegios } = await import("./privilegios");
 
-    const result = await salvarPrivilegiosPapel({ ok: false }, new FormData());
+    const result = await salvarMatrizPrivilegios({ ok: false }, new FormData());
 
     expect(result.ok).toBe(false);
     expect(upsert).not.toHaveBeenCalled();
   });
 
-  it("salva privilegios por papel e revalida telas relacionadas", async () => {
+  it("salva a matriz inteira, só as funções que mudaram, e revalida as telas", async () => {
     temPapel.mockResolvedValue(true);
+    const { buildPermissoesPorCategoria } = await import("@/lib/auth/permission-categories");
+    const atual = buildPermissoesPorCategoria([]);
     const formData = new FormData();
-    formData.set("papel", "gestor");
-    formData.append("permissoes", "analises.ver");
-    formData.append("permissoes", "auditoria.visualizar");
-    const { salvarPrivilegiosPapel } = await import("./privilegios");
+    formData.set("permissoes_presentes", "1");
+    // todas as funções repetem o que já vale, menos Gestor (perde auditoria) e Compra (ganha cadastros.editar)
+    for (const papel of ["laboratorio", "compra", "cadastro", "coordenador", "gestor"] as const) {
+      for (const [chave, pode] of Object.entries(atual[papel])) {
+        if (!pode) continue;
+        if (papel === "gestor" && chave === "auditoria.visualizar") continue;
+        formData.append(`permissoes:${papel}`, chave);
+      }
+    }
+    formData.append("permissoes:compra", "cadastros.editar");
+    formData.append("permissoes:compra", "chave.inventada");
+    // o admin nunca é gravado
+    formData.append("permissoes:admin", "analises.ver");
+    const { salvarMatrizPrivilegios } = await import("./privilegios");
 
-    const result = await salvarPrivilegiosPapel({ ok: false }, formData);
+    const result = await salvarMatrizPrivilegios({ ok: false }, formData);
 
-    expect(result.ok).toBe(true);
-    expect(upsert).toHaveBeenCalledWith(expect.objectContaining({
-      papel: "gestor",
-      permissoes: expect.objectContaining({
-        "analises.ver": true,
-        "auditoria.visualizar": true,
-      }),
-    }));
+    expect(result).toEqual({ ok: true, message: "Privilégios salvos: Compra, Gestor." });
+    expect(upsert).toHaveBeenCalledOnce();
+    const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
+    expect(linhas.map((linha) => linha.papel)).toEqual(["compra", "gestor"]);
+    expect(linhas[0].permissoes["cadastros.editar"]).toBe(true);
+    expect(linhas[0].permissoes).not.toHaveProperty("chave.inventada");
+    expect(linhas[1].permissoes["auditoria.visualizar"]).toBe(false);
     expect(revalidatePath).toHaveBeenCalledWith("/governanca/privilegios");
     expect(revalidatePath).toHaveBeenCalledWith("/usuarios");
+  });
+
+  it("desmarcar tudo de uma função grava tudo desligado (não volta ao padrão do código)", async () => {
+    temPapel.mockResolvedValue(true);
+    const formData = new FormData();
+    formData.set("permissoes_presentes", "1");
+    const { salvarMatrizPrivilegios } = await import("./privilegios");
+
+    await salvarMatrizPrivilegios({ ok: false }, formData);
+
+    const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
+    expect(linhas.map((linha) => linha.papel)).toEqual(["laboratorio", "compra", "cadastro", "coordenador", "gestor"]);
+    for (const linha of linhas) {
+      expect(Object.values(linha.permissoes).every((pode) => pode === false)).toBe(true);
+    }
+  });
+
+  it("sem o marcador do formulário, recusa (evita zerar a matriz por engano)", async () => {
+    temPapel.mockResolvedValue(true);
+    const { salvarMatrizPrivilegios } = await import("./privilegios");
+
+    const result = await salvarMatrizPrivilegios({ ok: false }, new FormData());
+
+    expect(result.ok).toBe(false);
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

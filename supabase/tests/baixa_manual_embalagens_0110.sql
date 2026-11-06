@@ -30,7 +30,7 @@ begin
   insert into auth.users(instance_id, id, aud, role, email, created_at, updated_at)
   values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
           'ts-baixa-0110@example.invalid', now(), now());
-  update public.perfis set papel = 'tecnico', suspenso = false where id = uid;
+  update public.perfis set papel = 'laboratorio', suspenso = false where id = uid;
   if not found then raise exception '0110: perfil fixture ausente'; end if;
 
   insert into public.insumos (especificacao, unidade, unidade_consumo, quantidade_embalagem,

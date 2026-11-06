@@ -17,7 +17,7 @@ begin
     values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
             'ts-0125-' || v_rotulo || '@example.invalid', now(), now());
     update public.perfis
-       set papel = 'tecnico',
+       set papel = 'laboratorio',
            suspenso = false,
            permissoes = case v_rotulo
              when 'tecnico_sem_compras' then '{"compras.solicitar": false}'::jsonb

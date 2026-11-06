@@ -33,7 +33,7 @@ begin
             case when v_rotulo = 'novato' then '{"senha_provisoria": true}'::jsonb else '{}'::jsonb end,
             now(), now());
   end loop;
-  update public.perfis set papel = 'tecnico', suspenso = false,
+  update public.perfis set papel = 'laboratorio', suspenso = false,
          permissoes = '{"estoque.movimentar": true, "estoque.ver": true}'::jsonb
    where id in (md5('kontrol-0132-tecnico')::uuid, md5('kontrol-0132-novato')::uuid);
   update public.perfis set papel = 'coordenador', suspenso = false,
@@ -217,7 +217,7 @@ set local role authenticated;
 select pg_temp.como('novato', true);
 do $$
 begin
-  if not public.tem_permissao('estoque.movimentar') or public.current_papel() is distinct from 'tecnico' then
+  if not public.tem_permissao('estoque.movimentar') or public.current_papel() is distinct from 'laboratorio' then
     raise exception '0132: perfil ja trocado nao deveria ficar travado pelo token antigo';
   end if;
 end $$;

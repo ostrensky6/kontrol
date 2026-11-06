@@ -15,13 +15,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
+import { LABEL_PAPEL } from "@/lib/auth/permissions";
 
-const PAPEL_LABEL: Record<string, string> = {
-  tecnico: "Técnico",
-  coordenador: "Coordenador",
-  gestor: "Gestor",
-  admin: "Admin",
-};
+const PAPEL_LABEL: Record<string, string> = { ...LABEL_PAPEL, admin: "Admin" };
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "kontrol:sidebar:collapsed";
 
 type Perfil = { nome: string | null; email: string | null; papel: string } | null;

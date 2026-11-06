@@ -144,7 +144,7 @@ describe("excluirUsuario", () => {
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Usuário sem permissão");
-    formData.set("papel", "tecnico");
+    formData.set("papel", "laboratorio");
     formData.set("permissoes_presentes", "1");
     const { editarUsuario } = await import("./usuarios");
 
@@ -169,7 +169,7 @@ describe("excluirUsuario", () => {
     const formData = new FormData();
     formData.set("email", "novo@kontrol.test");
     formData.set("nome", "Novo usuário");
-    formData.set("papel", "tecnico");
+    formData.set("papel", "laboratorio");
     const { criarUsuario } = await import("./usuarios");
 
     const result = await criarUsuario({ ok: false }, formData);
@@ -181,45 +181,13 @@ describe("excluirUsuario", () => {
     expect(payload.permissoes).toEqual({});
   });
 
-  it("salva categoria explicitamente vazia como todas as permissoes desativadas", async () => {
-    const formData = new FormData();
-    formData.set("papel", "tecnico");
-    formData.set("permissoes_presentes", "1");
-    const { salvarPermissoesCategoria } = await import("./usuarios");
-
-    const result = await salvarPermissoesCategoria({ ok: false }, formData);
-
-    expect(result).toEqual({ ok: true, message: "Permissões da categoria atualizadas." });
-    expect(adminFrom).toHaveBeenCalledWith("permissoes_categorias");
-    expect(upsert).toHaveBeenCalledOnce();
-    const payload = upsert.mock.calls[0]?.[0] as { permissoes: Record<string, boolean> };
-    expect(Object.keys(payload.permissoes).length).toBeGreaterThan(0);
-    expect(Object.values(payload.permissoes).every((enabled) => enabled === false)).toBe(true);
-    // a matriz de Privilégios lê a mesma tabela: precisa ser revalidada junto
-    expect(revalidatePath).toHaveBeenCalledWith("/usuarios");
-    expect(revalidatePath).toHaveBeenCalledWith("/governanca/privilegios");
-  });
-
-  it("mantem a permissao de remuneracao ao salvar a categoria (nao some do jsonb)", async () => {
-    const formData = new FormData();
-    formData.set("papel", "gestor");
-    formData.set("permissoes_presentes", "1");
-    formData.append("permissoes", "tecnicos.salario.ver");
-    const { salvarPermissoesCategoria } = await import("./usuarios");
-
-    await salvarPermissoesCategoria({ ok: false }, formData);
-
-    const payload = upsert.mock.calls[0]?.[0] as { permissoes: Record<string, boolean> };
-    expect(payload.permissoes["tecnicos.salario.ver"]).toBe(true);
-  });
-
   it("cria cada usuário com uma senha provisória própria e devolve a senha uma vez", async () => {
     const { criarUsuario } = await import("./usuarios");
     const senhas: string[] = [];
     for (const email of ["a@kontrol.test", "b@kontrol.test"]) {
       const formData = new FormData();
       formData.set("email", email);
-      formData.set("papel", "tecnico");
+      formData.set("papel", "laboratorio");
       const result = await criarUsuario({ ok: false }, formData);
       expect(result.ok).toBe(true);
       expect(result.message).not.toContain(result.senhaProvisoria ?? "?");

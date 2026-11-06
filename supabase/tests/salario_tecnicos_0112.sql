@@ -46,7 +46,7 @@ begin
       is distinct from 'true'::jsonb
     or exists (
       select 1 from public.permissoes_categorias
-      where papel in ('tecnico', 'coordenador', 'gestor')
+      where papel in ('laboratorio', 'compra', 'cadastro', 'coordenador', 'gestor')
         and permissoes -> 'tecnicos.salario.ver' is distinct from 'false'::jsonb) then
     raise exception '0112: padrao da permissao divergente (somente admin)';
   end if;
@@ -82,7 +82,7 @@ begin
     update public.perfis
     set papel = case
         when rotulo in ('admin', 'suspenso') then 'admin'
-        when rotulo like 'tecnico_%' then 'tecnico'
+        when rotulo like 'tecnico_%' then 'laboratorio'
         when rotulo like 'gestor_%' then 'gestor'
         else 'coordenador' end,
       suspenso = (rotulo = 'suspenso'),

@@ -39,6 +39,8 @@ import { HelpTip } from "@/components/common/HelpTip";
 import type { UsuarioRow } from "./UsuariosTable";
 import { enviarSemReset, formularioSemPerda } from "@/lib/formulario-sem-perda";
 import { SenhaProvisoriaGerada } from "./SenhaProvisoriaGerada";
+import { faixaDoModulo } from "@/components/governanca/faixas";
+import { cn } from "@/lib/utils";
 
 const initial: FormState = { ok: false, message: "" };
 const initialUsuario: UsuarioFormState = { ok: false, message: "" };
@@ -116,7 +118,7 @@ function EditarDialog({
             </div>
             <div>
               <label htmlFor={`editar-usuario-papel-${row.id}`} className="block text-xs font-medium text-muted-foreground">
-                Categoria
+                Função
               </label>
               <Select
                 id={`editar-usuario-papel-${row.id}`}
@@ -138,14 +140,14 @@ function EditarDialog({
               <p className="text-xs font-medium text-muted-foreground">Permissões efetivas</p>
               <HelpTip title="Permissões efetivas">
                 <p>
-                  O que esta pessoa pode fazer de fato. Parte do padrão da <b>categoria</b>; o que você
-                  marcar ou desmarcar aqui vale só para ela.
+                  O que esta pessoa pode fazer de fato. Parte do padrão da <b>função</b> (Governança →
+                  Privilégios); o que você marcar ou desmarcar aqui vale só para ela.
                 </p>
               </HelpTip>
             </div>
             <div className="space-y-2">
-              {GRUPOS_PERMISSOES.map(([modulo, permissoesModulo]) => (
-                <details key={modulo} className="rounded-md border border-border bg-background/50">
+              {GRUPOS_PERMISSOES.map(([modulo, permissoesModulo], indice) => (
+                <details key={modulo} className={cn("rounded-md border border-border", faixaDoModulo(indice))}>
                   <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
                     {modulo}
                     <span className="float-right text-xs font-normal text-muted-foreground">
@@ -258,7 +260,7 @@ function PreAprovarDialog({
         <DialogHeader>
           <DialogTitle>Cadastrar acesso pré-aprovado</DialogTitle>
           <DialogDescription>
-            Cria a conta de {row.email} com categoria {row.papelLabel} e uma senha provisória gerada
+            Cria a conta de {row.email} com a função {row.papelLabel} e uma senha provisória gerada
             só para essa pessoa.
           </DialogDescription>
         </DialogHeader>

@@ -7,7 +7,7 @@ on:
 
 jobs:
   schema:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
@@ -19,6 +19,9 @@ jobs:
         run: |
           supabase start
           supabase db reset --no-seed
+
+      - name: Validar seis funções, CHECKs, RBAC e alias histórico
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/seis_funcoes_0146.sql
 
       - name: Validar permissoes reais dos cadastros
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/rls_cadastros_0108.sql
@@ -102,7 +105,7 @@ jobs:
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/leitura_codigo_barras_0143.sql
 
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
         with:
