@@ -8,13 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
   FILTROS_PAINEL_VAZIOS,
+  FILTROS_URL,
   META_SITUACAO_PAINEL,
   filtrarLista,
   filtrarRecorte,
+  filtrosDaUrl,
   movimentosPorMes,
   opcoesFiltro,
   resumirPainel,
   resumoPorCategoria,
+  urlComFiltros,
   type FiltrosPainel,
   type InsumoPainel,
   type MovimentoPainelDb,
@@ -36,6 +39,7 @@ const CLASSE_SITUACAO: Record<SituacaoPainel, string> = {
   abaixo_minimo: "bg-warning-soft text-warning-strong",
   sem_minimo: "bg-muted text-muted-foreground",
   ok: "bg-success-soft text-success-strong",
+  saldo_indisponivel: "border border-dashed border-warning-strong/50 bg-transparent text-warning-strong",
 };
 
 const PAGINA = 50;
@@ -73,10 +77,22 @@ export function PainelInsumos({
   const [montado, setMontado] = useState(false);
 
   useEffect(() => {
-    // gráficos do recharts só no cliente (medem o contêiner)
+    // gráficos do recharts só no cliente (medem o contêiner); os filtros vêm
+    // da URL para voltar da ficha do insumo (ou abrir um link) no mesmo recorte
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMontado(true);
+    const daUrl = filtrosDaUrl(window.location.search);
+    if (Object.values(FILTROS_URL).some((chave) => new URLSearchParams(window.location.search).has(chave))) setFiltros(daUrl);
   }, []);
+
+  useEffect(() => {
+    if (!montado) return;
+    const query = urlComFiltros(window.location.search, filtros);
+    const destino = `${window.location.pathname}${query}${window.location.hash}`;
+    if (destino !== `${window.location.pathname}${window.location.search}${window.location.hash}`) {
+      window.history.replaceState(window.history.state, "", destino);
+    }
+  }, [filtros, montado]);
 
   const recorte = useMemo(() => filtrarRecorte(insumos, filtros), [insumos, filtros]);
   const lista = useMemo(() => filtrarLista(insumos, filtros), [insumos, filtros]);
@@ -106,10 +122,20 @@ export function PainelInsumos({
   const indicadores: Indicador[] = [
     { chave: "cadastrados", titulo: "Insumos cadastrados", valor: formatInteger(resumo.cadastrados), detalhe: "ativos no recorte", tom: "neutro", situacao: "todos" },
     { chave: "com-estoque", titulo: "Com estoque", valor: formatInteger(resumo.comEstoque), detalhe: "disponível maior que zero", tom: "neutro" },
-    { chave: "acima", titulo: "Acima do mínimo", valor: formatInteger(resumo.acimaMinimo), detalhe: resumo.saude === null ? "nenhum mínimo cadastrado" : `${formatPercent(resumo.saude * 100, 0)} dos que têm mínimo`, tom: "verde", situacao: "ok" },
-    { chave: "critico", titulo: "Nível crítico", valor: formatInteger(resumo.critico), detalhe: `${formatInteger(resumo.emFalta)} em falta · ${formatInteger(resumo.abaixoMinimo)} abaixo do mínimo`, tom: "vermelho", situacao: "critico" },
-    { chave: "sem-minimo", titulo: "Sem mínimo definido", valor: formatInteger(resumo.semMinimo), detalhe: "completar o ponto de reposição", tom: "ambar", situacao: "sem_minimo" },
+    { chave: "acima", titulo: "Acima do mínimo", valor: formatInteger(resumo.acimaMinimo), detalhe: resumo.saude === null ? "nenhum mínimo cadastrado" : `${formatPercent(resumo.saude * 100, 0)} dos que têm mínimo`, tom: resumo.acimaMinimo > 0 ? "verde" : "neutro", situacao: "ok" },
+    { chave: "critico", titulo: "Nível crítico", valor: formatInteger(resumo.critico), detalhe: `${formatInteger(resumo.emFalta)} em falta · ${formatInteger(resumo.abaixoMinimo)} abaixo do mínimo`, tom: resumo.critico > 0 ? "vermelho" : "neutro", situacao: "critico" },
+    { chave: "sem-minimo", titulo: "Sem mínimo definido", valor: formatInteger(resumo.semMinimo), detalhe: "completar o ponto de reposição", tom: resumo.semMinimo > 0 ? "ambar" : "neutro", situacao: "sem_minimo" },
   ];
+  if (resumo.saldoIndisponivel > 0) {
+    indicadores.push({
+      chave: "saldo-indisponivel",
+      titulo: "Saldo indisponível",
+      valor: formatInteger(resumo.saldoIndisponivel),
+      detalhe: "não deu para ler o saldo; fora do crítico",
+      tom: "ambar",
+      situacao: "saldo_indisponivel",
+    });
+  }
 
   const tituloCategoria = filtros.categoriaCurta ? "Situação por categoria de compra" : "Situação por categoria curta";
 
@@ -168,6 +194,9 @@ export function PainelInsumos({
             <option value="abaixo_minimo">{META_SITUACAO_PAINEL.abaixo_minimo.rotulo}</option>
             <option value="ok">{META_SITUACAO_PAINEL.ok.rotulo}</option>
             <option value="sem_minimo">{META_SITUACAO_PAINEL.sem_minimo.rotulo}</option>
+            {resumo.saldoIndisponivel > 0 || filtros.situacao === "saldo_indisponivel" ? (
+              <option value="saldo_indisponivel">{META_SITUACAO_PAINEL.saldo_indisponivel.rotulo}</option>
+            ) : null}
           </Select>
         </label>
         <label className="grid gap-1 text-xs font-medium text-muted-foreground">
@@ -177,7 +206,8 @@ export function PainelInsumos({
               type="search"
               value={filtros.busca}
               onChange={(e) => mudar("busca", e.target.value)}
-              placeholder="Nome, marca ou código"
+              placeholder="Nome ou código"
+              aria-label="Buscar por nome, marca ou código"
               className="h-9"
             />
             {algumFiltro ? (
@@ -196,19 +226,19 @@ export function PainelInsumos({
         </label>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3", indicadores.length > 5 ? "lg:grid-cols-6" : "lg:grid-cols-5")}>
         {indicadores.map((indicador) => {
           const ativo = indicador.situacao !== undefined && indicador.situacao !== "todos" && filtros.situacao === indicador.situacao;
           const conteudo = (
             <>
               <span className="text-sm font-semibold">{indicador.titulo}</span>
-              <span className="mt-1 block text-3xl font-bold sm:text-4xl tabular-nums leading-none">{indicador.valor}</span>
+              <span className="mt-1 block text-2xl font-bold tabular-nums leading-none sm:text-3xl">{indicador.valor}</span>
               {indicador.detalhe ? <span className="mt-2 block text-xs">{indicador.detalhe}</span> : null}
             </>
           );
           const classe = cn(
             "rounded-lg border p-3 text-left shadow-sm sm:p-4",
-            indicador.chave === "sem-minimo" && "col-span-2 sm:col-span-1",
+            indicador.chave === "sem-minimo" && indicadores.length === 5 && "col-span-2 sm:col-span-1",
             TOM_INDICADOR[indicador.tom],
             ativo && "ring-2 ring-ring ring-offset-2 ring-offset-background",
           );
@@ -230,53 +260,6 @@ export function PainelInsumos({
         })}
       </div>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <h3 className="text-sm font-semibold">{tituloCategoria}</h3>
-          <p className="text-xs text-muted-foreground">Quantidade de insumos; as categorias com mais itens críticos vêm primeiro.</p>
-          <div className="mt-3 h-72 min-w-0">
-            {montado && porCategoria.length > 0 ? (
-              <ResponsiveContainer width="100%" height={288}>
-                <BarChart data={porCategoria} layout="vertical" maxBarSize={28} margin={{ left: 8, right: 16 }}>
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis type="category" dataKey="categoria" width={130} fontSize={12} tickLine={false} axisLine={false} />
-                  <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="critico" name="Nível crítico" stackId="s" fill={COR.critico} />
-                  <Bar dataKey="ok" name="Acima do mínimo" stackId="s" fill={COR.ok} />
-                  <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <SemDados texto="Nenhum insumo no recorte" />
-            )}
-          </div>
-        </section>
-
-        <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <h3 className="text-sm font-semibold">Entradas e saídas por mês</h3>
-          <p className="text-xs text-muted-foreground">Registros nos últimos 12 meses (cada insumo tem sua unidade, então conta registros, não quantidades).</p>
-          <div className="mt-3 h-72 min-w-0">
-            {montado && temMovimento ? (
-              <ResponsiveContainer width="100%" height={288}>
-                <BarChart data={movimentosMes} maxBarSize={18} margin={{ right: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                  <XAxis dataKey="rotulo" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={36} />
-                  <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Bar dataKey="entradas" name="Entradas" fill={COR.entradas} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="saidas" name="Saídas" fill={COR.saidas} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <SemDados texto="Sem entradas ou saídas nos últimos 12 meses" />
-            )}
-          </div>
-        </section>
-      </div>
-
       <section className="rounded-lg border border-border bg-card shadow-sm">
         <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
           <h3 className="text-sm font-semibold">Lista de insumos</h3>
@@ -286,15 +269,15 @@ export function PainelInsumos({
           </span>
         </div>
         <div className="relative overflow-x-auto">
-          <table className="w-full min-w-[860px] text-sm">
+          <table className="w-full text-sm md:min-w-[860px]">
             <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
               <tr>
                 <th scope="col" className="px-4 py-2 font-medium">Item específico</th>
-                <th scope="col" className="px-3 py-2 font-medium">Categoria curta</th>
-                <th scope="col" className="px-3 py-2 font-medium">Categoria de compra</th>
-                <th scope="col" className="px-3 py-2 font-medium">Fabricante · código</th>
+                <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">Categoria curta</th>
+                <th scope="col" className="hidden px-3 py-2 font-medium lg:table-cell">Categoria de compra</th>
+                <th scope="col" className="hidden px-3 py-2 font-medium md:table-cell">Fabricante · código</th>
                 <th scope="col" className="px-3 py-2 text-right font-medium">Disponível</th>
-                <th scope="col" className="px-3 py-2 text-right font-medium">Mínimo</th>
+                <th scope="col" className="hidden px-3 py-2 text-right font-medium sm:table-cell">Mínimo</th>
                 <th scope="col" className="px-3 py-2 font-medium">Situação</th>
                 <th scope="col" className="relative px-4 py-2 text-right font-medium">
                   <span className="sr-only">Ações</span>
@@ -309,13 +292,13 @@ export function PainelInsumos({
                       {item.especificacao}
                     </Link>
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="hidden px-3 py-2 md:table-cell">
                     <FiltroRapido valor={item.categoriaCurta} onClick={() => mudar("categoriaCurta", item.categoriaCurta)} />
                   </td>
-                  <td className="px-3 py-2">
+                  <td className="hidden px-3 py-2 lg:table-cell">
                     <FiltroRapido valor={item.categoriaCompra} onClick={() => mudar("categoriaCompra", item.categoriaCompra)} />
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                  <td className="hidden px-3 py-2 text-muted-foreground md:table-cell">
                     {item.fabricante || "—"}
                     {item.codigoFabricante ? (
                       <>
@@ -325,9 +308,15 @@ export function PainelInsumos({
                     ) : null}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
-                    {formatNumber(item.disponivel)} <span className="text-xs text-muted-foreground">{item.unidade}</span>
+                    {item.disponivel === null ? (
+                      <span className="text-xs font-medium text-warning-strong">indisponível</span>
+                    ) : (
+                      <>
+                        {formatNumber(item.disponivel)} <span className="text-xs text-muted-foreground">{item.unidade}</span>
+                      </>
+                    )}
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{item.minimo > 0 ? formatNumber(item.minimo) : "—"}</td>
+                  <td className="hidden px-3 py-2 text-right tabular-nums sm:table-cell">{item.minimo > 0 ? formatNumber(item.minimo) : "—"}</td>
                   <td className="px-3 py-2">
                     <span className={cn("inline-flex whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium", CLASSE_SITUACAO[item.situacao])}>
                       {META_SITUACAO_PAINEL[item.situacao].rotulo}
@@ -362,6 +351,54 @@ export function PainelInsumos({
           </div>
         ) : null}
       </section>
+
+      <div className="grid min-w-0 gap-4 lg:grid-cols-2">
+        <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <h3 className="text-sm font-semibold">{tituloCategoria}</h3>
+          <p className="text-xs text-muted-foreground">Quantidade de insumos; as categorias com mais itens críticos vêm primeiro.</p>
+          <div className="mt-3 h-52 min-w-0">
+            {montado && porCategoria.length > 0 ? (
+              <ResponsiveContainer width="100%" height={208}>
+                <BarChart data={porCategoria} layout="vertical" maxBarSize={28} margin={{ left: 8, right: 16 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                  <XAxis type="number" allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis type="category" dataKey="categoria" width={130} fontSize={12} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="critico" name="Nível crítico" stackId="s" fill={COR.critico} />
+                  <Bar dataKey="ok" name="Acima do mínimo" stackId="s" fill={COR.ok} />
+                  <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <SemDados texto="Nenhum insumo no recorte" />
+            )}
+          </div>
+        </section>
+
+        <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <h3 className="text-sm font-semibold">Entradas e saídas por mês</h3>
+          <p className="text-xs text-muted-foreground">Registros nos últimos 12 meses (cada insumo tem sua unidade, então conta registros, não quantidades).</p>
+          <div className="mt-3 h-52 min-w-0">
+            {montado && temMovimento ? (
+              <ResponsiveContainer width="100%" height={208}>
+                <BarChart data={movimentosMes} maxBarSize={18} margin={{ right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <XAxis dataKey="rotulo" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={36} />
+                  <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  <Bar dataKey="entradas" name="Entradas" fill={COR.entradas} radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="saidas" name="Saídas" fill={COR.saidas} radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <SemDados texto="Sem entradas ou saídas nos últimos 12 meses" />
+            )}
+          </div>
+        </section>
+      </div>
+
     </section>
   );
 }

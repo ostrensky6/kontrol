@@ -9,15 +9,20 @@
  * - Nível crítico = disponível abaixo do mínimo (inclui o que está em falta).
  * - Sem mínimo = ponto de reposição zero ou vazio: não entra no crítico, mas
  *   aparece para o cadastro ser completado.
+ * - Saldo indisponível = a leitura do saldo falhou e este insumo ficou sem
+ *   linha: não é zero nem crítico, porque não se sabe quanto há.
  */
 
-export type SituacaoPainel = "em_falta" | "abaixo_minimo" | "ok" | "sem_minimo";
+import { normalizarBusca } from "@/lib/busca";
+
+export type SituacaoPainel = "em_falta" | "abaixo_minimo" | "ok" | "sem_minimo" | "saldo_indisponivel";
 
 export const META_SITUACAO_PAINEL: Record<SituacaoPainel, { rotulo: string; ordem: number }> = {
   em_falta: { rotulo: "Em falta", ordem: 0 },
   abaixo_minimo: { rotulo: "Abaixo do mínimo", ordem: 1 },
   sem_minimo: { rotulo: "Sem mínimo definido", ordem: 2 },
   ok: { rotulo: "Acima do mínimo", ordem: 3 },
+  saldo_indisponivel: { rotulo: "Saldo indisponível", ordem: 4 },
 };
 
 export const SEM_CATEGORIA = "Sem categoria";
@@ -57,8 +62,9 @@ export type InsumoPainel = {
   fabricante: string;
   codigoFabricante: string;
   unidade: string;
-  disponivel: number;
-  emMaos: number;
+  /** null = saldo não consultado (falha de leitura); 0 = zero confirmado */
+  disponivel: number | null;
+  emMaos: number | null;
   minimo: number;
   situacao: SituacaoPainel;
 };
@@ -83,10 +89,16 @@ export function ehCritico(situacao: SituacaoPainel): boolean {
   return situacao === "em_falta" || situacao === "abaixo_minimo";
 }
 
-/** Junta cadastro e saldo; insumo sem linha de saldo conta como zero. */
+/**
+ * Junta cadastro e saldo. Com a leitura de saldo completa, insumo sem linha
+ * conta como zero (não tem lote). Se a leitura falhou (`saldosCompletos`
+ * falso), insumo sem linha fica com saldo indisponível: não vira zero nem
+ * crítico.
+ */
 export function montarInsumosPainel(
   insumos: readonly InsumoPainelDb[],
   saldos: readonly SaldoPainelDb[],
+  { saldosCompletos = true }: { saldosCompletos?: boolean } = {},
 ): InsumoPainel[] {
   const saldoPorInsumo = new Map<number, SaldoPainelDb>();
   for (const saldo of saldos) saldoPorInsumo.set(Number(saldo.insumo_id), saldo);
@@ -94,7 +106,8 @@ export function montarInsumosPainel(
   return insumos
     .map((insumo) => {
       const saldo = saldoPorInsumo.get(Number(insumo.id));
-      const disponivel = numero(saldo?.disponivel);
+      const conhecido = saldo !== undefined || saldosCompletos;
+      const disponivel = conhecido ? numero(saldo?.disponivel) : null;
       const minimo = numero(insumo.ponto_reposicao);
       return {
         id: Number(insumo.id),
@@ -105,9 +118,9 @@ export function montarInsumosPainel(
         codigoFabricante: texto(insumo.codigo_fabricante),
         unidade: texto(saldo?.unidade_saldo) || texto(saldo?.unidade) || texto(insumo.unidade),
         disponivel,
-        emMaos: numero(saldo?.em_maos),
+        emMaos: conhecido ? numero(saldo?.em_maos) : null,
         minimo,
-        situacao: situacaoPainel(disponivel, minimo),
+        situacao: disponivel === null ? ("saldo_indisponivel" as const) : situacaoPainel(disponivel, minimo),
       };
     })
     .sort(
@@ -137,9 +150,40 @@ export const FILTROS_PAINEL_VAZIOS: FiltrosPainel = {
   situacao: "todos",
 };
 
-/** Sem acento e em minúsculas, para a busca casar "Tubo" com "tubo" e "Ácido" com "acido". */
-export function normalizarBusca(valor: string): string {
-  return valor.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+/** Sem acento e em minúsculas (a mesma busca das outras listas do app). */
+export { normalizarBusca };
+
+// ── Filtros na URL ───────────────────────────────────────────────────────
+
+export const FILTROS_URL: Record<keyof FiltrosPainel, string> = {
+  categoriaCompra: "compra",
+  categoriaCurta: "curta",
+  codigoFabricante: "codigo",
+  busca: "busca",
+  situacao: "situacao",
+};
+
+/** Filtros a partir da URL (?compra=&curta=&codigo=&busca=&situacao=). */
+export function filtrosDaUrl(busca: string): FiltrosPainel {
+  const params = new URLSearchParams(busca);
+  const filtros = { ...FILTROS_PAINEL_VAZIOS };
+  for (const [campo, chave] of Object.entries(FILTROS_URL) as [keyof FiltrosPainel, string][]) {
+    const valor = params.get(chave);
+    if (valor) filtros[campo] = valor;
+  }
+  return filtros;
+}
+
+/** Junta os filtros à URL atual, sem os vazios; preserva os outros parâmetros. */
+export function urlComFiltros(busca: string, filtros: FiltrosPainel): string {
+  const params = new URLSearchParams(busca);
+  for (const [campo, chave] of Object.entries(FILTROS_URL) as [keyof FiltrosPainel, string][]) {
+    const valor = filtros[campo];
+    if (valor && valor !== FILTROS_PAINEL_VAZIOS[campo]) params.set(chave, valor);
+    else params.delete(chave);
+  }
+  const texto = params.toString();
+  return texto ? `?${texto}` : "";
 }
 
 export function atendeSituacao(situacao: SituacaoPainel, filtro: string): boolean {
@@ -205,6 +249,8 @@ export type ResumoPainel = {
   emFalta: number;
   abaixoMinimo: number;
   semMinimo: number;
+  /** saldo não consultado: fica fora de crítico, com estoque e saúde */
+  saldoIndisponivel: number;
   /** % dos itens com mínimo definido que estão acima dele */
   saude: number | null;
 };
@@ -217,12 +263,13 @@ export function resumirPainel(itens: readonly InsumoPainel[]): ResumoPainel {
   const comMinimo = emFalta + abaixoMinimo + acimaMinimo;
   return {
     cadastrados: itens.length,
-    comEstoque: itens.filter((item) => item.disponivel > 0).length,
+    comEstoque: itens.filter((item) => item.disponivel !== null && item.disponivel > 0).length,
     acimaMinimo,
     critico: emFalta + abaixoMinimo,
     emFalta,
     abaixoMinimo,
     semMinimo: conta("sem_minimo"),
+    saldoIndisponivel: conta("saldo_indisponivel"),
     saude: comMinimo > 0 ? acimaMinimo / comMinimo : null,
   };
 }
@@ -233,6 +280,7 @@ export type CategoriaResumo = {
   ok: number;
   critico: number;
   semMinimo: number;
+  saldoIndisponivel: number;
 };
 
 /** Situação por categoria (curta ou de compra), das mais críticas para as menos. */
@@ -244,10 +292,11 @@ export function resumoPorCategoria(
   const mapa = new Map<string, CategoriaResumo>();
   for (const item of itens) {
     const categoria = item[campo];
-    const linha = mapa.get(categoria) ?? { categoria, total: 0, ok: 0, critico: 0, semMinimo: 0 };
+    const linha = mapa.get(categoria) ?? { categoria, total: 0, ok: 0, critico: 0, semMinimo: 0, saldoIndisponivel: 0 };
     linha.total += 1;
     if (ehCritico(item.situacao)) linha.critico += 1;
     else if (item.situacao === "ok") linha.ok += 1;
+    else if (item.situacao === "saldo_indisponivel") linha.saldoIndisponivel += 1;
     else linha.semMinimo += 1;
     mapa.set(categoria, linha);
   }

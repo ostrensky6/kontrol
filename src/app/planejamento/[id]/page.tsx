@@ -107,7 +107,7 @@ export default async function PlanoDetalhe({
   const [
     { data: itens },
     { data: analises },
-    { data: reservas },
+    { data: reservas, error: reservasError },
     { data: projetos },
     { data: margemRealRows },
     { data: pedidosAtivos },
@@ -126,6 +126,8 @@ export default async function PlanoDetalhe({
     pode("planejamento.executar"),
     pode("pedido.criar"),
   ]);
+  // reserva não lida não pode virar "plano sem reservas"
+  if (reservasError) throw new Error(`Não foi possível ler as reservas do plano: ${reservasError.message}`);
   const margemReal = margemRealRows?.[0] ?? null;
 
   const codigosPlano = [...new Set((itens ?? []).map((item) => item.codigo_analise).filter(Boolean))];

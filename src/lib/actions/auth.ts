@@ -94,7 +94,9 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
       password: senha,
       data: { senha_provisoria: false },
     });
-    if (error) return { ok: false, message: error.message };
+    // "same_password": a senha já foi trocada numa tentativa anterior que parou
+    // depois (perfil não atualizado). Reenviar a mesma senha conclui o resto.
+    if (error && error.code !== "same_password") return { ok: false, message: error.message };
 
     const admin = createAdminClient();
     const { error: metadataError } = await admin.auth.admin.updateUserById(user.id, {
@@ -107,7 +109,14 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
     });
     if (metadataError) return { ok: false, message: mensagemErroAdminSupabase(metadataError) };
 
-    await admin.from("perfis").update({ senha_provisoria: false }).eq("id", user.id);
+    const { error: perfilError } = await admin.from("perfis").update({ senha_provisoria: false }).eq("id", user.id);
+    if (perfilError) {
+      return {
+        ok: false,
+        message:
+          "Sua senha nova já está valendo, mas o cadastro ainda aparece com senha provisória. Envie de novo a mesma senha para concluir.",
+      };
+    }
   } catch (error) {
     if (error instanceof Error) return { ok: false, message: mensagemErroAdminSupabase(error) };
     return { ok: false, message: "Não foi possível concluir a troca de senha." };

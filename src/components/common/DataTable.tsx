@@ -30,6 +30,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tooltip } from "@/components/ui/tooltip";
+import { contemBusca, normalizarBusca } from "@/lib/busca";
 import { cn } from "@/lib/utils";
 import { chaveFiltros, restaurarFiltros, serializarFiltros } from "@/lib/tabela-filtros";
 
@@ -70,9 +71,7 @@ type DataTableProps<TData> = {
 const DENSITY_STORAGE_KEY = "kontrol:datatable:density";
 
 const fuzzyTextFilter: FilterFn<unknown> = (row, columnId, filterValue) =>
-  String(row.getValue(columnId) ?? "")
-    .toLowerCase()
-    .includes(String(filterValue ?? "").toLowerCase());
+  contemBusca(row.getValue(columnId), filterValue);
 
 const categoricalFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
   if (filterValue == null || filterValue === "") return true;
@@ -85,11 +84,6 @@ export const numericSort = (a: { getValue: (id: string) => unknown }, b: { getVa
   return x === y ? 0 : x > y ? 1 : -1;
 };
 
-function normalize(value: unknown) {
-  if (value == null) return "";
-  if (typeof value === "object") return "";
-  return String(value).toLowerCase();
-}
 
 function uniqueFilterOptions(options: DataTableFilter["options"]) {
   const seen = new Set<string>();
@@ -146,11 +140,11 @@ export function DataTable<TData>({
 
   const globalFilterFn = React.useCallback<FilterFn<TData>>(
     (row, _columnId, filterValue) => {
-      const needle = String(filterValue ?? "").toLowerCase();
+      const needle = normalizarBusca(filterValue);
       if (!needle) return true;
       return row
         .getAllCells()
-        .some((cell) => normalize(cell.getValue()).includes(needle));
+        .some((cell) => normalizarBusca(cell.getValue()).includes(needle));
     },
     [],
   );
@@ -215,7 +209,8 @@ export function DataTable<TData>({
   return (
     <div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className={cn("relative", filtrosVisiveis != null ? "w-full sm:w-72" : "min-w-56")}>
+        {/* largo o bastante para o exemplo da busca caber inteiro (zoom de 90% a 125%) */}
+        <div className="relative w-full sm:w-96">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -346,6 +341,15 @@ export function DataTable<TData>({
                     <TableHead
                       key={header.id}
                       scope="col"
+                      aria-sort={
+                        header.column.getCanSort()
+                          ? sorted === "asc"
+                            ? "ascending"
+                            : sorted === "desc"
+                              ? "descending"
+                              : "none"
+                          : undefined
+                      }
                       className={cn(
                         compact && "h-8 px-3",
                         align === "right" && "text-right",
@@ -433,7 +437,7 @@ export function DataTable<TData>({
                     const titulo = getMobileTitle?.(row.original) ?? row.id;
                     const href = getMobileHref?.(row.original);
                     return href ? (
-                      <Link href={href} className="text-brand-700 hover:underline dark:text-brand-400">
+                      <Link href={href} className="text-brand-700 hover:underline dark:text-brand-300">
                         {titulo}
                       </Link>
                     ) : (

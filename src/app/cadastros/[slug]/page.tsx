@@ -27,6 +27,7 @@ import {
 } from "@/lib/cadastros/salario";
 import { pode, podeVerSalario } from "@/lib/auth/permissao-efetiva";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 
 export const dynamic = "force-dynamic";
 
@@ -164,14 +165,29 @@ export default async function CadastroPage({
   let linhas = await comColunasCalculadas(slug, rows ?? [], diasUteisAno);
 
   if (slug === "insumos") {
-    const { data: lotes, error: lotesError } = await supabase
-      .from("lotes_estoque")
-      .select("id, codigo_lote, insumo_id, status, quantidade_atual, validade, validade_apos_abertura, data_abertura, modelo_quantidade");
+    const { data: lotes, error: lotesError } = await lerTudo<Record<string, unknown>>((de, ate) =>
+      supabase
+        .from("lotes_estoque")
+        .select("id, codigo_lote, insumo_id, status, quantidade_atual, validade, validade_apos_abertura, data_abertura, modelo_quantidade")
+        .order("id")
+        .range(de, ate),
+    );
     if (lotesError) throw new Error(lotesError.message);
-    const { data: reservas } = await supabase
-      .from("reservas_estoque")
-      .select("lote_id, quantidade, quantidade_consumida, status")
-      .in("status", ["reservado", "parcial"]);
+    const { data: reservas, error: reservasError } = await lerTudo<{
+      lote_id: number | null;
+      quantidade: number;
+      quantidade_consumida: number | null;
+      status: string;
+    }>((de, ate) =>
+      supabase
+        .from("reservas_estoque")
+        .select("id, lote_id, quantidade, quantidade_consumida, status")
+        .in("status", ["reservado", "parcial"])
+        .order("id")
+        .range(de, ate),
+    );
+    // reserva não lida não pode virar "nada reservado" (o disponível do lote ficaria maior)
+    if (reservasError) throw new Error(`Não foi possível ler as reservas do estoque: ${reservasError.message}`);
     const reservadoPorLote = somarReservasPorLote(reservas ?? []);
     linhas = projetarQuantidadeInsumos(linhas, (lotes ?? []) as LoteInsumo[]);
     const modelos = modeloQuantidadePorInsumo((lotes ?? []) as LoteModelo[]);
@@ -312,6 +328,7 @@ export default async function CadastroPage({
                 ? chaveCodigoBarras(query.codigo).slice(0, CODIGO_BARRAS_MAX) || undefined
                 : undefined
             }
+            abrirNovo={query.novo === "1"}
           />
         </div>
       </main>

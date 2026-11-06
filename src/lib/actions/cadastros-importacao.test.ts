@@ -18,7 +18,8 @@ function from(table: string) {
         eq: () => consulta,
         in: () => consulta,
         limit: async () => resultado(),
-        order: async () => resultado(),
+        order: () => consulta,
+        range: async (de: number, ate: number) => ({ data: (db[table] ?? []).slice(de, ate + 1), error: null }),
         then: (resolve: (value: ReturnType<typeof resultado>) => unknown) => resolve(resultado()),
       };
       return consulta;

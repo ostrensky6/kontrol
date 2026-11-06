@@ -2,6 +2,7 @@ import "server-only";
 import type { createClientUntyped } from "@/lib/supabase/server";
 import { mensagemDoBanco } from "@/lib/erros";
 import { chaveCodigoBarras, variantesCodigoBarras } from "@/lib/scanner/codigo-barras";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 
 /**
  * Vínculo código de barras ↔ insumo na tabela identificadores (0067/0068): um
@@ -40,12 +41,16 @@ export async function buscarIdentificadorAtivo(
 
 /** Códigos de barras ativos por insumo (id → códigos), na ordem de cadastro. */
 export async function codigosBarrasPorInsumo(supabase: Supabase): Promise<Map<string, string[]>> {
-  const { data } = await supabase
-    .from("identificadores")
-    .select("codigo, entidade_id, formato, criado_em")
-    .eq("entidade_tipo", "insumo")
-    .eq("ativo", true)
-    .order("criado_em", { ascending: true });
+  const { data } = await lerTudo<{ codigo: string; entidade_id: number; formato: string | null }>((de, ate) =>
+    supabase
+      .from("identificadores")
+      .select("id, codigo, entidade_id, formato, criado_em")
+      .eq("entidade_tipo", "insumo")
+      .eq("ativo", true)
+      .order("criado_em", { ascending: true })
+      .order("id", { ascending: true })
+      .range(de, ate),
+  );
   const mapa = new Map<string, string[]>();
   for (const linha of (data ?? []) as { codigo: string; entidade_id: number; formato: string | null }[]) {
     if (linha.formato === "kontrol_interno" || linha.formato === "url_kontrol") continue;

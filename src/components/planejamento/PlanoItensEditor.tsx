@@ -27,7 +27,7 @@ function Mensagem({ state }: { state: FormState }) {
   return (
     <p
       role={state.ok ? "status" : "alert"}
-      className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-400" : "text-danger-strong"}`}
+      className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}
     >
       {state.message}
     </p>

@@ -35,7 +35,7 @@ export default async function ProjetosPage() {
           </div>
           <Link
             href="/cadastros/projetos"
-            className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-400"
+            className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
           >
             Cadastrar / editar projetos
           </Link>
@@ -45,7 +45,7 @@ export default async function ProjetosPage() {
           {(projetos ?? []).length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">
               Nenhum projeto cadastrado.{" "}
-              <Link href="/cadastros/projetos" className="text-brand-700 hover:underline dark:text-brand-400">
+              <Link href="/cadastros/projetos" className="text-brand-700 hover:underline dark:text-brand-300">
                 Cadastrar o primeiro
               </Link>
               .
@@ -68,7 +68,7 @@ export default async function ProjetosPage() {
                     className="border-b border-border/50 last:border-b-0 hover:bg-muted/50"
                   >
                     <td className={tdCls}>
-                      <Link href={`/projetos/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-400">
+                      <Link href={`/projetos/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
                         {p.nome}
                       </Link>
                     </td>
