@@ -182,7 +182,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Estoque → 'Planilha de insumos' baixa a lista completa de insumos em Excel.",
           "Cadastros → Insumos → 'Planilha' baixa a mesma lista.",
-          "Para importar alterações, use Cadastros → Todos os cadastros → 'Planilha preenchida' → 'Importar XLSX'.",
+          "Para importar alterações, use Cadastros → Todos os cadastros → 'Planilha preenchida' → 'Importar XLSX' (no fim do painel de insumos).",
         ],
       },
       {
@@ -463,9 +463,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Painel de insumos",
+        itens: [
+          "A tela inicial de Cadastros é um painel com todos os insumos ativos: quantos há, quantos têm estoque, quantos estão acima do mínimo e quantos estão em nível crítico.",
+          "Mínimo = ponto de reposição do cadastro do insumo. Nível crítico = disponível abaixo dele, incluindo o que está em falta (zerado).",
+          "Filtre por categoria de compra, categoria curta, código do fabricante, situação ou pelo nome do item; clique num indicador ou numa categoria da lista para filtrar direto.",
+          "Os gráficos mostram a situação por categoria e as entradas e saídas dos últimos 12 meses do recorte escolhido.",
+        ],
+      },
+      {
         titulo: "Passo a passo",
         itens: [
-          "Acesse o cadastro desejado pelo menu ou por 'Todos os cadastros'.",
+          "Acesse o cadastro desejado pelo menu ou por 'Todos os cadastros', no fim do painel de insumos.",
           "Crie ou edite o registro com os campos solicitados.",
           "Revise periodicamente para corrigir duplicidades e dados desatualizados.",
         ],

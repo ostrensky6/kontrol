@@ -66,8 +66,8 @@ export const APP_MODULES: AppModule[] = [
     children: [
       {
         href: "/cadastros",
-        label: "Todos os cadastros",
-        desc: "índice, exportação e importação dos dados mestres",
+        label: "Painel de insumos",
+        desc: "visão geral dos insumos, nível crítico e todos os cadastros",
         icon: "LayoutGrid",
         shortcut: "D",
       },
