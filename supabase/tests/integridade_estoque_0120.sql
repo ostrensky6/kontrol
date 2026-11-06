@@ -21,7 +21,7 @@ begin
     insert into auth.users(instance_id, id, aud, role, email, created_at, updated_at)
     values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
             'ts-0120-' || v_papel || '@example.invalid', now(), now());
-    update public.perfis set papel = v_papel, suspenso = false where id = v_uid;
+    update public.perfis set papel = case when v_papel = 'tecnico' then 'laboratorio' else v_papel end, suspenso = false where id = v_uid;
     if not found then raise exception '0120: perfil fixture % ausente', v_papel; end if;
   end loop;
 

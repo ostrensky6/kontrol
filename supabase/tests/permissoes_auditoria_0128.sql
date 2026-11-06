@@ -35,7 +35,7 @@ begin
             'ts-0128-' || v_rotulo || '@example.invalid', now(), now());
     update public.perfis
        set papel = case
-             when v_rotulo like 'tecnico%' then 'tecnico'
+             when v_rotulo like 'tecnico%' then 'laboratorio'
              when v_rotulo = 'admin_suspenso' then 'admin'
              else 'coordenador' end,
            suspenso = (v_rotulo = 'admin_suspenso'),

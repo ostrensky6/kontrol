@@ -88,7 +88,7 @@ begin
     else
       update public.perfis
       set papel = case
-          when rotulo like 'tecnico_%' then 'tecnico'
+          when rotulo like 'tecnico_%' then 'laboratorio'
           when rotulo like 'coordenador_%' or rotulo = 'categoria' then 'coordenador'
           when rotulo = 'gestor_false' then 'gestor'
           else 'admin' end,

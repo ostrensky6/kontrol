@@ -25,7 +25,7 @@ begin
          ('00000000-0000-0000-0000-000000000000', v_tec, 'authenticated', 'authenticated',
           'ts-0126-tecnico@example.invalid', now(), now());
   update public.perfis set papel = 'coordenador', suspenso = false, permissoes = '{}'::jsonb where id = v_coord;
-  update public.perfis set papel = 'tecnico', suspenso = false, permissoes = '{}'::jsonb where id = v_tec;
+  update public.perfis set papel = 'laboratorio', suspenso = false, permissoes = '{}'::jsonb where id = v_tec;
 
   insert into public.demandas_propostas (titulo, cliente_nome, status)
   values ('TS-0126 proposta', 'Cliente TS-0126', 'em_analise') returning id into v_demanda;

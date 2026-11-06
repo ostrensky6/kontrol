@@ -41,14 +41,14 @@ begin
   update public.perfis set papel = 'coordenador', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": true, "orcamentos.emitir": true, "orcamentos.cancelar": true, "pedido.ver": true, "pedido.criar": true, "pedido.aprovar": true}'::jsonb
    where id = md5('kontrol-0142-coord')::uuid;
-  update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false,
+  update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": false, "pedido.ver": true, "pedido.criar": false, "pedido.aprovar": false}'::jsonb
    where id = md5('kontrol-0142-leitor')::uuid;
-  update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false,
+  update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": false, "orcamentos.criar_editar": false, "pedido.ver": false, "pedido.criar": false, "pedido.aprovar": false}'::jsonb
    where id = md5('kontrol-0142-sem')::uuid;
   foreach v_rotulo in array array['pedinte', 'outro'] loop
-    update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false,
+    update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false,
            permissoes = '{"pedido.ver": true, "pedido.criar": true, "pedido.aprovar": false}'::jsonb
      where id = md5('kontrol-0142-' || v_rotulo)::uuid;
   end loop;

@@ -40,7 +40,7 @@ begin
     values ('00000000-0000-0000-0000-000000000000', pg_temp.uid(v_rotulo), 'authenticated', 'authenticated',
             'ts-0136-' || v_rotulo || '@example.invalid', '{"cadastrado_pelo_admin": true}'::jsonb, now(), now());
     update public.perfis
-       set papel = case v_rotulo when 'chefe' then 'admin' when 'pedinte' then 'tecnico' else 'coordenador' end,
+       set papel = case v_rotulo when 'chefe' then 'admin' when 'pedinte' then 'laboratorio' else 'coordenador' end,
            suspenso = false, senha_provisoria = false,
            permissoes = '{"pedido.criar": true, "pedido.aprovar": true, "compras.aprovar": true, "estoque.lote.gerir": true}'::jsonb
      where id = pg_temp.uid(v_rotulo);

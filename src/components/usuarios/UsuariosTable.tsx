@@ -45,7 +45,7 @@ const columns: ColumnDef<UsuarioRow, unknown>[] = [
       ),
   },
   { accessorKey: "email", header: "E-mail" },
-  { accessorKey: "papelLabel", header: "Categoria", filterFn: "equalsString" },
+  { accessorKey: "papelLabel", header: "Função", filterFn: "equalsString" },
   {
     id: "assinatura",
     header: "Assinatura",
@@ -79,7 +79,7 @@ export function UsuariosTable({ rows }: { rows: UsuarioRow[] }) {
       filters={[
         {
           columnId: "papelLabel",
-          label: "Categoria",
+          label: "Função",
           options: PAPEIS.map((papel) => ({ value: papel.label, label: papel.label })),
         },
       ]}

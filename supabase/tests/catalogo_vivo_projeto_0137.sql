@@ -71,7 +71,7 @@ begin
   end if;
   if (select permissoes -> 'orcamentos.pessoal' from public.permissoes_categorias where papel = 'coordenador') is distinct from 'true'::jsonb
      or (select permissoes -> 'orcamentos.pessoal' from public.permissoes_categorias where papel = 'gestor') is distinct from 'true'::jsonb
-     or (select permissoes -> 'orcamentos.pessoal' from public.permissoes_categorias where papel = 'tecnico') = 'true'::jsonb then
+     or (select permissoes -> 'orcamentos.pessoal' from public.permissoes_categorias where papel = 'laboratorio') = 'true'::jsonb then
     raise exception '0137: padrao das categorias para valores de pessoal (coordenador e gestor sim, tecnico nao)';
   end if;
   if has_table_privilege('authenticated', 'public.orcamento_projeto_catalogo_valores', 'SELECT')
@@ -159,7 +159,7 @@ begin
   update public.perfis set papel = 'coordenador', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": true, "orcamentos.emitir": true, "orcamentos.pessoal": false, "tecnicos.salario.ver": false}'::jsonb
    where id = md5('kontrol-0137-coord_sem')::uuid;
-  update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false,
+  update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": true, "orcamentos.emitir": false}'::jsonb
    where id = md5('kontrol-0137-tecnico')::uuid;
 

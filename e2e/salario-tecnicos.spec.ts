@@ -48,8 +48,8 @@ test("sem a permissão, salário e derivados aparecem como XXX e não chegam ao 
 });
 
 test("sem a permissão de pessoal, o catálogo mostra XXX só nos valores de PE", async ({ page }) => {
-  // 0137: técnico não faz orçamento e não tem "Valores de pessoal no orçamento".
-  await comoCategoria(page, "tecnico");
+  // 0137: Laboratório (antigo técnico) não faz orçamento e não tem "Valores de pessoal no orçamento".
+  await comoCategoria(page, "laboratorio");
   await page.goto("/orcamento/modelos");
   const catalogo = page.locator("#catalogo");
   await expect(catalogo.getByRole("row", { name: /PE-E2E/ })).toContainText("XXX");

@@ -1,3 +1,5 @@
+import { papelAlcanca } from "@/lib/auth/permissions";
+
 type Row = Record<string, unknown>;
 type Store = Record<string, Row[]>;
 
@@ -98,7 +100,7 @@ const HISTORICAL_ANALISE_CODES = HISTORICAL_ANALISES.map((analise) => String(ana
 
 const MOCK_PERMISSOES_CATEGORIAS = [
   {
-    papel: "tecnico",
+    papel: "laboratorio",
     permissoes: {
       "orcamentos.visualizar": true,
       "orcamentos.criar_editar": true,
@@ -116,7 +118,7 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "projetos.ver": true,
       "cadastros.ver": true,
       "tecnicos.salario.ver": false,
-      // 0137: técnico não faz orçamento; não vê valores de pessoal.
+      // 0137: Laboratório (antigo técnico) não faz orçamento; não vê valores de pessoal.
       "orcamentos.pessoal": false,
     },
   },
@@ -838,7 +840,7 @@ function mockTemPermissao(chave: unknown, sessao: SessaoMock): boolean {
   if (!perfil || perfil.suspenso === true) return false;
   const papel = String(sessao.papel ?? perfil.papel ?? "");
   if (papel === "admin") return true;
-  if (!["tecnico", "coordenador", "gestor"].includes(papel)) return false;
+  if (!["laboratorio", "compra", "cadastro", "coordenador", "gestor"].includes(papel)) return false;
   // Com papel simulado, vale só a categoria (perfil individual é do admin).
   const individuais = sessao.papel ? {} : ((perfil.permissoes ?? {}) as Row);
   const valor =
@@ -1731,11 +1733,11 @@ function limparReservaDesatualizada(reservas: Row[]) {
 
 function papelMockAtual() {
   const perfil = (store.perfis ?? []).find((row) => row.id === "user-e2e");
-  return String(perfil?.papel ?? "tecnico");
+  return String(perfil?.papel ?? "laboratorio");
 }
 
 function exigirCoordenadorMock() {
-  if (!["coordenador", "gestor", "admin"].includes(papelMockAtual())) {
+  if (!papelAlcanca(papelMockAtual(), "coordenador")) {
     throw Object.assign(new Error(`Sem permissão: requer papel coordenador ou superior (atual: ${papelMockAtual()}).`), { code: "42501" });
   }
 }

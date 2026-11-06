@@ -61,7 +61,7 @@ begin
   update public.perfis set papel = 'coordenador', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": true, "orcamentos.pessoal": true}'::jsonb
    where id = md5('kontrol-0140-coord')::uuid;
-  update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false,
+  update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false,
          permissoes = '{"orcamentos.visualizar": true, "orcamentos.criar_editar": true, "orcamentos.pessoal": false, "tecnicos.salario.ver": false}'::jsonb
    where id = md5('kontrol-0140-tecnico')::uuid;
 

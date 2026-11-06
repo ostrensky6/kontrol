@@ -5,7 +5,7 @@ import { useActionState } from "react";
 import { criarUsuario, type UsuarioFormState } from "@/lib/actions/usuarios";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { PAPEIS } from "@/lib/auth/permissions";
+import { PAPEIS, PAPEL_PADRAO } from "@/lib/auth/permissions";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -33,8 +33,8 @@ export function CriarUsuarioForm() {
           <Input id="novo-usuario-email" name="email" type="email" required className="mt-1 bg-card" />
         </div>
         <div>
-          <label htmlFor="novo-usuario-papel" className="block text-xs font-medium text-info-strong">Categoria inicial</label>
-          <Select id="novo-usuario-papel" name="papel" defaultValue="tecnico" className="mt-1 h-9 bg-card">
+          <label htmlFor="novo-usuario-papel" className="block text-xs font-medium text-info-strong">Função</label>
+          <Select id="novo-usuario-papel" name="papel" defaultValue={PAPEL_PADRAO} className="mt-1 h-9 bg-card">
             {PAPEIS.map((papel) => (
               <option key={papel.value} value={papel.value}>
                 {papel.label}
@@ -52,7 +52,7 @@ export function CriarUsuarioForm() {
             vez aqui. Copie e passe para a pessoa. Ela vale por 7 dias; no primeiro login, a pessoa
             define a senha definitiva.
           </p>
-          <p>As permissões iniciais são as da categoria escolhida; ajuste depois em Editar.</p>
+          <p>As permissões iniciais são as da função escolhida (Governança → Privilégios); ajuste depois em Editar.</p>
         </HelpTip>
       </p>
       <MensagemAcao estado={state} className="mt-2" />

@@ -1,10 +1,11 @@
+import Link from "next/link";
+
 import { createClient } from "@/lib/supabase/server";
 import { HelpTip } from "@/components/common/HelpTip";
 import { temPapel } from "@/lib/auth/roles";
 import { PAPEIS } from "@/lib/auth/permissions";
 import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
 import { CriarUsuarioForm } from "@/components/usuarios/CriarUsuarioForm";
-import { PermissoesCategoriasTable } from "@/components/usuarios/PermissoesCategoriasTable";
 import { UsuariosTable, type UsuarioRow } from "@/components/usuarios/UsuariosTable";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export default async function UsuariosPage() {
   if (!(await temPapel("admin"))) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-center font-sans">
-        <p className="text-muted-foreground">Acesso restrito — apenas administradores gerenciam usuários e permissões.</p>
+        <p className="text-muted-foreground">Acesso restrito — apenas administradores gerenciam usuários.</p>
       </main>
     );
   }
@@ -72,11 +73,12 @@ export default async function UsuariosPage() {
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Usuários e permissões</h1>
-          <HelpTip title="Usuários e permissões">
+          <h1 className="text-xl font-semibold tracking-tight">Usuários</h1>
+          <HelpTip title="Usuários">
             <p>
-              Acessos, pré-aprovados, assinaturas e permissões. A categoria define o padrão; em Editar,
-              ajuste as permissões de uma pessoa sem mudar a categoria.
+              Acessos, pré-aprovados, funções, assinaturas e senhas. O que cada função pode fazer fica em{" "}
+              <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>; em
+              Editar, ajuste uma pessoa sem mudar a função dela.
             </p>
           </HelpTip>
         </div>
@@ -86,8 +88,6 @@ export default async function UsuariosPage() {
         <div className="mt-6">
           <UsuariosTable rows={linhas} />
         </div>
-
-        <PermissoesCategoriasTable permissoesPorCategoria={permissoesPorCategoria} />
       </main>
     </div>
   );
