@@ -75,6 +75,16 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
               accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               className="mt-1"
               required
+              onChange={(event) => {
+                // Limite de envio das ações do servidor (next.config: 4 MB).
+                const arquivo = event.currentTarget.files?.[0];
+                event.currentTarget.setCustomValidity(
+                  arquivo && arquivo.size > 4 * 1024 * 1024
+                    ? "Arquivo maior que 4 MB. Apague imagens ou abas que não são de cadastro e salve de novo."
+                    : "",
+                );
+                event.currentTarget.reportValidity();
+              }}
             />
           </div>
           <SubmitButton pendingLabel="Importando…">
