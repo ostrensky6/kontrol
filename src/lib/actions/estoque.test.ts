@@ -323,6 +323,53 @@ describe("actions de estoque", () => {
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
+  describe("excluirLote (0147)", () => {
+    it("exige motivo antes de chamar a RPC", async () => {
+      const { excluirLote } = await import("./estoque");
+      const formData = new FormData();
+      formData.set("lote_id", "9");
+
+      const result = await excluirLote({ ok: false }, formData);
+
+      expect(result.ok).toBe(false);
+      expect(result.errors?.motivo).toBe("Obrigatório");
+      expect(rpc).not.toHaveBeenCalled();
+    });
+
+    it("apaga pela RPC e atualiza estoque, cadastros e planejamento", async () => {
+      rpc.mockResolvedValue({ data: { lote_id: 9, insumo_id: 4, codigo_lote: "L-ERRADO" }, error: null });
+      const { excluirLote } = await import("./estoque");
+      const formData = new FormData();
+      formData.set("lote_id", "9");
+      formData.set("motivo", "lote digitado errado");
+
+      const result = await excluirLote({ ok: false }, formData);
+
+      expect(rpc).toHaveBeenCalledWith("excluir_lote_estoque", { p_lote_id: 9, p_motivo: "lote digitado errado" });
+      expect(result).toEqual({ ok: true, message: "Lote L-ERRADO excluído." });
+      for (const caminho of ["/estoque", "/cadastros", "/cadastros/insumos", "/planejamento", "/estoque/inventario"]) {
+        expect(revalidatePath).toHaveBeenCalledWith(caminho);
+      }
+    });
+
+    it("mostra a recusa do banco (sem permissão ou recebimento a estornar)", async () => {
+      rpc.mockResolvedValue({
+        data: null,
+        error: { code: "42501", message: 'Sem permissão para excluir lotes. É preciso ter "Corrigir estoque" (Governança → Privilégios).' },
+      });
+      const { excluirLote } = await import("./estoque");
+      const formData = new FormData();
+      formData.set("lote_id", "9");
+      formData.set("motivo", "lote digitado errado");
+
+      const result = await excluirLote({ ok: false }, formData);
+
+      expect(result.ok).toBe(false);
+      expect(result.message).toContain("Corrigir estoque");
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
   describe("corrigirQuantidadeEmbalagens", () => {
     it("exige motivo e quantidade alvo inteira antes de chamar a RPC", async () => {
       const { corrigirQuantidadeEmbalagens } = await import("./estoque");

@@ -277,6 +277,52 @@ export async function estornarRecebimentoLote(
   return { ok: true, message: "Entrada estornada." };
 }
 
+/**
+ * Exclusão definitiva de lote lançado por engano (0147). Exige "Corrigir
+ * estoque" no banco; lote de recebimento ainda valendo é recusado até o
+ * estorno. O motivo fica na auditoria.
+ */
+export async function excluirLote(_prev: FormState, formData: FormData): Promise<FormState> {
+  const parsed = estornoSchema.safeParse({
+    lote_id: formData.get("lote_id"),
+    motivo: formData.get("motivo"),
+  });
+  if (!parsed.success) {
+    return { ok: false, message: "Verifique os campos.", errors: formErrors(parsed.error) };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("excluir_lote_estoque" as never, {
+    p_lote_id: parsed.data.lote_id,
+    p_motivo: parsed.data.motivo,
+  } as never);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+
+  const resultado = data as { insumo_id?: number; codigo_lote?: string | null } | null;
+  // Saldo, validade e quantidade do insumo aparecem no estoque, no inventário,
+  // nos cadastros (painel e lista de insumos), no planejamento, na reposição
+  // (compras/suprimentos) e em Insumos.
+  for (const caminho of [
+    "/estoque",
+    "/estoque/controle",
+    "/estoque/inventario",
+    "/cadastros",
+    "/cadastros/insumos",
+    "/insumos",
+    "/planejamento",
+    "/compras",
+    "/suprimentos",
+    "/",
+  ]) {
+    revalidatePath(caminho);
+  }
+  revalidatePath(`/estoque/lotes/${parsed.data.lote_id}`);
+  return {
+    ok: true,
+    message: `Lote ${resultado?.codigo_lote || `#${parsed.data.lote_id}`} excluído.`,
+  };
+}
+
 export async function baixarManualLote(
   _prev: FormState,
   formData: FormData,

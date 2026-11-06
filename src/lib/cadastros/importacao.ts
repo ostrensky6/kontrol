@@ -265,15 +265,50 @@ export type AbaLida = {
   colunas: Set<string>;
 };
 
+/** Quantas linhas do topo são examinadas à procura do cabeçalho. */
+export const LINHAS_BUSCA_CABECALHO = 10;
+
+export type CabecalhoEncontrado = {
+  /** número da linha do cabeçalho na aba (1 = primeira linha) */
+  linha: number;
+  /** colunas de dados reconhecidas (sem ID técnico) */
+  reconhecidas: string[];
+  /** o cabeçalho tem a coluna que identifica o registro (ex.: Item específico / SKU) */
+  temRotulo: boolean;
+};
+
+/**
+ * Procura, nas primeiras linhas da aba, a que mais parece o cabeçalho do
+ * cadastro. Planilhas feitas à mão costumam ter título ou linhas em branco
+ * antes dos nomes das colunas; a planilha modelo tem o cabeçalho na linha 1.
+ */
+export function encontrarCabecalho(sheet: ExcelJS.Worksheet, cfg: CadastroConfig): CabecalhoEncontrado {
+  const headerMap = mapaCabecalhos(cfg);
+  let melhor: CabecalhoEncontrado = { linha: 1, reconhecidas: [], temRotulo: false };
+  const limite = Math.min(sheet.rowCount || 1, LINHAS_BUSCA_CABECALHO);
+  for (let linha = 1; linha <= limite; linha += 1) {
+    const reconhecidas = new Set<string>();
+    sheet.getRow(linha).eachCell((cell) => {
+      const chave = headerMap.get(normalizarChave(valorCelula(cell)));
+      if (chave && chave !== "id" && !chave.endsWith(TECH_SUFFIX)) reconhecidas.add(chave);
+    });
+    if (reconhecidas.size > melhor.reconhecidas.length) {
+      melhor = { linha, reconhecidas: [...reconhecidas], temRotulo: reconhecidas.has(cfg.rotulo) };
+    }
+  }
+  return melhor;
+}
+
 export function lerAbaCadastro(
   sheet: ExcelJS.Worksheet,
   cfg: CadastroConfig,
   opcoes: Record<string, Map<string, string>>,
+  linhaCabecalho = 1,
 ): AbaLida {
   const headers: string[] = [];
   const colunas = new Set<string>();
   const headerMap = mapaCabecalhos(cfg);
-  sheet.getRow(1).eachCell((cell, colNumber) => {
+  sheet.getRow(linhaCabecalho).eachCell((cell, colNumber) => {
     const chave = headerMap.get(normalizarChave(valorCelula(cell))) ?? "";
     headers[colNumber] = chave;
     if (chave) colunas.add(chave);
@@ -283,7 +318,7 @@ export function lerAbaCadastro(
   const linhas: LinhaImportada[] = [];
 
   sheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
+    if (rowNumber <= linhaCabecalho) return;
     const valores: Record<string, unknown> = {};
     const idsTecnicos: Record<string, unknown> = {};
     const erros: string[] = [];
@@ -475,4 +510,158 @@ export function payloadRpcInsumo(dados: Record<string, unknown>) {
     if (chave in dados) payload[chave] = dados[chave];
   }
   return payload;
+}
+
+// ---- reconhecimento do arquivo e das abas ----
+
+export type TipoArquivoPlanilha = "xlsx" | "xls" | "texto" | "desconhecido";
+
+/**
+ * Tipo real do arquivo pelos primeiros bytes (a extensão não basta: há .xls
+ * que são .xlsx renomeados e vice-versa). xlsx = pacote ZIP (PK); xls =
+ * Excel 97-2003 (contêiner OLE D0 CF 11 E0); texto = CSV/HTML/XML salvos
+ * com extensão de planilha.
+ */
+export function tipoArquivoPlanilha(bytes: Uint8Array): TipoArquivoPlanilha {
+  if (bytes.length >= 4 && bytes[0] === 0x50 && bytes[1] === 0x4b && bytes[2] === 0x03 && bytes[3] === 0x04) {
+    return "xlsx";
+  }
+  if (
+    bytes.length >= 8 &&
+    [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1].every((byte, i) => bytes[i] === byte)
+  ) {
+    return "xls";
+  }
+  const inicio = new TextDecoder("utf-8", { fatal: false }).decode(bytes.slice(0, 512));
+  // Texto legível (CSV, HTML ou XML de planilha) sem bytes de controle binários.
+  if (inicio.length > 0 && !/[\u0000-\u0008\u000e-\u001f]/.test(inicio)) return "texto";
+  return "desconhecido";
+}
+
+export const MENSAGEM_ARQUIVO: Record<Exclude<TipoArquivoPlanilha, "xlsx">, string> = {
+  xls:
+    'Este arquivo está no formato antigo do Excel (.xls, Excel 97-2003), que o Kontrol ainda não lê. No Excel, abra a planilha, clique em Arquivo → Salvar como e escolha "Pasta de Trabalho do Excel (*.xlsx)". Depois importe o arquivo .xlsx.',
+  texto:
+    'Este arquivo é texto (CSV, HTML ou XML), não uma pasta de trabalho do Excel, mesmo com extensão de planilha. No Excel, abra o arquivo, clique em Arquivo → Salvar como e escolha "Pasta de Trabalho do Excel (*.xlsx)". Depois importe o arquivo .xlsx.',
+  desconhecido:
+    'Não foi possível reconhecer este arquivo como planilha do Excel. Salve no Excel como "Pasta de Trabalho do Excel (*.xlsx)" e importe de novo.',
+};
+
+/** Abas do modelo que não são cadastros (instruções e listas de apoio). */
+const ABAS_DE_APOIO = new Set(["instrucoes", "listas", "_listas", "opcoes"]);
+
+/** "Insumos", "insumo", "INSUMOS " → "insumo" (só para comparar nomes de aba). */
+function nomeAbaComparavel(nome: unknown) {
+  return normalizarChave(nome).replace(/s$/, "");
+}
+
+export type AbaReconhecida = {
+  cfg: CadastroConfig;
+  sheet: ExcelJS.Worksheet;
+  /** linha do cabeçalho na aba */
+  linhaCabecalho: number;
+  /** como a aba foi reconhecida (para avisar o usuário) */
+  pelo: "nome" | "cabecalho";
+};
+
+/** Mínimo de colunas reconhecidas para aceitar uma aba pelo cabeçalho. */
+const MIN_COLUNAS_PELO_CABECALHO = 2;
+
+/**
+ * Liga cada aba da planilha a um cadastro. Primeiro pelo nome da aba (com ou
+ * sem plural, sem acento/maiúscula); as abas que sobrarem, pelo cabeçalho:
+ * a aba vai para o cadastro cujas colunas ela mais tem, desde que tenha a
+ * coluna que identifica o registro e pelo menos duas colunas reconhecidas.
+ * Assim "Planilha1" com as colunas de insumos é importada como Insumos.
+ */
+export function localizarAbasCadastro(
+  workbook: ExcelJS.Workbook,
+  configs: CadastroConfig[],
+): AbaReconhecida[] {
+  const resultado: AbaReconhecida[] = [];
+  const cfgUsados = new Set<string>();
+  const abasUsadas = new Set<number>();
+
+  for (const cfg of configs) {
+    const nomes = new Set([
+      nomeAbaComparavel(cfg.titulo),
+      nomeAbaComparavel(cfg.titulo.slice(0, 31)),
+      nomeAbaComparavel(cfg.slug),
+    ]);
+    const sheet = workbook.worksheets.find(
+      (aba) => !abasUsadas.has(aba.id) && nomes.has(nomeAbaComparavel(aba.name)),
+    );
+    if (!sheet) continue;
+    const cabecalho = encontrarCabecalho(sheet, cfg);
+    resultado.push({ cfg, sheet, linhaCabecalho: cabecalho.linha, pelo: "nome" });
+    cfgUsados.add(cfg.slug);
+    abasUsadas.add(sheet.id);
+  }
+
+  const candidatas: { cfg: CadastroConfig; sheet: ExcelJS.Worksheet; linha: number; pontos: number }[] = [];
+  for (const sheet of workbook.worksheets) {
+    if (abasUsadas.has(sheet.id) || sheet.state === "veryHidden" || sheet.state === "hidden") continue;
+    if (ABAS_DE_APOIO.has(normalizarChave(sheet.name))) continue;
+    for (const cfg of configs) {
+      if (cfgUsados.has(cfg.slug)) continue;
+      const cabecalho = encontrarCabecalho(sheet, cfg);
+      if (!cabecalho.temRotulo || cabecalho.reconhecidas.length < MIN_COLUNAS_PELO_CABECALHO) continue;
+      candidatas.push({ cfg, sheet, linha: cabecalho.linha, pontos: cabecalho.reconhecidas.length });
+    }
+  }
+  // Maior número de colunas reconhecidas primeiro; empate segue a ordem de importação.
+  candidatas.sort((a, b) => b.pontos - a.pontos);
+  for (const candidata of candidatas) {
+    if (cfgUsados.has(candidata.cfg.slug) || abasUsadas.has(candidata.sheet.id)) continue;
+    resultado.push({ cfg: candidata.cfg, sheet: candidata.sheet, linhaCabecalho: candidata.linha, pelo: "cabecalho" });
+    cfgUsados.add(candidata.cfg.slug);
+    abasUsadas.add(candidata.sheet.id);
+  }
+
+  // Importa na ordem dos cadastros (dependências primeiro), não na ordem das abas.
+  const ordem = new Map(configs.map((cfg, i) => [cfg.slug, i]));
+  return resultado.sort((a, b) => (ordem.get(a.cfg.slug) ?? 0) - (ordem.get(b.cfg.slug) ?? 0));
+}
+
+/** Colunas obrigatórias de um cadastro, pelos nomes do modelo. */
+export function colunasObrigatorias(cfg: CadastroConfig) {
+  return cfg.campos.filter((campo) => campo.obrigatorio).map((campo) => campo.label);
+}
+
+/**
+ * Explica por que nenhuma aba foi reconhecida: quais abas o arquivo tem e o
+ * que falta, usando como exemplo o cadastro mais próximo (ou Insumos).
+ */
+export function mensagemSemAbaReconhecida(workbook: ExcelJS.Workbook, configs: CadastroConfig[]) {
+  const abas = workbook.worksheets.map((aba) => `"${aba.name}"`);
+  let melhor: { cfg: CadastroConfig; reconhecidas: string[] } | null = null;
+  for (const sheet of workbook.worksheets) {
+    for (const cfg of configs) {
+      const cabecalho = encontrarCabecalho(sheet, cfg);
+      if (!melhor || cabecalho.reconhecidas.length > melhor.reconhecidas.length) {
+        melhor = { cfg, reconhecidas: cabecalho.reconhecidas };
+      }
+    }
+  }
+  const alvo =
+    melhor && melhor.reconhecidas.length > 0
+      ? melhor.cfg
+      : configs.find((cfg) => cfg.slug === "insumos") ?? configs[0];
+  const partes = [
+    `Nenhuma aba de cadastro encontrada${abas.length ? ` (abas no arquivo: ${abas.join(", ")})` : ""}.`,
+    `Dê à aba o nome do cadastro, por exemplo "${alvo.titulo}", ou use na primeira linha os nomes de coluna da planilha modelo (botão Baixar XLSX).`,
+  ];
+  const obrigatorias = colunasObrigatorias(alvo);
+  if (obrigatorias.length) {
+    const presentes = new Set(melhor && melhor.cfg.slug === alvo.slug ? melhor.reconhecidas : []);
+    const faltam = alvo.campos
+      .filter((campo) => campo.obrigatorio && !presentes.has(campo.name))
+      .map((campo) => campo.label);
+    partes.push(
+      faltam.length && presentes.size > 0
+        ? `Para ${alvo.titulo}, faltam as colunas: ${faltam.join(", ")}.`
+        : `Para ${alvo.titulo}, as colunas obrigatórias são: ${obrigatorias.join(", ")}.`,
+    );
+  }
+  return partes.join(" ");
 }

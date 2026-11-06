@@ -51,6 +51,11 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
                 <b>adiciona e atualiza</b>: nada é excluído.
               </p>
               <p>Células vazias mantêm o valor atual.</p>
+              <p>
+                Também aceita a sua própria planilha: a aba pode ter outro nome (ex.: &quot;Planilha1&quot;) se a
+                linha de títulos usar os nomes de coluna do modelo, como &quot;Item específico / SKU&quot; ou
+                &quot;Insumo&quot;. Arquivos .xls antigos precisam ser salvos como .xlsx no Excel.
+              </p>
             </HelpTip>
           </div>
           <DownloadButton href="/cadastros/export" fileName="todos-os-cadastros.xlsx">
@@ -67,7 +72,7 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
               id="cadastros-xlsx"
               name="arquivo"
               type="file"
-              accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+              accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
               className="mt-1"
               required
             />
