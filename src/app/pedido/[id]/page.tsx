@@ -536,7 +536,7 @@ export default async function PedidoInternoDetalhe({
               justificativa={pedido.justificativa}
               projetos={projetos ?? []}
               status={pedido.status}
-              podeExcluir={podeGerir}
+              podeExcluir={podeGerir && pedido.pedido_compra_id === null}
             />
           </div>
         </div>

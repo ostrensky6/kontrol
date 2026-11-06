@@ -2,12 +2,17 @@ import Link from "next/link";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getCadastrosOrdenados } from "@/lib/cadastros/config";
 import { CadastrosCards } from "@/components/cadastros/CadastrosCards";
-import { CadastrosWorkbookPanel } from "@/components/cadastros/CadastrosWorkbookPanel";
+import {
+  BotoesPlanilhaCadastros,
+  ImportacaoCadastrosProvider,
+  ResultadoImportacaoCadastros,
+} from "@/components/cadastros/CadastrosWorkbookPanel";
 import { PainelInsumos } from "@/components/cadastros/PainelInsumos";
 import { HelpTip } from "@/components/common/HelpTip";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { hojeIso } from "@/lib/estoque/baixa";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 import {
   inicioJanelaMeses,
   montarInsumosPainel,
@@ -15,28 +20,19 @@ import {
   type MovimentoPainelDb,
   type SaldoPainelDb,
 } from "@/lib/cadastros/painel-insumos";
+import {
+  montarDecisao,
+  type AlertaPainelDb,
+  type CustoPainelDb,
+  type LotePainelDb,
+  type PrevisaoPainelDb,
+} from "@/lib/cadastros/painel-decisao";
 
 export const dynamic = "force-dynamic";
 
-const LOTE = 1000;
-
-/** Lê todas as linhas, de mil em mil (o PostgREST corta cada resposta em mil). */
-async function lerTudo<T>(
-  consulta: (de: number, ate: number) => PromiseLike<{ data: unknown[] | null; error: { message: string } | null }>,
-): Promise<{ linhas: T[]; erro: string | null }> {
-  const linhas: T[] = [];
-  for (let de = 0; ; de += LOTE) {
-    const { data, error } = await consulta(de, de + LOTE - 1);
-    if (error) return { linhas, erro: error.message };
-    const pagina = (data ?? []) as T[];
-    linhas.push(...pagina);
-    if (pagina.length < LOTE) return { linhas, erro: null };
-  }
-}
-
 async function carregarPainel(supabase: SupabaseClient, hoje: string) {
   const inicio = inicioJanelaMeses(hoje, 12);
-  const [insumos, saldos, movimentos, leiturasDesfeitas] = await Promise.all([
+  const [insumos, saldos, movimentos, previsoes, custos, alertas, lotes] = await Promise.all([
     lerTudo<InsumoPainelDb>((de, ate) =>
       supabase
         .from("insumos")
@@ -51,27 +47,55 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
     lerTudo<MovimentoPainelDb>((de, ate) =>
       supabase
         .from("estoque_movimentacoes")
-        .select("insumo_id, tipo, data")
-        .in("tipo", ["entrada", "saida"])
+        // ajustes entram só para o gráfico: o que desfaz uma leitura anula a entrada ou a saída
+        .select("insumo_id, tipo, data, motivo")
+        .in("tipo", ["entrada", "saida", "ajuste"])
         .gte("data", inicio)
         .order("id")
         .range(de, ate),
     ),
-    // ajustes: os que desfazem uma leitura anulam a entrada ou a saída no gráfico
-    lerTudo<MovimentoPainelDb>((de, ate) =>
+    // previsão de compra e cobertura: a mesma regra do "Repor" do Estoque
+    lerTudo<PrevisaoPainelDb>((de, ate) =>
       supabase
-        .from("estoque_movimentacoes")
-        .select("insumo_id, tipo, data, motivo")
-        .eq("tipo", "ajuste")
-        .gte("data", inicio)
+        .from("v_previsao_suprimentos")
+        .select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_compra_atrasada, compra_atrasada_desde, consumo_medio_diario, dias_cobertura, lead_time_dias")
+        .order("insumo_id")
+        .range(de, ate),
+    ),
+    lerTudo<CustoPainelDb>((de, ate) =>
+      supabase.from("v_custo_estoque_vigente").select("insumo_id, valor_liberado").order("insumo_id").range(de, ate),
+    ),
+    lerTudo<AlertaPainelDb>((de, ate) =>
+      supabase
+        .from("v_alertas_estoque")
+        .select("tipo, insumo_id, lote_id, especificacao, validade, valor")
+        .in("tipo", ["vencido", "vencimento"])
+        .order("validade")
+        .order("lote_id")
+        .range(de, ate),
+    ),
+    // lotes com saldo: ordem de abertura (FEFO), frascos abertos, quarentena, bloqueio e validade
+    lerTudo<LotePainelDb>((de, ate) =>
+      supabase
+        .from("lotes_estoque")
+        .select("id, insumo_id, codigo_lote, status, quantidade_atual, validade, validade_apos_abertura, data_abertura")
+        .not("status", "in", "(consumido,descartado)")
+        .gt("quantidade_atual", 0)
         .order("id")
         .range(de, ate),
     ),
   ]);
-  const erros = [insumos.erro, saldos.erro, movimentos.erro, leiturasDesfeitas.erro].filter(Boolean);
+  const erros = [insumos, saldos, movimentos, previsoes, custos, alertas, lotes]
+    .map((leitura) => leitura.error?.message)
+    .filter(Boolean);
+  // saldo que não deu para ler fica "indisponível", nunca zero/crítico
+  const base = montarInsumosPainel(insumos.data, saldos.data, { saldosCompletos: !saldos.error });
+  const decisao = montarDecisao(base, previsoes.data, custos.data, alertas.data);
   return {
-    insumos: montarInsumosPainel(insumos.linhas, saldos.linhas),
-    movimentos: [...movimentos.linhas, ...leiturasDesfeitas.linhas],
+    insumos: decisao.insumos,
+    lotesVencendo: decisao.lotes,
+    lotes: lotes.data,
+    movimentos: movimentos.data,
     erro: erros.length ? `Parte do painel não carregou: ${erros.join("; ")}` : null,
   };
 }
@@ -88,38 +112,58 @@ export default async function CadastrosIndex() {
     pode("projetos.editar"),
   ]);
   const podeImportar = permissoes.some(Boolean);
+  const podeCadastrarInsumo = permissoes[1];
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <ImportacaoCadastrosProvider>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight">Cadastros — painel de insumos</h1>
+            <h1 className="text-xl font-semibold tracking-tight">Painel de insumos</h1>
             <HelpTip title="Painel de insumos">
-              <p>Visão geral dos insumos ativos do laboratório: quanto há disponível e o que está em falta.</p>
+              <p>
+                Painel de alertas: cada quadro mostra quais insumos ou lotes pedem atenção e por quê (falta, compra,
+                validade, ordem de abertura, lotes parados). A lista completa dos insumos fica em{" "}
+                <b>Consultar insumos</b>.
+              </p>
               <p>
                 <b>Disponível</b> é o saldo em mãos menos o reservado, em quarentena, bloqueado e vencido (o mesmo do
-                Estoque).
+                Estoque). <b>Mínimo</b> é o ponto de reposição do cadastro; <b>crítico</b> = disponível abaixo dele.
               </p>
               <p>
-                <b>Mínimo</b> é o ponto de reposição do cadastro do insumo. <b>Nível crítico</b> = disponível abaixo do
-                mínimo, incluindo o que está em falta (zerado). Insumo sem ponto de reposição aparece como{" "}
-                <b>Sem mínimo definido</b>.
+                <b>Repor</b> é a sugestão de compra do Estoque: considera consumo, prazo do fornecedor e o que já está
+                pedido, por isso pode diferir do crítico. <b>Acaba antes de chegar</b> = o estoque dura menos dias que o
+                prazo de entrega e não há pedido aberto.
               </p>
               <p>
-                O nível crítico não é o <b>Repor</b> do Estoque. O Repor também conta o que já está a caminho e o
-                prazo da compra: um insumo crítico com compra a caminho pode não aparecer em Repor, e um insumo
-                acima do mínimo pode já pedir compra.
+                <b>Aberto fora da ordem</b>: abriram um lote enquanto outro, fechado e dentro da validade, vence antes (o
+                que vence primeiro deve sair primeiro).
               </p>
-              <p>Clique num indicador ou numa categoria da lista para filtrar.</p>
             </HelpTip>
           </div>
-          <a href="#todos-os-cadastros" className="text-sm font-medium text-primary hover:underline">
-            Ir para todos os cadastros ↓
-          </a>
+          <div className="flex flex-wrap items-center gap-2">
+            {podeCadastrarInsumo ? (
+              <Link
+                href="/cadastros/insumos?novo=1"
+                className="inline-flex rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              >
+                + Cadastrar insumo
+              </Link>
+            ) : null}
+            <BotoesPlanilhaCadastros podeImportar={podeImportar} />
+            <Link href="/cadastros/insumos" className="inline-flex rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
+              Consultar insumos
+            </Link>
+            <a href="#todos-os-cadastros" className="px-1 text-sm font-medium text-primary hover:underline">
+              Todos os cadastros ↓
+            </a>
+          </div>
         </div>
 
-        <PainelInsumos insumos={painel.insumos} movimentos={painel.movimentos} hojeIso={hoje} erro={painel.erro} />
+        <ResultadoImportacaoCadastros />
+
+        <PainelInsumos insumos={painel.insumos} lotesVencendo={painel.lotesVencendo} lotes={painel.lotes} movimentos={painel.movimentos} hojeIso={hoje} erro={painel.erro} />
 
         <section id="todos-os-cadastros" aria-labelledby="todos-os-cadastros-titulo" className="mt-10 scroll-mt-20 border-t border-border pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -130,9 +174,9 @@ export default async function CadastrosIndex() {
               Revisar qualidade dos cadastros
             </Link>
           </div>
-          <CadastrosWorkbookPanel podeImportar={podeImportar} />
           <CadastrosCards cadastros={cadastros} />
         </section>
+        </ImportacaoCadastrosProvider>
       </main>
     </div>
   );

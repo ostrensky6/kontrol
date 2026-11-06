@@ -168,7 +168,7 @@ export function PedidoInternoCabecalhoAcoes({
               </DialogClose>
               <FormComMensagem action={excluirPedidoInterno} className="flex flex-col items-end gap-1">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <button type="submit" className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90">
+                <button type="submit" className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90">
                   Excluir rascunho
                 </button>
               </FormComMensagem>

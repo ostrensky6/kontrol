@@ -171,7 +171,7 @@ async function insumoDoCodigo(
 }
 
 async function carregarInsumoLeitura(supabase: Supabase, insumoId: number): Promise<InsumoLeitura | null> {
-  const [{ data: saldo }, { data: lotesRaw }, { data: reservasRaw }, { data: itensRaw }] = await Promise.all([
+  const [{ data: saldo }, { data: lotesRaw, error: lotesError }, { data: reservasRaw, error: reservasError }, { data: itensRaw }] = await Promise.all([
     supabase
       .from("v_estoque_saldo")
       .select("insumo_id, especificacao, unidade, em_maos, unidade_saldo, modelo_quantidade")
@@ -203,6 +203,10 @@ async function carregarInsumoLeitura(supabase: Supabase, insumoId: number): Prom
     modelo_quantidade: string | null;
   } | null;
   if (!s?.insumo_id) return null;
+  // lote ou reserva não lidos não podem virar "sem lote" / "nada reservado"
+  if (lotesError || reservasError) {
+    throw new Error(`Não foi possível ler lotes e reservas do insumo: ${(lotesError ?? reservasError)!.message}`);
+  }
 
   const modelo = s.modelo_quantidade === "EMBALAGEM_FECHADA" ? "EMBALAGEM_FECHADA" : "LEGADO";
   const reservado = new Map<number, number>();

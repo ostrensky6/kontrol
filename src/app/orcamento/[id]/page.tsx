@@ -491,7 +491,7 @@ export default async function OrcamentoDetalhe({
                     <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.equipamentos ?? 0))}</td>
                     <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.mao_obra ?? 0))}</td>
                     <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.overhead ?? 0))}</td>
-                    <td className="px-3 py-2.5 text-base font-semibold tabular-nums text-brand-700 dark:text-brand-400">
+                    <td className="px-3 py-2.5 text-base font-semibold tabular-nums text-brand-700 dark:text-brand-300">
                       {brl(totalCusto)}
                     </td>
                     <td></td>
@@ -731,7 +731,7 @@ export default async function OrcamentoDetalhe({
               confirmLabel="Cancelar orçamento"
               triggerClassName="text-xs text-warning-strong hover:underline"
             />
-          ) : (
+          ) : orc.status === "rascunho" ? (
             <ConfirmActionButton
               action={excluirOrcamento}
               fields={{ orcamento_id: orcId }}
@@ -740,7 +740,7 @@ export default async function OrcamentoDetalhe({
               mensagem={`Excluir o orçamento de “${orc.cliente_nome}”? Esta ação não pode ser desfeita.`}
               confirmLabel="Excluir orçamento"
             />
-          )}
+          ) : null}
         </div>
         {demanda && <NavegacaoEtapas demandaId={demanda.id} modalidade={demanda.modalidade} atual="laboratorio" />}
       </main>

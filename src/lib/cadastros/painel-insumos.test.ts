@@ -4,6 +4,7 @@ import {
   SEM_CATEGORIA,
   filtrarLista,
   filtrarRecorte,
+  filtrosDaUrl,
   inicioJanelaMeses,
   montarInsumosPainel,
   movimentosPorMes,
@@ -11,6 +12,7 @@ import {
   resumirPainel,
   resumoPorCategoria,
   situacaoPainel,
+  urlComFiltros,
 } from "./painel-insumos";
 
 const insumos = [
@@ -52,6 +54,27 @@ describe("montarInsumosPainel", () => {
     expect(tubo.categoriaCurta).toBe(SEM_CATEGORIA);
     expect(tubo.unidade).toBe("pct");
   });
+
+  it("leitura de saldo com falha: quem ficou sem linha é indisponível, não zero nem crítico", () => {
+    // só a primeira linha chegou antes do erro
+    const parcial = montarInsumosPainel(insumos, saldos.slice(0, 1), { saldosCompletos: false });
+    const situacoes = Object.fromEntries(parcial.map((i) => [i.id, i.situacao]));
+    expect(situacoes).toEqual({ 1: "em_falta", 2: "saldo_indisponivel", 3: "saldo_indisponivel", 4: "saldo_indisponivel" });
+    expect(parcial.find((i) => i.id === 2)!.disponivel).toBeNull();
+    const resumo = resumirPainel(parcial);
+    expect(resumo.critico).toBe(1);
+    expect(resumo.saldoIndisponivel).toBe(3);
+    expect(resumo.comEstoque).toBe(0);
+    expect(resumo.saude).toBe(0);
+  });
+
+  it("três casos separados: erro, consulta vazia e zero confirmado", () => {
+    const um = [insumos[0]];
+    expect(montarInsumosPainel(um, [], { saldosCompletos: false })[0].situacao).toBe("saldo_indisponivel");
+    // consulta completa e vazia: o insumo não tem lote, então é zero
+    expect(montarInsumosPainel(um, [])[0]).toMatchObject({ disponivel: 0, situacao: "em_falta" });
+    expect(montarInsumosPainel(um, [{ insumo_id: 1, disponivel: 0 }])[0]).toMatchObject({ disponivel: 0, situacao: "em_falta" });
+  });
 });
 
 describe("resumo", () => {
@@ -64,6 +87,7 @@ describe("resumo", () => {
       emFalta: 1,
       abaixoMinimo: 1,
       semMinimo: 1,
+      saldoIndisponivel: 0,
       saude: 1 / 3,
     });
   });
@@ -74,9 +98,9 @@ describe("resumo", () => {
 
   it("agrupa por categoria, das mais críticas para as menos", () => {
     expect(resumoPorCategoria(itens, "categoriaCompra")).toEqual([
-      { categoria: "Reagentes", total: 2, ok: 0, critico: 2, semMinimo: 0 },
-      { categoria: "Plásticos", total: 1, ok: 1, critico: 0, semMinimo: 0 },
-      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 1 },
+      { categoria: "Reagentes", total: 2, ok: 0, critico: 2, semMinimo: 0, saldoIndisponivel: 0 },
+      { categoria: "Plásticos", total: 1, ok: 1, critico: 0, semMinimo: 0, saldoIndisponivel: 0 },
+      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 1, saldoIndisponivel: 0 },
     ]);
   });
 });
@@ -143,5 +167,16 @@ describe("movimentosPorMes", () => {
     const serie = movimentosPorMes(movimentos, null, "2026-11-06");
     expect(serie.at(-1)).toMatchObject({ entradas: 0, saidas: 1 });
     expect(serie.at(-2)).toMatchObject({ entradas: 0, saidas: 0 });
+  });
+});
+
+describe("filtros na URL", () => {
+  it("lê e grava só os filtros preenchidos, sem perder outros parâmetros", () => {
+    const filtros = { ...FILTROS_PAINEL_VAZIOS, categoriaCompra: "Reagentes", busca: "ácido", situacao: "critico" };
+    const url = urlComFiltros("?aba=x&busca=velho", filtros);
+    expect(url).toBe("?aba=x&busca=%C3%A1cido&compra=Reagentes&situacao=critico");
+    expect(filtrosDaUrl(url)).toEqual(filtros);
+    expect(urlComFiltros("?situacao=critico", FILTROS_PAINEL_VAZIOS)).toBe("");
+    expect(filtrosDaUrl("")).toEqual(FILTROS_PAINEL_VAZIOS);
   });
 });

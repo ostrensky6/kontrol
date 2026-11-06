@@ -51,19 +51,22 @@
   --card-foreground: #ededed;
   --popover: #18181b;
   --popover-foreground: #ededed;
-  --primary: #2f7fd1;
-  --primary-foreground: #ffffff;
+  /* Azul da marca clareado para o fundo escuro, com texto escuro por cima:
+     botão 6,8:1 e link sobre card 6,1:1 (o #2f7fd1 com branco dava 4,1:1). */
+  --primary: #5b9be0;
+  --primary-foreground: #0a0a0a;
   --secondary: #27272a;
   --secondary-foreground: #ededed;
   --muted: #27272a;
   --muted-foreground: #a1a1aa;
   --accent: #27272a;
   --accent-foreground: #ededed;
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  /* Vermelho com texto escuro: 7,2:1 (o #ef4444 com branco dava 3,8:1). */
+  --destructive: #f87171;
+  --destructive-foreground: #0a0a0a;
   --border: #27272a;
   --input: #27272a;
-  --ring: #2f7fd1;
+  --ring: #5b9be0;
 
   --success-soft: #122f12;
   --success-strong: #8fda8c;

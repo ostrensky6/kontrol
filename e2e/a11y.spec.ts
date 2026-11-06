@@ -2,13 +2,18 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 
 /**
- * Auditoria de acessibilidade (Fase 5 — A11y AA).
- * Varre as telas principais com axe-core e falha em violações
- * sérias/críticas das regras WCAG 2.0/2.1 níveis A e AA.
- * Rodando sob PLAYWRIGHT_MOCK_SUPABASE: o gestor já está "logado".
+ * Auditoria de acessibilidade (WCAG 2.0/2.1, níveis A e AA).
+ * Varre as telas principais com axe-core nos temas claro e escuro e REPROVA
+ * violações sérias e críticas. Rodando sob PLAYWRIGHT_MOCK_SUPABASE: o gestor
+ * já está "logado".
+ *
+ * Inventário de 06/11/2026 (1.3.5): nenhuma violação séria ou crítica nas
+ * telas abaixo, nos dois temas. Uma exceção só entra em EXCECOES com o
+ * motivo escrito; qualquer outra violação séria nova reprova a CI.
  */
 
 const WCAG_AA = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
+const TEMAS = ["light", "dark"] as const;
 
 const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Home / dashboard", url: "/" },
@@ -25,33 +30,53 @@ const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Qualidade dos cadastros", url: "/cadastros/qualidade" },
 ];
 
+/** Exceções conhecidas e justificadas: `${url}|${tema}|${regra}` → motivo. Hoje, nenhuma. */
+const EXCECOES: Record<string, string> = {};
+
+type Violacao = { id: string; impact?: string | null; help: string; nodes: unknown[] };
+
+/** Violações sérias/críticas que não estão nas exceções (o que reprova). */
+function violacoesQueReprovam(violacoes: Violacao[], url: string, tema: string): Violacao[] {
+  return violacoes.filter(
+    (v) => (v.impact === "serious" || v.impact === "critical") && !EXCECOES[`${url}|${tema}|${v.id}`],
+  );
+}
+
 async function scan(page: Page) {
   return new AxeBuilder({ page }).withTags(WCAG_AA).analyze();
 }
 
-for (const { nome, url } of PAGINAS) {
-  test(`a11y AA: ${nome}`, async ({ page }) => {
-    await page.goto(url);
-    // Aguarda o conteúdo principal montar antes de varrer.
-    await page.locator("main, body").first().waitFor();
-    const resultado = await scan(page);
-
-    const serias = resultado.violations.filter(
-      (v) => v.impact === "serious" || v.impact === "critical",
-    );
-
-    if (serias.length > 0) {
-      const resumo = serias
-        .map((v) => `  [${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} nó(s))`)
-        .join("\n");
-      console.log(`Violações em ${nome} (${url}):\n${resumo}`);
-    }
-
-    // Gate duro: nenhuma violação CRÍTICA (rótulos de formulário, nomes
-    // acessíveis, lang). As remanescentes "serious" são exclusivamente de
-    // contraste da paleta de marca (emerald/zinc) e dependem de uma decisão
-    // de design (escurecer o verde primário) — rastreadas como follow-up de AA.
-    const criticas = resultado.violations.filter((v) => v.impact === "critical");
-    expect(criticas, `${criticas.length} violação(ões) crítica(s) de a11y em ${url}`).toEqual([]);
-  });
+function resumo(violacoes: Violacao[]) {
+  return violacoes.map((v) => `[${v.impact}] ${v.id}: ${v.help} (${v.nodes.length} nó(s))`).join("\n");
 }
+
+for (const tema of TEMAS) {
+  for (const { nome, url } of PAGINAS) {
+    test(`a11y AA (${tema === "light" ? "claro" : "escuro"}): ${nome}`, async ({ page }) => {
+      // next-themes lê o tema do localStorage antes de pintar
+      await page.addInitScript((valor) => {
+        try {
+          window.localStorage.setItem("theme", valor);
+        } catch {
+          // sem storage, fica no tema padrão
+        }
+      }, tema);
+      await page.goto(url);
+      await page.locator("main, body").first().waitFor();
+      if (tema === "dark") await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+      const resultado = await scan(page);
+      const reprovam = violacoesQueReprovam(resultado.violations, url, tema);
+      expect(reprovam, `Violações sérias/críticas em ${url} (${tema}):\n${resumo(reprovam)}`).toEqual([]);
+    });
+  }
+}
+
+test("a11y: o gate reprova uma regressão séria introduzida numa fixture", async ({ page }) => {
+  // texto cinza-claro sobre branco (contraste ~2:1) é violação "serious" de color-contrast
+  await page.setContent(
+    `<!doctype html><html lang="pt-BR"><head><title>Fixture</title></head><body><main><h1>Fixture</h1><p style="color:#bbbbbb;background:#ffffff">Texto com pouco contraste</p></main></body></html>`,
+  );
+  const resultado = await scan(page);
+  const reprovam = violacoesQueReprovam(resultado.violations, "/fixture", "light");
+  expect(reprovam.map((v) => [v.id, v.impact])).toContainEqual(["color-contrast", "serious"]);
+});

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
+import { normalizarBusca } from "@/lib/busca";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 type Option = { id: number; nome: string };
@@ -166,12 +167,12 @@ export function DemandaForm({
     setGrupoParaRemover(null);
   };
   const { filtradas, totalEncontradas } = useMemo(() => {
-    const termo = busca.trim().toLowerCase();
+    const termo = normalizarBusca(busca);
     const base = termo
           ? analises.filter((analise) =>
           [analise.codigo, analise.nome, analise.nome_simplificado, analise.metodo, analise.matriz, analise.status, analise.descricao]
             .filter(Boolean)
-            .some((valor) => String(valor).toLowerCase().includes(termo)),
+            .some((valor) => normalizarBusca(valor).includes(termo)),
         )
       : analises;
     return { filtradas: base.slice(0, LIMITE_CATALOGO), totalEncontradas: base.length };
@@ -717,7 +718,7 @@ export function DemandaForm({
             <button
               type="button"
               onClick={() => grupoParaRemover && removerGrupo(grupoParaRemover)}
-              className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-white hover:bg-destructive/90"
+              className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
             >
               Remover grupo
             </button>

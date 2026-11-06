@@ -60,6 +60,11 @@ export const CAMPOS_RPC_INSUMO = [
   "validade_dias",
 ] as const;
 
+/** Só letras e números, sem acento: compara nomes com pontuação diferente. */
+function chaveSolta(value: unknown) {
+  return normalizarChave(value).replace(/[^a-z0-9]+/g, "");
+}
+
 export function normalizarChave(value: unknown) {
   return String(value ?? "")
     .trim()
@@ -234,6 +239,17 @@ export function valorParaCampo(
     for (const [id, label] of opcoes) {
       if (normalizarChave(label) === normalizarChave(bruto)) return { ok: true, valor: id };
     }
+    // Nome cortado ou com pontuação diferente ("... PRODUTOS PARA LABOR" no
+    // lugar de "... PRODUTOS PARA LABORATÓRIO LTDA"): aceita quando um nome
+    // começa pelo outro e só um cadastro combina.
+    const alvo = chaveSolta(bruto);
+    if (campo.opcoesDe && alvo.length >= 8) {
+      const candidatos = [...opcoes].filter(([, label]) => {
+        const nome = chaveSolta(label);
+        return nome.length >= 8 && (nome.startsWith(alvo) || alvo.startsWith(nome));
+      });
+      if (candidatos.length === 1) return { ok: true, valor: candidatos[0][0] };
+    }
     return {
       ok: false,
       erro: campo.opcoesDe ? `"${bruto}" não encontrado no cadastro` : `valor inválido "${bruto}"`,
@@ -257,6 +273,8 @@ export type LinhaImportada = {
   /** insumos: códigos de barras da coluna própria (só acrescenta), null quando vazia */
   codigosBarras: string[] | null;
   erros: string[];
+  /** ajustes feitos na linha que não impedem a importação */
+  avisos: string[];
 };
 
 export type AbaLida = {
@@ -322,6 +340,7 @@ export function lerAbaCadastro(
     const valores: Record<string, unknown> = {};
     const idsTecnicos: Record<string, unknown> = {};
     const erros: string[] = [];
+    const avisos: string[] = [];
     let id: unknown = null;
     let quantidade: number | null = null;
     let codigosBarras: string[] | null = null;
@@ -359,7 +378,11 @@ export function lerAbaCadastro(
         celulaEmPercentual: formatoPercentual(cell),
       });
       if (convertido.ok) valores[chave] = convertido.valor;
-      else erros.push(erroLinha(rowNumber, campo.label, convertido.erro));
+      else if (campo.opcoesDe && !campo.obrigatorio) {
+        // Vínculo opcional que não existe no cadastro (ex.: fornecedor ainda
+        // não cadastrado): a linha entra e o campo fica em branco.
+        avisos.push(erroLinha(rowNumber, campo.label, `${convertido.erro}; ficou em branco`));
+      } else erros.push(erroLinha(rowNumber, campo.label, convertido.erro));
     });
 
     // ID técnico (coluna oculta) só vale quando o rótulo visível está vazio
@@ -387,6 +410,7 @@ export function lerAbaCadastro(
       quantidade,
       codigosBarras,
       erros,
+      avisos,
     });
   });
 
@@ -664,4 +688,34 @@ export function mensagemSemAbaReconhecida(workbook: ExcelJS.Workbook, configs: C
     );
   }
   return partes.join(" ");
+}
+
+/**
+ * Insumo novo vindo de planilha com colunas obrigatórias vazias: completa
+ * com o que é seguro, em vez de recusar a linha, e devolve avisos.
+ * - Unidade da embalagem vazia: usa a Unidade de consumo; sem as duas, "unidade".
+ * - Quantidade na embalagem vazia: 1.
+ * - Valor da embalagem vazio: 0 (fica como "sem custo", igual ao formulário).
+ * Só para registros novos; em registros existentes célula vazia mantém o valor.
+ */
+export function completarInsumoNovo(valores: Record<string, unknown>, excelRow: number) {
+  const completos = { ...valores };
+  const avisos: string[] = [];
+  const vazio = (chave: string) => completos[chave] == null || completos[chave] === "";
+  if (vazio("unidade") && !vazio("unidade_consumo")) {
+    completos.unidade = completos.unidade_consumo;
+    avisos.push(`Linha ${excelRow}: sem Unidade da embalagem; usada a Unidade de consumo ("${completos.unidade_consumo}").`);
+  } else if (vazio("unidade")) {
+    completos.unidade = "unidade";
+    avisos.push(`Linha ${excelRow}: sem Unidade da embalagem nem de consumo; considerado "unidade" (confira depois).`);
+  }
+  if (vazio("quantidade_embalagem")) {
+    completos.quantidade_embalagem = 1;
+    avisos.push(`Linha ${excelRow}: sem Quantidade na embalagem; considerado 1.`);
+  }
+  if (vazio("custo_total_embalagem")) {
+    completos.custo_total_embalagem = 0;
+    avisos.push(`Linha ${excelRow}: sem Valor da embalagem; cadastrado sem custo (preencha depois).`);
+  }
+  return { valores: completos, avisos };
 }

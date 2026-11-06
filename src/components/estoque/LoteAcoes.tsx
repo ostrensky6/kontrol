@@ -205,7 +205,7 @@ export function LoteAcoes({
                 setState({ ok: false });
                 setResponsavel(responsavelPadrao);
                 setModal("aceitar");
-              }} className={`${btn} text-brand-700 hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-950/30`}>
+              }} className={`${btn} text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30`}>
               Aceitar
             </button>
           )}

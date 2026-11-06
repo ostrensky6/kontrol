@@ -251,7 +251,7 @@ const lotesColumns = (permissoes: PermissoesLote): ColumnDef<LoteRow, unknown>[]
     cell: ({ row }) => (
       <Link
         href={`/estoque/lotes/${row.original.id}`}
-        className="font-medium text-brand-700 hover:underline dark:text-brand-400"
+        className="font-medium text-brand-700 hover:underline dark:text-brand-300"
       >
         {row.original.codigoLote}
       </Link>

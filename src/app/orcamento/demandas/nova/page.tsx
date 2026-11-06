@@ -146,7 +146,7 @@ export default async function NovaDemandaPage() {
                 { label: "Novo orçamento" },
               ]}
             />
-            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-400">
+            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
               Entrada comercial
             </p>
             <div className="mt-0.5 flex items-center gap-1">

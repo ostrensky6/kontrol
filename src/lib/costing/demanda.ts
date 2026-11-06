@@ -115,7 +115,7 @@ export async function computarDemandaPlano(
   const ids = [...agg.keys()];
   if (ids.length === 0) return [];
 
-  const [{ data: saldo }, { data: saldoUnidade }, { data: insumos }, { data: reservasPlano }] =
+  const [{ data: saldo, error: saldoError }, { data: saldoUnidade, error: saldoUnidadeError }, { data: insumos }, { data: reservasPlano, error: reservasError }] =
     await Promise.all([
       supabase.from("v_estoque_saldo").select("insumo_id, unidade, disponivel").in("insumo_id", ids),
       supabase
@@ -133,6 +133,9 @@ export async function computarDemandaPlano(
         .in("status", ["reservado", "parcial"])
         .in("insumo_id", ids),
     ]);
+  // saldo ou reserva não lidos não podem virar zero: o plano mostraria falta que não existe
+  const erroLeitura = saldoError ?? saldoUnidadeError ?? reservasError;
+  if (erroLeitura) throw new Error(`Não foi possível ler saldo e reservas do estoque: ${erroLeitura.message}`);
   const sMap = new Map(
     (saldo ?? []).map((s) => [s.insumo_id as number, s as { unidade: string | null; disponivel: number }]),
   );

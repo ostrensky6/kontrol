@@ -41,9 +41,14 @@ export type PedidoInternoRow = {
   documentos: string;
   modalidade: string;
   compraFormal: string;
+  pedidoCompraId: number | null;
   recebimento: string;
   pendencias: string;
 };
+
+function podeExcluirPedido(row: PedidoInternoRow, podeExcluir: boolean) {
+  return podeExcluir && row.status === "rascunho" && row.pedidoCompraId === null;
+}
 
 function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
   return (
@@ -83,7 +88,7 @@ function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
             <input type="hidden" name="pedido_interno_id" value={row.id} />
             <button
               type="submit"
-              className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-white hover:bg-destructive/90"
+              className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
             >
               Excluir rascunho
             </button>
@@ -153,7 +158,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       header: "Ações",
       meta: { align: "right" },
       enableSorting: false,
-      cell: ({ row }) => (row.original.status === "rascunho" ? <ExcluirPedido row={row.original} /> : null),
+      cell: ({ row }) => (podeExcluirPedido(row.original, podeExcluir) ? <ExcluirPedido row={row.original} /> : null),
     });
   }
   return cols;
@@ -210,7 +215,7 @@ export function PedidosInternosTable({
         <div className="flex flex-col items-end gap-1.5">
           <StatusBadge status={row.status} />
           <PedidoItensQuickView numero={row.numero} titulo={row.titulo} itens={row.itensDetalhe} />
-          {podeExcluir && <ExcluirPedido row={row} />}
+          {podeExcluirPedido(row, podeExcluir) && <ExcluirPedido row={row} />}
         </div>
       )}
     />

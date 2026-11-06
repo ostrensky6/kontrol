@@ -89,7 +89,6 @@ export default async function DemandasPage({
   return (
     <PageShell>
       <PageHeader
-        breadcrumbs={[{ label: "Orçamento" }, { label: "Orçamentos" }]}
         title="Orçamentos"
         description={
           <>

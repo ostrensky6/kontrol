@@ -1,29 +1,112 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { createContext, useActionState, useContext, useEffect, useRef } from "react";
 import { DownloadButton } from "@/components/common/DownloadButton";
-import { Upload } from "lucide-react";
+import { Loader2, Upload } from "lucide-react";
 import { importarCadastrosWorkbook, type ImportCadastrosState } from "@/lib/actions/cadastros";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
-import { SubmitButton } from "@/components/common/SubmitButton";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initialState: ImportCadastrosState = { ok: false };
 const LIMITE_MENSAGENS = 50;
+/** Limite de envio das ações do servidor (next.config: 4 MB). */
+const LIMITE_BYTES = 4 * 1024 * 1024;
 
-/** `podeImportar`: sem permissão de edição de nenhum cadastro, só o download aparece. */
-export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?: boolean }) {
+type Importacao = {
+  state: ImportCadastrosState;
+  action: (formData: FormData) => void;
+  pendente: boolean;
+};
+
+const ImportacaoContext = createContext<Importacao | null>(null);
+
+function useImportacao(): Importacao {
+  const ctx = useContext(ImportacaoContext);
+  if (!ctx) throw new Error("ImportacaoCadastros: use dentro de <ImportacaoCadastrosProvider>.");
+  return ctx;
+}
+
+/**
+ * Importação de todos os cadastros por XLSX. O botão fica no topo do painel
+ * (ao lado de "Cadastrar insumo") e o resultado logo abaixo do cabeçalho;
+ * os dois partilham o mesmo estado por este provider.
+ */
+export function ImportacaoCadastrosProvider({ children }: { children: React.ReactNode }) {
+  const [state, action, pendente] = useActionState(importarCadastrosWorkbook, initialState);
+  return <ImportacaoContext.Provider value={{ state, action, pendente }}>{children}</ImportacaoContext.Provider>;
+}
+
+/** Botões do topo: Importar XLSX (escolher o arquivo já envia) e Baixar XLSX. */
+export function BotoesPlanilhaCadastros({ podeImportar = true }: { podeImportar?: boolean }) {
+  const { state, action, pendente } = useImportacao();
   const formRef = useRef<HTMLFormElement>(null);
-  const [state, action] = useActionState(importarCadastrosWorkbook, initialState);
 
   useEffect(() => {
     if (state.ok) formRef.current?.reset();
   }, [state.ok]);
+
+  return (
+    <>
+      {podeImportar ? (
+        <form ref={formRef} action={action} {...formularioSemPerda(state)} className="inline-flex">
+          <label
+            className={
+              "inline-flex cursor-pointer items-center gap-2 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground " +
+              "hover:bg-primary/90 focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 " +
+              (pendente ? "pointer-events-none opacity-70" : "")
+            }
+          >
+            {pendente ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />}
+            {pendente ? "Importando…" : "Importar XLSX"}
+            <input
+              name="arquivo"
+              type="file"
+              accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              className="sr-only"
+              required
+              disabled={pendente}
+              onChange={(event) => {
+                const input = event.currentTarget;
+                const arquivo = input.files?.[0];
+                if (!arquivo) return;
+                if (arquivo.size > LIMITE_BYTES) {
+                  input.setCustomValidity("Arquivo maior que 4 MB. Apague imagens ou abas que não são de cadastro e salve de novo.");
+                  input.reportValidity();
+                  return;
+                }
+                input.setCustomValidity("");
+                formRef.current?.requestSubmit();
+              }}
+            />
+          </label>
+        </form>
+      ) : null}
+      <DownloadButton href="/cadastros/export" fileName="todos-os-cadastros.xlsx">
+        Baixar XLSX
+      </DownloadButton>
+      <HelpTip title="Importação por planilha">
+        <p>Baixe a planilha XLSX, preencha e importe de volta com <b>Importar XLSX</b> (escolher o arquivo já envia).</p>
+        <p>
+          A planilha tem uma aba por cadastro e uma aba de instruções. A importação só <b>adiciona e atualiza</b>:
+          nada é excluído. Células vazias mantêm o valor atual.
+        </p>
+        <p>
+          Também aceita a sua própria planilha: a aba pode ter outro nome (ex.: &quot;Planilha1&quot;) se a linha de
+          títulos usar os nomes de coluna do modelo, como &quot;Item específico / SKU&quot; ou &quot;Insumo&quot;.
+          Arquivos .xls antigos precisam ser salvos como .xlsx no Excel.
+        </p>
+        {!podeImportar ? <p>Seu perfil só consulta: importar exige permissão para editar cadastros.</p> : null}
+      </HelpTip>
+    </>
+  );
+}
+
+/** Resultado da última importação (mensagem, totais por aba, erros e avisos). */
+export function ResultadoImportacaoCadastros() {
+  const { state } = useImportacao();
+  if (!state.message && !state.resumo) return null;
 
   const totais = state.resumo?.reduce(
     (acc, item) => ({
@@ -39,56 +122,8 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
   const avisos = state.resumo?.flatMap((item) => item.avisos.map((aviso) => `${item.aba} · ${aviso}`)) ?? [];
 
   return (
-    <Card className="mt-6">
-      <CardHeader className="gap-1">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <CardTitle>Todos os cadastros</CardTitle>
-            <HelpTip title="Importação por planilha">
-              <p>Baixe a planilha XLSX, preencha e importe de volta.</p>
-              <p>
-                A planilha tem uma aba por cadastro e uma aba de instruções. A importação só{" "}
-                <b>adiciona e atualiza</b>: nada é excluído.
-              </p>
-              <p>Células vazias mantêm o valor atual.</p>
-              <p>
-                Também aceita a sua própria planilha: a aba pode ter outro nome (ex.: &quot;Planilha1&quot;) se a
-                linha de títulos usar os nomes de coluna do modelo, como &quot;Item específico / SKU&quot; ou
-                &quot;Insumo&quot;. Arquivos .xls antigos precisam ser salvos como .xlsx no Excel.
-              </p>
-            </HelpTip>
-          </div>
-          <DownloadButton href="/cadastros/export" fileName="todos-os-cadastros.xlsx">
-            Baixar XLSX
-          </DownloadButton>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {podeImportar ? (
-        <form ref={formRef} action={action} {...formularioSemPerda(state)} className="flex flex-wrap items-end gap-3">
-          <div className="min-w-64 flex-1">
-            <Label htmlFor="cadastros-xlsx">Planilha preenchida</Label>
-            <Input
-              id="cadastros-xlsx"
-              name="arquivo"
-              type="file"
-              accept=".xlsx,.xlsm,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              className="mt-1"
-              required
-            />
-          </div>
-          <SubmitButton pendingLabel="Importando…">
-            <Upload />
-            Importar XLSX
-          </SubmitButton>
-        </form>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            Somente consulta: importar exige permissão para editar cadastros.
-          </p>
-        )}
-
-        <MensagemAcao estado={state} className="mt-4" />
+    <section aria-label="Resultado da importação" className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+        <MensagemAcao estado={state} />
 
         {totais && (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -154,7 +189,6 @@ export function CadastrosWorkbookPanel({ podeImportar = true }: { podeImportar?:
             </ul>
           </details>
         )}
-      </CardContent>
-    </Card>
+    </section>
   );
 }
