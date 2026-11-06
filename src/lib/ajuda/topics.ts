@@ -563,40 +563,61 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   },
   {
     id: "usuarios",
-    titulo: "Usuários e permissões",
+    titulo: "Usuários",
     grupo: "Governança",
     href: "/usuarios",
-    resumo: "Categorias técnico, coordenador, gestor e administrador, com permissões ajustáveis.",
+    resumo: "Quem acessa o Kontrol, em que função, com assinatura e senha provisória.",
     intro:
-      "Aqui você gerencia quem acessa o sistema, assinaturas e o que cada pessoa pode fazer. A categoria define a matriz inicial de permissões, e cada usuário pode ter ajustes individuais.",
+      "Aqui você gerencia quem acessa o sistema, a função de cada pessoa, assinaturas e senhas. O que cada função pode fazer fica em Governança → Privilégios; aqui você só ajusta uma pessoa específica.",
     secoes: [
       {
-        titulo: "Categorias de permissão",
+        titulo: "Funções",
         itens: [
-          "Técnico: operação do dia a dia (registrar, adicionar itens, executar tarefas básicas).",
-          "Coordenador: valida, aprova e pode editar/excluir em mais situações.",
-          "Gestor: visão de governança, incluindo Auditoria.",
-          "Admin: controle total, incluindo usuários e backups.",
+          "Laboratório: operação do dia a dia (análises, retiradas, baixas, pedidos e recebimentos). Antes se chamava Técnico.",
+          "Compra: acompanha o que falta, solicita, conduz e recebe compras.",
+          "Cadastro: mantém cadastros, insumos e projetos.",
+          "Coordenador: valida, aprova e faz orçamentos.",
+          "Gestor: tudo do coordenador mais parâmetros econômicos, fundos, modelos e Auditoria.",
+          "Administrador: controle total, incluindo usuários, privilégios e backups.",
         ],
       },
       {
         titulo: "Como usar",
         itens: [
-          "Crie o usuário e atribua a categoria adequada à função dele; ele entra com senha provisória e troca no primeiro acesso.",
-          "Use os três pontinhos para editar permissões, enviar a assinatura, alterar a senha, suspender ou excluir.",
-          "Confira a tabela de permissões abaixo da lista de usuários; o padrão de cada papel também pode ser editado em Governança → Privilégios.",
-        ],
-      },
-      {
-        titulo: "Permissões que merecem atenção",
-        itens: [
-          "'Ver salário dos técnicos': mostra salário e custo-hora dos técnicos. Padrão: somente administrador.",
-          "'Editar análises': criar, duplicar, inativar e alterar análises. Padrão: coordenador ou acima.",
-          "Ajuste individual (Usuários → Editar) vale acima do padrão do papel.",
+          "Crie o usuário e escolha a função dele; ele entra com senha provisória e troca no primeiro acesso.",
+          "Use os três pontinhos para editar a função, ajustar permissões só daquela pessoa, enviar a assinatura, alterar a senha, suspender ou excluir.",
+          "Para mudar o que uma função inteira pode fazer, use Governança → Privilégios.",
         ],
       },
     ],
-    termos: ["usuário", "categoria", "permissão", "perfil", "acesso", "assinatura", "privilégios", "remuneração", "salário"],
+    termos: ["usuário", "função", "categoria", "papel", "perfil", "acesso", "assinatura", "senha"],
+  },
+  {
+    id: "privilegios",
+    titulo: "Privilégios",
+    grupo: "Governança",
+    href: "/governanca/privilegios",
+    resumo: "O que cada uma das seis funções pode ver e fazer, módulo por módulo.",
+    intro:
+      "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Cadastros, Operação, Suprimentos, Orçamentos e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
+    secoes: [
+      {
+        titulo: "Como usar",
+        itens: [
+          "Marque ou desmarque as caixinhas e clique em Salvar alterações. Vale para todos da função.",
+          "O administrador sempre tem tudo; a coluna dele não muda.",
+          "Ajuste individual (Usuários → Editar) vale acima do padrão da função.",
+        ],
+      },
+      {
+        titulo: "Privilégios que merecem atenção",
+        itens: [
+          "'Ver salário dos técnicos': mostra salário e custo-hora dos técnicos. Padrão: somente administrador.",
+          "'Editar análises': criar, duplicar, inativar e alterar análises. Padrão: coordenador ou acima.",
+        ],
+      },
+    ],
+    termos: ["privilégio", "permissão", "função", "categoria", "papel", "matriz", "caixinha", "remuneração", "salário"],
   },
 
   // ─────────────────────────────── Geral ───────────────────────────────

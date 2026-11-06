@@ -70,8 +70,8 @@ describe("APP_MODULES", () => {
   });
 
   it("parâmetros de custeio aparecem só com a permissão da área", () => {
-    const sem = comPermissoes("tecnico", ["estoque.ver", "projetos.ver"]);
-    const com = comPermissoes("tecnico", ["estoque.ver", "projetos.ver", "configuracoes.ver"]);
+    const sem = comPermissoes("laboratorio", ["estoque.ver", "projetos.ver"]);
+    const com = comPermissoes("laboratorio", ["estoque.ver", "projetos.ver", "configuracoes.ver"]);
     const hrefsSem = getCommandGroups(sem).flatMap((g) => g.links.map((l) => l.href));
     const hrefsCom = getCommandGroups(com).flatMap((g) => g.links.map((l) => l.href));
     expect(hrefsSem).not.toContain("/parametros");
@@ -87,7 +87,7 @@ describe("APP_MODULES", () => {
   });
 
   it("governança aparece com a auditoria liberada; usuários e backups seguem só do admin", () => {
-    expect(getModulesForProfile(comPermissoes("tecnico", [])).map((m) => m.id)).not.toContain("governanca");
+    expect(getModulesForProfile(comPermissoes("laboratorio", [])).map((m) => m.id)).not.toContain("governanca");
     const gestor = getModulesForProfile(comPermissoes("gestor", ["auditoria.visualizar"]));
     const governanca = gestor.find((m) => m.id === "governanca");
     expect(governanca?.children.map((c) => c.href)).toEqual(["/auditoria"]);

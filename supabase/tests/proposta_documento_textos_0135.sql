@@ -122,7 +122,7 @@ begin
   -- padrao das categorias: coordenador tem orcamentos.emitir e cadastros.editar; tecnico nao
   update public.perfis set papel = 'coordenador', suspenso = false, senha_provisoria = false, permissoes = '{}'::jsonb
    where id = md5('kontrol-0135-coordenador')::uuid;
-  update public.perfis set papel = 'tecnico', suspenso = false, senha_provisoria = false, permissoes = '{}'::jsonb
+  update public.perfis set papel = 'laboratorio', suspenso = false, senha_provisoria = false, permissoes = '{}'::jsonb
    where id = md5('kontrol-0135-tecnico')::uuid;
 
   insert into public.demandas_propostas (titulo, cliente_nome, status, cliente_email, cliente_telefone, cliente_endereco)

@@ -2,7 +2,9 @@ import "server-only";
 
 import { temPapel, type Papel } from "@/lib/auth/roles";
 import { temPermissao } from "@/lib/auth/permissao-efetiva";
-import { PERMISSOES, type PermissaoUsuario } from "@/lib/auth/permissions";
+import { LABEL_PAPEL, PERMISSOES, type PermissaoUsuario } from "@/lib/auth/permissions";
+
+export { LABEL_PAPEL };
 
 export type AcaoOrcamento =
   | "criar_demanda"
@@ -33,20 +35,13 @@ export type PermissaoOrcamento = {
   eventoAuditavel: string;
 };
 
-export const LABEL_PAPEL: Record<Papel, string> = {
-  tecnico: "Técnico",
-  coordenador: "Coordenador",
-  gestor: "Gestor",
-  admin: "Administrador",
-};
-
 export const PERMISSOES_ORCAMENTO: PermissaoOrcamento[] = [
   {
     acao: "criar_demanda",
     chave: "orcamentos.criar_editar",
     titulo: "Criar orçamento",
     descricao: "Abrir um orçamento com os dados do cliente, das amostras e das análises.",
-    papelMinimo: "tecnico",
+    papelMinimo: "laboratorio",
     motivoObrigatorio: false,
     eventoAuditavel: "Registro do orçamento",
   },
@@ -55,7 +50,7 @@ export const PERMISSOES_ORCAMENTO: PermissaoOrcamento[] = [
     chave: "orcamentos.criar_editar",
     titulo: "Preencher custos",
     descricao: "Adicionar análises, custos de projeto, anexos e premissas operacionais.",
-    papelMinimo: "tecnico",
+    papelMinimo: "laboratorio",
     motivoObrigatorio: false,
     eventoAuditavel: "Auditoria de tabelas de custo",
   },

@@ -18,7 +18,7 @@ begin
     insert into auth.users(instance_id, id, aud, role, email, created_at, updated_at)
     values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
             'ts-0121-' || v_papel || '@example.invalid', now(), now());
-    update public.perfis set papel = v_papel, suspenso = false, permissoes = '{}'::jsonb
+    update public.perfis set papel = case when v_papel = 'tecnico' then 'laboratorio' else v_papel end, suspenso = false, permissoes = '{}'::jsonb
     where id = v_uid;
     if not found then raise exception '0121: perfil fixture % ausente', v_papel; end if;
   end loop;

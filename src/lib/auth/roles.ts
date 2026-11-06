@@ -1,8 +1,8 @@
 import "server-only";
 import { createClient } from "@/lib/supabase/server";
+import { PAPEL_PADRAO, isPapelUsuario, papelAlcanca, type PapelUsuario } from "@/lib/auth/permissions";
 
-const ORDEM = ["tecnico", "coordenador", "gestor", "admin"] as const;
-export type Papel = (typeof ORDEM)[number];
+export type Papel = PapelUsuario;
 
 export type UsuarioAtual = {
   id: string;
@@ -29,14 +29,14 @@ export async function usuarioAtual(): Promise<UsuarioAtual | null> {
     id: user.id,
     email: perfil?.email ?? user.email ?? null,
     nome: perfil?.nome ?? null,
-    papel: (perfil?.papel as Papel | undefined) ?? "tecnico",
+    papel: isPapelUsuario(perfil?.papel) ? perfil.papel : PAPEL_PADRAO,
     suspenso: perfil ? perfil.suspenso === true : true,
   };
 }
 
 export async function papelAtual(): Promise<Papel> {
   const u = await usuarioAtual();
-  return (u?.papel as Papel) ?? "tecnico";
+  return u?.papel ?? PAPEL_PADRAO;
 }
 
 /**
@@ -46,5 +46,5 @@ export async function papelAtual(): Promise<Papel> {
 export async function temPapel(min: Papel): Promise<boolean> {
   const u = await usuarioAtual();
   if (!u || u.suspenso) return false;
-  return ORDEM.indexOf(u.papel) >= ORDEM.indexOf(min);
+  return papelAlcanca(u.papel, min);
 }

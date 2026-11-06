@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/senha-provisoria";
 import {
   PAPEIS,
+  PAPEL_PADRAO,
   normalizePermissions,
   selectedPermissionsFromForm,
   type PapelUsuario,
@@ -132,7 +133,7 @@ export async function criarUsuario(_prev: UsuarioFormState, formData: FormData):
 
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
     const nome = String(formData.get("nome") ?? "").trim();
-    const papel = String(formData.get("papel") ?? "tecnico");
+    const papel = String(formData.get("papel") ?? PAPEL_PADRAO);
     if (!email) return { ok: false, message: "Informe o e-mail do usuário." };
     if (!isPapelValido(papel)) return { ok: false, message: "Papel inválido." };
     const permissoes = await permissoesDoUsuario(papel, formData);
@@ -327,29 +328,6 @@ export async function gerarNovaSenhaProvisoria(
   }
 }
 
-export async function salvarPermissoesCategoria(_prev: FormState, formData: FormData): Promise<FormState> {
-  try {
-    if (!(await temPapel("admin"))) {
-      return { ok: false, message: "Sem permissão para editar permissões." };
-    }
-
-    const papel = String(formData.get("papel") ?? "");
-    if (!isPapelValido(papel)) return { ok: false, message: "Categoria inválida." };
-
-    const permissoes = selectedPermissionsFromForm(formData, papel);
-    const { error } = await createAdminClient()
-      .from("permissoes_categorias")
-      .upsert({ papel, permissoes, atualizado_em: new Date().toISOString() });
-
-    if (error) return { ok: false, message: error.message };
-    revalidatePath("/usuarios");
-    revalidatePath("/governanca/privilegios");
-    return { ok: true, message: "Permissões da categoria atualizadas." };
-  } catch (error) {
-    return { ok: false, message: mensagemErroAcao(error) };
-  }
-}
-
 export async function criarUsuarioPreAprovado(
   _prev: UsuarioFormState,
   formData: FormData,
@@ -373,7 +351,7 @@ export async function criarUsuarioPreAprovado(
 
     const email = String(pre.email).trim().toLowerCase();
     const nome = String(pre.nome ?? "").trim();
-    const papel = isPapelValido(String(pre.papel)) ? String(pre.papel) : "tecnico";
+    const papel = isPapelValido(String(pre.papel)) ? String(pre.papel) : PAPEL_PADRAO;
     const admin = createAdminClient();
     const senhaProvisoria = gerarSenhaProvisoria();
 

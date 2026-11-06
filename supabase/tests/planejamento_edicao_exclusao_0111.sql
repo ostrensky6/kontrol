@@ -40,7 +40,7 @@ begin
     insert into auth.users(instance_id, id, aud, role, email, created_at, updated_at)
     values ('00000000-0000-0000-0000-000000000000', uid, 'authenticated', 'authenticated',
             format('ts-0111-%s@example.invalid', rotulo), now(), now());
-    update public.perfis set papel = rotulo, suspenso = false where id = uid;
+    update public.perfis set papel = case when rotulo = 'tecnico' then 'laboratorio' else rotulo end, suspenso = false where id = uid;
     if not found then raise exception '0111: perfil fixture ausente para %', rotulo; end if;
   end loop;
 

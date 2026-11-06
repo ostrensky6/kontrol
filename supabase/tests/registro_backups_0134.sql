@@ -36,7 +36,7 @@ begin
     values ('00000000-0000-0000-0000-000000000000', md5('kontrol-0134-' || v_rotulo)::uuid,
             'authenticated', 'authenticated', 'ts-0134-' || v_rotulo || '@example.invalid',
             '{"cadastrado_pelo_admin": true}'::jsonb, now(), now());
-    update public.perfis set papel = v_rotulo, suspenso = false, senha_provisoria = false
+    update public.perfis set papel = case when v_rotulo = 'tecnico' then 'laboratorio' else v_rotulo end, suspenso = false, senha_provisoria = false
      where id = md5('kontrol-0134-' || v_rotulo)::uuid;
   end loop;
 

@@ -25,7 +25,7 @@ begin
     values ('00000000-0000-0000-0000-000000000000', v_uid, 'authenticated', 'authenticated',
             'ts-0124-' || v_rotulo || '@example.invalid', now(), now());
     update public.perfis
-       set papel = case when v_rotulo like 'tecnico%' then 'tecnico' else 'coordenador' end,
+       set papel = case when v_rotulo like 'tecnico%' then 'laboratorio' else 'coordenador' end,
            suspenso = false,
            permissoes = case v_rotulo
              when 'tecnico_descarta' then '{"estoque.descartar_bloquear": true}'::jsonb

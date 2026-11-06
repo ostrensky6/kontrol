@@ -45,7 +45,7 @@ begin
     insert into auth.users(instance_id, id, aud, role, email, created_at, updated_at)
     values ('00000000-0000-0000-0000-000000000000', md5('kontrol-0145-' || v_rotulo)::uuid,
       'authenticated', 'authenticated', 'ts-0145-' || v_rotulo || '@example.invalid', now(), now());
-    update public.perfis set papel = v_rotulo, suspenso = false, senha_provisoria = false,
+    update public.perfis set papel = case when v_rotulo = 'tecnico' then 'laboratorio' else v_rotulo end, suspenso = false, senha_provisoria = false,
       permissoes = case when v_rotulo = 'tecnico' then '{"insumos.editar":true}'::jsonb else '{}'::jsonb end
     where id = md5('kontrol-0145-' || v_rotulo)::uuid;
   end loop;

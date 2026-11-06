@@ -1,11 +1,47 @@
+/**
+ * As seis funções (decisão do dono, 06/11/2026; migration 0146). Quem era
+ * "Técnico" passou a "Laboratório". Laboratório, Compra e Cadastro estão no
+ * mesmo nível; acima vêm Coordenador, Gestor e Administrador. O nível só
+ * importa onde ainda há "papel mínimo"; o que cada função faz é a caixinha
+ * (Governança → Privilégios).
+ */
 export const PAPEIS = [
-  { value: "tecnico", label: "Técnico" },
-  { value: "coordenador", label: "Coordenador" },
-  { value: "gestor", label: "Gestor" },
-  { value: "admin", label: "Administrador" },
+  { value: "laboratorio", label: "Laboratório", nivel: 0 },
+  { value: "compra", label: "Compra", nivel: 0 },
+  { value: "cadastro", label: "Cadastro", nivel: 0 },
+  { value: "coordenador", label: "Coordenador", nivel: 1 },
+  { value: "gestor", label: "Gestor", nivel: 2 },
+  { value: "admin", label: "Administrador", nivel: 3 },
 ] as const;
 
 export type PapelUsuario = (typeof PAPEIS)[number]["value"];
+
+/** Função de quem não tem uma reconhecida (perfil novo, valor antigo). */
+export const PAPEL_PADRAO: PapelUsuario = "laboratorio";
+
+export const LABEL_PAPEL: Record<PapelUsuario, string> = Object.fromEntries(
+  PAPEIS.map((papel) => [papel.value, papel.label]),
+) as Record<PapelUsuario, string>;
+
+export function isPapelUsuario(papel: unknown): papel is PapelUsuario {
+  return PAPEIS.some((item) => item.value === papel);
+}
+
+/**
+ * Nível na hierarquia (mesma regra de kontrol_private.nivel_papel, 0146).
+ * "tecnico" segue valendo como o nível de base para registros antigos.
+ * Desconhecido: -1 (não passa em nenhum papel mínimo).
+ */
+export function nivelPapel(papel: string | null | undefined): number {
+  if (papel === "tecnico") return 0;
+  return PAPEIS.find((item) => item.value === papel)?.nivel ?? -1;
+}
+
+/** true se o papel alcança o mínimo exigido. */
+export function papelAlcanca(papel: string | null | undefined, minimo: PapelUsuario | "tecnico"): boolean {
+  const atual = nivelPapel(papel);
+  return atual >= 0 && atual >= nivelPapel(minimo);
+}
 export type PermissaoUsuario =
   | "orcamentos.visualizar"
   | "orcamentos.criar_editar"
@@ -52,7 +88,7 @@ export type PermissaoUsuario =
 export const HISTORICAL_ROLE_RECONCILIATION = [
   {
     historico: "usuário",
-    atual: "tecnico",
+    atual: "laboratorio",
     observacao: "Perfil operacional basico; capacidades historicas de consulta foram recuperadas como permissoes granulares.",
   },
   {
@@ -144,7 +180,7 @@ export const PERMISSOES: Array<{
   { key: "auditoria.visualizar", modulo: "Governança", label: "Ver auditoria", descricao: "Ver a trilha de auditoria e a governança de orçamentos." },
 ];
 
-const TECNICO: PermissaoUsuario[] = [
+const LABORATORIO: PermissaoUsuario[] = [
   "cadastros.ver",
   "analises.ver",
   "insumos.ver",
@@ -166,8 +202,39 @@ const TECNICO: PermissaoUsuario[] = [
   "planejamento.executar",
 ];
 
+/**
+ * Compra (nova, 0146): acompanha o que falta, solicita, conduz e recebe
+ * compras. Validar pedido interno segue com o coordenador.
+ */
+const COMPRA: PermissaoUsuario[] = [
+  "cadastros.ver",
+  "insumos.ver",
+  "estoque.ver",
+  "planejamento.ver",
+  "pedido.ver",
+  "compras.ver",
+  "recebimento.ver",
+  "pedido.criar",
+  "compras.solicitar",
+  "compras.aprovar",
+  "compras.receber",
+  "recebimento.registrar",
+];
+
+/** Cadastro (nova, 0146): mantém cadastros, insumos e projetos. */
+const CADASTRO: PermissaoUsuario[] = [
+  "cadastros.ver",
+  "cadastros.editar",
+  "projetos.ver",
+  "projetos.editar",
+  "analises.ver",
+  "insumos.ver",
+  "insumos.editar",
+  "estoque.ver",
+];
+
 const COORDENADOR: PermissaoUsuario[] = [
-  ...TECNICO,
+  ...LABORATORIO,
   "analises.editar",
   "insumos.editar",
   "projetos.editar",
@@ -193,7 +260,9 @@ const COORDENADOR: PermissaoUsuario[] = [
  * backups ficam só com o admin (não são delegáveis).
  */
 const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
-  tecnico: TECNICO,
+  laboratorio: LABORATORIO,
+  compra: COMPRA,
+  cadastro: CADASTRO,
   coordenador: COORDENADOR,
   gestor: [
     ...COORDENADOR,
@@ -207,7 +276,9 @@ const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
 };
 
 export function defaultPermissionsForRole(papel: string): PermissaoUsuario[] {
-  return DEFAULT_PERMISSIONS_BY_ROLE[(papel as PapelUsuario) || "tecnico"] ?? DEFAULT_PERMISSIONS_BY_ROLE.tecnico;
+  // "tecnico" é o nome antigo de Laboratório (0146).
+  const chave = papel === "tecnico" ? "laboratorio" : papel;
+  return DEFAULT_PERMISSIONS_BY_ROLE[chave as PapelUsuario] ?? DEFAULT_PERMISSIONS_BY_ROLE[PAPEL_PADRAO];
 }
 
 export function normalizePermissions(papel: string, permissoes: unknown): Record<PermissaoUsuario, boolean> {
