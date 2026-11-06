@@ -105,6 +105,8 @@ jobs:
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/leitura_codigo_barras_0143.sql
 
   check:
+    # ubuntu-latest passou a ser 26.04 em nov/2026 e o Playwright ainda não
+    # instala o ffmpeg nela ("does not support ffmpeg on ubuntu26.04-x64").
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
