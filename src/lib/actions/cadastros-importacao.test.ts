@@ -320,5 +320,48 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     const semAba = await importarCadastrosWorkbook({ ok: false }, await planilha({ Planilha1: [["x"]] }));
     expect(semAba.ok).toBe(false);
     expect(semAba.message).toContain("Nenhuma aba de cadastro encontrada");
+    expect(semAba.message).toContain('"Planilha1"');
+    expect(semAba.message).toContain("Item específico / SKU");
+  });
+
+  it("importa a planilha do usuário com outro nome de aba, título antes do cabeçalho e aba no singular", async () => {
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const propria = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Planilha1: [
+          ["Lista de reagentes do laboratório"],
+          [],
+          ["Insumo", "Marca / fabricante", "Unidade da embalagem", "Valor da embalagem (R$)", "Quantidade na embalagem"],
+          ["Etanol absoluto", "Merck", "frasco", 120, 1],
+        ],
+      }),
+    );
+    expect(propria.resumo?.map((r) => r.aba)).toEqual(["Insumos"]);
+    expect(propria.resumo?.[0].avisos.join(" ")).toContain('A aba "Planilha1" foi importada como Insumos');
+    expect(propria.resumo?.[0].avisos.join(" ")).toContain("Cabeçalho encontrado na linha 3");
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc.mock.calls[0][1].p_dados_insumo).toMatchObject({ especificacao: "Etanol absoluto" });
+
+    rpc.mockClear();
+    const singular = await importarCadastrosWorkbook({ ok: false }, await planilha({ insumo: [CABECALHO_INSUMOS] }));
+    expect(singular.resumo?.map((r) => r.aba)).toEqual(["Insumos"]);
+  });
+
+  it("explica o que fazer com .xls antigo e com texto salvo como planilha", async () => {
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+    const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0, 0]);
+    const formXls = new FormData();
+    formXls.set("arquivo", new File([xls], "aa.xls"));
+    const resultadoXls = await importarCadastrosWorkbook({ ok: false }, formXls);
+    expect(resultadoXls.ok).toBe(false);
+    expect(resultadoXls.message).toContain("Excel 97-2003");
+    expect(resultadoXls.message).toContain("Salvar como");
+
+    const formCsv = new FormData();
+    formCsv.set("arquivo", new File(["Insumo;Unidade\nEtanol;frasco\n"], "aa.xls"));
+    const resultadoCsv = await importarCadastrosWorkbook({ ok: false }, formCsv);
+    expect(resultadoCsv.message).toContain("é texto");
   });
 });

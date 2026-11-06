@@ -545,14 +545,14 @@ describe("cadastros: auditoria de 26/09 (onda 2)", () => {
     const { excluirInsumoEmCascata } = await import("./cadastros");
     rpc.mockResolvedValueOnce({
       data: null,
-      error: { code: "42501", message: "Somente administradores podem excluir um insumo junto com o histórico." },
+      error: { code: "42501", message: 'Sem permissão para excluir este insumo com o histórico. É preciso ter "Editar insumos" (Governança → Privilégios).' },
     });
 
     const result = await excluirInsumoEmCascata({ ok: false }, form({ _id: "7", confirmacao: "apagar" }));
 
     expect(result).toEqual({
       ok: false,
-      message: "Somente administradores podem excluir um insumo junto com o histórico.",
+      message: 'Sem permissão para excluir este insumo com o histórico. É preciso ter "Editar insumos" (Governança → Privilégios).',
     });
     expect(revalidatePath).not.toHaveBeenCalled();
   });

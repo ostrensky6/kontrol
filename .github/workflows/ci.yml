@@ -23,6 +23,9 @@ jobs:
       - name: Validar seis funções, CHECKs, RBAC e alias histórico
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/seis_funcoes_0146.sql
 
+      - name: Validar exclusão definitiva por privilégio (0147)
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/exclusao_por_privilegio_0147.sql
+
       - name: Validar permissoes reais dos cadastros
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/rls_cadastros_0108.sql
 
