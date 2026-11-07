@@ -467,6 +467,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "A tela inicial de Cadastros é um painel com todos os insumos ativos: quantos há, quantos têm estoque, quantos estão acima do mínimo e quantos estão em nível crítico.",
           "Mínimo = ponto de reposição do cadastro do insumo. Nível crítico = disponível abaixo dele, incluindo o que está em falta (zerado).",
+          "O nível crítico não é o Repor do Estoque: o Repor também conta o que está a caminho e o prazo da compra, então os dois podem mostrar números diferentes para o mesmo insumo.",
           "Filtre por categoria de compra, categoria curta, código do fabricante, situação ou pelo nome do item; clique num indicador ou numa categoria da lista para filtrar direto.",
           "Os gráficos mostram a situação por categoria e as entradas e saídas dos últimos 12 meses do recorte escolhido.",
         ],

@@ -47,8 +47,9 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
     lerTudo<MovimentoPainelDb>((de, ate) =>
       supabase
         .from("estoque_movimentacoes")
-        .select("insumo_id, tipo, data")
-        .in("tipo", ["entrada", "saida"])
+        // ajustes entram só para o gráfico: o que desfaz uma leitura anula a entrada ou a saída
+        .select("insumo_id, tipo, data, motivo")
+        .in("tipo", ["entrada", "saida", "ajuste"])
         .gte("data", inicio)
         .order("id")
         .range(de, ate),

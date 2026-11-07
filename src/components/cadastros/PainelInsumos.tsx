@@ -112,8 +112,9 @@ export function PainelInsumos({
   const valores = useMemo(() => valorPorCategoria(recorte, campoCategoria), [recorte, campoCategoria]);
   const cobertura = useMemo(() => faixasCobertura(recorte), [recorte]);
   const movimentosMes = useMemo(
-    () => movimentosPorMes(movimentos, filtrosDeSelecao ? idsRecorte : null, hojeIso),
-    [movimentos, idsRecorte, filtrosDeSelecao, hojeIso],
+    // sempre só os insumos do painel (ativos), mesmo sem filtro
+    () => movimentosPorMes(movimentos, filtrosDeSelecao ? idsRecorte : new Set(insumos.map((item) => item.id)), hojeIso),
+    [movimentos, idsRecorte, insumos, filtrosDeSelecao, hojeIso],
   );
   const temMovimento = movimentosMes.some((mes) => mes.entradas + mes.saidas > 0);
   const temCobertura = cobertura.some((faixa) => faixa.insumos > 0);

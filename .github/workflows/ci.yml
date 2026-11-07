@@ -107,6 +107,15 @@ jobs:
       - name: Validar entrada e saída por leitura de código de barras e inventário por insumo
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/leitura_codigo_barras_0143.sql
 
+      - name: Validar inativação de insumos sem apagar histórico (0144)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/inativacao_insumos_0144.sql
+
+      - name: Validar exclusão de insumo em cascata com auditoria (0145)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/excluir_insumo_em_cascata_0145.sql
+
+      - name: Validar registro de leituras protegido e auditoria da cascata (0148)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_leituras_0148.sql
+
   check:
     # ubuntu-latest passou a ser 26.04 em nov/2026 e o Playwright ainda não
     # instala o ffmpeg nela ("does not support ffmpeg on ubuntu26.04-x64").
@@ -147,6 +156,9 @@ jobs:
           npm run db:migration:test
           npm run backup:test
           npm run version:check -- "$APP_VERSION_BASE_REF"
+
+      - name: Validar guardas estáticas da inativação de insumos (0144)
+        run: node --test supabase/tests/inativacao_insumos_0144.test.mjs
 
       - name: Install Playwright browser
         run: npx playwright install --with-deps chrome

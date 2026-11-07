@@ -143,6 +143,25 @@ para producao com autorizacao explicita do dono, na hora.
 Nunca usar `supabase db push` neste projeto enquanto o historico da `0109` nao
 for conciliado.
 
+## Migrations recentes (0141 em diante)
+
+Uma linha por migration: o que ela muda e o teste que a valida no CI (job
+`schema`). Conferir em producao com o passo 2 acima; nao assumir pela lista.
+
+| Migration | O que muda | Teste |
+|---|---|---|
+| 0141 | Registro de erros do app (`erros_app`) e aviso por hora ao administrador | `registro_erros_0141.sql` |
+| 0142 | Anexos de orcamento e de pedido interno pela permissao; proposta aprovada e cancelada volta a ser aprovavel | `anexos_proposta_cancelada_0142.sql` |
+| 0143 | Entrada e saida por leitura de codigo de barras, desfazer e inventario por insumo | `leitura_codigo_barras_0143.sql` |
+| 0144 | Inativar insumo sem apagar historico | `inativacao_insumos_0144.sql` e `inativacao_insumos_0144.test.mjs` |
+| 0145 | Excluir insumo junto com o historico (cascata), com auditoria | `excluir_insumo_em_cascata_0145.sql` |
+| 0146 | Seis funcoes (Laboratorio, Compra, Cadastro, Coordenador, Gestor, Administrador) | `seis_funcoes_0146.sql` |
+| 0147 | Exclusao definitiva pela caixinha do modulo (Editar insumos, Corrigir estoque) e exclusao de lote | `exclusao_por_privilegio_0147.sql` |
+| 0148 | Registro de leituras protegido; auditoria de contagens, conferencias e leituras apagadas | `registro_leituras_0148.sql` |
+
+As seis funcoes e a exclusao estao explicadas para quem usa em
+`docs/funcoes-e-exclusao.md`.
+
 ## Backup e recuperacao
 
 O que roda sozinho (tarefa "Kontrol - Backup banco nuvem", 00:30 e 12:30, no

@@ -152,6 +152,22 @@ describe("movimentosPorMes", () => {
     expect(soInsumo2.at(-1)).toMatchObject({ entradas: 0, saidas: 0 });
     expect(soInsumo2.at(-2)).toMatchObject({ saidas: 1 });
   });
+
+  it("leitura desfeita anula a entrada ou a saída que tinha registrado", () => {
+    const movimentos = [
+      { insumo_id: 1, tipo: "saida", data: "2026-11-03" },
+      { insumo_id: 1, tipo: "saida", data: "2026-11-03" },
+      { insumo_id: 1, tipo: "ajuste", data: "2026-11-03", motivo: "leitura desfeita: abertura de embalagem" },
+      { insumo_id: 1, tipo: "entrada", data: "2026-11-04" },
+      { insumo_id: 1, tipo: "ajuste", data: "2026-11-04", motivo: "leitura desfeita: entrada por código de barras" },
+      { insumo_id: 1, tipo: "ajuste", data: "2026-11-05", motivo: "contagem de inventário" },
+      // desfazer sem a saída na janela não deixa o mês negativo
+      { insumo_id: 1, tipo: "ajuste", data: "2026-10-01", motivo: "leitura desfeita: abertura de embalagem" },
+    ];
+    const serie = movimentosPorMes(movimentos, null, "2026-11-06");
+    expect(serie.at(-1)).toMatchObject({ entradas: 0, saidas: 1 });
+    expect(serie.at(-2)).toMatchObject({ entradas: 0, saidas: 0 });
+  });
 });
 
 describe("filtros na URL", () => {
