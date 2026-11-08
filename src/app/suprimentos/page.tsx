@@ -434,6 +434,7 @@ export default async function SuprimentosPage() {
           <Link href="/etiquetas" className="font-medium text-primary hover:underline">Etiquetas QR</Link>
           <Link href="/scanner/triagem" className="font-medium text-primary hover:underline">Códigos não reconhecidos</Link>
           <Link href="/estoque/equipamentos" className="font-medium text-primary hover:underline">Equipamentos</Link>
+          <Link href="/suprimentos/prazos" className="font-medium text-primary hover:underline">Prazos de compra</Link>
         </nav>
 
         <Section id="visao-geral" title="Visão geral">
