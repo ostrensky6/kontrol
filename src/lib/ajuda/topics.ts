@@ -211,6 +211,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Equipamentos: calibração e manutenção",
+        itens: [
+          "Em Estoque → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
+          "Na ficha da unidade, 'Definir frequência e aviso' diz de quantos em quantos dias a calibração ou manutenção é feita e com quantos dias de antecedência avisar.",
+          "Depois de cada serviço, use 'Registrar manutenção ou calibração'. Se o certificado traz a próxima data, informe-a; senão o Kontrol soma a frequência.",
+          "Os avisos aparecem no topo da página quando o vencimento se aproxima e ficam lá até alguém agendar o serviço ou clicar em 'Encaminhar' e dizer o que foi decidido.",
+          "Nada é bloqueado sozinho. Registrar exige a permissão de editar cadastros.",
+        ],
+      },
+      {
         titulo: "Consumo mensal",
         itens: [
           "No fim da página do Estoque, em 'Consumo mensal', escolha o insumo e clique em 'Ver consumo'.",
@@ -228,7 +238,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["saldo", "lote", "validade", "fefo", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
+    termos: ["saldo", "lote", "validade", "fefo", "calibração", "manutenção", "equipamento", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
   },
   {
     id: "planejamento",
