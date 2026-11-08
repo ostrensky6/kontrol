@@ -529,8 +529,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Use 'Limpar' se houver filtros ativos. Confira os dados da busca, se a proposta chegou a ser emitida e se você tem acesso a ela.",
         ],
       },
+      {
+        titulo: "Ajustar taxas de uma proposta já enviada",
+        itens: [
+          "A versão enviada não muda: valores, taxas e memória de cálculo ficam congelados na emissão, e nem o banco aceita alterá-los.",
+          "Para mudar impostos, incubação, fundos ou lucro, ajuste os parâmetros na própria proposta e emita de novo. Sai uma nova versão (v2, v3…) e a anterior fica como 'substituída', com o link antigo desativado.",
+          "Use 'Comparar com a anterior' para mostrar ao cliente o que mudou entre as versões.",
+        ],
+      },
     ],
-    termos: ["histórico", "proposta emitida", "versão anterior", "segunda via", "PDF"],
+    termos: ["histórico", "proposta emitida", "versão anterior", "segunda via", "PDF", "nova versão", "ajustar taxa", "reemitir"],
   },
   {
     id: "orcamento-parametros",
@@ -553,6 +561,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Revise os parâmetros antes de emitir orçamentos em lote.",
           "Lembre-se: mudanças aqui afetam novos orçamentos, não as propostas já emitidas.",
+          "Para uma proposta só, ajuste as taxas dentro dela, na etapa de parâmetros. Se ela já foi enviada, a mudança vale na próxima versão emitida.",
           "Documente o motivo de alterações relevantes — elas ficam na Auditoria.",
         ],
       },
@@ -675,8 +684,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Verifique periodicamente se as cópias estão sendo geradas como esperado.",
         ],
       },
+      {
+        titulo: "Restaurar e testar a cópia",
+        itens: [
+          "Uma cópia só vale se restaurar. Teste de vez em quando num banco descartável, nunca em cima da produção.",
+          "Ao restaurar, as tabelas do Kontrol, as regras de acesso e o histórico voltam. Agendamentos automáticos do banco e segredos guardados no cofre do Supabase precisam ser recriados à parte.",
+          "Confira depois da restauração: número de insumos, lotes, movimentações e registros da Auditoria.",
+        ],
+      },
     ],
-    termos: ["backup", "cópia", "restauração", "segurança"],
+    termos: ["backup", "cópia", "restauração", "restaurar", "segurança", "recuperar"],
   },
   {
     id: "usuarios",
@@ -718,6 +735,34 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       },
     ],
     termos: ["usuário", "função", "categoria", "papel", "perfil", "acesso", "assinatura", "senha"],
+  },
+  {
+    id: "notificacoes",
+    titulo: "Avisos e e-mails",
+    grupo: "Governança",
+    href: "/notificacoes",
+    resumo: "O que chega no sino de Notificações e por e-mail, e para quem.",
+    intro:
+      "O Kontrol avisa quando algo pede atenção: etapa esperando sua decisão, insumo abaixo do mínimo, lote vencendo, falta para um planejamento, incidente e outros avisos do sistema. Cada aviso vai para uma pessoa, para quem tem um privilégio ou para uma função e as acima dela.",
+    secoes: [
+      {
+        titulo: "Onde ver",
+        itens: [
+          "O sino no menu mostra quantos avisos estão sem ler; a tela Notificações lista todos, com link para o registro de origem.",
+          "Aprovações pendentes aparecem primeiro; depois faltas, reposições e vencimentos.",
+          "Marque como lido quando tratar o aviso. Ele continua no histórico.",
+        ],
+      },
+      {
+        titulo: "E-mails",
+        itens: [
+          "Os avisos também saem por e-mail para as mesmas pessoas, com link direto para a tela certa.",
+          "Cada aviso é enviado uma vez só, mesmo que o envio seja repetido.",
+          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem um resumo da semana: insumos abaixo do mínimo ou vencendo, pedidos em validação e equipamentos com calibração ou manutenção vencida.",
+        ],
+      },
+    ],
+    termos: ["notificação", "aviso", "sino", "e-mail", "email", "resumo semanal", "alerta", "lembrete"],
   },
   {
     id: "incidentes",

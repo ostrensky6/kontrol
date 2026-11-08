@@ -23,3 +23,9 @@ it("explica zero registrado, saldo não conferido e salvamento sem confirmação
   expect(texto("orcamento-demandas")).toContain("Alterações não enviadas");
   expect(texto("custeio")).toContain("Resolver custo pendente");
 });
+
+it("cobre avisos e e-mails, nova versão da proposta e restauração de backup", () => {
+  expect(topicoCasa(topico("notificacoes"), "resumo semanal")).toBe(true);
+  expect(texto("orcamento-historico")).toContain("Ajustar taxas de uma proposta já enviada");
+  expect(topicoCasa(topico("backups"), "restaurar")).toBe(true);
+});
