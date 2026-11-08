@@ -193,7 +193,7 @@ begin
       where schemaname = 'public' and tablename = v_regra.tabela
         and cmd = 'SELECT' and permissive = 'PERMISSIVE' and qual = 'true'
     loop
-      execute format('alter policy %I on public.%I using %s', v_pol.policyname, v_regra.tabela, v_regra.condicao);
+      execute format('alter policy %I on public.%I using (%s)', v_pol.policyname, v_regra.tabela, v_regra.condicao);
       insert into kontrol_private.leituras_0167 values (v_regra.tabela, v_pol.policyname);
       n := n + 1;
     end loop;
