@@ -6,7 +6,7 @@
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-next.ps1",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint src e2e playwright.config.ts vitest.config.ts next.config.ts eslint.config.mjs",
+    "lint": "eslint src e2e e2e-real playwright.config.ts playwright.real.config.ts vitest.config.ts next.config.ts eslint.config.mjs",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "verify": "npm run typecheck && npm run lint && npm run test && npm run build && npm run test:e2e:run",
@@ -20,6 +20,8 @@
     "backup:test": "node --test scripts/backup-storage.test.mjs scripts/ensaio-restauracao.test.mjs",
     "test:e2e": "next build && npm run test:e2e:run",
     "test:e2e:run": "playwright test",
+    "test:e2e:real": "playwright test -c playwright.real.config.ts",
+    "test:e2e:real:prep": "node scripts/e2e-real-preparar.mjs",
     "lab:import": "node scripts/import-laboratorio1.mjs",
     "prod:check": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-production-target.ps1",
     "prod:deploy": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/deploy-production.ps1"

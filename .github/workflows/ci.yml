@@ -116,6 +116,64 @@ jobs:
       - name: Validar registro de leituras protegido e auditoria da cascata (0148)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_leituras_0148.sql
 
+  e2e-real:
+    # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
+    # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase
+    # local e o preparo recusa qualquer host fora de 127.0.0.1.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.75.0
+
+      - name: Subir o Supabase local e aplicar as migrations
+        run: |
+          supabase start -x studio,imgproxy,edge-runtime,logflare,vector,supavisor,realtime,postgres-meta
+          supabase db reset --no-seed
+
+      - name: Exportar URL e chaves do Supabase local
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          {
+            echo "NEXT_PUBLIC_SUPABASE_URL=$API_URL"
+            echo "NEXT_PUBLIC_SUPABASE_ANON_KEY=$ANON_KEY"
+            echo "SUPABASE_SERVICE_ROLE_KEY=$SERVICE_ROLE_KEY"
+            echo "E2E_REAL_SENHA=e2e-$(openssl rand -hex 12)"
+          } >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Criar usuários de teste no banco local
+        run: npm run test:e2e:real:prep
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chrome
+
+      - name: Build contra o Supabase local
+        run: npm run build
+
+      - name: E2E contra banco real
+        run: npm run test:e2e:real
+
+      - name: Upload Playwright report (banco real)
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-real-report
+          path: |
+            output/playwright-real-report
+            output/playwright-real
+          retention-days: 7
+
   check:
     # ubuntu-latest passou a ser 26.04 em nov/2026 e o Playwright ainda não
     # instala o ffmpeg nela ("does not support ffmpeg on ubuntu26.04-x64").
@@ -155,6 +213,7 @@ jobs:
           npm run version:test
           npm run db:migration:test
           npm run backup:test
+          node --test scripts/e2e-real-preparar.test.mjs
           npm run version:check -- "$APP_VERSION_BASE_REF"
 
       - name: Validar guardas estáticas da inativação de insumos (0144)
