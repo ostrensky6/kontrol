@@ -150,6 +150,13 @@ export const APP_MODULES: AppModule[] = [
         shortcut: "P",
       },
       {
+        href: "/planejamento/disputas",
+        label: "Disputas de reserva",
+        desc: "pedir e decidir reserva de outro plano quando falta insumo",
+        icon: "ClipboardCheck",
+        showInTopNav: false,
+      },
+      {
         href: "/pedido",
         label: "Pedidos internos",
         desc: "pedidos do laboratório para compra",

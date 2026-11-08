@@ -11,6 +11,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { PlanoAcoes } from "@/components/planejamento/PlanoAcoes";
+import { FaltasOutroPlano } from "@/components/planejamento/FaltasOutroPlano";
 import { PlanoContextoForm } from "@/components/planejamento/PlanoContextoForm";
 import { PlanoItensEditor } from "@/components/planejamento/PlanoItensEditor";
 import { ExcluirOuCancelarPlano } from "@/components/planejamento/PlanoGestao";
@@ -754,6 +755,8 @@ export default async function PlanoDetalhe({
             </table>
           </div>
         </section>
+
+        <FaltasOutroPlano planId={planId} reservado={statusOperacional === "reservado"} podeExecutar={podeExecutar} />
 
         {baixaPendente && insumosConferencia.length > 0 && (
           <PlanejamentoConferenciaLotes

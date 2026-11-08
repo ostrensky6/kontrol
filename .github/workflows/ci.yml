@@ -137,6 +137,9 @@ jobs:
       - name: Validar incidentes (0162)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/incidentes_0162.sql
 
+      - name: Validar disputa de reservas (0163)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/disputa_reservas_0163.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

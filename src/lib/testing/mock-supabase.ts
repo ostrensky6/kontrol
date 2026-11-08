@@ -769,9 +769,21 @@ const baseStore = (): Store => {
     seed.planejamento_itens = [
       { id: 900, planejamento_id: 900, codigo_analise: "qPCR_F", n_amostras: 5, n_controles: 0, repeticoes: 1, perda_percentual: 0 },
     ];
+    // Disputa de reserva (0163): A segura o insumo, B ficou com falta.
+    seed.planejamento.push(
+      { id: 901, nome: "Plano A disputa E2E", projeto_id: 1, status_operacional: "reservado", reserva_desatualizada: false,
+        prioridade: "normal", origem_planejamento: "manual", data_inicio_prevista: "2026-07-10", data_fim_prevista: "2026-07-20",
+        data_alvo: "2026-07-20", criado_em: "2026-06-21T10:00:00.000Z" },
+      { id: 902, nome: "Plano B disputa E2E", projeto_id: 1, status_operacional: "reservado", reserva_desatualizada: false,
+        prioridade: "alta", origem_planejamento: "manual", data_inicio_prevista: "2026-07-01", data_fim_prevista: "2026-07-05",
+        data_alvo: "2026-07-05", criado_em: "2026-06-21T10:00:00.000Z" },
+    );
     seed.reservas_estoque = [
       { id: 900, planejamento_id: 900, insumo_id: 1, lote_id: null, quantidade: 5, quantidade_consumida: 5, status: "consumido" },
+      { id: 901, planejamento_id: 901, insumo_id: 900, lote_id: 9901, quantidade: 10, quantidade_consumida: 0, status: "reservado" },
+      { id: 902, planejamento_id: 902, insumo_id: 900, lote_id: null, quantidade: 4, quantidade_consumida: 0, status: "parcial" },
     ];
+    seed.reservas_disputas = [];
   }
 
   return seed;
@@ -2130,6 +2142,75 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           id, incidente_id: inc.id, situacao: args.p_situacao, nota: args.p_nota, criado_em: agora,
         }];
         return { data: id, error: null };
+      }
+      if (fn === "pedir_reserva_de_outro_plano") {
+        const plano = Number(args.p_planejamento_id);
+        const insumo = Number(args.p_insumo_id);
+        const falta = (store.reservas_estoque ?? [])
+          .filter((r) => Number(r.planejamento_id) === plano && Number(r.insumo_id) === insumo && r.lote_id == null && r.status === "parcial")
+          .reduce((acc, r) => acc + Number(r.quantidade) - Number(r.quantidade_consumida ?? 0), 0);
+        if (falta <= 0) return { data: null, error: { message: "Este plano não tem falta registrada desse insumo. Reserve de novo para atualizar.", code: "22023" } };
+        const id = nextId("reservas_disputas");
+        store.reservas_disputas = [...(store.reservas_disputas ?? []), {
+          id, planejamento_destino_id: plano, insumo_id: insumo, quantidade: falta, motivo: args.p_motivo, status: "pendente",
+          solicitado_por: MOCK_USER_ID, solicitado_em: new Date().toISOString(), planejamento_origem_id: null,
+          quantidade_transferida: null, decidido_em: null, decisao_observacao: null,
+        }];
+        return { data: id, error: null };
+      }
+      if (fn === "planos_com_reserva") {
+        const insumo = Number(args.p_insumo_id);
+        const excluir = args.p_excluir_planejamento_id == null ? null : Number(args.p_excluir_planejamento_id);
+        const somas = new Map<number, number>();
+        for (const r of store.reservas_estoque ?? []) {
+          if (Number(r.insumo_id) !== insumo || r.status !== "reservado" || r.lote_id == null) continue;
+          const plano = (store.planejamento ?? []).find((p) => Number(p.id) === Number(r.planejamento_id));
+          if (!plano || plano.status_operacional !== "reservado" || Number(plano.id) === excluir) continue;
+          somas.set(Number(plano.id), (somas.get(Number(plano.id)) ?? 0) + Number(r.quantidade) - Number(r.quantidade_consumida ?? 0));
+        }
+        return {
+          data: [...somas].map(([id, reservado]) => {
+            const plano = (store.planejamento ?? []).find((p) => Number(p.id) === id)!;
+            return { planejamento_id: id, nome: plano.nome, data_inicio_prevista: plano.data_inicio_prevista ?? null,
+              prioridade: plano.prioridade, reservado, reserva_desatualizada: Boolean(plano.reserva_desatualizada) };
+          }),
+          error: null,
+        };
+      }
+      if (fn === "decidir_disputa_reserva") {
+        const d = (store.reservas_disputas ?? []).find((row) => Number(row.id) === Number(args.p_disputa_id));
+        if (!d) return { data: null, error: { message: "Pedido não encontrado.", code: "P0002" } };
+        if (d.status !== "pendente") return { data: null, error: { message: "Este pedido já foi decidido por outra pessoa. Recarregue a página.", code: "55000" } };
+        const agora = new Date().toISOString();
+        if (args.p_decisao === "negar") {
+          Object.assign(d, { status: "negada", decidido_em: agora, decisao_observacao: args.p_observacao });
+          return { data: { status: "negada", transferido: 0 }, error: null };
+        }
+        const origem = Number(args.p_planejamento_origem_id);
+        let restante = Number(d.quantidade);
+        let coberto = 0;
+        for (const r of store.reservas_estoque ?? []) {
+          if (restante <= 0) break;
+          if (Number(r.planejamento_id) !== origem || Number(r.insumo_id) !== Number(d.insumo_id) || r.status !== "reservado" || r.lote_id == null) continue;
+          const take = Math.min(restante, Number(r.quantidade) - Number(r.quantidade_consumida ?? 0));
+          if (take <= 0) continue;
+          r.quantidade = Number(r.quantidade) - take;
+          if (Number(r.quantidade) <= 0) r.status = "liberado";
+          store.reservas_estoque.push({ id: nextId("reservas_estoque"), planejamento_id: d.planejamento_destino_id, insumo_id: d.insumo_id,
+            lote_id: r.lote_id, quantidade: take, quantidade_consumida: 0, status: "reservado" });
+          restante -= take;
+          coberto += take;
+        }
+        if (coberto <= 0) return { data: null, error: { message: "O plano escolhido não tem reserva em lote desse insumo.", code: "22023" } };
+        for (const r of store.reservas_estoque ?? []) {
+          if (Number(r.planejamento_id) === Number(d.planejamento_destino_id) && Number(r.insumo_id) === Number(d.insumo_id)
+              && r.lote_id == null && r.status === "parcial") r.status = "liberado";
+        }
+        store.reservas_estoque.push({ id: nextId("reservas_estoque"), planejamento_id: origem, insumo_id: d.insumo_id,
+          lote_id: null, quantidade: coberto, quantidade_consumida: 0, status: "parcial" });
+        Object.assign(d, { status: "transferida", planejamento_origem_id: origem, quantidade_transferida: coberto,
+          decidido_em: agora, decisao_observacao: args.p_observacao });
+        return { data: { status: "transferida", transferido: coberto }, error: null };
       }
       if (fn === "validar_alternativa_insumo") {
         const linha = (store.insumo_analise ?? []).find((row) => Number(row.id) === Number(args.p_insumo_analise_id));

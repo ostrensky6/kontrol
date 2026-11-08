@@ -292,8 +292,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Com falta de insumo, 'Gerar pedido interno' abre o pedido de compra dos itens em falta.",
         ],
       },
+      {
+        titulo: "Falta que outro plano segura (disputa de reserva)",
+        itens: [
+          "Se o plano reservado ficou com falta e outro plano reservado segura o mesmo insumo, use 'Pedir reserva de outro plano' na página do plano e diga o motivo.",
+          "Coordenador, Gestor, Supervisor ou Administrador decide em Planejamento → Disputas de reserva: transferir (escolhendo o plano que cede) ou negar, sempre com o motivo.",
+          "A transferência move a reserva lote por lote, validade mais curta primeiro; embalagem fechada vai inteira. O plano que cede fica com a falta e precisa repor ou reservar de novo antes de iniciar.",
+          "Se duas pessoas decidirem ao mesmo tempo, só a primeira vale. Quem pediu recebe o aviso da decisão, e tudo fica na Auditoria.",
+        ],
+      },
     ],
-    termos: ["demanda", "reserva", "previsão", "plano", "consumo"],
+    termos: ["demanda", "reserva", "previsão", "plano", "consumo", "disputa", "transferir reserva", "falta"],
   },
   {
     id: "pedido",
