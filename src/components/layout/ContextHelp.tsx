@@ -140,6 +140,30 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path.startsWith("/governanca/incidentes"),
+    content: {
+      title: "Incidentes",
+      description: "O que atrapalhou o trabalho, quem foi afetado e o que fazer enquanto isso.",
+      checks: [
+        "Coordenador ou acima registra: o que aconteceu, quem é afetado e a orientação.",
+        "Causa não confirmada fica em branco; a tela mostra 'Causa ainda desconhecida'.",
+        "Cada passo (em andamento, resolvido, reaberto) avisa as mesmas pessoas.",
+      ],
+    },
+  },
+  {
+    match: (path) => path.startsWith("/notificacoes"),
+    content: {
+      title: "Notificações",
+      description: "Avisos para você: decisões pendentes, faltas, reposições, vencimentos e incidentes.",
+      checks: [
+        "Aprovações pendentes aparecem primeiro.",
+        "O link de cada aviso abre o registro de origem.",
+        "Os mesmos avisos chegam por e-mail; às segundas sai o resumo semanal para Coordenador ou acima.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/usuarios") || path.startsWith("/governanca") || path.startsWith("/auditoria"),
     content: {
       title: "Governança",
