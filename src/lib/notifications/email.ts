@@ -18,11 +18,16 @@ type SupabaseLike = {
         };
       };
     };
-    update: (values: Record<string, unknown>) => {
-      eq: (column: string, value: number) => PromiseLike<{ error: { message: string } | null }>;
-    };
+    update: (values: Record<string, unknown>) => FiltroUpdate;
   };
   rpc: (fn: string, args: Record<string, unknown>) => Resultado<unknown>;
+};
+
+/** Encadeamento de filtros do update (PostgREST). */
+type FiltroUpdate = PromiseLike<{ error: { message: string } | null }> & {
+  eq: (column: string, value: number) => FiltroUpdate;
+  is: (column: string, value: null) => FiltroUpdate;
+  select: (columns: string) => Resultado<{ id: number }[]>;
 };
 
 type NotificationEmailRow = {
@@ -40,6 +45,8 @@ type EmailDispatchResult = {
   enabled: boolean;
   sent: number;
   failed: number;
+  /** Avisos que outro envio simultâneo já tinha reservado. */
+  skipped?: number;
   skippedReason?: string;
 };
 
@@ -87,12 +94,22 @@ function emailHtml(row: NotificationEmailRow) {
   `;
 }
 
+/**
+ * A chave de idempotência é a mesma em todas as tentativas do mesmo aviso: se
+ * o envio deu certo mas a marcação no banco falhou, a nova tentativa não
+ * manda o e-mail de novo (o Resend reconhece a chave por 24 horas).
+ */
+export function chaveIdempotencia(row: Pick<NotificationEmailRow, "id">) {
+  return `kontrol-notificacao-${row.id}`;
+}
+
 async function sendWithResend(row: NotificationEmailRow, to: string[]) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       "Content-Type": "application/json",
+      "Idempotency-Key": chaveIdempotencia(row),
     },
     body: JSON.stringify({
       from: process.env.RESEND_FROM ?? "Kontrol <onboarding@resend.dev>",
@@ -143,33 +160,46 @@ export async function dispatchPendingNotificationEmails(
 
   let sent = 0;
   let failed = 0;
+  let skipped = 0;
   for (const row of data ?? []) {
+    const tentativas = Number(row.email_tentativas ?? 0);
+    // Reserva a tentativa antes de enviar: só passa se ninguém mexeu no aviso
+    // desde a leitura. Dois envios ao mesmo tempo não mandam o mesmo e-mail.
+    const { data: reservado, error: erroReserva } = await supabase
+      .from("notificacoes")
+      .update({ email_tentativas: tentativas + 1 })
+      .eq("id", row.id)
+      .eq("email_tentativas", tentativas)
+      .is("email_enviado_em", null)
+      .select("id");
+    if (erroReserva) throw new Error(erroReserva.message);
+    if (!reservado || reservado.length === 0) {
+      skipped += 1;
+      continue;
+    }
+    let enviado = false;
     try {
       const to = await destinatarios(supabase, row, fallback);
       if (to.length === 0) throw new Error("Nenhum destinatário com e-mail para este aviso.");
       await sendWithResend(row, to);
+      enviado = true;
       const { error: updateError } = await supabase
         .from("notificacoes")
-        .update({
-          email_enviado_em: new Date().toISOString(),
-          email_erro: null,
-          email_tentativas: Number(row.email_tentativas ?? 0) + 1,
-        })
+        .update({ email_enviado_em: new Date().toISOString(), email_erro: null })
         .eq("id", row.id);
       if (updateError) throw new Error(updateError.message);
       sent += 1;
     } catch (error) {
       failed += 1;
       const message = error instanceof Error ? error.message : "Falha desconhecida";
+      // Se o e-mail saiu e só a marcação falhou, a próxima tentativa usa a
+      // mesma chave de idempotência e o Resend não reenvia.
       await supabase
         .from("notificacoes")
-        .update({
-          email_erro: message.slice(0, 500),
-          email_tentativas: Number(row.email_tentativas ?? 0) + 1,
-        })
+        .update({ email_erro: (enviado ? `Enviado, mas não marcado: ${message}` : message).slice(0, 500) })
         .eq("id", row.id);
     }
   }
 
-  return { enabled: true, sent, failed };
+  return { enabled: true, sent, failed, skipped };
 }
