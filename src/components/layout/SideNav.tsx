@@ -117,6 +117,13 @@ export function SideNav({
     return Boolean(href && (pathname === href || pathname.startsWith(href + "/")));
   }
 
+  // Leitor de tela recebe a mesma indicação que a cor: "página" quando o link
+  // é exatamente a página aberta, "local" quando ela está dentro do módulo.
+  function ariaCorrente(ativo: boolean, href: string) {
+    if (!ativo) return undefined;
+    return pathname === href ? ("page" as const) : ("location" as const);
+  }
+
   if (collapsed) {
     return (
       <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Navegação compacta">
@@ -132,6 +139,7 @@ export function SideNav({
                   onClick={onNavigate}
                   title={g.title}
                   aria-label={g.title}
+                  aria-current={ariaCorrente(ativo, href)}
                   className={cn(
                     "relative flex h-10 w-10 items-center justify-center rounded-md transition-colors",
                     ativo
@@ -166,6 +174,7 @@ export function SideNav({
             key={g.title}
             href={href}
             onClick={onNavigate}
+            aria-current={ariaCorrente(temLinkAtivo, href)}
             className={cn(
               "mb-1.5 flex items-center gap-2 rounded-md px-2.5 py-2.5 text-left transition-colors last:mb-0",
               temLinkAtivo

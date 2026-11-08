@@ -65,6 +65,7 @@ describe("demanda liquida do planejamento", () => {
         status: "parcial",
       },
     ];
+    store.lotes_estoque = [{ id: 101, modelo_quantidade: "UNIDADE", conteudo_embalagem_snapshot: null }];
 
     const [demanda] = await computarDemandaPlano(createMockSupabaseClient() as never, 7);
 
@@ -137,6 +138,45 @@ describe("demanda do planejamento com fonte indisponível", () => {
   it("não trata erro de leitura das análises do plano como plano vazio", async () => {
     await expect(computarDemandaPlano(clienteComFalha("planejamento_itens"), 7)).rejects.toThrow(
       /análises do plano/,
+    );
+  });
+});
+
+describe("demanda do planejamento com linha ausente (leitura sem erro)", () => {
+  beforeEach(() => {
+    resetMockSupabaseStore();
+    const store = getMockSupabaseStore();
+    store.planejamento_itens = [{
+      planejamento_id: 9, codigo_analise: "E2-FONTE", n_amostras: 10, n_controles: 0, repeticoes: 1, perda_percentual: 0,
+    }];
+    store.etapas = [];
+    store.insumo_analise = [{
+      codigo_analise: "E2-FONTE", nome_etapa: "Preparo", nome_atividade: "Consumo", especificacao_insumo: "Insumo fonte",
+      grupo_escolha: null, quantidade_por_amostra: 1000, modo_cobranca: "por_amostra", insumo_id: 44, insumos: { custo_unitario: 1 },
+    }];
+    store.v_estoque_saldo = [{ insumo_id: 44, unidade: "mL", disponivel: 5 }];
+    store.insumos = [{ id: 44, fator_conversao: 1000, custo_unitario: 1, quantidade_minima_compra: null, quantidade_embalagem: null }];
+    store.reservas_estoque = [{ planejamento_id: 9, insumo_id: 44, lote_id: 601, quantidade: 1, quantidade_consumida: 0, status: "reservado" }];
+    store.lotes_estoque = [{ id: 601, modelo_quantidade: "EMBALAGEM_FECHADA", conteudo_embalagem_snapshot: 2 }];
+  });
+
+  it("calcula quando cadastro e lote existem", async () => {
+    const [demanda] = await computarDemandaPlano(createMockSupabaseClient() as never, 9);
+    // 10 amostras × 1000 µL / fator 1000 = 10 mL; 1 frasco de 2 mL reservado + 5 livres → falta 3
+    expect(demanda).toMatchObject({ demanda: 10, disponivel: 5, falta: 3 });
+  });
+
+  it("insumo sem cadastro lido não presume fator 1", async () => {
+    getMockSupabaseStore().insumos = [];
+    await expect(computarDemandaPlano(createMockSupabaseClient() as never, 9)).rejects.toThrow(
+      /conversão de unidade não pode ser presumida/,
+    );
+  });
+
+  it("lote reservado não lido não presume conteúdo 1", async () => {
+    getMockSupabaseStore().lotes_estoque = [];
+    await expect(computarDemandaPlano(createMockSupabaseClient() as never, 9)).rejects.toThrow(
+      /reserva não pode ser convertida/,
     );
   });
 });
