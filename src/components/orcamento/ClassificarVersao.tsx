@@ -10,7 +10,7 @@ import { ROTULO_CLASSIFICACAO, type ClassificacaoVersao } from "@/lib/orcamento/
 
 /**
  * Classificação comercial da versão (ORC2-8): só as transições que o banco
- * aceita; aprovar pede confirmação porque cria o planejamento.
+ * aceita; aprovar pede confirmação (o planejamento é criado depois, pelo botão da proposta).
  */
 export function ClassificarVersao({
   versaoId,
@@ -56,9 +56,9 @@ export function ClassificarVersao({
           <input id={idObsAprovar} name="motivo" placeholder="Como o cliente aprovou (opcional)" className="h-8 rounded-md border border-input bg-card px-2 text-xs" />
           <ConfirmSubmitButton
             className="h-8 rounded-md bg-brand-600 px-2 text-xs font-medium text-white hover:bg-brand-500"
-            titulo="Aprovar e criar planejamento?"
-            mensagem={`A proposta ${numero} passa a aprovada e o planejamento dela é criado em rascunho. Outra versão desta proposta só poderá ser aprovada depois de cancelar esta.`}
-            confirmLabel="Aprovar e criar planejamento"
+            titulo="Aprovar a proposta?"
+            mensagem={`A proposta ${numero} passa a aprovada. O planejamento não é criado agora: o Coordenador recebe um aviso e cria pelo botão "Gerar planejamento desta proposta". Outra versão desta proposta só poderá ser aprovada depois de cancelar esta.`}
+            confirmLabel="Aprovar"
           >
             Aprovar
           </ConfirmSubmitButton>

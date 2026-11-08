@@ -21,6 +21,8 @@ export function caminhoNotificacao(entidadeTipo: string | null, entidadeId: numb
       return id ? `/estoque/lotes/${id}` : "/estoque";
     case "demanda":
       return id ? `/orcamento/demandas/${id}` : "/orcamento/demandas";
+    case "proposta_final":
+      return id ? `/orcamento/final/${id}` : "/orcamento/historico";
     case "orcamento":
       return id ? `/orcamento/${id}` : "/orcamento";
     case "insumo":

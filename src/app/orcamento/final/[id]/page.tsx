@@ -419,7 +419,7 @@ export default async function OrcamentoFinalPage({
                 <span className="ml-auto text-xs font-medium text-primary group-open:hidden">Abrir</span>
                 <HelpTip title="Link de aprovação">
                   <p>Endereço para o cliente ver a proposta e aprovar <b>sem login</b>. Vale só para esta versão.</p>
-                  <p>Nova versão, cancelamento ou vencimento encerram o link. Aprovar pelo link cria o planejamento, como a aprovação pela equipe.</p>
+                  <p>Nova versão, cancelamento ou vencimento encerram o link. Aprovar pelo link avisa o Coordenador para criar o planejamento, como a aprovação pela equipe.</p>
                 </HelpTip>
               </summary>
               <div className="mt-3">
