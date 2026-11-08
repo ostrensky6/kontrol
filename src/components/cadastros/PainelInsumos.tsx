@@ -30,6 +30,7 @@ import {
 } from "@/lib/cadastros/painel-decisao";
 import { formatCompactCurrency, formatCurrency, formatInteger } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { TabelaDoGrafico } from "@/components/common/TabelaDoGrafico";
 
 const COR = {
   ok: "#008a00",
@@ -254,6 +255,17 @@ export function PainelInsumos({
           ) : (
             <SemDados texto="Sem saldo para estimar a cobertura" />
           )}
+          {!graficosIncompletos.cobertura && temCobertura && (
+            <TabelaDoGrafico
+              titulo="Cobertura estimada do estoque"
+              colunas={[
+                { rotulo: "Faixa", valor: (l) => l.faixa },
+                { rotulo: "Insumos", valor: (l) => formatInteger(l.insumos) },
+              ]}
+              linhas={cobertura}
+              chave={(l) => l.faixa}
+            />
+          )}
         </Grafico>
 
         <Grafico
@@ -278,6 +290,19 @@ export function PainelInsumos({
           ) : (
             <SemDados texto="Nenhum saldo de sistema no recorte" />
           )}
+          {!graficosIncompletos.categorias && (
+            <TabelaDoGrafico
+              titulo="Situação por categoria"
+              colunas={[
+                { rotulo: "Categoria", valor: (l) => l.categoria },
+                { rotulo: "Crítico no sistema", valor: (l) => formatInteger(l.critico) },
+                { rotulo: "Acima do mínimo", valor: (l) => formatInteger(l.ok) },
+                { rotulo: "Sem mínimo", valor: (l) => formatInteger(l.semMinimo) },
+              ]}
+              linhas={porCategoria}
+              chave={(l) => l.categoria}
+            />
+          )}
         </Grafico>
 
         <Grafico titulo="Onde está o valor em estoque" subtitulo="Lotes liberados, pelo custo do lote; as categorias de maior valor.">
@@ -295,6 +320,17 @@ export function PainelInsumos({
             </ResponsiveContainer>
           ) : (
             <SemDados texto="Sem valor de estoque com custo nos lotes" />
+          )}
+          {!graficosIncompletos.valores && (
+            <TabelaDoGrafico
+              titulo="Valor em estoque por categoria"
+              colunas={[
+                { rotulo: "Categoria", valor: (l) => l.categoria },
+                { rotulo: "Valor", valor: (l) => formatCurrency(l.valor) },
+              ]}
+              linhas={valores}
+              chave={(l) => l.categoria}
+            />
           )}
         </Grafico>
 
@@ -315,6 +351,18 @@ export function PainelInsumos({
             </ResponsiveContainer>
           ) : (
             <SemDados texto="Sem entradas ou saídas nos últimos 12 meses" />
+          )}
+          {!graficosIncompletos.movimentos && temMovimento && (
+            <TabelaDoGrafico
+              titulo="Entradas e saídas por mês"
+              colunas={[
+                { rotulo: "Mês", valor: (l) => l.rotulo },
+                { rotulo: "Entradas", valor: (l) => formatInteger(l.entradas) },
+                { rotulo: "Saídas", valor: (l) => formatInteger(l.saidas) },
+              ]}
+              linhas={movimentosMes}
+              chave={(l) => l.rotulo}
+            />
           )}
         </Grafico>
       </div>

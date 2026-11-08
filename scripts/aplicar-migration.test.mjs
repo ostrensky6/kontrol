@@ -110,3 +110,11 @@ test("situação: lista só o que o repositório tem além do último registro",
   assert.deepEqual(pendentes.map((p) => p.arquivo), ["0132_c.sql", "0133_d.sql"]);
   assert.deepEqual(migrationsPendentes(arquivos, ["0130", "0131", "0132", "0133"]), []);
 });
+
+test("migrationsPuladas acha arquivo esquecido no meio da fila", async () => {
+  const { migrationsPuladas } = await import("./aplicar-migration.mjs");
+  const arquivos = ["0108_x.sql", "0109_y.sql", "0130_a.sql", "0131_b.sql", "0132_c.sql", "0133_d.sql"];
+  const registradas = ["0108", "20260922185946", "0130", "0132"];
+  assert.deepEqual(migrationsPuladas(arquivos, registradas).map((p) => p.arquivo), ["0131_b.sql"]);
+  assert.deepEqual(migrationsPuladas(arquivos, ["0108", "20260922185946", "0130", "0131", "0132"]), []);
+});

@@ -14,6 +14,7 @@ import {
   YAxis,
 } from "recharts";
 import { formatCompactCurrency, formatInteger } from "@/lib/formatters";
+import { TabelaDoGrafico } from "@/components/common/TabelaDoGrafico";
 
 type GastoRow = {
   mes: string;
@@ -79,6 +80,15 @@ export function ExecutiveCharts({
             </div>
           )}
         </div>
+        <TabelaDoGrafico
+          titulo="Gasto por mês"
+          colunas={[
+            { rotulo: "Mês", valor: (l) => l.mes },
+            { rotulo: "Gasto", valor: (l) => formatCompactCurrency(l.gasto) },
+          ]}
+          linhas={gastosPorMes}
+          chave={(l) => l.mes}
+        />
       </section>
       )}
 

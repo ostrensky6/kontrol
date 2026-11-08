@@ -28,6 +28,13 @@ const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Parâmetros (econômicos)", url: "/orcamento/parametros" },
   { nome: "Cadastros", url: "/cadastros" },
   { nome: "Qualidade dos cadastros", url: "/cadastros/qualidade" },
+  // telas novas de 07–08/11/2026 (auditoria de 08/11)
+  { nome: "Leitura de código de barras", url: "/estoque/leitura" },
+  { nome: "Equipamentos", url: "/estoque/equipamentos" },
+  { nome: "Prazos de compra", url: "/suprimentos/prazos" },
+  { nome: "Disputas de reserva", url: "/planejamento/disputas" },
+  { nome: "Incidentes", url: "/governanca/incidentes" },
+  { nome: "Privilégios", url: "/governanca/privilegios" },
 ];
 
 /** Exceções conhecidas e justificadas: `${url}|${tema}|${regra}` → motivo. Hoje, nenhuma. */

@@ -105,6 +105,29 @@ export function migrationsPendentes(arquivos, registradas) {
     .sort((x, y) => x.versao.localeCompare(y.versao));
 }
 
+/**
+ * Versões registradas no banco com outro nome. A 0109 entrou no histórico com
+ * o carimbo de data do Supabase CLI, então não conta como lacuna.
+ */
+const REGISTRO_COM_OUTRO_NOME = { "0109": "20260922185946" };
+
+/**
+ * Arquivos abaixo da última versão registrada que o banco não tem: uma
+ * migration pulada no meio da fila (ex.: 0150 esquecida depois de aplicar a
+ * 0151). migrationsPendentes não mostra esses casos.
+ */
+export function migrationsPuladas(arquivos, registradas) {
+  const numericas = registradas.filter((v) => /^\d{4}$/.test(v));
+  const ultima = [...numericas].sort().at(-1) ?? "0000";
+  const conjunto = new Set(registradas);
+  return arquivos
+    .filter((a) => RE_ARQUIVO.test(a))
+    .map((a) => ({ arquivo: a, ...versaoDoArquivo(a) }))
+    .filter((m) => m.versao < ultima && !conjunto.has(m.versao))
+    .filter((m) => !conjunto.has(REGISTRO_COM_OUTRO_NOME[m.versao]))
+    .sort((x, y) => x.versao.localeCompare(y.versao));
+}
+
 /** Só o host, para log e mensagens: nunca a senha. */
 export function descreverAlvo(url) {
   const u = new URL(url);
@@ -146,8 +169,13 @@ function situacao(opts) {
   const pendentes = migrationsPendentes(readdirSync(pasta), registradas);
   console.log(`Alvo: ${alvo}`);
   console.log(`Última registrada: ${registradas.filter((v) => /^\d{4}$/.test(v)).sort().at(-1) ?? "nenhuma"}`);
+  const puladas = migrationsPuladas(readdirSync(pasta), registradas);
+  if (puladas.length > 0) {
+    console.log("ATENÇÃO: arquivos abaixo da última registrada que o banco não tem (pulados na fila):");
+    for (const p of puladas) console.log(`  ${p.arquivo}`);
+  }
   if (pendentes.length === 0) {
-    console.log("Nenhuma migration do repositório falta registrar.");
+    console.log("Nenhuma migration do repositório falta registrar acima da última.");
     return 0;
   }
   console.log("Falta registrar (aplique com --arquivo; se já foi aplicada à mão, rode antes com --ensaio):");
