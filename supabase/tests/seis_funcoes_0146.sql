@@ -26,7 +26,9 @@ begin
     'kontrol_private.tem_permissao_do_usuario(uuid,text)'
   ] loop
     definicao := pg_get_functiondef(assinatura::regprocedure);
-    if position('(''laboratorio'', ''compra'', ''cadastro'', ''coordenador'', ''gestor'')' in definicao) = 0
+    -- 0151 acrescenta 'supervisor' à mesma lista; as duas formas valem.
+    if (position('(''laboratorio'', ''compra'', ''cadastro'', ''coordenador'', ''gestor'')' in definicao) = 0
+        and position('(''laboratorio'', ''compra'', ''cadastro'', ''coordenador'', ''gestor'', ''supervisor'')' in definicao) = 0)
        or position('(''tecnico'', ''coordenador'', ''gestor'')' in definicao) > 0 then
       raise exception '0146: reescrita ausente em %', assinatura;
     end if;
