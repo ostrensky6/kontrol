@@ -309,6 +309,11 @@ const DEPENDENTES = [
   "/compras",
   "/planejamento",
   "/insumos",
+  // Painel de alertas, reposição e telas de estoque que mostram o insumo.
+  "/suprimentos",
+  "/estoque/controle",
+  "/estoque/inventario",
+  "/recebimento",
   "/",
 ];
 function revalidarDependentes(slug: string) {
@@ -899,7 +904,12 @@ async function importarCadastro(
   const existingById = new Map(existingRows.map((row) => [Number(row.id), row]));
   const existingByNatural = mapaNatural(existingRows, cfg.rotulo);
   const opcoes = await opcoesParaCampos(cfg.campos);
-  const { linhas, colunas } = lerAbaCadastro(sheet, cfg, opcoes, linhaCabecalho);
+  const { linhas, colunas, ignoradas } = lerAbaCadastro(sheet, cfg, opcoes, linhaCabecalho);
+  if (ignoradas.length > 0) {
+    resumo.avisos.push(
+      `Colunas não reconhecidas, ignoradas: ${ignoradas.join(", ")}. Renomeie com um nome da planilha modelo se quiser importá-las.`,
+    );
+  }
   const rotuloNatural = rotuloCampo(cfg, cfg.rotulo);
   const quantidadeAtual =
     cfg.slug === "insumos" && colunas.has(QUANTIDADE_INSUMO_KEY) && existingRows.length > 0

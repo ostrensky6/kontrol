@@ -397,6 +397,32 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(rpc.mock.calls[0][1].p_dados_insumo).toMatchObject({ especificacao: "Etanol absoluto" });
   });
 
+  it("aceita nomes de coluna comuns e avisa as colunas que não reconheceu", async () => {
+    db.fornecedores = [{ id: 4, nome: "Sigma-Aldrich Brasil Ltda" }];
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const result = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Estoque: [
+          ["Produto", "Marca", "Preço", "Fornecedor", "Mínimo", "Observação interna"],
+          ["Agarose", "Sigma", "450,00", "Sigma-Aldrich", 2, "pedir em março"],
+        ],
+      }),
+    );
+
+    expect(result.resumo?.map((r) => r.aba)).toEqual(["Insumos"]);
+    expect(rpc.mock.calls[0][1].p_dados_insumo).toMatchObject({
+      especificacao: "Agarose",
+      fabricante: "Sigma",
+      custo_total_embalagem: 450,
+      fornecedor_id: 4,
+      ponto_reposicao: 2,
+    });
+    expect(result.resumo?.[0].avisos.join("\n")).toContain("Colunas não reconhecidas, ignoradas: Observação interna.");
+    expect(revalidatePath).toHaveBeenCalledWith("/suprimentos");
+  });
+
   it("explica o que fazer com .xls antigo e com texto salvo como planilha", async () => {
     const { importarCadastrosWorkbook } = await import("./cadastros");
     const xls = new Uint8Array([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1, 0, 0, 0, 0]);
