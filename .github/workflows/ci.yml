@@ -134,6 +134,9 @@ jobs:
       - name: Validar custo de equipamento de parceiro (0161)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equipamento_parceiro_0161.sql
 
+      - name: Validar incidentes (0162)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/incidentes_0162.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

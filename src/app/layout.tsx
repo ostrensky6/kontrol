@@ -6,6 +6,7 @@ import { Sidebar } from "@/components/layout/Sidebar";
 import { AppFooter } from "@/components/layout/AppFooter";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { ContextHelp } from "@/components/layout/ContextHelp";
+import { AvisoIncidentes } from "@/components/incidentes/AvisoIncidentes";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { getCommandGroups, getSidebarGroups } from "@/config/navigation";
@@ -77,6 +78,7 @@ export default async function RootLayout({
             <div className="flex min-h-dvh flex-col md:flex-row">
               <Sidebar groups={sidebarGroups} perfil={perfil} userEmail={user.email ?? null} />
               <div className="flex min-w-0 flex-1 flex-col">
+                <AvisoIncidentes />
                 <div
                   id="conteudo-principal"
                   tabIndex={-1}

@@ -86,11 +86,12 @@ describe("APP_MODULES", () => {
     expect(hrefs).not.toContain("/estoque");
   });
 
-  it("governança aparece com a auditoria liberada; usuários e backups seguem só do admin", () => {
-    expect(getModulesForProfile(comPermissoes("laboratorio", [])).map((m) => m.id)).not.toContain("governanca");
+  it("governança: incidentes para todos, auditoria com a caixinha; usuários e backups só do admin", () => {
+    const laboratorio = getModulesForProfile(comPermissoes("laboratorio", []));
+    expect(laboratorio.find((m) => m.id === "governanca")?.children.map((c) => c.href)).toEqual(["/governanca/incidentes"]);
     const gestor = getModulesForProfile(comPermissoes("gestor", ["auditoria.visualizar"]));
     const governanca = gestor.find((m) => m.id === "governanca");
-    expect(governanca?.children.map((c) => c.href)).toEqual(["/auditoria"]);
+    expect(governanca?.children.map((c) => c.href)).toEqual(["/auditoria", "/governanca/incidentes"]);
     const admin = getModulesForProfile({ papel: "admin", permissoes: { admin: true, permissoes: {} } });
     expect(admin.find((m) => m.id === "governanca")?.children.map((c) => c.href)).toEqual(
       expect.arrayContaining(["/auditoria", "/usuarios", "/governanca/backups"]),

@@ -709,6 +709,35 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     termos: ["usuário", "função", "categoria", "papel", "perfil", "acesso", "assinatura", "senha"],
   },
   {
+    id: "incidentes",
+    titulo: "Incidentes",
+    grupo: "Governança",
+    href: "/governanca/incidentes",
+    resumo: "Registrar o que atrapalhou o trabalho, avisar quem foi afetado e dizer o que fazer.",
+    intro:
+      "Um incidente é algo que atrapalha o uso do app ou do laboratório: sistema fora do ar, dado errado, equipamento parado, falta de energia. Todos veem os incidentes; Coordenador, Gestor, Supervisor e Administrador registram e acompanham.",
+    secoes: [
+      {
+        titulo: "Como registrar",
+        itens: [
+          "Em Governança → Incidentes, preencha o que aconteceu, quem ou o que foi afetado e o que as pessoas devem fazer enquanto isso.",
+          "Escolha quem recebe o aviso: todas as pessoas, ou só uma função e as acima dela. O aviso chega no sino de Notificações.",
+          "Se a causa ainda não foi confirmada, deixe o campo em branco: a tela mostra 'Causa ainda desconhecida'. Não escreva palpite como causa.",
+        ],
+      },
+      {
+        titulo: "Acompanhamento",
+        itens: [
+          "Cada incidente tem a lista de passos: aberto, em andamento, resolvido (e reaberto, se voltar).",
+          "Cada passo avisa as mesmas pessoas e pode trazer a causa confirmada ou uma nova orientação.",
+          "Enquanto houver incidente em aberto, uma faixa vermelha no topo de todas as telas mostra o mais recente e o que fazer.",
+          "Tudo fica na Auditoria; nada é apagado.",
+        ],
+      },
+    ],
+    termos: ["incidente", "problema", "falha", "pane", "fora do ar", "aviso", "ocorrência"],
+  },
+  {
     id: "privilegios",
     titulo: "Privilégios",
     grupo: "Governança",

@@ -300,7 +300,7 @@ export const APP_MODULES: AppModule[] = [
     id: "governanca",
     label: "Governança",
     href: "/governanca",
-    desc: "auditoria, backups, erros, usuários e privilégios",
+    desc: "auditoria, incidentes, backups, erros, usuários e privilégios",
     icon: "ShieldCheck",
     accent: "slate",
     activePaths: ["/governanca", "/auditoria", "/usuarios"],
@@ -310,6 +310,12 @@ export const APP_MODULES: AppModule[] = [
         label: "Auditoria",
         desc: "trilha de alterações e eventos",
         icon: "History",
+      },
+      {
+        href: "/governanca/incidentes",
+        label: "Incidentes",
+        desc: "o que aconteceu, quem foi afetado e o que fazer",
+        icon: "Activity",
       },
       {
         href: "/governanca/backups",

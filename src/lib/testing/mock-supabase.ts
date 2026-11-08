@@ -2102,6 +2102,35 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         store.projetos_vinculos = args.p_vinculado ? [...resto, { projeto_id: projetoId, usuario_id: args.p_usuario_id }] : resto;
         return { data: { projeto_id: projetoId, usuario_id: args.p_usuario_id, vinculado: args.p_vinculado, alterado: true }, error: null };
       }
+      if (fn === "registrar_incidente") {
+        const agora = new Date().toISOString();
+        const id = nextId("incidentes");
+        const causa = String(args.p_causa ?? "").trim() || null;
+        store.incidentes = [...(store.incidentes ?? []), {
+          id, titulo: args.p_titulo, descricao: args.p_descricao, afetados: args.p_afetados, orientacao: args.p_orientacao,
+          causa, papel_destino: args.p_papel_destino ?? "laboratorio", situacao: "aberto",
+          registrado_por: MOCK_USER_ID, registrado_em: agora, atualizado_em: agora, resolvido_em: null,
+        }];
+        store.incidentes_atualizacoes = [...(store.incidentes_atualizacoes ?? []), {
+          id: nextId("incidentes_atualizacoes"), incidente_id: id, situacao: "aberto", nota: "Incidente registrado.", criado_em: agora,
+        }];
+        return { data: id, error: null };
+      }
+      if (fn === "atualizar_incidente") {
+        const inc = (store.incidentes ?? []).find((row) => Number(row.id) === Number(args.p_incidente_id));
+        if (!inc) return { data: null, error: { message: "Incidente não encontrado.", code: "P0002" } };
+        const agora = new Date().toISOString();
+        inc.situacao = args.p_situacao;
+        inc.causa = String(args.p_causa ?? "").trim() || inc.causa;
+        inc.orientacao = String(args.p_orientacao ?? "").trim() || inc.orientacao;
+        inc.atualizado_em = agora;
+        inc.resolvido_em = args.p_situacao === "resolvido" ? (inc.resolvido_em ?? agora) : null;
+        const id = nextId("incidentes_atualizacoes");
+        store.incidentes_atualizacoes = [...(store.incidentes_atualizacoes ?? []), {
+          id, incidente_id: inc.id, situacao: args.p_situacao, nota: args.p_nota, criado_em: agora,
+        }];
+        return { data: id, error: null };
+      }
       if (fn === "validar_alternativa_insumo") {
         const linha = (store.insumo_analise ?? []).find((row) => Number(row.id) === Number(args.p_insumo_analise_id));
         if (!linha || !linha.grupo_escolha) return { data: null, error: { message: "Linha de insumo não encontrada.", code: "P0002" } };
