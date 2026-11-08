@@ -17,6 +17,7 @@ const TEMAS = ["light", "dark"] as const;
 
 const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Home / dashboard", url: "/" },
+  { nome: "Ajuda", url: "/ajuda" },
   { nome: "Custeio", url: "/custeio" },
   { nome: "Análises/Lab.", url: "/orcamento/demandas" },
   { nome: "Orçamento (detalhe)", url: "/orcamento/1" },

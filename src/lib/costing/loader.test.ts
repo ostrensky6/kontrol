@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { montarEquipamentosAlocados } from "./loader";
+import { exigirFonte, montarEquipamentosAlocados } from "./loader";
 
 const loaderSource = readFileSync(new URL("./loader.ts", import.meta.url), "utf8");
 
@@ -41,5 +41,18 @@ describe("proveniência dimensional do loader", () => {
     expect(loaderSource).toContain("custo_unitario_estoque");
     expect(loaderSource).toContain("custo_unitario_consumo");
     expect(loaderSource).toMatch(/custoUnitarioEstoque\s*\/\s*fatorConversao/);
+  });
+});
+
+describe("exigirFonte", () => {
+  it("para o custeio quando uma fonte essencial falha, em vez de calcular sem ela", () => {
+    expect(() => exigirFonte("as etapas das análises", { data: null, error: { message: "timeout" } })).toThrow(
+      "Não foi possível ler as etapas das análises para o custeio: timeout",
+    );
+  });
+
+  it("lista vazia sem erro continua valendo", () => {
+    expect(exigirFonte("o overhead", { data: null, error: null })).toEqual([]);
+    expect(exigirFonte("o overhead", { data: [{ id: 1 }], error: null })).toEqual([{ id: 1 }]);
   });
 });

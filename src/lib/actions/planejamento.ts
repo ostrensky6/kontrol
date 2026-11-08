@@ -305,7 +305,7 @@ export async function reservarEquipamentoDoPlano(_prev: EstadoAcao, formData: Fo
   }
 
   const supabase = await createClientUntyped();
-  const [{ data: plano, error: planoError }, { data: itens }, { data: unidade, error: unidadeError }] = await Promise.all([
+  const [{ data: plano, error: planoError }, { data: itens, error: itensError }, { data: unidade, error: unidadeError }] = await Promise.all([
     supabase
       .from("planejamento")
       .select("status_operacional, data_inicio_prevista, data_fim_prevista")
@@ -322,6 +322,7 @@ export async function reservarEquipamentoDoPlano(_prev: EstadoAcao, formData: Fo
       .single(),
   ]);
   if (planoError) return falha(mensagemDoBanco(planoError));
+  if (itensError) return falha(mensagemDoBanco(itensError));
   if (unidadeError || !unidade) return falha(unidadeError ? mensagemDoBanco(unidadeError) : "Equipamento não encontrado.");
   if (["cancelado", "concluido"].includes(String(plano?.status_operacional ?? ""))) {
     return falha("Não é possível reservar equipamento para um plano encerrado.");

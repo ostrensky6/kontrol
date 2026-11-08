@@ -113,6 +113,21 @@ try {
     Add-Warning "VERCEL_TOKEN nao definido; validacao remota da Vercel foi pulada."
   }
 
+  # Rastreabilidade: o que o dominio oficial esta servindo agora (versao,
+  # commit e migration esperada). So leitura; nao falha se a rota ainda nao existir.
+  $NoAr = $null
+  try {
+    $NoAr = Invoke-RestMethod -Uri "$($Expected.ProductionUrl)/api/versao" -TimeoutSec 15
+  } catch {
+    Add-Warning "Nao consegui ler $($Expected.ProductionUrl)/api/versao (publicacao anterior a 1.5.9 ou fora do ar)."
+  }
+  if ($NoAr) {
+    $headLocal = (git rev-parse HEAD).Trim()
+    if ($NoAr.commit -and $NoAr.commit -ne $headLocal) {
+      Add-Warning "Producao serve o commit $($NoAr.commit) (versao $($NoAr.versao)); a pasta local esta em $headLocal."
+    }
+  }
+
   if ($Warnings.Count -gt 0) {
     Write-Host ""
     Write-Host "Avisos:" -ForegroundColor Yellow
@@ -134,6 +149,9 @@ try {
   Write-Host " - Vercel: $($Expected.VercelTeamName) [$($Expected.VercelScope)]/$($Expected.VercelProject) -> $($Expected.ProductionUrl)"
   Write-Host " - Supabase: $($Expected.SupabaseRef)"
   Write-Host " - Migrations: sem versoes duplicadas"
+  if ($NoAr) {
+    Write-Host " - No ar: versao $($NoAr.versao), commit $($NoAr.commit), migration esperada $($NoAr.migration_esperada) (confira com db:migration --situacao)"
+  }
 } finally {
   Pop-Location
 }

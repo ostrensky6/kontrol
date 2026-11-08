@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Search } from "lucide-react";
 
@@ -11,6 +11,11 @@ export function AjudaCentro() {
   const [selecionadoId, setSelecionadoId] = useState<string>(AJUDA_TOPICOS[0].id);
   // Em telas pequenas, alterna entre a lista e o conteúdo.
   const [mostrarDetalheMobile, setMostrarDetalheMobile] = useState(false);
+  // Para onde o foco vai depois de escolher um tópico ou voltar à lista.
+  const focoAlvo = useRef<"titulo" | "lista" | null>(null);
+  const [pedidoFoco, setPedidoFoco] = useState(0);
+  const tituloRef = useRef<HTMLHeadingElement>(null);
+  const listaRef = useRef<HTMLElement>(null);
 
   const filtrados = useMemo(
     () => AJUDA_TOPICOS.filter((topico) => topicoCasa(topico, busca)),
@@ -33,7 +38,26 @@ export function AjudaCentro() {
   function escolher(id: string) {
     setSelecionadoId(id);
     setMostrarDetalheMobile(true);
+    focoAlvo.current = "titulo";
+    setPedidoFoco((n) => n + 1);
   }
+
+  function voltarParaLista() {
+    setMostrarDetalheMobile(false);
+    focoAlvo.current = "lista";
+    setPedidoFoco((n) => n + 1);
+  }
+
+  // Leva o foco ao título do tópico aberto (quem usa leitor de tela ou teclado
+  // não fica perdido na lista) e, ao voltar, devolve ao tópico escolhido.
+  useEffect(() => {
+    const alvo = focoAlvo.current;
+    focoAlvo.current = null;
+    if (alvo === "titulo") tituloRef.current?.focus();
+    if (alvo === "lista") {
+      listaRef.current?.querySelector<HTMLButtonElement>('[aria-current="true"]')?.focus();
+    }
+  }, [pedidoFoco]);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[19rem_1fr]">
@@ -42,6 +66,9 @@ export function AjudaCentro() {
         <div className="relative">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/80" />
           <input
+            type="search"
+            aria-label="Buscar na ajuda"
+            aria-controls="ajuda-topicos"
             value={busca}
             onChange={(event) => setBusca(event.target.value)}
             placeholder="Buscar ajuda..."
@@ -49,7 +76,16 @@ export function AjudaCentro() {
           />
         </div>
 
-        <nav className="mt-4 max-h-[70vh] space-y-5 overflow-y-auto pr-1">
+        <p className="sr-only" aria-live="polite">
+          {busca ? `${filtrados.length} tópico(s) encontrado(s)` : ""}
+        </p>
+
+        <nav
+          id="ajuda-topicos"
+          ref={listaRef}
+          aria-label="Tópicos da ajuda"
+          className="mt-4 max-h-[70vh] space-y-5 overflow-y-auto pr-1"
+        >
           {porGrupo.length === 0 && (
             <p className="px-1 text-sm text-muted-foreground/80">Nada encontrado para “{busca}”.</p>
           )}
@@ -66,6 +102,7 @@ export function AjudaCentro() {
                       <button
                         type="button"
                         onClick={() => escolher(topico.id)}
+                        aria-current={ativo ? "true" : undefined}
                         className={`w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
                           ativo
                             ? "bg-brand-50 font-medium text-brand-800 dark:bg-brand-950/40 dark:text-brand-200"
@@ -89,7 +126,7 @@ export function AjudaCentro() {
           <article className="rounded-2xl border border-border bg-card p-5 shadow-sm md:p-6">
             <button
               type="button"
-              onClick={() => setMostrarDetalheMobile(false)}
+              onClick={voltarParaLista}
               className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline lg:hidden"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
@@ -98,10 +135,12 @@ export function AjudaCentro() {
 
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-500">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
                   {selecionado.grupo}
                 </p>
-                <h2 className="mt-1 text-xl font-semibold tracking-tight">{selecionado.titulo}</h2>
+                <h2 ref={tituloRef} tabIndex={-1} className="mt-1 text-xl font-semibold tracking-tight outline-none">
+                  {selecionado.titulo}
+                </h2>
                 <p className="mt-1 text-sm text-muted-foreground">{selecionado.resumo}</p>
               </div>
               {selecionado.href && (

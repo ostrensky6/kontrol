@@ -82,6 +82,17 @@ function idValido(valor: FormDataEntryValue | null): number | null {
   return Number.isInteger(id) && id > 0 ? id : null;
 }
 
+/** Custeio para as ações: fonte indisponível vira mensagem, não tela de erro. */
+async function custeioParaAcao(
+  fonteCustoInsumos: FonteCustoInsumos,
+): Promise<{ breakdowns: Awaited<ReturnType<typeof calcularTodas>>["breakdowns"] } | { erro: string }> {
+  try {
+    return { breakdowns: (await calcularTodas({}, fonteCustoInsumos)).breakdowns };
+  } catch (e) {
+    return { erro: e instanceof Error ? e.message : "Não foi possível calcular o custo agora." };
+  }
+}
+
 async function atualizarOperacionalLaboratorio(
   supabase: Supabase,
   id: number,
@@ -305,7 +316,9 @@ export async function salvarItemOrcamento(_estado: EstadoAcao, formData: FormDat
   }
 
   const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento.fonte_custo_insumos);
-  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+  const custeio = await custeioParaAcao(fonteCustoInsumos);
+  if ("erro" in custeio) return falha(custeio.erro);
+  const { breakdowns } = custeio;
   const breakdown = breakdowns.find((x) => x.codigo === codigo);
   if (!remover && !breakdown) {
     return falha(`Não foi possível calcular o custo da análise ${codigo}. Confira a receita dela em Análises.`);
@@ -363,13 +376,17 @@ export async function incluirAnalisesDaDemandaNoOrcamento(orcamentoId: number, d
   }
   if (quantidades.size === 0) return sucesso("Nenhuma análise escolhida no orçamento.");
 
-  const { data: orcamento } = await supabase
+  const { data: orcamento, error: orcamentoError } = await supabase
     .from("orcamentos")
     .select("fonte_custo_insumos")
     .eq("id", orcamentoId)
     .single();
+  // sem ler a fonte escolhida, o custo sairia pelo custo padrão sem aviso
+  if (orcamentoError) return falha(mensagemDoBanco(orcamentoError));
   const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento?.fonte_custo_insumos);
-  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+  const custeio = await custeioParaAcao(fonteCustoInsumos);
+  if ("erro" in custeio) return falha(custeio.erro);
+  const { breakdowns } = custeio;
 
   const gravados: ItemGravado[] = [];
   const semCusto: string[] = [];
@@ -446,7 +463,9 @@ export async function recalcularOrcamento(
     .select("id, codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot")
     .eq("orcamento_id", id);
   if (itensError) return { ok: false, message: mensagemDoBanco(itensError) };
-  const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
+  const custeio = await custeioParaAcao(fonteCustoInsumos);
+  if ("erro" in custeio) return { ok: false, message: custeio.erro };
+  const { breakdowns } = custeio;
   const semCusteio = (itens ?? []).find((it) => !breakdowns.some((x) => x.codigo === it.codigo_analise));
   if (semCusteio) {
     return {
