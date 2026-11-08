@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import {
   adicionarAnexoPedidoInterno,
@@ -419,6 +420,11 @@ export default async function PedidoInternoDetalhe({
     outra: "Outra",
   };
   const linhas = ((itens ?? []) as unknown as PedidoInternoItem[]) ?? [];
+  // Antes da compra, aponta outra marca do mesmo tipo técnico que já tem saldo (item 8).
+  const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras"].includes(String(pedido.status));
+  const { equivalentes } = antesDaCompra
+    ? await lerEquivalentesComSaldo(supabase, linhas.map((l) => l.insumo_id).filter((id): id is number => id != null))
+    : { equivalentes: new Map<number, never[]>() };
   const insumoRows = ((insumos ?? []) as unknown as InsumoPedidoRaw[]) ?? [];
   const historicoRows = ((historicoItens ?? []) as unknown as PedidoItemHistorico[]) ?? [];
   const { data: lotesLegado } = await supabase
@@ -636,6 +642,11 @@ export default async function PedidoInternoDetalhe({
                         {itemTipoLabel(item.tipo)}
                         {item.insumos?.especificacao ? ` · vinculado: ${item.insumos.especificacao}` : ""}
                       </p>
+                      {item.insumo_id != null && (equivalentes.get(item.insumo_id) ?? []).slice(0, 2).map((eq) => (
+                        <p key={eq.insumo_id} className="text-xs text-info-strong" data-testid="equivalente-com-saldo">
+                          Já há no estoque, mesmo tipo: {eq.especificacao}{eq.fabricante ? ` (${eq.fabricante})` : ""} · {fmt(eq.disponivel)} {eq.unidade ?? ""}
+                        </p>
+                      ))}
                     </td>
                     <td className="px-4 py-2.5 text-muted-foreground">
                       {[item.modelo, item.volume].filter(Boolean).join(" · ") || "—"}
