@@ -41,9 +41,9 @@ export type AlertaPainelDb = {
 export type Motivo = "em_falta" | "compra_atrasada" | "acaba_antes" | "abaixo_minimo" | "comprar" | "vencido" | "vencendo";
 
 export const META_MOTIVO: Record<Motivo, { rotulo: string; ordem: number; tom: "vermelho" | "ambar" | "azul" }> = {
-  em_falta: { rotulo: "Em falta", ordem: 0, tom: "vermelho" },
+  em_falta: { rotulo: "Zero no sistema", ordem: 0, tom: "vermelho" },
   compra_atrasada: { rotulo: "Compra atrasada", ordem: 1, tom: "vermelho" },
-  acaba_antes: { rotulo: "Acaba antes de a compra chegar", ordem: 2, tom: "vermelho" },
+  acaba_antes: { rotulo: "Risco de falta sem pedido aberto", ordem: 2, tom: "vermelho" },
   vencido: { rotulo: "Lote vencido", ordem: 3, tom: "vermelho" },
   abaixo_minimo: { rotulo: "Abaixo do mínimo", ordem: 4, tom: "ambar" },
   comprar: { rotulo: "Repor (sugestão de compra)", ordem: 5, tom: "ambar" },
@@ -52,10 +52,11 @@ export const META_MOTIVO: Record<Motivo, { rotulo: string; ordem: number; tom: "
 
 export type InsumoDecisao = InsumoPainel & {
   sugestaoCompra: number;
-  pedidoAberto: number;
+  /** null = a previsão não comprovou a quantidade em aberto. */
+  pedidoAberto: number | null;
   compraAtrasada: boolean;
   consumoDiario: number;
-  /** null = sem consumo na janela (não dá para estimar) */
+  /** null = sem dados suficientes para estimar. */
   coberturaDias: number | null;
   prazoDias: number;
   valorEstoque: number;
@@ -79,30 +80,34 @@ function numero(valor: Numerico): number {
 }
 
 function numeroOuNulo(valor: Numerico): number | null {
-  if (valor == null || valor === "") return null;
+  if (valor == null || (typeof valor === "string" && !valor.trim())) return null;
   const n = Number(valor);
   return Number.isFinite(n) ? n : null;
+}
+
+function zeroNoSistema(item: InsumoPainel): boolean {
+  return item.estadoSaldo === "saldo_sistema" && item.disponivel === 0;
 }
 
 export function motivosDoInsumo(item: Omit<InsumoDecisao, "motivos">): Motivo[] {
   const motivos: Motivo[] = [];
   // saldo não lido: não se inventa falta nem cobertura
-  const saldoConhecido = item.situacao !== "saldo_indisponivel";
+  const saldoConhecido = item.estadoSaldo === "saldo_sistema";
   if (saldoConhecido && item.situacao === "em_falta") motivos.push("em_falta");
   if (item.compraAtrasada) motivos.push("compra_atrasada");
   if (
     saldoConhecido &&
-    item.situacao !== "em_falta" &&
+    !zeroNoSistema(item) &&
     item.coberturaDias !== null &&
     item.prazoDias > 0 &&
     item.coberturaDias < item.prazoDias &&
-    item.pedidoAberto <= 0
+    item.pedidoAberto === 0
   ) {
     motivos.push("acaba_antes");
   }
   if (item.lotesVencidos > 0) motivos.push("vencido");
   if (saldoConhecido && item.situacao === "abaixo_minimo") motivos.push("abaixo_minimo");
-  if (item.sugestaoCompra > 0) motivos.push("comprar");
+  if (saldoConhecido && item.sugestaoCompra > 0) motivos.push("comprar");
   if (item.lotesVencendo > 0) motivos.push("vencendo");
   return motivos;
 }
@@ -113,6 +118,7 @@ export function montarDecisao(
   previsoes: readonly PrevisaoPainelDb[],
   custos: readonly CustoPainelDb[],
   alertas: readonly AlertaPainelDb[],
+  { previsoesCompletas = true }: { previsoesCompletas?: boolean } = {},
 ): { insumos: InsumoDecisao[]; lotes: LoteVencendo[] } {
   const previsaoPor = new Map(previsoes.map((p) => [numero(p.insumo_id), p]));
   const valorPor = new Map(custos.map((c) => [numero(c.insumo_id), numero(c.valor_liberado)]));
@@ -141,17 +147,19 @@ export function montarDecisao(
   lotes.sort((a, b) => a.validade.localeCompare(b.validade) || a.especificacao.localeCompare(b.especificacao, "pt-BR"));
 
   const insumos = itens.map((item) => {
-    const p = previsaoPor.get(item.id);
+    const leitura = previsaoPor.get(item.id);
+    const p = previsoesCompletas ? leitura : undefined;
     const conta = contagem.get(item.id) ?? { vencidos: 0, vencendo: 0 };
     const consumoDiario = numero(p?.consumo_medio_diario);
+    const pedidoAberto = numeroOuNulo(p?.qtd_pedida_aberta);
     const base = {
       ...item,
-      sugestaoCompra: numero(p?.qtd_sugerida_compra),
-      pedidoAberto: numero(p?.qtd_pedida_aberta),
-      compraAtrasada: numero(p?.qtd_compra_atrasada) > 0 || Boolean(p?.compra_atrasada_desde),
+      sugestaoCompra: item.estadoSaldo === "saldo_sistema" ? numero(p?.qtd_sugerida_compra) : 0,
+      pedidoAberto: pedidoAberto !== null && pedidoAberto >= 0 ? pedidoAberto : null,
+      compraAtrasada: numero(leitura?.qtd_compra_atrasada) > 0 || Boolean(leitura?.compra_atrasada_desde),
       consumoDiario,
       coberturaDias:
-        item.disponivel === null || !(consumoDiario > 0)
+        item.estadoSaldo !== "saldo_sistema" || item.disponivel === null || !(consumoDiario > 0)
           ? null
           : numeroOuNulo(p?.dias_cobertura) ?? item.disponivel / consumoDiario,
       prazoDias: numero(p?.lead_time_dias),
@@ -193,6 +201,7 @@ export type ResumoDecisao = {
   lotesVencidos: number;
   lotesVencendo: number;
   semMinimo: number;
+  naoConferido: number;
   saldoIndisponivel: number;
 };
 
@@ -201,17 +210,18 @@ export function resumirDecisao(itens: readonly InsumoDecisao[]): ResumoDecisao {
   return {
     insumos: itens.length,
     valorEstoque: itens.reduce((soma, item) => soma + item.valorEstoque, 0),
-    comprar: conta((i) => i.sugestaoCompra > 0),
+    comprar: conta((i) => i.motivos.includes("comprar")),
     critico: conta((i) => ehCritico(i.situacao)),
-    emFalta: conta((i) => i.situacao === "em_falta"),
+    emFalta: conta((i) => i.motivos.includes("em_falta")),
     abaixoMinimo: conta((i) => i.situacao === "abaixo_minimo"),
     acabaAntes: conta((i) => i.motivos.includes("acaba_antes")),
     compraAtrasada: conta((i) => i.compraAtrasada),
-    aCaminho: conta((i) => i.pedidoAberto > 0),
+    aCaminho: conta((i) => (i.pedidoAberto ?? 0) > 0),
     lotesVencidos: itens.reduce((soma, i) => soma + i.lotesVencidos, 0),
     lotesVencendo: itens.reduce((soma, i) => soma + i.lotesVencendo, 0),
     semMinimo: conta((i) => i.situacao === "sem_minimo"),
-    saldoIndisponivel: conta((i) => i.situacao === "saldo_indisponivel"),
+    naoConferido: conta((i) => i.estadoSaldo === "nao_conferido"),
+    saldoIndisponivel: conta((i) => i.estadoSaldo === "saldo_indisponivel"),
   };
 }
 
@@ -220,12 +230,12 @@ export type FaixaCobertura = { faixa: string; insumos: number; tom: "vermelho" |
 /** Quantos insumos duram quanto tempo, no consumo atual. */
 export function faixasCobertura(itens: readonly InsumoDecisao[]): FaixaCobertura[] {
   const faixas: FaixaCobertura[] = [
-    { faixa: "Zerado", insumos: 0, tom: "vermelho" },
+    { faixa: "Zero no sistema", insumos: 0, tom: "ambar" },
     { faixa: "< 15 dias", insumos: 0, tom: "vermelho" },
     { faixa: "15–30 dias", insumos: 0, tom: "ambar" },
     { faixa: "30–90 dias", insumos: 0, tom: "verde" },
     { faixa: "> 90 dias", insumos: 0, tom: "verde" },
-    { faixa: "Sem uso", insumos: 0, tom: "cinza" },
+    { faixa: "Sem estimativa", insumos: 0, tom: "cinza" },
   ];
   for (const item of itens) {
     if (item.disponivel === null) continue;
@@ -381,7 +391,7 @@ export function estoqueParado(
     else if (mov.tipo === "entrada" && String(mov.data ?? "").slice(0, 10) >= corte) entradaRecente.add(id);
   }
   return itens
-    .filter((i) => Math.max(i.emMaos ?? 0, i.disponivel ?? 0) > 0 && !comSaida.has(i.id) && !entradaRecente.has(i.id))
+    .filter((i) => i.estadoSaldo === "saldo_sistema" && Math.max(i.emMaos ?? 0, i.disponivel ?? 0) > 0 && !comSaida.has(i.id) && !entradaRecente.has(i.id))
     .sort((a, b) => b.valorEstoque - a.valorEstoque || a.especificacao.localeCompare(b.especificacao, "pt-BR"));
 }
 
@@ -395,12 +405,15 @@ export function montarAlertas({
   lotesVencendo,
   lotes,
   movimentos,
+  movimentosCompletos = false,
   hojeIso,
 }: {
   itens: readonly InsumoDecisao[];
   lotesVencendo: readonly LoteVencendo[];
   lotes: readonly LotePainelDb[];
   movimentos: readonly { insumo_id: Numerico; tipo: string | null; data: string | null }[];
+  /** true só quando toda a janela de movimentos foi lida com sucesso. */
+  movimentosCompletos?: boolean;
   hojeIso: string;
 }): Alerta[] {
   const ids = new Map(itens.map((i) => [i.id, i]));
@@ -408,16 +421,21 @@ export function montarAlertas({
   const nome = (insumoId: number) => ids.get(insumoId)?.especificacao ?? `Insumo ${insumoId}`;
   const fichaInsumo = (id: number) => `/cadastros/insumos?focus=${id}`;
   const fichaLote = (id: Numerico) => `/estoque/lotes/${numero(id)}`;
-  const saldo = (i: InsumoDecisao) => (i.disponivel === null ? "saldo indisponível" : `${formatar(i.disponivel)} ${i.unidade}`.trim());
+  const saldo = (i: InsumoDecisao) => i.disponivel !== null
+    ? `${formatar(i.disponivel)} ${i.unidade}`.trim()
+    : i.estadoSaldo === "nao_conferido" ? "Sem dado de saldo nesta leitura" : "saldo indisponível";
+  const pedido = (i: InsumoDecisao) => i.pedidoAberto === null
+    ? "previsão indisponível"
+    : i.pedidoAberto > 0 ? `${formatar(i.pedidoAberto)} a caminho` : "nada pedido";
   const porCobertura = (a: InsumoDecisao, b: InsumoDecisao) =>
     (a.coberturaDias ?? Number.POSITIVE_INFINITY) - (b.coberturaDias ?? Number.POSITIVE_INFINITY) ||
     a.especificacao.localeCompare(b.especificacao, "pt-BR");
 
-  const emFalta = itens.filter((i) => i.situacao === "em_falta").sort(porCobertura);
+  const emFalta = itens.filter((i) => i.motivos.includes("em_falta")).sort(porCobertura);
   const abaixo = itens.filter((i) => i.situacao === "abaixo_minimo").sort(porCobertura);
   const acaba = itens.filter((i) => i.motivos.includes("acaba_antes")).sort(porCobertura);
   const atrasadas = itens.filter((i) => i.compraAtrasada);
-  const repor = itens.filter((i) => i.sugestaoCompra > 0 && i.situacao !== "em_falta" && i.situacao !== "abaixo_minimo");
+  const repor = itens.filter((i) => i.motivos.includes("comprar") && !zeroNoSistema(i) && i.situacao !== "abaixo_minimo");
   const vencidos = lotesVencendo.filter((l) => l.vencido);
   const vencendo = lotesVencendo.filter((l) => !l.vencido);
   const foraDeOrdem = abertosForaDeOrdem(doRecorte, hojeIso);
@@ -430,40 +448,48 @@ export function montarAlertas({
   const quarentena = doRecorte.filter((l) => l.status === "quarentena" && numero(l.quantidade_atual) > 0);
   const bloqueados = doRecorte.filter((l) => l.status === "bloqueado" && numero(l.quantidade_atual) > 0);
   const semValidade = doRecorte.filter((l) => comSaldo(l) && l.status !== "quarentena" && !validadeDoLote(l));
-  const parados = estoqueParado(itens, movimentos, hojeIso);
+  const parados = movimentosCompletos ? estoqueParado(itens, movimentos, hojeIso) : [];
   const semMinimo = itens.filter((i) => i.situacao === "sem_minimo");
-  const indisponivel = itens.filter((i) => i.situacao === "saldo_indisponivel");
+  const indisponivel = itens.filter((i) => i.estadoSaldo === "saldo_indisponivel");
+  const naoConferidos = itens.filter((i) => i.estadoSaldo === "nao_conferido");
 
   const alertas: Alerta[] = [
     {
       chave: "saldo-indisponivel",
-      titulo: "Saldo não consultado",
+      titulo: "Saldo indisponível",
       descricao: "Não foi possível ler o saldo destes insumos; os outros alertas deles podem estar incompletos.",
       tom: "ambar",
       itens: indisponivel.map((i) => ({ chave: `i${i.id}`, titulo: i.especificacao, detalhe: "recarregue a página", href: fichaInsumo(i.id) })),
     },
     {
+      chave: "saldo-nao-conferido",
+      titulo: "Saldo não conferido",
+      descricao: "Sem dado de saldo nesta leitura. Confira antes de decidir.",
+      tom: "ambar",
+      itens: naoConferidos.map((i) => ({ chave: `i${i.id}`, titulo: i.especificacao, detalhe: saldo(i), href: fichaInsumo(i.id) })),
+    },
+    {
       chave: "em-falta",
-      titulo: "Em falta",
-      descricao: "Zerados, com mínimo definido. Comprar ou dar entrada.",
+      titulo: "Zero no sistema",
+      descricao: "O sistema registra zero disponível. Confira o estoque antes de decidir.",
       tom: "vermelho",
       itens: emFalta.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: `mínimo ${formatar(i.minimo)}${i.pedidoAberto > 0 ? ` · ${formatar(i.pedidoAberto)} a caminho` : " · nada pedido"}`,
+        detalhe: `mínimo ${formatar(i.minimo)} · ${pedido(i)}`,
         href: fichaInsumo(i.id),
       })),
-      acao: { rotulo: "Repor", href: "/suprimentos" },
+      acao: { rotulo: "Ver suprimentos", href: "/suprimentos" },
     },
     {
       chave: "acaba-antes",
-      titulo: "Acabam antes de a compra chegar",
-      descricao: "O estoque dura menos dias que o prazo de entrega e não há pedido aberto.",
+      titulo: "Risco de falta sem pedido aberto",
+      descricao: "A cobertura estimada é menor que o prazo de referência para compra.",
       tom: "vermelho",
       itens: acaba.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: `dura ~${Math.floor(i.coberturaDias ?? 0)} dia(s) · entrega em ${i.prazoDias} dia(s)`,
+        detalhe: `cobertura estimada: ${Math.floor(i.coberturaDias ?? 0)} dia(s) · prazo de referência: ${i.prazoDias} dia(s)`,
         href: fichaInsumo(i.id),
       })),
       acao: { rotulo: "Repor", href: "/suprimentos" },
@@ -488,7 +514,7 @@ export function montarAlertas({
       itens: atrasadas.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: `${formatar(i.pedidoAberto)} pedido(s) · disponível ${saldo(i)}`,
+        detalhe: `${pedido(i)} · disponível ${saldo(i)}`,
         href: fichaInsumo(i.id),
       })),
       acao: { rotulo: "Ver compras", href: "/compras" },
@@ -606,14 +632,19 @@ export function montarAlertas({
     {
       chave: "sem-minimo",
       titulo: "Sem mínimo definido",
-      descricao: "Sem ponto de reposição, a falta não vira alerta. Completar no cadastro.",
+      descricao: "Sem ponto de reposição para comparar o saldo. Completar no cadastro.",
       tom: "cinza",
-      itens: semMinimo.map((i) => ({ chave: `i${i.id}`, titulo: i.especificacao, detalhe: `disponível ${saldo(i)}`, href: fichaInsumo(i.id) })),
+      itens: semMinimo.map((i) => ({
+        chave: `i${i.id}`,
+        titulo: i.especificacao,
+        detalhe: zeroNoSistema(i) ? "Zero no sistema · confira antes de decidir" : `disponível ${saldo(i)}`,
+        href: fichaInsumo(i.id),
+      })),
     },
   ];
-  // o de saldo não consultado só aparece quando acontece
   return alertas
-    .filter((a) => a.chave !== "saldo-indisponivel" || a.itens.length > 0)
+    .filter((a) => a.chave !== "parado" || movimentosCompletos)
+    .filter((a) => !a.chave.startsWith("saldo-") || a.itens.length > 0)
     .map((a, ordem) => ({ a, ordem }))
     .sort((x, y) => {
       const vazioX = x.a.itens.length === 0 ? 1 : 0;

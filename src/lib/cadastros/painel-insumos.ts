@@ -6,16 +6,18 @@
  * - Quantidade = **disponível** de v_estoque_saldo (em mãos menos reservado,
  *   quarentena, bloqueado e vencido), na unidade de saldo do insumo.
  * - Estoque mínimo = **ponto de reposição** do cadastro do insumo.
- * - Nível crítico = disponível abaixo do mínimo (inclui o que está em falta).
+ * - Nível crítico = saldo disponível de sistema abaixo do mínimo, inclusive
+ *   zero. Isso não comprova falta física nem conferência de estoque.
  * - Sem mínimo = ponto de reposição zero ou vazio: não entra no crítico, mas
  *   aparece para o cadastro ser completado.
- * - Saldo indisponível = a leitura do saldo falhou e este insumo ficou sem
- *   linha: não é zero nem crítico, porque não se sabe quanto há.
+ * - Sem linha ou sem valor válido, a quantidade é desconhecida.
  */
 
 import { normalizarBusca } from "@/lib/busca";
 
 export type SituacaoPainel = "em_falta" | "abaixo_minimo" | "ok" | "sem_minimo" | "saldo_indisponivel";
+
+export type EstadoSaldoPainel = "nao_conferido" | "saldo_indisponivel" | "saldo_sistema";
 
 export const META_SITUACAO_PAINEL: Record<SituacaoPainel, { rotulo: string; ordem: number }> = {
   em_falta: { rotulo: "Em falta", ordem: 0 },
@@ -67,9 +69,10 @@ export type InsumoPainel = {
   fabricante: string;
   codigoFabricante: string;
   unidade: string;
-  /** null = saldo não consultado (falha de leitura); 0 = zero confirmado */
+  /** null = desconhecido. Qualquer número, inclusive 0, vem do sistema. */
   disponivel: number | null;
   emMaos: number | null;
+  estadoSaldo: EstadoSaldoPainel;
   minimo: number;
   situacao: SituacaoPainel;
 };
@@ -77,6 +80,12 @@ export type InsumoPainel = {
 function numero(valor: Numerico): number {
   const n = Number(valor ?? 0);
   return Number.isFinite(n) ? n : 0;
+}
+
+function numeroSaldo(valor: Numerico): number | null {
+  if (valor == null || (typeof valor === "string" && !valor.trim())) return null;
+  const n = Number(valor);
+  return Number.isFinite(n) && n >= 0 ? n : null;
 }
 
 function texto(valor: string | null | undefined): string {
@@ -95,10 +104,9 @@ export function ehCritico(situacao: SituacaoPainel): boolean {
 }
 
 /**
- * Junta cadastro e saldo. Com a leitura de saldo completa, insumo sem linha
- * conta como zero (não tem lote). Se a leitura falhou (`saldosCompletos`
- * falso), insumo sem linha fica com saldo indisponível: não vira zero nem
- * crítico.
+ * Junta cadastro e saldo de sistema. Uma página recebida continua utilizável
+ * se outra página falhar. Nem uma linha zerada nem a ausência de linha
+ * comprovam contagem física.
  */
 export function montarInsumosPainel(
   insumos: readonly InsumoPainelDb[],
@@ -111,8 +119,10 @@ export function montarInsumosPainel(
   return insumos
     .map((insumo) => {
       const saldo = saldoPorInsumo.get(Number(insumo.id));
-      const conhecido = saldo !== undefined || saldosCompletos;
-      const disponivel = conhecido ? numero(saldo?.disponivel) : null;
+      const disponivel = numeroSaldo(saldo?.disponivel);
+      const estadoSaldo: EstadoSaldoPainel = disponivel !== null
+        ? "saldo_sistema"
+        : !saldo && saldosCompletos ? "nao_conferido" : "saldo_indisponivel";
       const minimo = numero(insumo.ponto_reposicao);
       return {
         id: Number(insumo.id),
@@ -123,9 +133,14 @@ export function montarInsumosPainel(
         codigoFabricante: texto(insumo.codigo_fabricante),
         unidade: texto(saldo?.unidade_saldo) || texto(saldo?.unidade) || texto(insumo.unidade),
         disponivel,
-        emMaos: conhecido ? numero(saldo?.em_maos) : null,
+        emMaos: numeroSaldo(saldo?.em_maos),
+        estadoSaldo,
         minimo,
-        situacao: disponivel === null ? ("saldo_indisponivel" as const) : situacaoPainel(disponivel, minimo),
+        // Origem da leitura e situação operacional são independentes.
+        // Zero explícito é avaliado pelo mínimo, sem afirmar falta física.
+        situacao: disponivel === null
+          ? ("saldo_indisponivel" as const)
+          : situacaoPainel(disponivel, minimo),
       };
     })
     .sort(
@@ -254,7 +269,7 @@ export type ResumoPainel = {
   emFalta: number;
   abaixoMinimo: number;
   semMinimo: number;
-  /** saldo não consultado: fica fora de crítico, com estoque e saúde */
+  /** itens sem avaliação do mínimo por ausência, falha ou saldo inválido */
   saldoIndisponivel: number;
   /** % dos itens com mínimo definido que estão acima dele */
   saude: number | null;

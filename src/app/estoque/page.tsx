@@ -18,6 +18,7 @@ import {
   LotesTable,
   SaldoTable,
   type LoteRow,
+  type SaidasDiarias,
   type SaldoRow,
 } from "@/components/estoque/EstoqueTables";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
@@ -72,6 +73,30 @@ const ALERTA_META: Record<string, { label: string; cls: string }> = {
   compra_atrasada: { label: "Compra atrasada", cls: "bg-danger-soft text-danger-strong" },
 };
 
+function leituraSaidasDiarias(
+  prev: Tables<"v_previsao_suprimentos"> | undefined,
+  falha: "falha" | "parcial" | null,
+): SaidasDiarias {
+  if (falha === "falha") return { estado: falha, motivo: "Não foi possível ler a previsão." };
+  if (falha === "parcial") return { estado: falha, motivo: "A fonte retornou linhas com erro." };
+  if (!prev) return { estado: "indisponivel", motivo: "Sem linha nesta consulta." };
+
+  const taxa = prev.consumo_medio_diario;
+  if (taxa == null) return { estado: "indisponivel", motivo: "Taxa não informada." };
+  if (!Number.isFinite(taxa) || taxa < 0) return { estado: "indisponivel", motivo: "Taxa inválida." };
+  if (taxa === 0) return { estado: "indisponivel", motivo: "Zero da previsão não confirma ausência de saídas." };
+
+  const janelaDias = prev.janela_dias;
+  if (janelaDias == null || !Number.isSafeInteger(janelaDias) || janelaDias <= 0) {
+    return { estado: "indisponivel", motivo: "Janela nominal ausente ou inválida." };
+  }
+  const unidadeReferencia = typeof prev.unidade_saldo === "string" ? prev.unidade_saldo.trim() : "";
+  if (!unidadeReferencia || unidadeReferencia === "—" || unidadeReferencia === "-") {
+    return { estado: "indisponivel", motivo: "Unidade da previsão não informada." };
+  }
+  return { estado: "provisoria", taxa, janelaDias, unidadeReferencia };
+}
+
 export default async function EstoquePage({
   searchParams,
 }: {
@@ -87,7 +112,7 @@ export default async function EstoquePage({
     { data: saldo, error: saldoError },
     { data: alertas },
     { data: lotesRaw, error: lotesError },
-    { data: previsao },
+    { data: previsao, error: previsaoError },
     { data: custos },
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
@@ -145,6 +170,8 @@ export default async function EstoquePage({
   };
   const insumosAguardandoAprovacao = new Set(porTipo.reposicao_pendente.map((a) => Number(a.insumo_id)));
   const previsaoMap = new Map((previsao ?? []).map((p) => [p.insumo_id, p]));
+  // Só há sinal explícito de parcialidade quando a resposta traz linhas e erro.
+  const falhaPrevisao = previsaoError ? (previsaoMap.size > 0 ? "parcial" : "falha") : null;
   const custosDivergentes = ((custos ?? []) as CustoEstoque[])
     .filter((custo) => custo.situacao === "divergente" || custo.situacao === "sem_custo_padrao")
     .sort((a, b) => Math.abs(Number(b.divergencia_percentual ?? 0)) - Math.abs(Number(a.divergencia_percentual ?? 0)));
@@ -186,6 +213,7 @@ export default async function EstoquePage({
       reservado: Number(s.reservado ?? 0),
       disponivel,
       pontoReposicao,
+      saidasDiarias: leituraSaidasDiarias(prev, falhaPrevisao),
       consumoMedioDiario: Number(prev?.consumo_medio_diario ?? 0),
       diasCobertura: prev?.dias_cobertura == null ? null : Number(prev.dias_cobertura),
       pontoSugerido,
@@ -354,7 +382,6 @@ export default async function EstoquePage({
             rows={saldoRows}
             podeMovimentar={podeBaixar}
             entradaInicialInsumoId={entradaInicialInsumoId}
-            janelaDias={Number(previsao?.[0]?.janela_dias ?? 90)}
           />
         </div>
 

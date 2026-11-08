@@ -57,6 +57,8 @@ export function PainelInsumos({
   lotesVencendo,
   lotes,
   movimentos,
+  movimentosCompletos,
+  graficosIncompletos,
   hojeIso,
   erro,
 }: {
@@ -64,6 +66,8 @@ export function PainelInsumos({
   lotesVencendo: LoteVencendo[];
   lotes: LotePainelDb[];
   movimentos: MovimentoPainelDb[];
+  movimentosCompletos: boolean;
+  graficosIncompletos: { cobertura: boolean; categorias: boolean; valores: boolean; movimentos: boolean };
   hojeIso: string;
   erro?: string | null;
 }) {
@@ -100,21 +104,27 @@ export function PainelInsumos({
         lotesVencendo: lotesVencendo.filter((lote) => idsRecorte.has(lote.insumoId)),
         lotes,
         movimentos,
+        movimentosCompletos,
         hojeIso,
       }),
-    [recorte, lotesVencendo, idsRecorte, lotes, movimentos, hojeIso],
+    [recorte, lotesVencendo, idsRecorte, lotes, movimentos, movimentosCompletos, hojeIso],
   );
   const ativos = alertas.filter((alerta) => alerta.itens.length > 0);
-  const emOrdem = alertas.filter((alerta) => alerta.itens.length === 0);
+  const emOrdem = erro ? [] : alertas.filter((alerta) => alerta.itens.length === 0);
   const filtrosDeSelecao = Boolean(filtros.categoriaCompra || filtros.categoriaCurta);
   const campoCategoria = filtros.categoriaCurta ? "categoriaCompra" : "categoriaCurta";
-  const porCategoria = useMemo(() => resumoPorCategoria(recorte, campoCategoria, 8), [recorte, campoCategoria]);
+  const porCategoria = useMemo(
+    () => resumoPorCategoria(recorte.filter((item) => item.estadoSaldo === "saldo_sistema"), campoCategoria, 8),
+    [recorte, campoCategoria],
+  );
   const valores = useMemo(() => valorPorCategoria(recorte, campoCategoria), [recorte, campoCategoria]);
   const cobertura = useMemo(() => faixasCobertura(recorte), [recorte]);
   const movimentosMes = useMemo(
     // sempre só os insumos do painel (ativos), mesmo sem filtro
-    () => movimentosPorMes(movimentos, filtrosDeSelecao ? idsRecorte : new Set(insumos.map((item) => item.id)), hojeIso),
-    [movimentos, idsRecorte, insumos, filtrosDeSelecao, hojeIso],
+    () => graficosIncompletos.movimentos
+      ? []
+      : movimentosPorMes(movimentos, filtrosDeSelecao ? idsRecorte : new Set(insumos.map((item) => item.id)), hojeIso),
+    [movimentos, graficosIncompletos.movimentos, idsRecorte, insumos, filtrosDeSelecao, hojeIso],
   );
   const temMovimento = movimentosMes.some((mes) => mes.entradas + mes.saidas > 0);
   const temCobertura = cobertura.some((faixa) => faixa.insumos > 0);
@@ -138,6 +148,10 @@ export function PainelInsumos({
           {erro}
         </p>
       ) : null}
+
+      <p className="text-sm text-muted-foreground">
+        Saldo registrado no sistema · Conferência física não comprovada. O disponível pode ser zero mesmo com saldo em mãos.
+      </p>
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
         <label className="grid min-w-48 flex-1 gap-1 text-xs font-medium text-muted-foreground sm:flex-none">
@@ -173,7 +187,7 @@ export function PainelInsumos({
         ) : null}
         <dl className="ml-auto flex flex-wrap gap-x-6 gap-y-1 text-sm">
           <div>
-            <dt className="text-xs text-muted-foreground">Alertas ativos</dt>
+            <dt className="text-xs text-muted-foreground">{erro ? "Alertas identificados" : "Alertas ativos"}</dt>
             <dd className="font-semibold tabular-nums">
               {formatInteger(ativos.length)}
               {urgentes > 0 ? <span className="ml-1 text-xs font-medium text-danger-strong">({formatInteger(urgentes)} urgentes)</span> : null}
@@ -185,7 +199,9 @@ export function PainelInsumos({
           </div>
           <div>
             <dt className="text-xs text-muted-foreground">Valor em estoque</dt>
-            <dd className="font-semibold tabular-nums">{formatCompactCurrency(resumo.valorEstoque)}</dd>
+            <dd className="font-semibold tabular-nums">
+              {graficosIncompletos.valores ? "Indisponível" : formatCompactCurrency(resumo.valorEstoque)}
+            </dd>
           </div>
         </dl>
       </div>
@@ -198,7 +214,7 @@ export function PainelInsumos({
         </div>
       ) : (
         <p className="rounded-lg border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground shadow-sm">
-          Nenhum alerta neste recorte.
+          {erro ? "A leitura incompleta não permite concluir se há alertas neste recorte." : "Nenhum alerta neste recorte."}
         </p>
       )}
 
@@ -218,8 +234,10 @@ export function PainelInsumos({
       ) : null}
 
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
-        <Grafico titulo="Quanto tempo o estoque dura" subtitulo="Insumos por dias de cobertura no consumo médio atual.">
-          {montado && temCobertura ? (
+        <Grafico titulo="Cobertura estimada do estoque" subtitulo="Estimativa em dias com base no saldo disponível e no ritmo das saídas registradas.">
+          {graficosIncompletos.cobertura ? (
+            <SemDados texto="Cobertura indisponível nesta leitura." />
+          ) : montado && temCobertura ? (
             <ResponsiveContainer width="100%" height={208}>
               <BarChart data={cobertura} margin={{ right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -240,9 +258,11 @@ export function PainelInsumos({
 
         <Grafico
           titulo={filtros.categoriaCurta ? "Situação por categoria de compra" : "Situação por categoria curta"}
-          subtitulo="Insumos por situação; as categorias com mais itens críticos vêm primeiro."
+          subtitulo="Saldos conhecidos no sistema por situação. As categorias com mais itens críticos vêm primeiro."
         >
-          {montado && porCategoria.length > 0 ? (
+          {graficosIncompletos.categorias ? (
+            <SemDados texto="Situação por categoria indisponível nesta leitura." />
+          ) : montado && porCategoria.length > 0 ? (
             <ResponsiveContainer width="100%" height={208}>
               <BarChart data={porCategoria} layout="vertical" maxBarSize={22} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -250,18 +270,20 @@ export function PainelInsumos({
                 <YAxis type="category" dataKey="categoria" width={120} fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
                 <Legend wrapperStyle={{ fontSize: 12 }} />
-                <Bar dataKey="critico" name="Crítico" stackId="s" fill={COR.critico} />
+                <Bar dataKey="critico" name="Crítico no sistema" stackId="s" fill={COR.critico} />
                 <Bar dataKey="ok" name="Acima do mínimo" stackId="s" fill={COR.ok} />
                 <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           ) : (
-            <SemDados texto="Nenhum insumo no recorte" />
+            <SemDados texto="Nenhum saldo de sistema no recorte" />
           )}
         </Grafico>
 
         <Grafico titulo="Onde está o valor em estoque" subtitulo="Lotes liberados, pelo custo do lote; as categorias de maior valor.">
-          {montado && valores.length > 0 ? (
+          {graficosIncompletos.valores ? (
+            <SemDados texto="Valor por categoria indisponível nesta leitura." />
+          ) : montado && valores.length > 0 ? (
             <ResponsiveContainer width="100%" height={208}>
               <BarChart data={valores} layout="vertical" maxBarSize={22} margin={{ left: 8, right: 16 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
@@ -277,7 +299,9 @@ export function PainelInsumos({
         </Grafico>
 
         <Grafico titulo="Entradas e saídas por mês" subtitulo="Registros nos últimos 12 meses (cada insumo tem sua unidade, então conta registros).">
-          {montado && temMovimento ? (
+          {graficosIncompletos.movimentos ? (
+            <SemDados texto="Histórico indisponível. A leitura de movimentos ou insumos está incompleta." />
+          ) : montado && temMovimento ? (
             <ResponsiveContainer width="100%" height={208}>
               <BarChart data={movimentosMes} maxBarSize={16} margin={{ right: 8 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
@@ -330,7 +354,7 @@ function QuadroAlerta({ alerta }: { alerta: Alerta }) {
             <Link href={item.href} className="block truncate font-medium hover:text-primary hover:underline">
               {item.titulo}
             </Link>
-            <span className="block truncate text-xs text-muted-foreground" title={item.detalhe}>
+            <span className="block break-words text-xs text-muted-foreground">
               {item.detalhe}
             </span>
           </li>
@@ -365,5 +389,5 @@ function Grafico({ titulo, subtitulo, children }: { titulo: string; subtitulo: s
 }
 
 function SemDados({ texto }: { texto: string }) {
-  return <div className="flex h-full items-center justify-center rounded-md bg-muted/50 text-xs text-muted-foreground">{texto}</div>;
+  return <div className="flex h-full items-center justify-center rounded-md bg-muted/50 px-3 text-center text-xs text-muted-foreground">{texto}</div>;
 }

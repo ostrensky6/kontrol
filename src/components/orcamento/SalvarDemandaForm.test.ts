@@ -58,10 +58,20 @@ describe("SalvarDemandaForm", () => {
   });
 
   it("explicita processamento, bloqueia reenvio e permite retry apos retorno", () => {
-    expect(component).toContain("action={formAction}");
+    // Sem JS vale a action nativa; hidratado, o envio passa pelo caminho que preserva os campos.
+    expect(component).toContain("action={acaoNativa}");
+    expect(component).toContain("event.preventDefault()");
+    expect(component).toContain("if (pending) return;");
     expect(component).toContain("aria-busy={pending}");
     expect(component).toMatch(/<button[\s\S]*type="submit"[\s\S]*disabled=\{pending\}/);
     expect(component).toContain('{pending ? "Salvando…" : "Salvar orçamento"}');
     expect(component).not.toContain("redirect(");
+  });
+
+  it("preserva o rascunho sem conexao ou com resposta incerta", () => {
+    expect(component).toContain("navigator.onLine === false");
+    expect(component).toContain("Os dados continuam neste formulário");
+    expect(component).toContain("unstable_rethrow(error)");
+    expect(component).toContain("SALVAMENTO_NAO_CONFIRMADO");
   });
 });

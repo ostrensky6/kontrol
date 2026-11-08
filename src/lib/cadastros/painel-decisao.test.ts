@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { montarInsumosPainel } from "./painel-insumos";
-import { faixasCobertura, filaDeAcao, maisUsados, montarDecisao, resumirDecisao, valorPorCategoria } from "./painel-decisao";
+import { faixasCobertura, filaDeAcao, maisUsados, montarAlertas, montarDecisao, resumirDecisao, valorPorCategoria } from "./painel-decisao";
 
 const insumos = [
   { id: 1, especificacao: "Ladder", nome_item: "Ladder", categoria_compra: "Reagentes", ponto_reposicao: 2 },
@@ -57,11 +57,29 @@ describe("montarDecisao", () => {
     ]);
   });
 
-  it("saldo indisponível não inventa falta nem 'acaba antes'", () => {
+  it("saldo desconhecido não sugere compra ou ruptura; atraso e lote continuam visíveis", () => {
     const parcial = montarInsumosPainel(insumos, [], { saldosCompletos: false });
-    const { insumos: semSaldo } = montarDecisao(parcial, previsoes, [], []);
-    expect(semSaldo.find((i) => i.id === 2)!.motivos).toEqual(["comprar"]);
-    expect(semSaldo.find((i) => i.id === 1)!.motivos).toEqual(["comprar"]);
+    const { insumos: semSaldo } = montarDecisao(parcial, previsoes, [], alertas);
+    expect(semSaldo.find((i) => i.id === 2)).toMatchObject({ motivos: [], sugestaoCompra: 0, coberturaDias: null });
+    expect(semSaldo.find((i) => i.id === 1)!.motivos).toEqual([]);
+    expect(semSaldo.find((i) => i.id === 3)!.motivos).toEqual(["compra_atrasada", "vencido"]);
+  });
+
+  it("não trata previsão parcial ou quantidade em aberto ausente como zero", () => {
+    const base = montarInsumosPainel(insumos, saldos);
+    const parcial = montarDecisao(base, previsoes, [], alertas, { previsoesCompletas: false });
+    expect(parcial.insumos.find((i) => i.id === 2)).toMatchObject({ pedidoAberto: null, coberturaDias: null, motivos: [] });
+    expect(parcial.insumos.find((i) => i.id === 3)!.motivos).toEqual(["compra_atrasada", "vencido"]);
+    for (const invalida of [" ", "inválida", -1]) {
+      const incompleta = montarDecisao(base, [
+        { ...previsoes[0], qtd_pedida_aberta: invalida },
+        { ...previsoes[1], qtd_pedida_aberta: invalida },
+      ], [], []);
+      expect(incompleta.insumos.find((i) => i.id === 2)).toMatchObject({ pedidoAberto: null, motivos: ["comprar"] });
+      const alertas = montarAlertas({ itens: incompleta.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: "2026-11-06" });
+      expect(alertas.find((a) => a.chave === "em-falta")?.itens[0].detalhe).toBe("mínimo 2 · previsão indisponível");
+      expect(faixasCobertura(incompleta.insumos).at(-1)?.faixa).toBe("Sem estimativa");
+    }
   });
 });
 
@@ -139,8 +157,30 @@ describe("painel de alertas", () => {
     expect(estoqueParado(itens, movs, hoje).map((i) => i.id)).toEqual([4]);
   });
 
-  it("cada alerta lista os itens que o disparam; os vazios vão para o fim", async () => {
-    const { montarAlertas } = await import("./painel-decisao");
+  it("só avalia estoque parado com janela de movimentos completa", () => {
+    const entrada = { itens, lotesVencendo: lotes, lotes: lotesDb, movimentos: [], hojeIso: hoje };
+    expect(montarAlertas(entrada).find((a) => a.chave === "parado")).toBeUndefined();
+    expect(montarAlertas({ ...entrada, movimentosCompletos: true }).find((a) => a.chave === "parado")?.itens).toHaveLength(3);
+  });
+
+  it("distingue ausência de saldo, falha de leitura e zero explícito com ou sem mínimo", () => {
+    const base = montarInsumosPainel(insumos, [saldos[0], { insumo_id: 3, disponivel: null }, { insumo_id: 4, disponivel: 0 }]);
+    const decisao = montarDecisao(base, [], [], []);
+    const alertas = montarAlertas({ itens: decisao.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    const por = Object.fromEntries(alertas.map((a) => [a.chave, a]));
+    expect(por["saldo-nao-conferido"].itens.map((i) => i.chave)).toEqual(["i2"]);
+    expect(por["saldo-nao-conferido"].itens[0].detalhe).toBe("Sem dado de saldo nesta leitura");
+    expect(por["saldo-indisponivel"].itens.map((i) => i.chave)).toEqual(["i3"]);
+    expect(por["em-falta"].titulo).toBe("Zero no sistema");
+    expect(por["em-falta"].descricao).toContain("Confira o estoque");
+    expect(por["em-falta"].itens.map((i) => i.detalhe)).toEqual(["mínimo 2 · previsão indisponível"]);
+    expect(por["sem-minimo"]).toMatchObject({ tom: "cinza", itens: [{ detalhe: "Zero no sistema · confira antes de decidir", href: "/cadastros/insumos?focus=4" }] });
+    expect(decisao.insumos.find((i) => i.id === 4)?.motivos).not.toContain("em_falta");
+    expect(faixasCobertura(decisao.insumos)[0]).toEqual({ faixa: "Zero no sistema", insumos: 2, tom: "ambar" });
+    expect(resumirDecisao(decisao.insumos)).toMatchObject({ emFalta: 1, critico: 1, naoConferido: 1, saldoIndisponivel: 1 });
+  });
+
+  it("cada alerta lista os itens que o disparam; os vazios vão para o fim", () => {
     const alertas = montarAlertas({ itens, lotesVencendo: lotes, lotes: lotesDb, movimentos: [], hojeIso: hoje });
     const por = Object.fromEntries(alertas.map((a) => [a.chave, a.itens.map((i) => i.titulo)]));
     expect(por["em-falta"]).toEqual(["Ladder"]);

@@ -88,14 +88,20 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
   const erros = [insumos, saldos, movimentos, previsoes, custos, alertas, lotes]
     .map((leitura) => leitura.error?.message)
     .filter(Boolean);
-  // saldo que não deu para ler fica "indisponível", nunca zero/crítico
   const base = montarInsumosPainel(insumos.data, saldos.data, { saldosCompletos: !saldos.error });
-  const decisao = montarDecisao(base, previsoes.data, custos.data, alertas.data);
+  const decisao = montarDecisao(base, previsoes.data, custos.data, alertas.data, { previsoesCompletas: !previsoes.error });
   return {
     insumos: decisao.insumos,
     lotesVencendo: decisao.lotes,
     lotes: lotes.data,
     movimentos: movimentos.data,
+    movimentosCompletos: !movimentos.error,
+    graficosIncompletos: {
+      cobertura: Boolean(insumos.error || saldos.error || previsoes.error),
+      categorias: Boolean(insumos.error || saldos.error),
+      valores: Boolean(insumos.error || custos.error),
+      movimentos: Boolean(insumos.error || movimentos.error),
+    },
     erro: erros.length ? `Parte do painel não carregou: ${erros.join("; ")}` : null,
   };
 }
@@ -123,18 +129,22 @@ export default async function CadastrosIndex() {
             <h1 className="text-xl font-semibold tracking-tight">Painel de insumos</h1>
             <HelpTip title="Painel de insumos">
               <p>
-                Painel de alertas: cada quadro mostra quais insumos ou lotes pedem atenção e por quê (falta, compra,
+                Painel de alertas: cada quadro mostra quais insumos ou lotes pedem atenção e por quê (saldo, compra,
                 validade, ordem de abertura, lotes parados). A lista completa dos insumos fica em{" "}
                 <b>Consultar insumos</b>.
               </p>
               <p>
-                <b>Disponível</b> é o saldo em mãos menos o reservado, em quarentena, bloqueado e vencido (o mesmo do
-                Estoque). <b>Mínimo</b> é o ponto de reposição do cadastro; <b>crítico</b> = disponível abaixo dele.
+                <b>Disponível no sistema</b> vem da mesma leitura do Estoque (<code>v_estoque_saldo</code>) e pode ser
+                zero mesmo com saldo em mãos. A conferência física não foi comprovada por essa leitura.
               </p>
               <p>
-                <b>Repor</b> é a sugestão de compra do Estoque: considera consumo, prazo do fornecedor e o que já está
-                pedido, por isso pode diferir do crítico. <b>Acaba antes de chegar</b> = o estoque dura menos dias que o
-                prazo de entrega e não há pedido aberto.
+                <b>Crítico no sistema</b> é o disponível abaixo do mínimo cadastrado, inclusive zero. Zero sem mínimo
+                aparece em <b>Sem mínimo definido</b>. Sem registro de saldo, o painel indica ausência de dado; falha
+                de leitura ou valor inválido aparece como <b>Saldo indisponível</b>.
+              </p>
+              <p>
+                <b>Repor</b> é uma sugestão para análise, sem compra automática. Considera consumo, prazo cadastrado
+                e o que já está pedido. O prazo cadastrado é uma referência, não uma data garantida de chegada.
               </p>
               <p>
                 <b>Aberto fora da ordem</b>: abriram um lote enquanto outro, fechado e dentro da validade, vence antes (o
@@ -163,7 +173,16 @@ export default async function CadastrosIndex() {
 
         <ResultadoImportacaoCadastros />
 
-        <PainelInsumos insumos={painel.insumos} lotesVencendo={painel.lotesVencendo} lotes={painel.lotes} movimentos={painel.movimentos} hojeIso={hoje} erro={painel.erro} />
+        <PainelInsumos
+          insumos={painel.insumos}
+          lotesVencendo={painel.lotesVencendo}
+          lotes={painel.lotes}
+          movimentos={painel.movimentos}
+          movimentosCompletos={painel.movimentosCompletos}
+          graficosIncompletos={painel.graficosIncompletos}
+          hojeIso={hoje}
+          erro={painel.erro}
+        />
 
         <section id="todos-os-cadastros" aria-labelledby="todos-os-cadastros-titulo" className="mt-10 scroll-mt-20 border-t border-border pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
