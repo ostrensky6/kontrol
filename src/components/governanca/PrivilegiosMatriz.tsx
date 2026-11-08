@@ -60,6 +60,10 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
         </div>
       </div>
 
+      <p id="privilegios-admin-nota" className="mt-2 text-xs text-muted-foreground">
+        A coluna Administrador fica travada: o administrador sempre tem todos os privilégios.
+      </p>
+
       {/* sem isto, desmarcar tudo de uma função voltaria aos padrões do código */}
       <input type="hidden" name="permissoes_presentes" value="1" />
 
@@ -109,6 +113,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                           disabled={admin}
                           aria-label={`${papel.label}: ${permissao.label}`}
                           title={admin ? "O administrador sempre tem tudo." : undefined}
+                          aria-describedby={admin ? "privilegios-admin-nota" : undefined}
                           className="h-5 w-5 cursor-pointer accent-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                       </td>

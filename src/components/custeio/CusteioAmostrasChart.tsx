@@ -16,6 +16,7 @@ import type { SimuladorAnalise } from "@/lib/costing/loader";
 import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/formatters";
 import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
+import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
 
 const COLORS = ["#01489d", "#008e9c", "#008a00", "#d97706", "#7c3aed", "#dc2626"];
 const DEFAULT_MAX_AMOSTRAS = 192;
@@ -234,6 +235,18 @@ export function CusteioAmostrasChart({
               </div>
             )}
           </div>
+          <TabelaDoGrafico
+            titulo={metric === "unitario" ? "Custo por amostra, por análise" : "Custo total, por análise"}
+            colunas={[
+              { rotulo: "Amostras", valor: (l: ChartRow) => formatNumber(Number(l.amostras)) },
+              ...analisesSelecionadas.map((analise) => ({
+                rotulo: analise.codigo,
+                valor: (l: ChartRow) => formatCurrency(Number(l[analise.codigo] ?? 0)),
+              })),
+            ]}
+            linhas={amostrarPontos(data)}
+            chave={(l) => String(l.amostras)}
+          />
 
           <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {resumo.map((item, index) => (
