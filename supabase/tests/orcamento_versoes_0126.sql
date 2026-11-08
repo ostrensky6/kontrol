@@ -236,6 +236,15 @@ declare
   v_v2 bigint := current_setting('ts0126.v2')::bigint;
   v_plano public.planejamento%rowtype;
 begin
+  -- 0165: aprovar não cria o plano sozinho; avisa o Coordenador para confirmar.
+  if exists (select 1 from public.planejamento where orcamento_final_versao_id = v_v2) then
+    raise exception '0165: aprovacao pelo link criou o plano sem confirmacao';
+  end if;
+  if not exists (select 1 from public.notificacoes where dedupe_key = 'plano_confirmar_' || v_v2
+                  and tipo = 'aprovacao_pendente' and entidade_tipo = 'proposta_final') then
+    raise exception '0165: coordenador nao recebeu o aviso para criar o planejamento';
+  end if;
+  perform kontrol_private.criar_plano_da_versao(v_v2, null);
   select * into v_plano from public.planejamento where orcamento_final_versao_id = v_v2;
   if not found or v_plano.status_operacional <> 'rascunho' then
     raise exception '0126: aprovacao pelo link nao gerou o plano em rascunho';
@@ -318,6 +327,8 @@ begin
   perform set_config('ts0126.v3', v_v3->>'id', true);
 end $$;
 reset role;
+-- 0165: o plano da v3 nasce do clique em "Gerar planejamento".
+select kontrol_private.criar_plano_da_versao(current_setting('ts0126.v3')::bigint, null);
 
 do $$
 declare

@@ -457,7 +457,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Inclua as análises e as quantidades desejadas na proposta.",
           "Revise os parâmetros econômicos (margens, impostos) antes de emitir.",
-          "Emita a proposta e, ao aprovar, gere o planejamento correspondente.",
+          "Emita a proposta. Depois da aprovação, o Coordenador recebe um aviso e cria o planejamento pelo botão 'Gerar planejamento desta proposta'; nada é criado sozinho.",
         ],
       },
       {
@@ -815,6 +815,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "'Ver salário dos técnicos': mostra salário e custo-hora dos técnicos. Padrão: somente administrador.",
           "'Editar análises': criar, duplicar, inativar e alterar análises. Padrão: coordenador ou acima.",
+          "'Acessar Compras' e 'Acessar Recebimento': além da tela, liberam ver preços, fornecedores e valores pagos das compras. Sem nenhuma caixinha de compras (padrão da função Cadastro), a pessoa não vê compras nem pela tela nem pelo sistema.",
+          "'Editar insumos' e 'Corrigir estoque' também permitem excluir insumos e lotes. Deixe marcadas só para quem pode apagar.",
         ],
       },
     ],

@@ -68,9 +68,14 @@ declare
   v_plano public.planejamento%rowtype;
   v_analises text[] := string_to_array(current_setting('ts0122.analises'), ',');
 begin
+  -- 0165: aprovar não cria o plano; o Coordenador confirma pelo botão.
+  if exists (select 1 from public.planejamento where orcamento_final_versao_id = v_versao) then
+    raise exception '0165: aprovar criou o planejamento sem confirmacao';
+  end if;
+  perform kontrol_private.criar_plano_da_versao(v_versao, null);
   select * into v_plano from public.planejamento where orcamento_final_versao_id = v_versao;
   if not found then
-    raise exception '0122: aprovar a proposta nao gerou o planejamento';
+    raise exception '0122: gerar o planejamento da proposta aprovada falhou';
   end if;
   if v_plano.status_operacional <> 'rascunho' or v_plano.origem_planejamento <> 'orcamento' then
     raise exception '0122: plano deveria nascer em rascunho com origem orcamento (obtido % %)',
