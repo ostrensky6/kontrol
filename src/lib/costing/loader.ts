@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import type { Tables } from "@/lib/supabase/database.types";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 import {
   calcularAnalise,
   calcularAnaliseOrcamento,
@@ -137,6 +139,54 @@ export function montarEquipamentosAlocados(
     .filter((ea) => Number.isFinite(ea.peso) && ea.peso > 0);
 }
 
+type Leitura<T> = { data: T | null; error: { message: string } | null };
+
+/**
+ * Fonte essencial do custeio: se a consulta falhar, o cálculo para com
+ * mensagem clara. Antes um erro virava lista vazia e o custo saía sem a
+ * etapa, o equipamento ou o insumo, com cara de resultado normal.
+ */
+export function exigirFonte<T>(nome: string, leitura: Leitura<T[]>): T[] {
+  if (leitura.error) {
+    throw new Error(`Não foi possível ler ${nome} para o custeio: ${leitura.error.message}`);
+  }
+  return leitura.data ?? [];
+}
+
+const SELECT_INSUMO_ANALISE =
+  "id, codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)";
+const SELECT_CUSTO_ESTOQUE =
+  "insumo_id, custo_padrao, custo_medio_ponderado, unidade_estoque, unidade_consumo, fator_conversao, custo_origem, custo_normalizado, fonte_custo, referencia_custo";
+
+/** Tabelas que podem passar de mil linhas são lidas por páginas (ler-tudo). */
+async function lerFontesCusteio(supabase: Awaited<ReturnType<typeof createClient>>, somenteOfertaveis: boolean) {
+  const consultaAnalises = somenteOfertaveis
+    ? supabase.from("analises").select("codigo").eq("ativo", true).eq("ofertavel", true)
+    : supabase.from("analises").select("codigo");
+  const [analises, etapas, equipamentos, equipAnalise, insumoAnalise, custosEstoque] = await Promise.all([
+    lerTudo<{ codigo: string }>((de, ate) => consultaAnalises.order("codigo").range(de, ate)),
+    lerTudo<Tables<"etapas">>((de, ate) => supabase.from("etapas").select("*").order("id").range(de, ate)),
+    lerTudo<Tables<"equipamentos">>((de, ate) => supabase.from("equipamentos").select("*").order("id").range(de, ate)),
+    lerTudo<EquipamentoAnaliseRow>((de, ate) =>
+      supabase.from("equipamento_analise").select("*").order("id").range(de, ate),
+    ),
+    lerTudo<InsumoAnaliseRow>((de, ate) =>
+      supabase.from("insumo_analise").select(SELECT_INSUMO_ANALISE).order("id").range(de, ate),
+    ),
+    lerTudo<CustoEstoqueRow>((de, ate) =>
+      supabase.from("v_custo_estoque_vigente").select(SELECT_CUSTO_ESTOQUE).order("insumo_id").range(de, ate),
+    ),
+  ]);
+  return {
+    analises: exigirFonte("as análises", analises),
+    etapas: exigirFonte("as etapas das análises", etapas),
+    equipamentos: exigirFonte("os equipamentos", equipamentos),
+    equipAnalise: exigirFonte("os equipamentos das análises", equipAnalise),
+    insumoAnalise: exigirFonte("os insumos das análises", insumoAnalise),
+    custosEstoque: exigirFonte("o custo vigente dos insumos", custosEstoque),
+  };
+}
+
 /** Carrega tudo do banco e calcula o breakdown de todas as análises. */
 export async function calcularTodas(
   cenarioPorAnalise: Record<string, Cenario> = {},
@@ -145,35 +195,20 @@ export async function calcularTodas(
   const supabase = await createClient();
 
   const [
-    { data: analises },
-    { data: etapas },
-    { data: equipamentos },
-    { data: equipAnalise },
+    { analises, etapas, equipamentos, equipAnalise, insumoAnalise, custosEstoque },
     { data: valorHoraPessoalTotal, error: valorHoraPessoalError },
-    { data: overhead },
-    { data: insumoAnalise },
-    { data: parametros },
-    { data: custosEstoque },
+    overheadLeitura,
+    parametrosLeitura,
   ] = await Promise.all([
-    supabase.from("analises").select("codigo").order("codigo"),
-    supabase.from("etapas").select("*"),
-    supabase.from("equipamentos").select("*"),
-    supabase.from("equipamento_analise").select("*"),
+    lerFontesCusteio(supabase, false),
     // Salários individuais não são lidos aqui (migration 0112): só o agregado.
     supabase.rpc("valor_hora_pessoal_total"),
     supabase.from("overhead").select("*"),
-    supabase
-      .from("insumo_analise")
-      .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
-      ),
     supabase.from("parametros").select("chave, valor"),
-    supabase
-      .from("v_custo_estoque_vigente")
-      .select(
-        "insumo_id, custo_padrao, custo_medio_ponderado, unidade_estoque, unidade_consumo, fator_conversao, custo_origem, custo_normalizado, fonte_custo, referencia_custo",
-      ),
   ]);
+  const overhead = exigirFonte("o overhead", overheadLeitura);
+  // sem os parâmetros, margem, impostos e fundos virariam zero
+  const parametros = exigirFonte("os parâmetros de custeio", parametrosLeitura);
 
   const custoPorInsumo = new Map(
     ((custosEstoque ?? []) as CustoEstoqueRow[]).map(
@@ -263,29 +298,10 @@ export async function carregarSimuladorCusteio(
   custoHoraOverhead: number;
 }> {
   const supabase = await createClient();
-  const [
-    { data: analises },
-    { data: etapas },
-    { data: equipamentos },
-    { data: equipAnalise },
-    { data: insumoAnalise },
-    { data: custosEstoque },
-  ] = await Promise.all([
-    supabase.from("analises").select("codigo").eq("ativo", true).eq("ofertavel", true).order("codigo"),
-    supabase.from("etapas").select("*"),
-    supabase.from("equipamentos").select("*"),
-    supabase.from("equipamento_analise").select("*"),
-    supabase
-      .from("insumo_analise")
-      .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
-      ),
-    supabase
-      .from("v_custo_estoque_vigente")
-      .select(
-        "insumo_id, custo_padrao, custo_medio_ponderado, unidade_estoque, unidade_consumo, fator_conversao, custo_origem, custo_normalizado, fonte_custo, referencia_custo",
-      ),
-  ]);
+  const { analises, etapas, equipamentos, equipAnalise, insumoAnalise, custosEstoque } = await lerFontesCusteio(
+    supabase,
+    true,
+  );
   const codigosAtivos = new Set((analises ?? []).map((analise) => analise.codigo));
   const { breakdowns, params, valorHoraPessoal, custoHoraOverhead } = await calcularTodas({}, fonteCustoInsumos);
   const custoPorInsumo = new Map(

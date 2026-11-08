@@ -119,3 +119,24 @@ describe("demanda liquida do planejamento", () => {
     expect(demanda).toMatchObject({ demanda: 250, disponivel: 200, falta: 0 });
   });
 });
+
+/** Cliente falso: toda consulta à tabela `falha` devolve erro; as outras, lista vazia. */
+function clienteComFalha(falha: string) {
+  const resposta = (tabela: string) =>
+    tabela === falha ? { data: null, error: { message: `sem acesso a ${tabela}` } } : { data: [], error: null };
+  const consulta = (tabela: string) => {
+    const q: Record<string, unknown> = {};
+    for (const m of ["select", "eq", "in", "order"]) q[m] = () => q;
+    q.then = (ok: (v: unknown) => unknown) => Promise.resolve(resposta(tabela)).then(ok);
+    return q;
+  };
+  return { from: consulta } as unknown as Parameters<typeof computarDemandaPlano>[0];
+}
+
+describe("demanda do planejamento com fonte indisponível", () => {
+  it("não trata erro de leitura das análises do plano como plano vazio", async () => {
+    await expect(computarDemandaPlano(clienteComFalha("planejamento_itens"), 7)).rejects.toThrow(
+      /análises do plano/,
+    );
+  });
+});

@@ -43,15 +43,17 @@ export async function computarDemandaPlano(
   supabase: SupabaseClient,
   planId: number,
 ): Promise<DemandaLinha[]> {
-  const { data: itens } = await supabase
+  const { data: itens, error: itensError } = await supabase
     .from("planejamento_itens")
     .select("codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual")
     .eq("planejamento_id", planId);
+  // fonte essencial: um erro aqui não pode virar "plano sem demanda"
+  if (itensError) throw new Error(`Não foi possível ler as análises do plano: ${itensError.message}`);
 
   if (!itens || itens.length === 0) return [];
 
   const codigos = [...new Set(itens.map((i) => i.codigo_analise as string))];
-  const [{ data: etapas }, { data: ia }] = await Promise.all([
+  const [{ data: etapas, error: etapasError }, { data: ia, error: iaError }] = await Promise.all([
     supabase.from("etapas").select("*").in("codigo_analise", codigos),
     supabase
       .from("insumo_analise")
@@ -60,6 +62,10 @@ export async function computarDemandaPlano(
       )
       .in("codigo_analise", codigos),
   ]);
+
+  if (etapasError ?? iaError) {
+    throw new Error(`Não foi possível ler etapas e insumos das análises: ${(etapasError ?? iaError)!.message}`);
+  }
 
   // agrega demanda por insumo_id
   const agg = new Map<number, { especificacao: string; demanda: number }>();
@@ -117,7 +123,7 @@ export async function computarDemandaPlano(
   const ids = [...agg.keys()];
   if (ids.length === 0) return [];
 
-  const [{ data: saldo, error: saldoError }, { data: saldoUnidade, error: saldoUnidadeError }, { data: insumos }, { data: reservasPlano, error: reservasError }] =
+  const [{ data: saldo, error: saldoError }, { data: saldoUnidade, error: saldoUnidadeError }, { data: insumos, error: insumosError }, { data: reservasPlano, error: reservasError }] =
     await Promise.all([
       supabase.from("v_estoque_saldo").select("insumo_id, unidade, disponivel").in("insumo_id", ids),
       supabase
@@ -136,7 +142,8 @@ export async function computarDemandaPlano(
         .in("insumo_id", ids),
     ]);
   // saldo ou reserva não lidos não podem virar zero: o plano mostraria falta que não existe
-  const erroLeitura = saldoError ?? saldoUnidadeError ?? reservasError;
+  // sem o cadastro do insumo a conversão de unidade cairia em 1 sem aviso
+  const erroLeitura = saldoError ?? saldoUnidadeError ?? reservasError ?? insumosError;
   if (erroLeitura) throw new Error(`Não foi possível ler saldo e reservas do estoque: ${erroLeitura.message}`);
   const sMap = new Map(
     (saldo ?? []).map((s) => [s.insumo_id as number, s as { unidade: string | null; disponivel: number }]),
@@ -151,10 +158,12 @@ export async function computarDemandaPlano(
   ] as number[];
   const conteudoLote = new Map<number, number>();
   if (loteIds.length > 0) {
-    const { data: lotes } = await supabase
+    const { data: lotes, error: lotesError } = await supabase
       .from("lotes_estoque")
       .select("id, modelo_quantidade, conteudo_embalagem_snapshot")
       .in("id", loteIds);
+    // sem o lote, a reserva em embalagens seria contada como unidade
+    if (lotesError) throw new Error(`Não foi possível ler os lotes reservados: ${lotesError.message}`);
     for (const lote of lotes ?? []) {
       if (lote.modelo_quantidade === "EMBALAGEM_FECHADA") {
         conteudoLote.set(lote.id as number, num(lote.conteudo_embalagem_snapshot) || 1);
