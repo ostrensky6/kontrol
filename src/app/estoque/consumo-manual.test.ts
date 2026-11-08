@@ -22,7 +22,7 @@ vi.mock("@/components/common/HelpTip", () => ({
 vi.mock("@/components/common/DownloadButton", () => ({ DownloadButton: () => null }));
 // O painel mensal tem testes próprios; aqui só importa a estimativa manual.
 vi.mock("@/components/estoque/ConsumoMensalPainel", () => ({ ConsumoMensalPainel: () => null }));
-vi.mock("@/lib/estoque/consumo-mensal", () => ({ lerConsumoMensal: async () => ({ ok: false, message: "" }) }));
+vi.mock("@/lib/estoque/consumo-mensal", () => ({ lerConsumoMensal: async () => ({ ok: false, message: "" }), lerPrevisaoInsumo: async () => null }));
 vi.mock("@/components/estoque/EstoqueTables", () => ({
   SaldoTable: (props: unknown) => { io.saldo(props); return createElement("p", {}, "Saldo por insumo"); },
   LotesTable: () => null,

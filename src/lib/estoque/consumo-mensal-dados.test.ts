@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { consumoMensalDoBanco, explicarConsumo, rotuloUnidade, type ConsumoMensal } from "./consumo-mensal-dados";
+import { consumoMensalDoBanco, explicarConsumo, rotuloUnidade, sugestaoCobertura, type ConsumoMensal } from "./consumo-mensal-dados";
 
 const base: ConsumoMensal = {
   insumo_id: 7, unidade: "embalagem", janela_meses: 12, meses_historico: 8, meses_com_saida: 8,
@@ -39,5 +39,24 @@ describe("consumo mensal (0157)", () => {
     expect(rotuloUnidade("embalagem", 1)).toBe("embalagem");
     expect(rotuloUnidade("embalagem", 2)).toBe("embalagens");
     expect(rotuloUnidade("g", 2)).toBe("g");
+  });
+});
+
+describe("sugestão para cobrir o prazo (item 6)", () => {
+  const consumo = (valor: number | null, unidade = "embalagem") => ({
+    insumo_id: 1, unidade, janela_meses: 12, meses_historico: 0, meses_com_saida: 0, media_mensal: null, variacao: null,
+    ajustes: 0, confianca: "sem_dados" as const, meses: [], manual: null,
+    referencia: { origem: (valor === null ? "nenhuma" : "manual") as "manual" | "nenhuma", valor },
+  });
+  const previsao = { disponivel: 2, qtd_pedida_aberta: 1, estoque_seguranca: 1, lead_time_dias: 60, qtd_sugerida_compra: 0, unidade_saldo: "frasco", modelo_quantidade: "EMBALAGEM_FECHADA" };
+
+  it("usa a estimativa manual quando não há histórico e desconta disponível e pedido aberto", () => {
+    // 3/mês × 60 dias = 6 + segurança 1 = 7; falta 7 − 2 − 1 = 4
+    expect(sugestaoCobertura(consumo(3), previsao)).toEqual({ quantidade: 4, necessidade: 7, prazoDias: 60, sugestaoAtual: 0 });
+  });
+  it("sem referência, sem prazo ou com unidades diferentes não sugere", () => {
+    expect(sugestaoCobertura(consumo(null), previsao)).toBeNull();
+    expect(sugestaoCobertura(consumo(3), { ...previsao, lead_time_dias: 0 })).toBeNull();
+    expect(sugestaoCobertura(consumo(3, "mL"), { ...previsao, modelo_quantidade: "FRACIONADO", unidade_saldo: "L" })).toBeNull();
   });
 });

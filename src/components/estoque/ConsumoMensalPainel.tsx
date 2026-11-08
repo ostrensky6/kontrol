@@ -4,8 +4,11 @@ import {
   explicarConsumo,
   ROTULO_CONFIANCA,
   rotuloUnidade,
+  sugestaoCobertura,
   type Confianca,
   type LeituraConsumoMensal,
+  type PrevisaoInsumo,
+  type SugestaoCobertura,
 } from "@/lib/estoque/consumo-mensal-dados";
 
 const TOM: Record<Confianca, string> = {
@@ -22,8 +25,24 @@ export function nomeMes(mes: string) {
   return `${NOME_MES[Number(m) - 1] ?? m}/${ano.slice(2)}`;
 }
 
+function SugestaoCompra({ sugestao, unidade }: { sugestao: SugestaoCobertura | null; unidade: (v: number | null) => string }) {
+  if (!sugestao) return null;
+  return (
+    <p data-testid="sugestao-cobertura" className="rounded-md bg-info-soft px-3 py-2 text-info-strong">
+      {sugestao.quantidade > 0
+        ? <>Para cobrir o prazo de compra ({sugestao.prazoDias} dias) com este consumo, faltam <strong>{formatNumber(sugestao.quantidade)} {unidade(sugestao.quantidade)}</strong>, já descontando o disponível e o que está em pedido aberto.</>
+        : <>O disponível e os pedidos abertos cobrem o prazo de compra ({sugestao.prazoDias} dias) com este consumo.</>}
+      {sugestao.quantidade > 0 && sugestao.sugestaoAtual <= 0 && " A reposição automática, que usa só o histórico de saídas, ainda não sugere compra."}
+    </p>
+  );
+}
+
 /** Consumo mensal calculado das saídas do estoque (0157), sem digitação. */
-export function ConsumoMensalPainel({ leitura, especificacao }: { leitura: LeituraConsumoMensal; especificacao: string }) {
+export function ConsumoMensalPainel({ leitura, especificacao, previsao = null }: {
+  leitura: LeituraConsumoMensal;
+  especificacao: string;
+  previsao?: PrevisaoInsumo | null;
+}) {
   if (!leitura.ok) {
     return <p role="status" className="mt-4 border-t border-border pt-3 text-sm text-warning-strong">Consumo mensal indisponível. {leitura.message}</p>;
   }
@@ -53,6 +72,7 @@ export function ConsumoMensalPainel({ leitura, especificacao }: { leitura: Leitu
           {ROTULO_CONFIANCA[c.confianca]}
         </span>
       </div>
+      <SugestaoCompra sugestao={sugestaoCobertura(c, previsao)} unidade={unidade} />
       {c.media_mensal !== null && (
         <p>Média calculada: {formatNumber(c.media_mensal)} {unidade(c.media_mensal)}/mês.</p>
       )}
