@@ -20,6 +20,58 @@ jobs:
           supabase start
           supabase db reset --no-seed
 
+      - name: Ensaio catalogo_nomeacao_permissoes_0151
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/catalogo_nomeacao_permissoes_0151.sql
+
+      - name: Ensaio consumo_manual_insumos_0152
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/consumo_manual_insumos_0152.sql
+
+      - name: Ensaio equipamentos_avisos_0153
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equipamentos_avisos_0153.sql
+
+      - name: Ensaio equivalencia_contextual_insumos_0154
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equivalencia_contextual_insumos_0154.sql
+
+      - name: Ensaio email_operacional_duravel_0155
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/email_operacional_duravel_0155.sql
+
+      - name: Ensaio escopo_canais_remanescentes_0156
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/escopo_canais_remanescentes_0156.sql
+
+      - name: Ensaio consumo_mensal_prospectivo_0157
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/consumo_mensal_prospectivo_0157.sql
+
+      - name: Ensaio equipamentos_contexto_configuracao_0158
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equipamentos_contexto_configuracao_0158.sql
+
+      - name: Ensaio vinculos_projeto_leitura_0159
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/vinculos_projeto_leitura_0159.sql
+
+      - name: Ensaio equivalencia_contexto_autorizado_0160
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equivalencia_contexto_autorizado_0160.sql
+
+      - name: Ensaio equivalencia_escrita_revisionada_0161
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/equivalencia_escrita_revisionada_0161.sql
+
+      - name: Ensaio nomeacao_contexto_autorizado_0162
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/nomeacao_contexto_autorizado_0162.sql
+
+      - name: Ensaio captura_economica_equivalencia_0163
+        if: always()
+        run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/captura_economica_equivalencia_0163.sql
+
       - name: Validar seis funções, CHECKs, RBAC e alias histórico
         run: docker exec -i supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/seis_funcoes_0146.sql
 

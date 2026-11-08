@@ -483,8 +483,14 @@ export default async function DemandaDetalhe({
           </div>
         </section>
 
-        <nav className="sticky top-[57px] z-10 mt-3 overflow-x-auto md:top-0 border-y border-border bg-card/95 py-1.5 shadow-sm backdrop-blur">
-          <div className="flex min-w-max gap-1.5 px-2">
+        <nav
+          aria-label="Visão geral das etapas do orçamento"
+          className="sticky top-[57px] z-10 mt-3 md:top-0 border-y border-border bg-card/95 py-1.5 shadow-sm backdrop-blur"
+        >
+          <p className="px-2 pb-1 text-xs text-muted-foreground md:hidden">
+            Etapa atual: <strong className="font-semibold text-foreground">{ROTULO_ETAPA[etapaAtiva]}</strong>
+          </p>
+          <div className="flex gap-1.5 overflow-x-auto px-2">
             {etapas.map((etapa, indice) => {
               const ativa = etapa.id === etapaAtiva;
               const desabilitada = !etapa.aplicavel;
@@ -494,7 +500,7 @@ export default async function DemandaDetalhe({
                   href={etapa.href}
                   aria-current={ativa ? "step" : undefined}
                   aria-disabled={desabilitada || undefined}
-                  className={`rounded-md border px-3 py-1.5 text-left text-xs transition hover:bg-muted ${
+                  className={`shrink-0 rounded-md border px-3 py-1.5 text-left text-xs transition hover:bg-muted focus-visible:-outline-offset-2 ${
                     ativa
                       ? "border-brand-500 bg-brand-50 text-brand-800 dark:border-brand-500 dark:bg-brand-950/40 dark:text-brand-200"
                       : desabilitada
@@ -865,50 +871,74 @@ export default async function DemandaDetalhe({
           />
         </section>
 
-        <section id="parametros" className={`mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-4 shadow-sm ${passo("parametros")}`}>
-          <div className="flex flex-wrap items-start justify-between gap-3">
+        <section id="parametros" className={`mt-4 min-w-0 scroll-mt-20 space-y-4 ${passo("parametros")}`}>
+          <header className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold">Parâmetros econômicos</h2>
+                <h2 className="text-lg font-semibold tracking-tight">Parâmetros econômicos</h2>
                 <HelpTip title="Parâmetros econômicos">
                   <p>Custos recebidos e percentuais usados na consolidação final. Também dá para alterá-los na etapa Proposta, aba Interno.</p>
                 </HelpTip>
               </div>
+              <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                Confira os custos de origem, os percentuais e o resultado antes de seguir para a proposta.
+              </p>
             </div>
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${podeConsolidar ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-              {podeConsolidar ? "Liberado" : "Aguardando revisão"}
+              {podeConsolidar ? "Custos revisados" : "Custos aguardando revisão"}
             </span>
-          </div>
+          </header>
           <PainelParametrosEconomicos
-            custoLaboratorio={orcamentoFinal.totalLaboratorioCusto}
-            precoLaboratorio={orcamentoFinal.totalLaboratorioPreco}
-            custoProjeto={orcamentoFinal.totalProjetoCusto}
+            custoLaboratorio={exigeAnalises ? (moduloAnalises.status === "pendente" ? null : orcamentoFinal.totalLaboratorioCusto) : "nao_aplicavel"}
+            precoLaboratorio={exigeAnalises ? (moduloAnalises.status === "pendente" ? null : orcamentoFinal.totalLaboratorioPreco) : "nao_aplicavel"}
+            custoProjeto={exigeProjeto ? (moduloProjeto.status === "pendente" ? null : orcamentoFinal.totalProjetoCusto) : "nao_aplicavel"}
             subtotalTecnico={orcamentoFinal.subtotalTecnico}
             totalParametros={orcamentoFinal.totalParametros}
             totalFinal={orcamentoFinal.totalFinal}
             parametros={orcamentoFinal.parametrosProjeto}
             alertas={orcamentoFinal.alertas}
+            pendencias={[
+              ...orcamentoFinal.pendencias,
+              ...(temCustoZeroSemJustificativa ? ["Há itens com custo zero sem justificativa. Confira os custos de origem."] : []),
+            ]}
+            economiaValida={orcamentoFinal.economia.valido}
+            resultadoPronto={orcamentoFinal.pronto && !temCustoZeroSemJustificativa}
+            editor={
+              <>
+                {(!orcamentoFinal.pronto || temCustoZeroSemJustificativa) && (
+                  <p className="mt-3 text-sm text-warning-strong">
+                    A prévia no editor usa só os custos registrados. Com pendências, ela não é o valor da proposta.
+                  </p>
+                )}
+                <EditorParametrosProposta
+                  key={JSON.stringify(parametrosProposta.rates)}
+                  demandaId={demandaId}
+                  custoLaboratorio={orcamentoFinal.totalLaboratorioCusto}
+                  custoProjeto={orcamentoFinal.totalProjetoCusto}
+                  temBaseCusto={
+                    (exigeAnalises && moduloAnalises.status !== "pendente") ||
+                    (exigeProjeto && moduloProjeto.status !== "pendente")
+                  }
+                  valores={parametrosProposta.rates}
+                  origem={parametrosProposta.origem}
+                  erro={erroParametros}
+                  salvo={parametrosSalvos === "1"}
+                  podeEditar={autorizadoParametros}
+                />
+              </>
+            }
           />
-          <EditorParametrosProposta
-            key={JSON.stringify(parametrosProposta.rates)}
-            demandaId={demandaId}
-            custoLaboratorio={orcamentoFinal.totalLaboratorioCusto}
-            custoProjeto={orcamentoFinal.totalProjetoCusto}
-            valores={parametrosProposta.rates}
-            origem={parametrosProposta.origem}
-            erro={erroParametros}
-            salvo={parametrosSalvos === "1"}
-            podeEditar={autorizadoParametros}
-          />
-          <TabelaSimples
-            colunas={["Campo", "Como é calculado", "Valor"]}
-            vazio="Sem fórmulas calculadas."
-            linhas={orcamentoFinal.origens.map((origem) => [
-              origem.titulo,
-              explicarOrigem(origem),
-              brl(origem.valor),
-            ])}
-          />
+          <details className="rounded-md border border-border px-3">
+            <summary className="min-h-11 cursor-pointer py-3 text-sm font-medium">Como os valores são calculados</summary>
+            <dl className="space-y-2 pb-3 text-sm">
+              {orcamentoFinal.origens.map((origem) => (
+                <div key={origem.campo}>
+                  <dt className="font-medium">{origem.campo === "totalFinal" ? "Total calculado" : origem.titulo}</dt>
+                  <dd className="text-muted-foreground">{explicarOrigem(origem)}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
         </section>
 
         <section id="final" className={`mt-3 scroll-mt-20 space-y-4 ${passo("final")}`}>

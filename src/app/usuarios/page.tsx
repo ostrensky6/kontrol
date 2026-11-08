@@ -2,16 +2,17 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { HelpTip } from "@/components/common/HelpTip";
-import { temPapel } from "@/lib/auth/roles";
-import { PAPEIS } from "@/lib/auth/permissions";
-import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
+import { usuarioAtual } from "@/lib/auth/roles";
+import { isPapelUsuario, PAPEIS } from "@/lib/auth/permissions";
+import { avaliarTrocaDeFuncao } from "@/lib/auth/contrato-funcao";
 import { CriarUsuarioForm } from "@/components/usuarios/CriarUsuarioForm";
 import { UsuariosTable, type UsuarioRow } from "@/components/usuarios/UsuariosTable";
 
 export const dynamic = "force-dynamic";
 
 export default async function UsuariosPage() {
-  if (!(await temPapel("admin"))) {
+  const ator = await usuarioAtual();
+  if (!ator || ator.suspenso || ator.papel !== "admin") {
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-center font-sans">
         <p className="text-muted-foreground">Acesso restrito — apenas administradores gerenciam usuários.</p>
@@ -22,16 +23,12 @@ export default async function UsuariosPage() {
   const supabase = await createClient();
   const { data: perfis } = await supabase
     .from("perfis")
-    .select("id, nome, email, papel, criado_em, suspenso, senha_provisoria, assinatura_path, assinatura_url, permissoes")
+    .select("id, nome, email, papel, suspenso, senha_provisoria, assinatura_path, assinatura_url")
     .order("email");
   const { data: preAprovados } = await supabase
     .from("usuarios_pre_aprovados")
-    .select("id, nome, email, papel, permissoes")
+    .select("id, nome, email, papel")
     .order("nome");
-  const { data: permissoesCategorias } = await supabase
-    .from("permissoes_categorias")
-    .select("papel, permissoes");
-  const permissoesPorCategoria = buildPermissoesPorCategoria(permissoesCategorias ?? []);
   const papelLabel = new Map(PAPEIS.map((papel) => [papel.value, papel.label]));
   const emailsComAcesso = new Set((perfis ?? []).map((perfil) => String(perfil.email ?? "").toLowerCase()));
   const linhas: UsuarioRow[] = (perfis ?? []).map((perfil) => ({
@@ -46,8 +43,10 @@ export default async function UsuariosPage() {
     temAcesso: true,
     assinaturaPath: perfil.assinatura_path ?? null,
     assinaturaUrl: perfil.assinatura_url ?? null,
-    permissoes: perfil.permissoes ?? {},
-    categorias: permissoesPorCategoria,
+    papeisDestino: PAPEIS.filter(({ value }) =>
+      isPapelUsuario(perfil.papel) &&
+      avaliarTrocaDeFuncao(ator.id.toLowerCase(), String(perfil.id).toLowerCase(), ator.papel, perfil.papel, value),
+    ).map(({ value }) => value),
   }));
   for (const pre of preAprovados ?? []) {
     const email = String(pre.email ?? "").toLowerCase();
@@ -64,8 +63,6 @@ export default async function UsuariosPage() {
       temAcesso: false,
       assinaturaPath: null,
       assinaturaUrl: null,
-      permissoes: pre.permissoes ?? {},
-      categorias: permissoesPorCategoria,
     });
   }
 
@@ -77,8 +74,8 @@ export default async function UsuariosPage() {
           <HelpTip title="Usuários">
             <p>
               Acessos, pré-aprovados, funções, assinaturas e senhas. O que cada função pode fazer fica em{" "}
-              <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>; em
-              Editar, ajuste uma pessoa sem mudar a função dela.
+              <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>.
+              Use Editar cadastro para mudar o nome. Quando disponível, Trocar função é uma ação separada.
             </p>
           </HelpTip>
         </div>

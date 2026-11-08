@@ -7,7 +7,7 @@ import {
   marcarTodasNotificacoesLidas,
 } from "@/lib/actions/notificacoes";
 import { caminhoNotificacao, destinoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
-import { createClient } from "@/lib/supabase/server";
+import { createClientUntyped } from "@/lib/supabase/server";
 
 type Notificacao = {
   id: number;
@@ -22,6 +22,50 @@ type Notificacao = {
   status: string;
   criado_em: string;
 };
+
+const LIMITE_NOTIFICACOES = 80;
+const ESTADOS_EMAIL = {
+  NAO_CONFIGURADO: "Não configurado",
+  ACEITE_REGISTRADO: "Aceite registrado",
+  ACEITO_MARCADOR_PENDENTE: "Aceite comprovado; registro pendente",
+  INCERTO: "Aceite não confirmado",
+  REVISAO_NECESSARIA: "Revisão necessária",
+  RECUSA_CONFIRMADA: "Recusa confirmada",
+  PENDENTE: "Pendente",
+} as const;
+
+type EstadoEmail = keyof typeof ESTADOS_EMAIL;
+
+function ehEstadoEmail(valor: unknown): valor is EstadoEmail {
+  return typeof valor === "string" && Object.hasOwn(ESTADOS_EMAIL, valor);
+}
+
+async function lerEstadosEmail(
+  supabase: Pick<Awaited<ReturnType<typeof createClientUntyped>>, "rpc">,
+  notificacoes: Notificacao[],
+) {
+  const ids = new Set(notificacoes.map(({ id }) => id).filter((id) => Number.isSafeInteger(id) && id > 0));
+  const estados = new Map<number, EstadoEmail | null>();
+  if (ids.size === 0) return estados;
+  try {
+    const { data, error }: { data: unknown; error: unknown } = await supabase.rpc(
+      "meus_estados_email_operacional_v1",
+      { p_notificacao_ids: [...ids] },
+    );
+    if (error != null || !Array.isArray(data)) return null;
+    const linhas: unknown[] = data;
+    for (const linha of linhas) {
+      if (!linha || typeof linha !== "object" || !("notificacao_id" in linha) || !("estado" in linha)) continue;
+      const { notificacao_id: id, estado } = linha;
+      if (typeof id !== "number" || !ids.has(id) || !ehEstadoEmail(estado)) continue;
+      if (!estados.has(id)) estados.set(id, estado);
+      else if (estados.get(id) !== estado) estados.set(id, null);
+    }
+    return estados;
+  } catch {
+    return null;
+  }
+}
 
 function formatarData(value: string) {
   return new Intl.DateTimeFormat("pt-BR", {
@@ -44,19 +88,20 @@ function badgeClass(status: string) {
 }
 
 export default async function NotificacoesPage() {
-  const supabase = await createClient();
+  const supabase = await createClientUntyped();
   // Só os avisos destinados a este usuário (por pessoa, papel ou permissão),
   // com o estado de leitura dele (0128).
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("v_minhas_notificacoes")
     .select(
       "id,tipo,titulo,corpo,entidade_tipo,entidade_id,papel_destino,permissao_destino,usuario_destino,status,criado_em",
     )
     .neq("status", "arquivada")
     .order("criado_em", { ascending: false })
-    .limit(80);
+    .limit(LIMITE_NOTIFICACOES);
 
-  const notificacoes = (data ?? []) as Notificacao[];
+  const notificacoes = ((data ?? []) as Notificacao[]).slice(0, LIMITE_NOTIFICACOES);
+  const estadosEmail = error == null ? await lerEstadosEmail(supabase, notificacoes) : null;
   const naoLidas = notificacoes.filter((item) => item.status === "nao_lida").length;
   const aguardandoAcao = notificacoes.filter(
     (item) => item.tipo === "aprovacao_pendente" && item.status === "nao_lida",
@@ -76,6 +121,7 @@ export default async function NotificacoesPage() {
             <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
             <HelpTip title="Notificações">
               <p>Avisos para você: etapas que esperam sua ação, faltas, reposições e vencimentos.</p>
+              <p>O aceite do e-mail não confirma a entrega. Não repita o envio com base nesse estado.</p>
             </HelpTip>
           </div>
         </div>
@@ -120,6 +166,7 @@ export default async function NotificacoesPage() {
         <div className="space-y-2">
           {notificacoes.map((item) => {
             const href = caminhoNotificacao(item.entidade_tipo, item.entidade_id);
+            const estadoEmail = estadosEmail?.get(item.id);
             return (
               <article
                 key={item.id}
@@ -147,6 +194,10 @@ export default async function NotificacoesPage() {
                     )}
                     <p className="mt-2 text-xs text-muted-foreground">
                       Para: {destinoNotificacao(item)}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">E-mail:</span>{" "}
+                      {estadoEmail ? ESTADOS_EMAIL[estadoEmail] : estadosEmail === null ? "Estado indisponível" : "Estado não informado"}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">

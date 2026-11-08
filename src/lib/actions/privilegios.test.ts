@@ -1,125 +1,145 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PAPEIS } from "@/lib/auth/permissions";
+import { obterMatrizPrivilegios, salvarMatrizPrivilegios } from "./privilegios";
 
-const revalidatePath = vi.fn();
-const temPapel = vi.fn();
-const clientFrom = vi.fn();
-const adminFrom = vi.fn();
-const select = vi.fn();
-const upsert = vi.fn();
-
-vi.mock("next/cache", () => ({ revalidatePath }));
-vi.mock("@/lib/auth/roles", () => ({ temPapel }));
-vi.mock("@/lib/supabase/server", () => ({
-  createClient: vi.fn(async () => ({ from: clientFrom })),
+const io = vi.hoisted(() => ({
+  temPapel: vi.fn(), revalidatePath: vi.fn(),
+  createClient: vi.fn(), createAdminClient: vi.fn(),
+  selectRead: vi.fn(), eqRead: vi.fn(), maybeSingle: vi.fn(),
+  update: vi.fn(), eqWrite: vi.fn(), filterWrite: vi.fn(), selectWrite: vi.fn(),
 }));
-vi.mock("@/lib/supabase/admin", () => ({
-  createAdminClient: vi.fn(() => ({ from: adminFrom })),
-}));
+vi.mock("next/cache", () => ({ revalidatePath: io.revalidatePath }));
+vi.mock("@/lib/auth/roles", () => ({ temPapel: io.temPapel }));
+vi.mock("@/lib/supabase/server", () => ({ createClient: io.createClient }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: io.createAdminClient }));
 
-describe("privilegios", () => {
-  beforeEach(() => {
-    vi.resetModules();
-    revalidatePath.mockReset();
-    temPapel.mockReset();
-    clientFrom.mockReset();
-    adminFrom.mockReset();
-    select.mockReset();
-    upsert.mockReset();
+const papel = "coordenador";
+const legado = "insumos.excluir_em_cascata";
+const atual = {
+  papel,
+  permissoes: { [legado]: true, "cadastros.editar": false, "orcamentos.emitir": true },
+  atualizado_em: "2026-11-07T10:00:00.000Z",
+};
+const categorias = (linha: typeof atual = atual) => PAPEIS.filter((p) => p.value !== "admin").map((p) =>
+  p.value === papel ? linha : { ...atual, papel: p.value, permissoes: {} },
+);
 
-    clientFrom.mockReturnValue({ select });
-    adminFrom.mockReturnValue({ upsert });
-    select.mockResolvedValue({ data: [], error: null });
-    upsert.mockResolvedValue({ error: null });
+function formulario(revisao: string, alteracoes: unknown = [["orcamentos.emitir", false]], alvo: string = papel) {
+  const dados = new FormData();
+  dados.set("papel", alvo);
+  dados.set("revisao", revisao);
+  dados.set("alteracoes", JSON.stringify(alteracoes));
+  return dados;
+}
+
+async function revisaoExibida() {
+  const matriz = await obterMatrizPrivilegios();
+  if (!matriz.ok) throw new Error(matriz.message);
+  return matriz.categorias.coordenador.revisao;
+}
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  io.temPapel.mockResolvedValue(true);
+  io.createClient.mockResolvedValue({ from: () => ({ select: io.selectRead }) });
+  io.createAdminClient.mockReturnValue({ from: () => ({ update: io.update }) });
+  io.selectRead.mockReturnValue({ data: categorias(), error: null, eq: io.eqRead });
+  io.eqRead.mockReturnValue({ maybeSingle: io.maybeSingle });
+  io.maybeSingle.mockResolvedValue({ data: atual, error: null });
+  const filtros = { eq: io.eqWrite, filter: io.filterWrite, select: io.selectWrite };
+  io.update.mockReturnValue(filtros);
+  io.eqWrite.mockReturnValue(filtros);
+  io.filterWrite.mockReturnValue(filtros);
+  io.selectWrite.mockResolvedValue({ data: [{ papel }], error: null });
+});
+
+describe("matriz de privilégios", () => {
+  it("distingue falta de autoridade antes de ler ou escrever", async () => {
+    io.temPapel.mockResolvedValue(false);
+    await expect(obterMatrizPrivilegios()).resolves.toMatchObject({ ok: false, motivo: "sem_permissao" });
+    await expect(salvarMatrizPrivilegios({ ok: false }, formulario("a".repeat(64)))).resolves.toMatchObject({ ok: false });
+    expect(io.temPapel).toHaveBeenCalledWith("admin");
+    expect(io.createClient).not.toHaveBeenCalled();
+    expect(io.createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("bloqueia leitura da matriz para nao-admin", async () => {
-    temPapel.mockResolvedValue(false);
-    const { obterMatrizPrivilegios } = await import("./privilegios");
-
-    await expect(obterMatrizPrivilegios()).resolves.toBeNull();
-    expect(clientFrom).not.toHaveBeenCalled();
+  it("expõe só chaves conhecidas, true/false/ausente e revisão da categoria", async () => {
+    const leitura = await obterMatrizPrivilegios();
+    expect(leitura).toMatchObject({ ok: true, categorias: { coordenador: { armazenadas: {
+      "orcamentos.emitir": true, "cadastros.editar": false, "planejamento.editar": null,
+    }, revisao: expect.stringMatching(/^[a-f0-9]{64}$/) } } });
+    expect(JSON.stringify(leitura)).not.toContain(legado);
   });
 
-  it("le matriz de privilegios para admin", async () => {
-    temPapel.mockResolvedValue(true);
-    select.mockResolvedValue({
-      data: [{ papel: "gestor", permissoes: { "auditoria.visualizar": false } }],
-      error: null,
-    });
-    const { obterMatrizPrivilegios } = await import("./privilegios");
-
-    const matriz = await obterMatrizPrivilegios();
-
-    expect(matriz?.admin["auditoria.visualizar"]).toBe(true);
-    expect(matriz?.gestor["auditoria.visualizar"]).toBe(false);
-    expect(clientFrom).toHaveBeenCalledWith("permissoes_categorias");
+  it.each([true, false])("aplica só a intenção e preserva chave legada %s", async (valor) => {
+    const linha = { ...atual, permissoes: { ...atual.permissoes, [legado]: valor } };
+    io.selectRead.mockReturnValue({ data: categorias(linha), eq: io.eqRead });
+    io.maybeSingle.mockResolvedValue({ data: linha });
+    const revisao = await revisaoExibida();
+    const dados = formulario(revisao, [["orcamentos.emitir", false], ["projetos.editar", true]]);
+    await expect(salvarMatrizPrivilegios({ ok: false }, dados)).resolves.toMatchObject({ ok: true });
+    const { permissoes } = io.update.mock.calls[0][0];
+    expect(permissoes).toEqual({ ...linha.permissoes, "orcamentos.emitir": false, "projetos.editar": true });
+    expect(permissoes).not.toHaveProperty(["planejamento.editar"]);
+    expect(io.eqRead).toHaveBeenCalledWith("papel", papel);
+    expect(io.eqWrite.mock.calls).toEqual([["papel", papel], ["atualizado_em", linha.atualizado_em]]);
+    expect(io.filterWrite).toHaveBeenCalledWith("permissoes", "eq", JSON.stringify(linha.permissoes));
+    expect(io.selectWrite).toHaveBeenCalledWith("papel");
+    expect(io.revalidatePath.mock.calls).toEqual([["/governanca/privilegios"], ["/usuarios"]]);
   });
 
-  it("bloqueia salvamento de privilegios para nao-admin", async () => {
-    temPapel.mockResolvedValue(false);
-    const { salvarMatrizPrivilegios } = await import("./privilegios");
-
-    const result = await salvarMatrizPrivilegios({ ok: false }, new FormData());
-
-    expect(result.ok).toBe(false);
-    expect(upsert).not.toHaveBeenCalled();
+  it("sem mudança real não escreve nem revalida", async () => {
+    const dados = formulario(await revisaoExibida(), [["cadastros.editar", false]]);
+    await expect(salvarMatrizPrivilegios({ ok: false }, dados)).resolves.toEqual({ ok: true, message: "Nada mudou." });
+    expect(io.createAdminClient).not.toHaveBeenCalled();
+    expect(io.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("salva a matriz inteira, só as funções que mudaram, e revalida as telas", async () => {
-    temPapel.mockResolvedValue(true);
-    const { buildPermissoesPorCategoria } = await import("@/lib/auth/permission-categories");
-    const atual = buildPermissoesPorCategoria([]);
-    const formData = new FormData();
-    formData.set("permissoes_presentes", "1");
-    // todas as funções repetem o que já vale, menos Gestor (perde auditoria) e Compra (ganha cadastros.editar)
-    for (const papel of ["laboratorio", "compra", "cadastro", "coordenador", "gestor"] as const) {
-      for (const [chave, pode] of Object.entries(atual[papel])) {
-        if (!pode) continue;
-        if (papel === "gestor" && chave === "auditoria.visualizar") continue;
-        formData.append(`permissoes:${papel}`, chave);
-      }
-    }
-    formData.append("permissoes:compra", "cadastros.editar");
-    formData.append("permissoes:compra", "chave.inventada");
-    // o admin nunca é gravado
-    formData.append("permissoes:admin", "analises.ver");
-    const { salvarMatrizPrivilegios } = await import("./privilegios");
-
-    const result = await salvarMatrizPrivilegios({ ok: false }, formData);
-
-    expect(result).toEqual({ ok: true, message: "Privilégios salvos: Compra, Gestor." });
-    expect(upsert).toHaveBeenCalledOnce();
-    const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
-    expect(linhas.map((linha) => linha.papel)).toEqual(["compra", "gestor"]);
-    expect(linhas[0].permissoes["cadastros.editar"]).toBe(true);
-    expect(linhas[0].permissoes).not.toHaveProperty("chave.inventada");
-    expect(linhas[1].permissoes["auditoria.visualizar"]).toBe(false);
-    expect(revalidatePath).toHaveBeenCalledWith("/governanca/privilegios");
-    expect(revalidatePath).toHaveBeenCalledWith("/usuarios");
+  it.each([
+    ["admin", [["orcamentos.emitir", false]]],
+    ["supervisor", [["orcamentos.emitir", false]]],
+    [papel, [[legado, true]]],
+    [papel, [["orcamentos.emitir", "false"]]],
+    [papel, [["orcamentos.emitir", true], ["orcamentos.emitir", false]]],
+    [papel, { "orcamentos.emitir": false }],
+  ])("recusa papel ou alteração inválida antes do I/O: %s %j", async (alvo, alteracoes) => {
+    const dados = formulario("a".repeat(64), alteracoes, alvo as string);
+    await expect(salvarMatrizPrivilegios({ ok: false }, dados)).resolves.toMatchObject({ ok: false });
+    expect(io.createClient).not.toHaveBeenCalled();
+    expect(io.createAdminClient).not.toHaveBeenCalled();
   });
 
-  it("desmarcar tudo de uma função grava tudo desligado (não volta ao padrão do código)", async () => {
-    temPapel.mockResolvedValue(true);
-    const formData = new FormData();
-    formData.set("permissoes_presentes", "1");
-    const { salvarMatrizPrivilegios } = await import("./privilegios");
-
-    await salvarMatrizPrivilegios({ ok: false }, formData);
-
-    const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
-    expect(linhas.map((linha) => linha.papel)).toEqual(["laboratorio", "compra", "cadastro", "coordenador", "gestor"]);
-    for (const linha of linhas) {
-      expect(Object.values(linha.permissoes).every((pode) => pode === false)).toBe(true);
-    }
+  it.each([
+    { data: atual, error: { message: "falha de leitura" } },
+    { data: null, error: null },
+    { data: { ...atual, permissoes: [] }, error: null },
+  ])("falha fechado em erro, linha ausente ou JSON inválido: %j", async (resposta) => {
+    const revisao = await revisaoExibida();
+    io.maybeSingle.mockResolvedValue(resposta);
+    await expect(salvarMatrizPrivilegios({ ok: false }, formulario(revisao))).resolves.toMatchObject({ ok: false });
+    expect(io.createAdminClient).not.toHaveBeenCalled();
+    expect(io.revalidatePath).not.toHaveBeenCalled();
   });
 
-  it("sem o marcador do formulário, recusa (evita zerar a matriz por engano)", async () => {
-    temPapel.mockResolvedValue(true);
-    const { salvarMatrizPrivilegios } = await import("./privilegios");
+  it("distingue matriz incompleta de falta de autoridade", async () => {
+    io.selectRead.mockReturnValue({ data: [atual], error: null });
+    await expect(obterMatrizPrivilegios()).resolves.toMatchObject({ ok: false, motivo: "leitura" });
+  });
 
-    const result = await salvarMatrizPrivilegios({ ok: false }, new FormData());
+  it("recusa revisão da exibição stale mesmo com timestamp igual", async () => {
+    const revisao = await revisaoExibida();
+    io.maybeSingle.mockResolvedValue({ data: { ...atual, permissoes: { ...atual.permissoes, [legado]: false } } });
+    await expect(salvarMatrizPrivilegios({ ok: false }, formulario(revisao))).resolves.toMatchObject({ ok: false, conflito: true });
+    expect(io.createAdminClient).not.toHaveBeenCalled();
+  });
 
-    expect(result.ok).toBe(false);
-    expect(upsert).not.toHaveBeenCalled();
+  it("concorrência após a leitura: zero linhas no UPDATE condicional é conflito", async () => {
+    const revisao = await revisaoExibida();
+    io.selectWrite.mockResolvedValue({ data: [], error: null });
+    await expect(salvarMatrizPrivilegios({ ok: false }, formulario(revisao))).resolves.toMatchObject({ ok: false, conflito: true });
+    expect(io.eqWrite.mock.calls).toEqual([["papel", papel], ["atualizado_em", atual.atualizado_em]]);
+    expect(io.filterWrite).toHaveBeenCalledWith("permissoes", "eq", JSON.stringify(atual.permissoes));
+    expect(io.update).toHaveBeenCalledTimes(1);
+    expect(io.revalidatePath).not.toHaveBeenCalled();
   });
 });

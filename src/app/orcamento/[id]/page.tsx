@@ -6,6 +6,8 @@ import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { buttonVariants } from "@/components/ui/button";
 import { calcularTodas, type FonteCustoInsumos } from "@/lib/costing/loader";
+import { custeioLaboratorialCompleto } from "@/lib/costing/completude-laboratorial";
+import type { Breakdown } from "@/lib/costing/engine";
 import { PrintButton } from "@/components/orcamento/PrintButton";
 import { FluxoProposta } from "@/components/orcamento/FluxoProposta";
 import { RecalcularOrcamentoForm } from "@/components/orcamento/RecalcularOrcamentoForm";
@@ -33,6 +35,8 @@ import type { Json } from "@/lib/supabase/database.types";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import { vizinhasEtapa } from "@/lib/orcamento/etapas-proposta";
 import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
+import { CapturaEconomica, HistoricoEconomico } from "@/components/orcamento/CapturaEconomica";
+import { lerContextoCapturaEquivalencia, lerHistoricoCapturaEquivalencia, prepararIntencaoCapturaEquivalencia } from "@/lib/orcamento/captura-equivalencia-leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +68,14 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-function numberFrom(value: unknown, fallback: number): number {
+function numberFrom(value: unknown, fallback: number | null): number | null {
+  if (typeof value !== "number" && (typeof value !== "string" || !value.trim())) return fallback;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function custoOuTraco(valor: number | null | undefined) {
+  return valor == null ? "—" : brl(valor);
 }
 
 export default async function OrcamentoDetalhe({
@@ -87,6 +96,18 @@ export default async function OrcamentoDetalhe({
     .eq("id", orcId)
     .single();
   if (!orc) notFound();
+  const contextoCaptura = await lerContextoCapturaEquivalencia(orcId);
+  const geracaoLeituraCaptura = randomUUID();
+  const capturaBloqueiaLegado = contextoCaptura.estado !== "contexto" || contextoCaptura.edicao_legada_bloqueada
+    || (isRecord(orc.custo_snapshot) && orc.custo_snapshot.versao === "equivalencia-economica-v1");
+  async function prepararCaptura(input: unknown) {
+    "use server";
+    return prepararIntencaoCapturaEquivalencia(input);
+  }
+  async function consultarHistorico(uuid: string) {
+    "use server";
+    return lerHistoricoCapturaEquivalencia(orcId, uuid);
+  }
 
   const [{ data: itensRaw }, { data: analises }, { breakdowns }, { data: clientes }, { data: projetos }] =
     await Promise.all([
@@ -96,7 +117,7 @@ export default async function OrcamentoDetalhe({
         .eq("orcamento_id", orcId)
         .order("id"),
       supabase.from("analises").select("codigo, nome").eq("ativo", true).eq("ofertavel", true).order("codigo"),
-      calcularTodas({}, (orc.fonte_custo_insumos === "custo_medio_ponderado" ? "custo_medio_ponderado" : "custo_padrao") as FonteCustoInsumos),
+      capturaBloqueiaLegado ? Promise.resolve({ breakdowns: [] as Breakdown[] }) : calcularTodas({}, (orc.fonte_custo_insumos === "custo_medio_ponderado" ? "custo_medio_ponderado" : "custo_padrao") as FonteCustoInsumos),
       supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
       supabase.from("projetos").select("id, nome").order("nome"),
     ]);
@@ -124,14 +145,7 @@ export default async function OrcamentoDetalhe({
     (a, it) => a + Number(it.preco_unitario) * Number(it.n_amostras),
     0,
   );
-  const snapshotCalculado = montarSnapshotLaboratorio(itens, breakdowns) as SnapshotLaboratorio;
   const snapshotPersistido = isRecord(orc.custo_snapshot) ? (orc.custo_snapshot as SnapshotLaboratorio) : {};
-  const snapshotOperacional = snapshotPersistido.totais ? snapshotPersistido : snapshotCalculado;
-  const totaisOperacionais = snapshotOperacional.totais ?? {};
-  const snapshotGeradoEm =
-    isRecord(snapshotOperacional) && typeof snapshotOperacional.gerado_em === "string"
-      ? snapshotOperacional.gerado_em
-      : null;
   const statusOperacional = orc.status_operacional ?? (
     orc.status === "cancelado" ? "cancelado" : ["enviado", "aprovado"].includes(orc.status) ? "revisado" : itens.length > 0 ? "preenchido" : "pendente"
   );
@@ -139,44 +153,51 @@ export default async function OrcamentoDetalhe({
   // cancelado no documento, mas o andamento ficou para trás (gravação que falhou)
   const cancelamentoIncompleto =
     orc.status === "cancelado" && orc.status_operacional != null && orc.status_operacional !== "cancelado";
-  const bloqueado = moduloBloqueadoParaEdicao({ status: orc.status, statusOperacional: orc.status_operacional }).bloqueado;
-  const motivoBloqueio = `Somente leitura: custos ${rotuloStatusModulo(orc.status_operacional === "revisado" ? "revisado" : orc.status).toLowerCase()}.`;
+  const bloqueado = capturaBloqueiaLegado || moduloBloqueadoParaEdicao({ status: orc.status, statusOperacional: orc.status_operacional }).bloqueado;
+  const motivoBloqueio = capturaBloqueiaLegado ? "Edição legada bloqueada: captura existente, inconsistente ou contexto não confirmado. Consulte captura e histórico." : `Somente leitura: custos ${rotuloStatusModulo(orc.status_operacional === "revisado" ? "revisado" : orc.status).toLowerCase()}.`;
   const nomeAnalise = new Map((analises ?? []).map((analise) => [analise.codigo, analise.nome ?? null]));
   const breakdownPorCodigo = new Map(breakdowns.map((breakdown) => [breakdown.codigo, breakdown]));
+  const custeioAtualPendente = itens.some((item) => !custeioLaboratorialCompleto(breakdownPorCodigo.get(item.codigo_analise)));
+  const totaisGravados = isRecord(snapshotPersistido.totais) ? snapshotPersistido.totais : null;
+  const custeioAtualDisponivel = !bloqueado && !custeioAtualPendente && itens.length > 0;
+  const composicaoAtualDisponivel = custeioAtualDisponivel && itens.every((item) => {
+    if (!isRecord(item.valor_snapshot)) return true;
+    const composicao = item.valor_snapshot.composicao_totais;
+    return isRecord(composicao) && ["reagentes", "equipamento", "pessoal", "overhead"]
+      .every((chave) => numberFrom(composicao[chave], null) !== null);
+  });
+  const totaisOperacionais = totaisGravados ?? (composicaoAtualDisponivel
+    ? (montarSnapshotLaboratorio(itens, breakdowns) as SnapshotLaboratorio).totais
+    : null) ?? {};
+  const resumoGravado = Boolean(totaisGravados) || (bloqueado && itens.length > 0);
+  const custoResumo = resumoGravado || custeioAtualDisponivel ? Number(totaisOperacionais.custo ?? totalCusto) : null;
+  const rotuloResumo = resumoGravado ? "Custo gravado" : "Subtotal dos itens";
+  const podeMostrarComposicao = Boolean(totaisGravados) || composicaoAtualDisponivel;
   const linhasTecnicas = itens.map((item) => {
     const quantidade = Number(item.n_amostras);
     const breakdown = breakdownPorCodigo.get(item.codigo_analise);
     const snapshot = isRecord(item.valor_snapshot) ? item.valor_snapshot : {};
-    const composicaoTotais = isRecord(snapshot.composicao_totais) ? snapshot.composicao_totais : {};
-    const reagentes = numberFrom(composicaoTotais.reagentes, Number(breakdown?.reagentes ?? 0) * quantidade);
-    const equipamentos = numberFrom(composicaoTotais.equipamento, Number(breakdown?.equipamento ?? 0) * quantidade);
-    const maoObra = numberFrom(composicaoTotais.pessoal, Number(breakdown?.pessoal ?? 0) * quantidade);
-    const overhead = numberFrom(composicaoTotais.overhead, Number(breakdown?.overhead ?? 0) * quantidade);
-    const custo = Number(item.custo_unitario) * quantidade;
-    const preco = Number(item.preco_unitario) * quantidade;
+    const composicaoTotais = isRecord(snapshot.composicao_totais) ? snapshot.composicao_totais : null;
+    const gravado = resumoGravado || isRecord(item.valor_snapshot);
+    const atual = !gravado && custeioLaboratorialCompleto(breakdown) ? breakdown : null;
+    const custoUnitario = gravado || atual ? numberFrom(item.custo_unitario, null) : null;
     return {
       id: item.id,
       codigo: item.codigo_analise,
       nome: nomeAnalise.get(item.codigo_analise),
       quantidade,
-      lote: numberFrom(snapshot.lote_padrao, Number(breakdown?.lote ?? 0)) || null,
-      numeroExecucoes: numberFrom(snapshot.numero_execucoes, 0) || null,
-      reagentes,
-      materiais: reagentes,
-      equipamentos,
-      maoObra,
-      terceiros: 0,
-      overhead,
-      custo,
-      preco,
-      custoUnitario: Number(item.custo_unitario),
-      precoUnitario: Number(item.preco_unitario),
-      origem: snapshot.composicao_totais ? "Gravado no item" : breakdown ? "Custeio atual" : "Gravado no item",
+      lote: numberFrom(snapshot.lote_padrao, atual?.lote ?? null),
+      reagentes: numberFrom(composicaoTotais?.reagentes, atual ? atual.reagentes * quantidade : null),
+      equipamentos: numberFrom(composicaoTotais?.equipamento, atual ? atual.equipamento * quantidade : null),
+      maoObra: numberFrom(composicaoTotais?.pessoal, atual ? atual.pessoal * quantidade : null),
+      overhead: numberFrom(composicaoTotais?.overhead, atual ? atual.overhead * quantidade : null),
+      custo: custoUnitario === null ? null : custoUnitario * quantidade,
+      origem: gravado ? "Gravado no item" : atual ? "Composição atual" : "Custeio atual incompleto",
     };
   });
 
   // detecta itens cujo preço atual difere do snapshot (parâmetros mudaram)
-  const precoAtual = new Map(breakdowns.map((b) => [b.codigo, b.preco]));
+  const precoAtual = new Map(breakdowns.filter(custeioLaboratorialCompleto).map((b) => [b.codigo, b.preco]));
   const desatualizado = itens.some((it) => {
     const atual = precoAtual.get(it.codigo_analise);
     return atual != null && Math.abs(atual - Number(it.preco_unitario)) > 0.005;
@@ -189,12 +210,11 @@ export default async function OrcamentoDetalhe({
     itens.length === 0 ? "adicionar ao menos uma análise" : null,
     desatualizado ? "recalcular preços após mudança de parâmetros" : null,
   ].filter(Boolean) as string[];
-  const custoResumo = Number(totaisOperacionais.custo ?? totalCusto);
   const tabs = [
     { href: "#identificacao-tecnica", label: "Identificação", meta: orc.responsavel ? "preenchida" : "pendente" },
     { href: "#analises-quantidades", label: "Análises", meta: `${itens.length} linha(s)` },
     { href: "#composicao-tecnica", label: "Composição", meta: `${totalAmostras} amostra(s)` },
-    { href: "#totais-tecnicos", label: "Totais", meta: brl(custoResumo) },
+    { href: "#totais-tecnicos", label: "Totais", meta: custoResumo === null && custeioAtualPendente ? "Custo pendente" : custoOuTraco(custoResumo) },
     { href: "#revisao-laboratorio", label: "Revisão", meta: revisaoPendencias.length === 0 ? "liberada" : `${revisaoPendencias.length} pendência(s)` },
     { href: "#historico-laboratorio", label: "Histórico", meta: `${eventos.length} evento(s)` },
   ];
@@ -231,7 +251,7 @@ export default async function OrcamentoDetalhe({
   ]);
   // Cada pendência da revisão leva ao campo onde ela se resolve.
   const formularioRevisaoVisivel =
-    Boolean(demanda) && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar;
+    !capturaBloqueiaLegado && Boolean(demanda) && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar;
   const alvoPendencia: Record<string, string | null> = {
     "informar cliente": demanda ? `/orcamento/demandas/${demanda.id}#demanda` : "#cabecalho-cliente",
     "informar responsável técnico": formularioRevisaoVisivel
@@ -267,7 +287,7 @@ export default async function OrcamentoDetalhe({
               </Link>
             )}
             <PrintButton />
-            {podeRecalcular && (
+            {podeRecalcular && !capturaBloqueiaLegado && (
               <RecalcularOrcamentoForm
                 orcamentoId={orcId}
                 fonteAtual={orc.fonte_custo_insumos ?? "custo_padrao"}
@@ -295,6 +315,13 @@ export default async function OrcamentoDetalhe({
             {aviso}
           </p>
         )}
+        {custeioAtualPendente && (
+          <p className="no-print mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+            <strong>Custo pendente no catálogo atual.</strong> Confira preço, unidade e conversão dos insumos na receita em{" "}
+            <Link href="/analises" className="font-medium underline">Análises</Link>.
+            {resumoGravado ? " Os valores gravados continuam disponíveis abaixo." : ""}
+          </p>
+        )}
 
         {/* Documento imprimível */}
         <div className="mt-3 rounded-xl border border-border bg-card p-4 shadow-sm print:border-0 print:shadow-none">
@@ -303,8 +330,12 @@ export default async function OrcamentoDetalhe({
             <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1">
               <h1 className="text-lg font-semibold tracking-tight">Custos laboratoriais nº {orc.id}</h1>
               <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium">{rotuloStatusModulo(orc.status)}</span>
-              <span className="text-lg font-semibold tabular-nums text-brand-800 dark:text-brand-200">{brl(custoResumo)}</span>
-              <span className="text-xs text-muted-foreground">de custo</span>
+              {custoResumo !== null ? (
+                <>
+                  <span className="text-lg font-semibold tabular-nums text-brand-800 dark:text-brand-200">{brl(custoResumo)}</span>
+                  <span className="text-xs text-muted-foreground">{rotuloResumo}</span>
+                </>
+              ) : custeioAtualPendente ? <span className="text-sm font-semibold text-warning-strong">Custo pendente</span> : null}
             </div>
             <p className="mt-0.5 text-sm text-muted-foreground">
               {["Laboratório ATGC — Biologia Molecular", `Data: ${formatDate(orc.data_orcamento)}`, validade ? `Válido até: ${validade}` : null]
@@ -337,7 +368,7 @@ export default async function OrcamentoDetalhe({
             <Campo rotulo="Fonte dos insumos">
               {orc.fonte_custo_insumos === "custo_medio_ponderado" ? "Média ponderada dos lotes liberados" : "Custo padrão aprovado"}
             </Campo>
-            <Campo rotulo="Custo calculado em">{formatDateTime(snapshotGeradoEm)}</Campo>
+            <Campo rotulo="Custo gravado em">{formatDateTime(snapshotPersistido.gerado_em)}</Campo>
           </dl>
 
           <nav aria-label="Seções da página" className="no-print sticky top-[57px] z-10 mt-3 overflow-x-auto border-y border-border bg-card/95 py-1.5 backdrop-blur md:top-0">
@@ -382,18 +413,29 @@ export default async function OrcamentoDetalhe({
               </div>
               <dl className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm sm:ml-auto">
                 <ResumoOperacional titulo="Amostras" valor={Number(totaisOperacionais.amostras ?? totalAmostras)} numero />
-                <ResumoOperacional titulo="Preço preservado" valor={Number(totaisOperacionais.preco ?? totalPreco)} discreto />
-                <ResumoOperacional titulo="Subtotal custo" valor={custoResumo} destaque />
+                {custoResumo === null && custeioAtualPendente ? (
+                  <div>
+                    <dt className="text-xs text-muted-foreground">Custeio</dt>
+                    <dd className="text-sm font-semibold text-warning-strong">Custo pendente</dd>
+                  </div>
+                ) : custoResumo !== null ? (
+                  <>
+                    <ResumoOperacional titulo="Preço preservado" valor={Number(totaisOperacionais.preco ?? totalPreco)} discreto />
+                    <ResumoOperacional titulo={rotuloResumo} valor={custoResumo} destaque />
+                  </>
+                ) : null}
               </dl>
             </div>
-            <dl className="mt-2 grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-3 lg:grid-cols-6">
-              <ResumoOperacional titulo="Reagentes" valor={Number(totaisOperacionais.reagentes ?? 0)} bloco />
-              <ResumoOperacional titulo="Materiais" valor={Number(totaisOperacionais.materiais ?? 0)} bloco />
-              <ResumoOperacional titulo="Equipamentos" valor={Number(totaisOperacionais.equipamentos ?? 0)} bloco />
-              <ResumoOperacional titulo="Mão de obra" valor={Number(totaisOperacionais.mao_obra ?? 0)} bloco />
-              <ResumoOperacional titulo="Terceiros" valor={Number(totaisOperacionais.terceiros ?? 0)} bloco />
-              <ResumoOperacional titulo="Overhead" valor={Number(totaisOperacionais.overhead ?? 0)} bloco />
-            </dl>
+            {podeMostrarComposicao && (
+              <dl className="mt-2 grid grid-cols-2 gap-1.5 text-sm sm:grid-cols-3 lg:grid-cols-6">
+                <ResumoOperacional titulo="Reagentes" valor={totaisOperacionais.reagentes ?? null} bloco />
+                <ResumoOperacional titulo="Materiais" valor={totaisOperacionais.materiais ?? null} bloco />
+                <ResumoOperacional titulo="Equipamentos" valor={totaisOperacionais.equipamentos ?? null} bloco />
+                <ResumoOperacional titulo="Mão de obra" valor={totaisOperacionais.mao_obra ?? null} bloco />
+                <ResumoOperacional titulo="Terceiros" valor={totaisOperacionais.terceiros ?? null} bloco />
+                <ResumoOperacional titulo="Overhead" valor={totaisOperacionais.overhead ?? null} bloco />
+              </dl>
+            )}
           </section>
 
           {/* Análises solicitadas */}
@@ -443,13 +485,13 @@ export default async function OrcamentoDetalhe({
                     <td className="px-3 py-2 tabular-nums">{linha.lote ?? "—"}</td>
                     <td className="px-3 py-2 tabular-nums">{linha.quantidade}</td>
                     <td className="px-3 py-2 tabular-nums text-muted-foreground no-print">
-                      {brl(linha.reagentes)}
+                      {custoOuTraco(linha.reagentes)}
                     </td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.equipamentos)}</td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.maoObra)}</td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.overhead)}</td>
+                    <td className="px-3 py-2 tabular-nums">{custoOuTraco(linha.equipamentos)}</td>
+                    <td className="px-3 py-2 tabular-nums">{custoOuTraco(linha.maoObra)}</td>
+                    <td className="px-3 py-2 tabular-nums">{custoOuTraco(linha.overhead)}</td>
                     <td className="px-3 py-2 font-semibold tabular-nums">
-                      {brl(linha.custo)}
+                      {linha.custo === null ? <span className="text-xs text-warning-strong">Custo pendente</span> : brl(linha.custo)}
                     </td>
                     <td className="px-3 py-2 text-left text-xs text-muted-foreground">{linha.origem}</td>
                     <td className="px-3 py-2 no-print">
@@ -487,12 +529,12 @@ export default async function OrcamentoDetalhe({
                     <td></td>
                     <td></td>
                     <td className="px-3 py-2.5 tabular-nums">{totalAmostras}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground no-print">{brl(Number(totaisOperacionais.reagentes ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.equipamentos ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.mao_obra ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.overhead ?? 0))}</td>
+                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground no-print">{custoOuTraco(totaisOperacionais.reagentes)}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{custoOuTraco(totaisOperacionais.equipamentos)}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{custoOuTraco(totaisOperacionais.mao_obra)}</td>
+                    <td className="px-3 py-2.5 tabular-nums">{custoOuTraco(totaisOperacionais.overhead)}</td>
                     <td className="px-3 py-2.5 text-base font-semibold tabular-nums text-brand-700 dark:text-brand-300">
-                      {brl(totalCusto)}
+                      {custoResumo === null ? <span className="text-xs text-warning-strong">Custo pendente</span> : brl(custoResumo)}
                     </td>
                     <td></td>
                     <td className="no-print"></td>
@@ -504,6 +546,8 @@ export default async function OrcamentoDetalhe({
           </section>
 
           <section id="composicao-tecnica" className="no-print mt-3 scroll-mt-24">
+            <CapturaEconomica key={orcId} orcamentoId={orcId} contexto={contextoCaptura} prepararAction={prepararCaptura} />
+            {podeMostrarComposicao ? (
             <details className="group rounded-md border border-border px-3 py-1.5 text-sm">
               {/* summary vira botão para leitores de tela: só texto aqui; a ajuda fica na linha do overhead. */}
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5">
@@ -514,11 +558,11 @@ export default async function OrcamentoDetalhe({
               colunas={["Bloco", "Como é calculado", "Subtotal"]}
               vazio="Sem composição técnica calculada."
               linhas={[
-                ["Reagentes", `Consumo por amostra × amostras; itens por corrida são divididos pelo lote. Preço: ${orc.fonte_custo_insumos === "custo_medio_ponderado" ? "média dos lotes liberados" : "custo padrão do insumo"}.`, brl(Number(totaisOperacionais.reagentes ?? 0))],
-                ["Materiais", "Material de consumo, somado junto aos reagentes.", brl(Number(totaisOperacionais.materiais ?? 0))],
-                ["Equipamentos", "Custo diário do equipamento (depreciação e manutenção) dividido pela capacidade da análise.", brl(Number(totaisOperacionais.equipamentos ?? 0))],
-                ["Mão de obra", "Horas de bancada por amostra × valor-hora da equipe.", brl(Number(totaisOperacionais.mao_obra ?? 0))],
-                ["Terceiros", "Serviços de terceiros (nenhum lançado).", brl(Number(totaisOperacionais.terceiros ?? 0))],
+                ["Reagentes", `Consumo por amostra × amostras; itens por corrida são divididos pelo lote. Preço: ${orc.fonte_custo_insumos === "custo_medio_ponderado" ? "média dos lotes liberados" : "custo padrão do insumo"}.`, custoOuTraco(totaisOperacionais.reagentes)],
+                ["Materiais", "Material de consumo, somado junto aos reagentes.", custoOuTraco(totaisOperacionais.materiais)],
+                ["Equipamentos", "Custo diário do equipamento (depreciação e manutenção) dividido pela capacidade da análise.", custoOuTraco(totaisOperacionais.equipamentos)],
+                ["Mão de obra", "Horas de bancada por amostra × valor-hora da equipe.", custoOuTraco(totaisOperacionais.mao_obra)],
+                ["Terceiros", "Serviços de terceiros (nenhum lançado).", custoOuTraco(totaisOperacionais.terceiros)],
                 [
                   <span key="overhead" className="inline-flex items-center gap-1">
                     Overhead técnico
@@ -528,11 +572,12 @@ export default async function OrcamentoDetalhe({
                     </HelpTip>
                   </span>,
                   "Horas de bancada por amostra × custo-hora de overhead.",
-                  brl(Number(totaisOperacionais.overhead ?? 0)),
+                  custoOuTraco(totaisOperacionais.overhead),
                 ],
               ]}
             />
             </details>
+            ) : <p className="text-sm text-muted-foreground">Composição técnica indisponível nesta leitura.</p>}
           </section>
 
           {orc.observacoes && (
@@ -553,7 +598,7 @@ export default async function OrcamentoDetalhe({
             <div className="flex items-center gap-1">
               <h2 className="text-sm font-semibold">Catálogo de análises laboratoriais</h2>
               <HelpTip title="Catálogo de análises">
-                <p>Lista todas as análises ativas. Use <b>Incluir</b> para levar uma análise a este orçamento; só as incluídas entram no subtotal de custo.</p>
+                <p>Lista as análises ativas e a prévia do custo atual. Os valores já gravados ficam em <b>Análises e quantidades</b>.</p>
               </HelpTip>
             </div>
             <span className="text-xs text-muted-foreground/80">
@@ -572,7 +617,7 @@ export default async function OrcamentoDetalhe({
           />
         </section>
 
-        {!demanda && (
+        {!demanda && !capturaBloqueiaLegado && (
         <section className="no-print mt-3 rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold">Dados do cliente e do orçamento</h2>
           <FormEstado action={salvarCabecalho} className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4" mensagemClassName="sm:col-span-2 lg:col-span-4">
@@ -644,13 +689,14 @@ export default async function OrcamentoDetalhe({
 
         <div className="no-print mt-3 grid items-start gap-3 lg:grid-cols-2">
         <section id="revisao-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
+          {capturaBloqueiaLegado && <p role="status">{motivoBloqueio} A captura não comprova emissão ou aprovação. <a href="#composicao-tecnica" className="underline">Conferir captura</a></p>}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <h2 className="text-sm font-semibold">Revisão técnica dos custos</h2>
             <HelpTip title="Revisão técnica">
               <p>Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.</p>
             </HelpTip>
             <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-              {revisaoPendencias.length === 0 ? "Liberado" : `${revisaoPendencias.length} pendência(s)`}
+              {capturaBloqueiaLegado ? "Somente leitura" : revisaoPendencias.length === 0 ? "Liberado" : `${revisaoPendencias.length} pendência(s)`}
             </span>
           </div>
 
@@ -676,7 +722,7 @@ export default async function OrcamentoDetalhe({
             </ul>
           ) : (
             <p className="mt-2 rounded-md bg-brand-50 px-3 py-1.5 text-xs leading-5 text-brand-900 dark:bg-brand-950/40 dark:text-brand-200">
-              Tudo certo. Marque como revisado para liberar a proposta final.
+              {capturaBloqueiaLegado ? "Consulte a captura e o histórico. A revisão legada não está disponível neste contexto." : "Tudo certo. Marque como revisado para liberar a proposta final."}
             </p>
           )}
           {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && !podeRevisar && (
@@ -684,7 +730,7 @@ export default async function OrcamentoDetalhe({
               A revisão dos custos é feita por coordenador ou superior, ou por quem tem a permissão “Orçamentos: Emitir proposta”.
             </p>
           )}
-          {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar && (
+          {demanda && statusOperacional !== "revisado" && orc.status !== "cancelado" && podeRevisar && !capturaBloqueiaLegado && (
             <FormEstado
               action={revisarOrcamentoLaboratorio}
               seguirPara={proximaDoLaboratorio ? `/orcamento/demandas/${demanda.id}?etapa=${proximaDoLaboratorio}` : undefined}
@@ -715,6 +761,7 @@ export default async function OrcamentoDetalhe({
         </section>
 
         <section id="historico-laboratorio" className="scroll-mt-24 rounded-xl border border-border bg-card p-4 shadow-sm">
+          <HistoricoEconomico key={orcId} orcamentoId={orcId} contexto={contextoCaptura} geracaoLeitura={geracaoLeituraCaptura} consultarAction={consultarHistorico} />
           <h2 className="mb-2 text-sm font-semibold">Linha do tempo</h2>
           <Timeline eventos={eventos} />
         </section>
@@ -731,7 +778,7 @@ export default async function OrcamentoDetalhe({
               confirmLabel="Cancelar orçamento"
               triggerClassName="text-xs text-warning-strong hover:underline"
             />
-          ) : orc.status === "rascunho" ? (
+          ) : orc.status === "rascunho" && !capturaBloqueiaLegado ? (
             <ConfirmActionButton
               action={excluirOrcamento}
               fields={{ orcamento_id: orcId }}
@@ -771,13 +818,13 @@ function ResumoOperacional({
   bloco = false,
 }: {
   titulo: string;
-  valor: number;
+  valor: number | null;
   destaque?: boolean;
   discreto?: boolean;
   numero?: boolean;
   bloco?: boolean;
 }) {
-  const zerado = Math.abs(valor) < 0.005;
+  const zerado = valor === null || Math.abs(valor) < 0.005;
   // No celular o bloco empilha rótulo e valor (duas colunas estreitas não cabem lado a lado).
   const caixa = bloco
     ? "max-sm:flex-col max-sm:items-start max-sm:gap-0 justify-between rounded-md bg-card px-2 py-1 ring-1 ring-border/70"
@@ -794,7 +841,7 @@ function ResumoOperacional({
   return (
     <div className={`flex min-w-0 items-baseline gap-2 ${caixa}`}>
       <dt className={`min-w-0 text-xs leading-tight ${destaque ? "font-medium text-brand-800 dark:text-brand-200" : "text-muted-foreground"}`}>{titulo}</dt>
-      <dd className={`shrink-0 tabular-nums ${tomValor}`}>{numero ? valor.toLocaleString("pt-BR") : brl(valor)}</dd>
+      <dd className={`shrink-0 tabular-nums ${tomValor}`}>{numero && valor !== null ? valor.toLocaleString("pt-BR") : custoOuTraco(valor)}</dd>
     </div>
   );
 }
@@ -809,15 +856,7 @@ function TabelaCatalogoAnalises({
   analises: Array<{
     codigo: string;
     nome: string | null;
-    breakdown: {
-      lote?: number | null;
-      reagentes?: number;
-      equipamento?: number;
-      pessoal?: number;
-      overhead?: number;
-      custoTotal?: number;
-      preco?: number;
-    } | null;
+    breakdown: Breakdown | null;
   }>;
   itens: Item[];
   orcId: number;
@@ -836,12 +875,11 @@ function TabelaCatalogoAnalises({
             <th className="px-2 py-2 text-left">Código</th>
             <th className="px-2 py-2 text-left">Nome</th>
             <th className="px-2 py-2">Lote</th>
-            <th className="px-2 py-2">Custo unit.</th>
+            <th className="px-2 py-2">Custo atual/un.</th>
             <th className="px-2 py-2" title="R reagentes · E equipamentos · P pessoal · O overhead">
-              Composição (R · E · P · O)
+              Composição atual (R · E · P · O)
             </th>
             <th className="px-2 py-2">Amostras</th>
-            <th className="px-2 py-2">Subtotal</th>
             <th className="px-2 py-2"></th>
           </tr>
         </thead>
@@ -849,9 +887,8 @@ function TabelaCatalogoAnalises({
           {analises.map((analise) => {
             const item = itensPorCodigo.get(analise.codigo);
             const selecionada = Boolean(item);
-            const custoUnitario = Number(item?.custo_unitario ?? analise.breakdown?.custoTotal ?? 0);
+            const atual = custeioLaboratorialCompleto(analise.breakdown) ? analise.breakdown : null;
             const amostras = Number(item?.n_amostras ?? 1);
-            const subtotal = selecionada ? custoUnitario * amostras : 0;
             return (
               <tr
                 key={analise.codigo}
@@ -884,9 +921,15 @@ function TabelaCatalogoAnalises({
                 <td className="order-1 col-span-2 font-semibold md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left">{analise.codigo}</td>
                 <td className="order-2 col-span-2 -mt-2 text-foreground md:order-none md:mt-0 md:table-cell md:max-w-xs md:px-2 md:py-1.5 md:text-left">{analise.nome ?? "—"}</td>
                 <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
-                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
-                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 min-[1400px]:whitespace-nowrap max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
-                  R {brl(Number(analise.breakdown?.reagentes ?? 0))} · E {brl(Number(analise.breakdown?.equipamento ?? 0))} · P {brl(Number(analise.breakdown?.pessoal ?? 0))} · O {brl(Number(analise.breakdown?.overhead ?? 0))}
+                <td data-label="Custo atual/un." className="order-3 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                  {atual ? brl(atual.custoTotal) : (
+                    <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="text-xs font-medium text-warning-strong underline" title="Confira preço, unidade e conversão na receita em Análises">
+                      Custo pendente
+                    </Link>
+                  )}
+                </td>
+                <td data-label="Composição atual (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 min-[1400px]:whitespace-nowrap max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                  {atual ? <>R {brl(atual.reagentes)} · E {brl(atual.equipamento)} · P {brl(atual.pessoal)} · O {brl(atual.overhead)}</> : "—"}
                 </td>
                 <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   {selecionada && bloqueado ? (
@@ -913,9 +956,8 @@ function TabelaCatalogoAnalises({
                     <span className="text-muted-foreground/80">—</span>
                   )}
                 </td>
-                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
                 <td className="order-8 self-center text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left min-[1400px]:whitespace-nowrap">
-                  {selecionada ? "No orçamento" : "Fora do subtotal"}
+                  {selecionada ? "No orçamento" : "Não incluída"}
                 </td>
               </tr>
             );

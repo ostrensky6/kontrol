@@ -5,15 +5,7 @@ import { obterMatrizPrivilegios } from "@/lib/actions/privilegios";
 export const dynamic = "force-dynamic";
 
 export default async function PrivilegiosPage() {
-  const permissoesPorCategoria = await obterMatrizPrivilegios();
-
-  if (!permissoesPorCategoria) {
-    return (
-      <main className="mx-auto max-w-3xl px-4 py-6 text-center font-sans sm:px-6 sm:py-8">
-        <p className="text-muted-foreground">Acesso restrito — apenas administradores gerenciam privilégios.</p>
-      </main>
-    );
-  }
+  const leitura = await obterMatrizPrivilegios();
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -22,14 +14,14 @@ export default async function PrivilegiosPage() {
           <h1 className="text-xl font-semibold tracking-tight">Privilégios</h1>
           <HelpTip title="Privilégios">
             <p>
-              O que cada função pode ver e fazer, separado por módulo. Marque ou desmarque a caixinha e
-              salve. O administrador sempre tem tudo. Quem está em cada função fica em Usuários.
+              A matriz mostra as regras gravadas por categoria, separadas por módulo. A categoria Administrador é fixa.
+              Para consultar o acesso de uma pessoa, vá a Usuários.
             </p>
           </HelpTip>
         </div>
 
         <div className="mt-6">
-          <PrivilegiosMatriz permissoesPorCategoria={permissoesPorCategoria} />
+          <PrivilegiosMatriz leitura={leitura} />
         </div>
       </main>
     </div>

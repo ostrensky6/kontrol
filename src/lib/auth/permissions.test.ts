@@ -122,13 +122,16 @@ describe("permissoes reconciliadas", () => {
   });
 });
 
-describe("seis funções (06/11/2026, migration 0146)", () => {
-  it("substitui as quatro funções por Administrador, Gestor, Laboratório, Compra, Cadastro e Coordenador", async () => {
-    const { PAPEIS } = await import("./permissions");
+describe("catálogo TS e níveis operacionais legados", () => {
+  it("inclui Supervisor sem conceder defaults ou papel mínimo", async () => {
+    const { PAPEIS, papelAlcanca } = await import("./permissions");
     expect(PAPEIS.map((papel) => papel.label).sort()).toEqual(
-      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório"].sort(),
+      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório", "Supervisor"].sort(),
     );
     expect(PAPEIS.map((papel) => papel.value)).not.toContain("tecnico");
+    expect(defaultPermissionsForRole("supervisor")).toEqual([]);
+    expect(papelAlcanca("supervisor", "gestor")).toBe(false);
+    expect(papelAlcanca("laboratorio", "supervisor")).toBe(false);
   });
 
   it("Laboratório herda exatamente o padrão do antigo Técnico, que segue como apelido", () => {

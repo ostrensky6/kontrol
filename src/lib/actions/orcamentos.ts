@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { calcularTodas, type FonteCustoInsumos } from "@/lib/costing/loader";
 import type { Breakdown } from "@/lib/costing/engine";
+import { custeioLaboratorialCompleto } from "@/lib/costing/completude-laboratorial";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import {
   montarSnapshotLaboratorio,
@@ -15,6 +16,8 @@ import {
 } from "@/lib/orcamento/laboratorio-operacional";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
+import { temPermissao } from "@/lib/auth/permissao-efetiva";
+import { validarTransporteCapturaEquivalencia } from "@/lib/orcamento/snapshot-equivalencia-transporte";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 import { registrarEvento } from "./eventos";
@@ -179,12 +182,12 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
   const [{ data: anterior, error: anteriorError }, { data: itens, error: itensError }] = await Promise.all([
     supabase
       .from("orcamentos")
-      .select("status")
+      .select("id, status, status_operacional, responsavel, fonte_custo_insumos, custo_snapshot")
       .eq("id", id)
       .single(),
     supabase
       .from("orcamento_itens")
-      .select("id")
+      .select("id, codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot")
       .eq("orcamento_id", id),
   ]);
   if (anteriorError || !anterior) {
@@ -195,20 +198,40 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
     return falha("Adicione ao menos uma análise antes de revisar os custos laboratoriais.");
   }
 
+  const transporte = validarTransporteCapturaEquivalencia({ ...anterior, orcamento_itens: itens });
+  if (transporte.estado === "invalido") return falha(transporte.message);
+  const capturado = transporte.estado === "equivalencia";
+  if (capturado) {
+    if (!await temPermissao("orcamentos.criar_editar")) {
+      return falha("A revisão exige também permissão para gravar os metadados do orçamento.");
+    }
+    if (anterior.status !== "rascunho" && anterior.status !== "enviado") {
+      return falha("O estado atual não permite revisar esta captura nem retomar seus metadados.");
+    }
+    if (anterior.status === "enviado" && anterior.status_operacional === "revisado" && anterior.responsavel) {
+      return anterior.responsavel === responsavel
+        ? sucesso("Revisão interna já confirmada, sem nova transição ou gravação.")
+        : falha("A revisão interna já está concluída com outro responsável; não foi alterada.");
+    }
+  }
+
   // Transição primeiro: se o banco recusar, nada foi gravado e o módulo não
   // fica "revisado" com o documento ainda em rascunho. Se a gravação seguinte
   // falhar, repetir a revisão pula a transição (já feita) e completa o resto.
   const statusFinal = anterior.status === "rascunho" ? novoStatus : anterior.status ?? novoStatus;
   if (anterior.status === "rascunho") {
-    const { error: transicaoError } = await supabase.rpc("transicionar_orcamento", {
+    const { data: transicao, error: transicaoError } = await Promise.resolve(supabase.rpc("transicionar_orcamento", {
       p_orcamento_id: id,
       p_status_destino: novoStatus,
       p_observacao: "Revisão do módulo laboratorial.",
-    });
+    })).catch(() => ({ data: null, error: { message: "Resultado da transição não confirmado. Consulte o estado antes de retomar a revisão." } }));
     if (transicaoError) return falha(mensagemDoBanco(transicaoError));
+    if (capturado && !z.object({ status_destino: z.literal("enviado"), alterado: z.boolean() }).safeParse(transicao).success) {
+      return falha("Resultado da transição não confirmado. Consulte o estado antes de retomar a revisão.");
+    }
   }
   // responsável e andamento na mesma linha, numa única gravação
-  const { error } = await supabase
+  let gravacao = supabase
     .from("orcamentos")
     .update({
       responsavel,
@@ -219,10 +242,18 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
       status_operacional_atualizado_em: new Date().toISOString(),
     })
     .eq("id", id);
-  if (error) return falha(mensagemDoBanco(error));
+  // Impede completar metadados se o documento mudou de estado entre as duas transações.
+  if (capturado) gravacao = gravacao.eq("status", novoStatus);
+  const { data: gravados, error } = await Promise.resolve(gravacao.select("id"))
+    .catch(() => ({ data: null, error: { message: "Resposta da gravação indisponível." } }));
+  if (error || gravados?.length !== 1 || gravados[0].id !== id) {
+    return falha(statusFinal === "enviado"
+      ? "Revisão interna enviada, mas metadados não confirmados. Confira o estado e repita a revisão para completar o responsável e o andamento; não houve rollback da transição."
+      : "Metadados da revisão não confirmados. Confira o estado e tente novamente.");
+  }
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
-  return sucesso("Custos revisados. A proposta já pode ser emitida.");
+  return sucesso("Revisão interna confirmada. A emissão continua sujeita às demais validações e permissões.");
 }
 
 type ItemGravado = {
@@ -232,6 +263,9 @@ type ItemGravado = {
   preco_unitario: number;
   valor_snapshot: unknown;
 };
+
+const mensagemCusteioPendente = (codigos: string) =>
+  `Custo pendente para: ${codigos}. Confira preço, unidade e conversão dos insumos na receita em Análises.`;
 
 /** Custo congelado de uma análise no momento em que entra (ou muda) no orçamento. */
 function itemDoCusteio(b: Breakdown, n: number, fonteCustoInsumos: FonteCustoInsumos) {
@@ -298,8 +332,8 @@ export async function salvarItemOrcamento(_estado: EstadoAcao, formData: FormDat
   const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento.fonte_custo_insumos);
   const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
   const breakdown = breakdowns.find((x) => x.codigo === codigo);
-  if (!remover && !breakdown) {
-    return falha(`Não foi possível calcular o custo da análise ${codigo}. Confira a receita dela em Análises.`);
+  if (!remover && !custeioLaboratorialCompleto(breakdown)) {
+    return falha(mensagemCusteioPendente(codigo));
   }
 
   const { data: itensAtuais, error: itensError } = await supabase
@@ -362,24 +396,29 @@ export async function incluirAnalisesDaDemandaNoOrcamento(orcamentoId: number, d
   const fonteCustoInsumos = normalizarFonteCustoInsumos(orcamento?.fonte_custo_insumos);
   const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
 
-  const gravados: ItemGravado[] = [];
+  const paraGravar: ItemGravado[] = [];
   const semCusto: string[] = [];
   for (const [codigo, n] of quantidades) {
     const breakdown = breakdowns.find((x) => x.codigo === codigo);
-    if (!breakdown) {
+    if (!custeioLaboratorialCompleto(breakdown)) {
       semCusto.push(codigo);
       continue;
     }
-    const novo = itemDoCusteio(breakdown, n, fonteCustoInsumos);
-    gravados.push({ codigo_analise: codigo, ...novo });
+    paraGravar.push({ codigo_analise: codigo, ...itemDoCusteio(breakdown, n, fonteCustoInsumos) });
+  }
+  if (semCusto.length > 0) return falha(mensagemCusteioPendente(semCusto.join(", ")));
+
+  const gravados: ItemGravado[] = [];
+  for (const novo of paraGravar) {
+    gravados.push(novo);
     const custoSnapshot = {
       ...(montarSnapshotLaboratorio(gravados as ItemLaboratorioOperacional[], breakdowns) as Record<string, Json>),
       fonte_custo_insumos: fonteCustoInsumos,
     };
     const { error } = await supabase.rpc("salvar_item_orcamento", {
       p_orcamento_id: orcamentoId,
-      p_codigo_analise: codigo,
-      p_n_amostras: n,
+      p_codigo_analise: novo.codigo_analise,
+      p_n_amostras: novo.n_amostras,
       p_custo_unitario: novo.custo_unitario,
       p_preco_unitario: novo.preco_unitario,
       p_valor_snapshot: novo.valor_snapshot as Json,
@@ -388,9 +427,7 @@ export async function incluirAnalisesDaDemandaNoOrcamento(orcamentoId: number, d
     if (error) return falha(mensagemDoBanco(error));
   }
   revalidatePath(`/orcamento/${orcamentoId}`);
-  return semCusto.length > 0
-    ? falha(`Sem custo calculado para: ${semCusto.join(", ")}. Confira a receita em Análises e inclua depois.`)
-    : sucesso(`${gravados.length} análise(s) trazidas do orçamento.`);
+  return sucesso(`${gravados.length} análise(s) trazidas do orçamento.`);
 }
 
 export type ResultadoRecalculoOrcamento = {
@@ -438,11 +475,12 @@ export async function recalcularOrcamento(
     .eq("orcamento_id", id);
   if (itensError) return { ok: false, message: mensagemDoBanco(itensError) };
   const { breakdowns } = await calcularTodas({}, fonteCustoInsumos);
-  const semCusteio = (itens ?? []).find((it) => !breakdowns.some((x) => x.codigo === it.codigo_analise));
+  const semCusteio = (itens ?? []).find((it) =>
+    !custeioLaboratorialCompleto(breakdowns.find((x) => x.codigo === it.codigo_analise)));
   if (semCusteio) {
     return {
       ok: false,
-      message: `Não foi possível recalcular a análise ${semCusteio.codigo_analise}. Confira a receita dela em Análises.`,
+      message: mensagemCusteioPendente(semCusteio.codigo_analise),
     };
   }
   const itensRecalculados = (itens ?? []).map((it) => {

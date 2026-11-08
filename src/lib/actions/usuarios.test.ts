@@ -8,10 +8,6 @@ const updateUserById = vi.fn();
 const createUser = vi.fn();
 const clientFrom = vi.fn();
 const adminFrom = vi.fn();
-const select = vi.fn();
-const categoryEq = vi.fn();
-const maybeSingle = vi.fn();
-const upsert = vi.fn();
 const update = vi.fn();
 const eq = vi.fn();
 
@@ -19,6 +15,11 @@ vi.mock("next/cache", () => ({ revalidatePath }));
 vi.mock("@/lib/auth/roles", () => ({ temPapel, usuarioAtual }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({ from: clientFrom })),
+  createClientUntyped: vi.fn(async () => ({
+    from: clientFrom,
+    auth: { getUser: async () => ({ data: { user: { id: "admin-atual" } }, error: null }) },
+    rpc: async () => ({ data: "admin", error: null }),
+  })),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
@@ -47,10 +48,6 @@ describe("excluirUsuario", () => {
     createUser.mockReset();
     clientFrom.mockReset();
     adminFrom.mockReset();
-    select.mockReset();
-    categoryEq.mockReset();
-    maybeSingle.mockReset();
-    upsert.mockReset();
     update.mockReset();
     eq.mockReset();
     temPapel.mockResolvedValue(true);
@@ -59,11 +56,6 @@ describe("excluirUsuario", () => {
     updateUserById.mockResolvedValue({ error: null });
     createUser.mockResolvedValue({ data: { user: { id: "usuario-criado" } }, error: null });
     clientFrom.mockReturnValue({ update });
-    adminFrom.mockReturnValue({ select, upsert });
-    select.mockReturnValue({ eq: categoryEq });
-    categoryEq.mockReturnValue({ maybeSingle });
-    maybeSingle.mockResolvedValue({ data: null, error: null });
-    upsert.mockResolvedValue({ error: null });
     update.mockReturnValue({ eq });
     // update(...).eq(...) é aguardado direto ou seguido de select("id") (conta nova, suspensão)
     eq.mockImplementation(() =>
@@ -140,7 +132,7 @@ describe("excluirUsuario", () => {
     });
   });
 
-  it("preserva a escolha explicita de nenhuma permissao", async () => {
+  it("recusa edição individual mesmo com seleção explicitamente vazia", async () => {
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Usuário sem permissão");
@@ -150,22 +142,12 @@ describe("excluirUsuario", () => {
 
     const result = await editarUsuario({ ok: false }, formData);
 
-    expect(result).toEqual({ ok: true, message: "Usuário atualizado." });
-    const payload = update.mock.calls[0]?.[0] as { permissoes: Record<string, boolean> };
-    expect(Object.keys(payload.permissoes).length).toBeGreaterThan(0);
-    expect(Object.values(payload.permissoes).every((enabled) => enabled === false)).toBe(true);
+    expect(result).toMatchObject({ ok: false, codigo: "PERMISSAO_INDIVIDUAL_DESATIVADA" });
+    expect(update).not.toHaveBeenCalled();
+    expect(updateUserById).not.toHaveBeenCalled();
   });
 
   it("novo usuário segue a categoria: não grava cópia das permissões", async () => {
-    maybeSingle.mockResolvedValue({
-      data: {
-        permissoes: {
-          "analises.ver": false,
-          "usuarios.gerenciar": true,
-        },
-      },
-      error: null,
-    });
     const formData = new FormData();
     formData.set("email", "novo@kontrol.test");
     formData.set("nome", "Novo usuário");
@@ -175,10 +157,9 @@ describe("excluirUsuario", () => {
     const result = await criarUsuario({ ok: false }, formData);
 
     expect(result.ok).toBe(true);
-    expect(adminFrom).toHaveBeenCalledWith("permissoes_categorias");
-    const payload = update.mock.calls[0]?.[0] as { permissoes: Record<string, boolean> };
-    // só exceções ficam no usuário; sem ajuste no formulário, nenhuma (0124)
-    expect(payload.permissoes).toEqual({});
+    expect(adminFrom).not.toHaveBeenCalled();
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty("permissoes");
+    expect(update.mock.calls[0]?.[0]).not.toHaveProperty("papel");
   });
 
   it("cria cada usuário com uma senha provisória própria e devolve a senha uma vez", async () => {

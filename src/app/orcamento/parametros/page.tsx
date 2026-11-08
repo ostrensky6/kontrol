@@ -20,6 +20,7 @@ import {
 export const dynamic = "force-dynamic";
 
 const pct = (v: number) => formatPercent(v, 2);
+const custoExibido = (v: number | null) => v === null ? "Indisponível" : brl(v);
 
 const PARAM_KEYS = [
   "dias_uteis_ano",
@@ -125,21 +126,21 @@ export default async function ParametrosEconomicosPage() {
   const custoMedio =
     breakdowns.length > 0
       ? breakdowns.reduce((acc, b) => acc + b.custoTotal, 0) / breakdowns.length
-      : 0;
+      : null;
   const precoMedio =
     breakdowns.length > 0
       ? breakdowns.reduce((acc, b) => acc + b.preco, 0) / breakdowns.length
-      : 0;
+      : null;
   const ultimaAtualizacao = [...atualizadoEm.values()].sort().at(-1);
 
   const analisesPreview = [...breakdowns]
     .sort((a, b) => b.preco - a.preco)
     .slice(0, 5);
-  const impactoTotalLab = Math.max(0, precoMedio - custoMedio);
+  const impactoTotalLab = custoMedio === null || precoMedio === null ? null : Math.max(0, precoMedio - custoMedio);
   const parametrosLab = PARAMETROS_LAB.map((parametro) => ({
     ...parametro,
     valor: valores[parametro.chave],
-    impacto: custoMedio * (valores[parametro.chave] / 100),
+    impacto: custoMedio === null ? null : custoMedio * (valores[parametro.chave] / 100),
     versao: versaoMaisRecente(versoes as VersaoParametro[] | null | undefined, "laboratorio_global"),
   }));
 
@@ -246,7 +247,7 @@ export default async function ParametrosEconomicosPage() {
               <Indicador rotulo="Dias úteis/ano" valor={formatNumber(params.dias_uteis_ano)} />
               <Indicador
                 rotulo="Impacto laboratório"
-                valor={brl(impactoTotalLab)}
+                valor={custoExibido(impactoTotalLab)}
                 ajuda={
                   <HelpTip title="Impacto dos parâmetros" className="h-6 w-6">
                     <p>Quanto os parâmetros <b>acrescentam ao custo</b>. No laboratório, a conta usa o custo médio do catálogo; no projeto, os orçamentos de projeto recentes.</p>
@@ -292,15 +293,15 @@ export default async function ParametrosEconomicosPage() {
               pct(parametro.valor),
               parametro.origem,
               parametro.versao,
-              brl(parametro.impacto),
+              custoExibido(parametro.impacto),
             ])}
           />
           <PainelCustos
             titulo="Custos recebidos"
             itens={[
-              ["Laboratório", brl(custoMedio), `${breakdowns.length} análise(s) no catálogo calculado`],
+              ["Laboratório", custoExibido(custoMedio), custoMedio === null ? "sem base calculada disponível" : `${breakdowns.length} análise(s) no catálogo calculado`],
               ["Projeto", brl(totalProjetoCusto), `${projetosCalculados.length} orçamento(s) recentes considerados`],
-              ["Consolidado", brl(custoMedio + totalProjetoCusto), "base de simulação antes dos parâmetros"],
+              ["Consolidado", custoExibido(custoMedio === null ? null : custoMedio + totalProjetoCusto), "base de simulação antes dos parâmetros"],
             ]}
           />
           <section className="rounded-lg border border-border bg-card shadow-sm">
@@ -317,7 +318,7 @@ export default async function ParametrosEconomicosPage() {
             <dl className="grid sm:grid-cols-2">
               <InfoParametro label="Laboratório" value={`Preço = custo x (1 + ${pct(fatorTotal)})`} />
               <InfoParametro label="Projeto" value="Total = custo / (1 - soma dos percentuais)" />
-              <InfoParametro label="Base laboratório" value={`${brl(custoMedio)} -> ${brl(precoMedio)}`} />
+              <InfoParametro label="Base laboratório" value={custoMedio === null || precoMedio === null ? "Indisponível" : `${brl(custoMedio)} -> ${brl(precoMedio)}`} />
               <InfoParametro label="Base projeto" value={`${brl(totalProjetoCusto)} -> ${brl(totalProjetoFinal)}`} />
             </dl>
             <p className="px-3 py-1.5 text-xs text-muted-foreground">
@@ -344,7 +345,7 @@ export default async function ParametrosEconomicosPage() {
           />
 
           {analisesPreview.length === 0 ? (
-            <LinhaVazia titulo="Prévia de impacto" texto="Nenhuma análise calculada no catálogo." />
+            <LinhaVazia titulo="Prévia de impacto" texto="Não há custo calculado disponível para exibir." />
           ) : (
             <section tabIndex={0} aria-label="Prévia de impacto" className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
               <Cabecalho titulo="Prévia de impacto" subtitulo="Cinco análises com maior preço atual usando estes parâmetros." />

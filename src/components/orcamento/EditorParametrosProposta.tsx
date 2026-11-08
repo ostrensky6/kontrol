@@ -31,6 +31,7 @@ export function EditorParametrosProposta({
   demandaId,
   custoLaboratorio,
   custoProjeto,
+  temBaseCusto,
   valores,
   origem,
   erro,
@@ -40,6 +41,7 @@ export function EditorParametrosProposta({
   demandaId: number;
   custoLaboratorio: number;
   custoProjeto: number;
+  temBaseCusto: boolean;
   valores: Rates;
   origem: OrigemParametros;
   erro?: string;
@@ -118,8 +120,11 @@ export function EditorParametrosProposta({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-3 py-2 text-sm">
         <p className="tabular-nums">
-          Soma <b>{previa.somaPercentual.toLocaleString("pt-BR")}%</b> · custo {brl(previa.subtotal)} → preço{" "}
-          <b>{previa.valido ? brl(previa.totalFinal) : "—"}</b>
+          Soma <b>{previa.somaPercentual.toLocaleString("pt-BR")}%</b> · {temBaseCusto ? (
+            <>custo {brl(previa.subtotal)} → preço <b>{previa.valido ? brl(previa.totalFinal) : "—"}</b></>
+          ) : (
+            <span className="text-warning-strong">Prévia indisponível: sem custos registrados.</span>
+          )}
         </p>
         {podeEditar ? (
           <Button type="submit" disabled={!previa.valido}>

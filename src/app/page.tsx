@@ -396,6 +396,9 @@ export default async function Home() {
       />
 
       <AguardandoVoce pendencias={pendencias} />
+      <Link href="/nomeacoes" className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline">
+        Nomeação delegada — consultar acesso autorizado
+      </Link>
 
       {indicadores.length > 0 && (
         <section aria-label="Indicadores" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">

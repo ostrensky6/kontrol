@@ -2,6 +2,7 @@ import Link from "next/link";
 import { QrCode } from "@/components/common/QrCode";
 import { formatDate } from "@/lib/formatters";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { AvisosEquipamento, lerContextosAvisosEquipamento } from "@/components/estoque/AvisosEquipamento";
 import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { createClientUntyped } from "@/lib/supabase/server";
@@ -132,10 +133,15 @@ export default async function EquipamentosPage({
     .select("id, equipamento_id, codigo_patrimonio, numero_serie, fabricante, modelo, status_operacional, ativo, observacoes, equipamentos(nome), locais(nome)")
     .order("id", { ascending: true });
 
-  const { data } = scanId ? await query.eq("id", scanId) : await query;
+  const { data, error: erroUnidades } = scanId ? await query.eq("id", scanId) : await query;
   const unidades = (data ?? []) as unknown as UnidadeEquipamento[];
   const unidadeIds = unidades.map((unidade) => unidade.id);
-  const [manutencoesResult, planosResult, logsResult] = unidadeIds.length > 0
+  // Só consulte avisos após confirmar que a unidade selecionada veio da leitura de sessão.
+  const unidadeAvisos = !erroUnidades && scanId != null && scanId > 0 && Number.isSafeInteger(scanId)
+    ? unidades.find((unidade) => unidade.id === scanId)
+    : undefined;
+
+  const [manutencoesResult, planosResult, logsResult, contextosAvisos] = unidadeIds.length > 0
     ? await Promise.all([
         supabase
           .from("equipamento_manutencoes")
@@ -154,8 +160,9 @@ export default async function EquipamentosPage({
           .in("equipamento_unidade_id", unidadeIds)
           .order("criado_em", { ascending: false })
           .limit(200),
+        unidadeAvisos ? lerContextosAvisosEquipamento(supabase, unidadeAvisos.id) : null,
       ])
-    : [{ data: [], error: null }, { data: [] }, { data: [] }];
+    : [{ data: [], error: null }, { data: [] }, { data: [] }, null];
 
   const manutencoesIndisponiveis = manutencoesResult.error != null;
   const manutencoesPorUnidade = byUnit((manutencoesResult.data ?? []) as unknown as ManutencaoEquipamento[]);
@@ -470,6 +477,13 @@ export default async function EquipamentosPage({
                       </>
                     )}
                   </details>
+                  {unidadeAvisos?.id === unidade.id && (
+                    <AvisosEquipamento
+                      unidadeId={unidade.id}
+                      contextos={contextosAvisos}
+                      escritaHabilitada={process.env.KONTROL_EQUIPAMENTOS_AVISOS_ESCRITA_HABILITADA === "1"}
+                    />
+                  )}
                 </article>
               );
             })}

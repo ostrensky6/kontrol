@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { useActionState, useId, useState, useTransition } from "react";
 import { MoreHorizontal } from "lucide-react";
 
 import {
@@ -10,6 +10,7 @@ import {
   editarUsuario,
   excluirUsuario,
   gerarNovaSenhaProvisoria,
+  nomearPapelUsuario,
   type UsuarioFormState,
 } from "@/lib/actions/usuarios";
 import { Button } from "@/components/ui/button";
@@ -32,40 +33,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { PERMISSOES, PAPEIS, normalizePermissions } from "@/lib/auth/permissions";
+import { PAPEIS } from "@/lib/auth/permissions";
 import type { FormState } from "@/lib/actions/cadastros";
 import { AssinaturaUsuarioForm } from "./AssinaturaUsuarioForm";
-import { HelpTip } from "@/components/common/HelpTip";
 import type { UsuarioRow } from "./UsuariosTable";
 import { enviarSemReset, formularioSemPerda } from "@/lib/formulario-sem-perda";
 import { SenhaProvisoriaGerada } from "./SenhaProvisoriaGerada";
-import { faixaDoModulo } from "@/components/governanca/faixas";
-import { cn } from "@/lib/utils";
 
 const initial: FormState = { ok: false, message: "" };
 const initialUsuario: UsuarioFormState = { ok: false, message: "" };
 
-const permissoesPorModulo = new Map<string, typeof PERMISSOES>();
-for (const permissao of PERMISSOES) {
-  permissoesPorModulo.set(permissao.modulo, [...(permissoesPorModulo.get(permissao.modulo) ?? []), permissao]);
-}
-const GRUPOS_PERMISSOES = Array.from(permissoesPorModulo.entries());
-
-type DialogAberto = "editar" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | null;
-
-function permissoesEfetivasDaLinha(row: UsuarioRow, papel: string) {
-  const base = row.categorias?.[papel] ?? normalizePermissions(papel, {});
-  const excecoes =
-    typeof row.permissoes === "object" && row.permissoes !== null
-      ? (row.permissoes as Record<string, unknown>)
-      : {};
-  return Object.fromEntries(
-    Object.entries(base).map(([chave, valor]) => [
-      chave,
-      papel === "admin" ? true : typeof excecoes[chave] === "boolean" ? Boolean(excecoes[chave]) : valor,
-    ]),
-  ) as Record<string, boolean>;
-}
+type DialogAberto = "editar" | "nomear" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | null;
 
 function EditarDialog({
   row,
@@ -78,9 +56,6 @@ function EditarDialog({
 }) {
   const [erro, setErro] = useState("");
   const [pending, startTransition] = useTransition();
-  const [papel, setPapel] = useState(row.papel);
-  // Efetivo = categoria do papel + exceções do usuário (a caixinha manda, 0124).
-  const permissoes = permissoesEfetivasDaLinha(row, papel);
 
   function handle(formData: FormData) {
     startTransition(async () => {
@@ -96,103 +71,113 @@ function EditarDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[calc(100dvh-2rem)] max-w-3xl grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
+      <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto">
         <DialogHeader className="pr-8">
-          <DialogTitle>Editar usuário</DialogTitle>
-          <DialogDescription>{row.email}</DialogDescription>
+          <DialogTitle>Editar cadastro</DialogTitle>
+          <DialogDescription>{row.email} · a função não muda nesta edição.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={enviarSemReset(handle)} className="grid min-h-0 grid-rows-[auto_minmax(0,1fr)_auto] gap-4">
+        <form onSubmit={enviarSemReset(handle)} className="grid gap-4">
           <input type="hidden" name="id" value={row.id} />
-          <input type="hidden" name="permissoes_presentes" value="1" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label htmlFor={`editar-usuario-nome-${row.id}`} className="block text-xs font-medium text-muted-foreground">
-                Nome
-              </label>
-              <Input
-                id={`editar-usuario-nome-${row.id}`}
-                name="nome"
-                defaultValue={row.nome === "—" ? "" : row.nome}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <label htmlFor={`editar-usuario-papel-${row.id}`} className="block text-xs font-medium text-muted-foreground">
-                Função
-              </label>
-              <Select
-                id={`editar-usuario-papel-${row.id}`}
-                name="papel"
-                value={papel}
-                onChange={(event) => setPapel(event.target.value)}
-                className="mt-1 h-9"
-              >
-                {PAPEIS.map((p) => (
-                  <option key={p.value} value={p.value}>
-                    {p.label}
-                  </option>
-                ))}
-              </Select>
-            </div>
-          </div>
-          <div className="min-h-0 overflow-y-auto pr-1">
-            <div className="mb-2 flex items-center gap-1">
-              <p className="text-xs font-medium text-muted-foreground">Permissões efetivas</p>
-              <HelpTip title="Permissões efetivas">
-                <p>
-                  O que esta pessoa pode fazer de fato. Parte do padrão da <b>função</b> (Governança →
-                  Privilégios); o que você marcar ou desmarcar aqui vale só para ela.
-                </p>
-              </HelpTip>
-            </div>
-            <div className="space-y-2">
-              {GRUPOS_PERMISSOES.map(([modulo, permissoesModulo], indice) => (
-                <details key={modulo} className={cn("rounded-md border border-border", faixaDoModulo(indice))}>
-                  <summary className="min-h-11 cursor-pointer px-3 py-3 text-sm font-semibold text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                    {modulo}
-                    <span className="float-right text-xs font-normal text-muted-foreground">
-                      {permissoesModulo.length} permissões
-                    </span>
-                  </summary>
-                  <fieldset className="border-t border-border p-2">
-                    <legend className="sr-only">{modulo}</legend>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {permissoesModulo.map((permissao) => (
-                        <label
-                          key={permissao.key}
-                          className="flex items-start gap-2 rounded-md border border-border p-2 text-xs"
-                        >
-                          <Checkbox
-                            key={`${papel}-${permissao.key}`}
-                            name="permissoes"
-                            value={permissao.key}
-                            defaultChecked={Boolean(permissoes[permissao.key])}
-                            disabled={papel === "admin"}
-                            className="mt-0.5"
-                          />
-                          <span>
-                            <span className="block font-semibold text-foreground">{permissao.label}</span>
-                            <span className="block leading-4 text-muted-foreground">{permissao.descricao}</span>
-                          </span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                </details>
-              ))}
-            </div>
-            {papel === "admin" && (
-              <p className="mt-2 text-xs text-muted-foreground">Administradores sempre recebem todas as permissões.</p>
-            )}
+          <div>
+            <label htmlFor={`editar-usuario-nome-${row.id}`} className="block text-xs font-medium text-muted-foreground">
+              Nome
+            </label>
+            <Input
+              id={`editar-usuario-nome-${row.id}`}
+              name="nome"
+              defaultValue={row.nome === "—" ? "" : row.nome}
+              className="mt-1"
+            />
           </div>
           <div className="space-y-3 border-t border-border pt-4">
             {erro && <p role="alert" className="text-xs text-danger-strong">{erro}</p>}
             <DialogFooter>
               <Button type="submit" disabled={pending} aria-busy={pending}>
-                {pending ? "Salvando…" : "Salvar"}
+                {pending ? "Salvando…" : "Salvar cadastro"}
               </Button>
             </DialogFooter>
           </div>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function NomearPapelDialog({ row, onClose }: { row: UsuarioRow; onClose: () => void }) {
+  const campoDestino = useId();
+  // A versão que abriu o diálogo é a precondição; não a atualize durante a decisão.
+  const [atual] = useState(() => ({ papel: row.papel, label: row.papelLabel }));
+  const [destino, setDestino] = useState("");
+  const [state, action, pending] = useActionState(nomearPapelUsuario, initialUsuario);
+  const opcoes = PAPEIS.filter((papel) => row.papeisDestino?.includes(papel.value));
+  const conflito = !state.ok && (state.codigo === "PAPEL_ALTERADO" || row.papel !== atual.papel);
+  const recarregar = conflito || (!state.ok && Boolean(state.message));
+  const bloqueado = pending || state.ok || recarregar;
+
+  return (
+    <Dialog open onOpenChange={(aberto) => { if (!aberto && !pending && !recarregar) onClose(); }}>
+      <DialogContent
+        className="max-h-[calc(100dvh-2rem)] overflow-y-auto"
+        showCloseButton={!pending && !recarregar}
+      >
+        <DialogHeader className="pr-8">
+          <DialogTitle>Trocar função</DialogTitle>
+          <DialogDescription>{row.nome === "—" ? row.email : `${row.nome} · ${row.email}`}</DialogDescription>
+        </DialogHeader>
+        <form action={action} onSubmit={(event) => { if (bloqueado) event.preventDefault(); }} aria-busy={pending} className="grid gap-4">
+          <input type="hidden" name="id" value={row.id} />
+          <input type="hidden" name="papel_atual_esperado" value={atual.papel} />
+          <p className="text-sm">
+            <span className="text-muted-foreground">{state.ok ? "Função anterior: " : "Função atual: "}</span>
+            <strong>{atual.label}</strong>
+          </p>
+          <div>
+            <label htmlFor={campoDestino} className="block text-sm font-medium">Função de destino</label>
+            <Select
+              id={campoDestino}
+              name="papel_destino"
+              value={destino}
+              onChange={(event) => setDestino(event.target.value)}
+              required
+              disabled={bloqueado}
+              className="mt-1 min-h-11"
+            >
+              <option value="" disabled>Selecione uma função</option>
+              {opcoes.map((papel) => (
+                <option key={papel.value} value={papel.value}>{papel.label}</option>
+              ))}
+              {bloqueado && destino && !opcoes.some((papel) => papel.value === destino) && (
+                <option value={destino} disabled>{PAPEIS.find((papel) => papel.value === destino)?.label}</option>
+              )}
+            </Select>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            A pessoa passa a usar as permissões da função de destino, definidas em Governança → Privilégios.
+            Esta ação não altera o cadastro nem a suspensão.
+          </p>
+          {conflito ? (
+            <p role="alert" className="text-sm text-danger-strong">
+              A função atual não foi confirmada. Recarregue a lista e confira a função antes de fazer uma nova tentativa.
+            </p>
+          ) : state.message && (
+            <p role={state.ok ? "status" : "alert"} className={state.ok ? "text-sm text-success-strong" : "text-sm text-danger-strong"}>
+              {state.message}
+            </p>
+          )}
+          <DialogFooter>
+            {recarregar ? (
+              <Button type="button" disabled={pending} onClick={() => window.location.reload()}>Recarregar lista</Button>
+            ) : state.ok ? (
+              <Button type="button" onClick={onClose}>Concluir</Button>
+            ) : (
+              <>
+                <Button type="button" variant="outline" disabled={pending} onClick={onClose}>Cancelar</Button>
+                <Button type="submit" disabled={bloqueado || !opcoes.some((papel) => papel.value === destino)}>
+                  {pending ? "Confirmando…" : "Confirmar troca de função"}
+                </Button>
+              </>
+            )}
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
@@ -253,6 +238,7 @@ function PreAprovarDialog({
   onOpenChange: (v: boolean) => void;
 }) {
   const [state, action, pending] = useActionState(criarUsuarioPreAprovado, initialUsuario);
+  const podeCadastrar = row.papel === "laboratorio";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -260,24 +246,31 @@ function PreAprovarDialog({
         <DialogHeader>
           <DialogTitle>Cadastrar acesso pré-aprovado</DialogTitle>
           <DialogDescription>
-            Cria a conta de {row.email} com a função {row.papelLabel} e uma senha provisória gerada
-            só para essa pessoa.
+            {podeCadastrar
+              ? `A conta começa em Laboratório e gera uma senha provisória para ${row.email}. Depois do cadastro, use Trocar função quando a ação estiver disponível.`
+              : `A pré-aprovação de ${row.email} está registrada como ${row.papelLabel}. Só pré-aprovações em Laboratório podem abrir conta por este fluxo.`}
           </DialogDescription>
         </DialogHeader>
-        <form action={action} {...formularioSemPerda(state)} className="space-y-4">
-          <input type="hidden" name="pre_aprovado_id" value={row.preAprovadoId ?? ""} />
-          {state.message && (
-            <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
-              {state.message}
-            </p>
-          )}
-          {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
+        {podeCadastrar ? (
+          <form action={action} {...formularioSemPerda(state)} aria-busy={pending} className="space-y-4">
+            <input type="hidden" name="pre_aprovado_id" value={row.preAprovadoId ?? ""} />
+            {state.message && (
+              <p role={state.ok ? "status" : "alert"} className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
+                {state.message}
+              </p>
+            )}
+            {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
+            <DialogFooter>
+              <Button type="submit" disabled={pending || state.ok}>
+                {pending ? "Cadastrando…" : state.ok ? "Acesso criado" : "Cadastrar acesso"}
+              </Button>
+            </DialogFooter>
+          </form>
+        ) : (
           <DialogFooter>
-            <Button type="submit" disabled={pending || state.ok}>
-              {pending ? "Cadastrando..." : state.ok ? "Acesso criado" : "Cadastrar acesso"}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Fechar</Button>
           </DialogFooter>
-        </form>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -475,7 +468,10 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
             <DropdownMenuItem onSelect={() => setDialog("pre_aprovar")}>Cadastrar acesso</DropdownMenuItem>
           ) : (
             <>
-              <DropdownMenuItem onSelect={() => setDialog("editar")}>Editar</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("editar")}>Editar cadastro</DropdownMenuItem>
+              {Boolean(row.papeisDestino?.length) && (
+                <DropdownMenuItem onSelect={() => setDialog("nomear")}>Trocar função</DropdownMenuItem>
+              )}
               <DropdownMenuItem onSelect={() => setDialog("assinatura")}>Upload assinatura</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog("senha")}>Alterar senha</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setDialog("senha_provisoria")}>
@@ -499,6 +495,7 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
       {row.temAcesso && (
         <>
           <EditarDialog row={row} open={dialog === "editar"} onOpenChange={(v) => setDialog(v ? "editar" : null)} />
+          {dialog === "nomear" && <NomearPapelDialog row={row} onClose={() => setDialog(null)} />}
           <AssinaturaDialog row={row} open={dialog === "assinatura"} onOpenChange={(v) => setDialog(v ? "assinatura" : null)} />
           <AlterarSenhaDialog row={row} open={dialog === "senha"} onOpenChange={(v) => setDialog(v ? "senha" : null)} />
           <SenhaProvisoriaDialog

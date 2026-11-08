@@ -18,6 +18,7 @@ import { empresaParaSnapshot } from "@/lib/orcamento/empresas-emissoras";
 import { resolverIdentidadeComAviso } from "@/lib/orcamento/identidade-institucional";
 import { resolverTextosDemanda } from "@/lib/orcamento/textos-proposta";
 import { mensagemDoBanco } from "@/lib/erros";
+import { validarHistoricoFinalEquivalencia, validarTransporteCapturaEquivalencia } from "@/lib/orcamento/snapshot-equivalencia-transporte";
 import { incluirAnalisesDaDemandaNoOrcamento } from "./orcamentos";
 import { padroesDeParametrosGlobais, resolverParametrosProposta } from "@/lib/orcamento/parametros-proposta";
 import {
@@ -515,6 +516,10 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
     );
   }
 
+  const transportesCaptura = orcamentos.map(validarTransporteCapturaEquivalencia);
+  if (transportesCaptura.some((transporte) => transporte.estado === "invalido")) {
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Snapshot de equivalência incompleto ou incoerente; emissão não confirmada.")}`);
+  }
   const linhaSemSnapshot = (orcamentos ?? []).some((orcamento) => {
     const custoSnapshot = registro(orcamento.custo_snapshot);
     if (!Array.isArray(custoSnapshot?.linhas) || custoSnapshot.linhas.some((linha) => {
@@ -651,6 +656,8 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
   });
 
   const snapshot = {
+    ...(transportesCaptura.some((transporte) => transporte.estado === "equivalencia")
+      ? { captura_economica_versao: "equivalencia-economica-v1" } : {}),
     demanda,
     orcamentos_analises: (orcamentos ?? []).map((orcamento) => ({
       ...orcamento,
@@ -663,6 +670,10 @@ export async function emitirOrcamentoFinalDaDemanda(formData: FormData) {
     empresa_emissora: empresaParaSnapshot(complementos.empresa),
     textos_proposta: textosProposta as unknown as Json,
   } satisfies Json;
+
+  if (validarHistoricoFinalEquivalencia(snapshot, consolidado.totalFinal).estado === "invalido") {
+    redirect(`${listaPath}/${id}?etapa=final&erro_emissao=${encodeURIComponent("Snapshot final de equivalência incompleto ou incoerente; emissão não confirmada.")}`);
+  }
 
   const parametrosPayload: Json | null = economia.valido
     ? {

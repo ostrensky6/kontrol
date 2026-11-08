@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { VinculosProjetoPainel } from "@/components/projetos/VinculosProjetoPainel";
 import { HelpTip } from "@/components/common/HelpTip";
 import { PlanoLinhaAcoes } from "@/components/planejamento/PlanoGestao";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -239,6 +240,7 @@ export default async function ProjetoHubPage({
         </div>
 
         {/* KPIs */}
+        <VinculosProjetoPainel projetoId={projeto.id} />
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Kpi
             label="Orçado (aprovado)"

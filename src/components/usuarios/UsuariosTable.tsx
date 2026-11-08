@@ -4,7 +4,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { PAPEIS } from "@/lib/auth/permissions";
+import { PAPEIS, type PapelUsuario } from "@/lib/auth/permissions";
 import { UploadAssinaturaButton, UsuarioAcoes } from "./UsuarioAcoes";
 
 export type UsuarioRow = {
@@ -20,10 +20,8 @@ export type UsuarioRow = {
   temAcesso: boolean;
   assinaturaPath?: string | null;
   assinaturaUrl?: string | null;
-  /** só as exceções do usuário (0124); o restante vem da categoria */
-  permissoes: unknown;
-  /** marcação efetiva de cada categoria, para o diálogo mostrar o que vale de fato */
-  categorias?: Record<string, Record<string, boolean>>;
+  /** Destinos projetados no servidor para esta linha; a action revalida a transição. */
+  papeisDestino?: PapelUsuario[];
 };
 
 function statusTexto(row: UsuarioRow) {

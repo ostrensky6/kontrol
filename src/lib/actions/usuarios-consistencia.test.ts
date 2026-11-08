@@ -27,6 +27,11 @@ vi.mock("@/lib/supabase/server", () => ({
     from: clientFrom,
     storage: { from: () => ({ remove: storageRemove }) },
   })),
+  createClientUntyped: vi.fn(async () => ({
+    from: clientFrom,
+    auth: { getUser: async () => ({ data: { user: { id: "admin-atual" } }, error: null }) },
+    rpc: async () => ({ data: "admin", error: null }),
+  })),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
@@ -39,7 +44,10 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 
 function tabelaPerfis() {
-  return { update: perfilUpdate };
+  return {
+    update: perfilUpdate,
+    select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: { papel: "laboratorio" }, error: null }) }) }),
+  };
 }
 
 function preAprovado() {
@@ -47,7 +55,7 @@ function preAprovado() {
     select: () => ({
       eq: () => ({
         single: async () => ({
-          data: { id: 7, nome: "Pré", email: "pre@kontrol.test", papel: "coordenador", permissoes: {} },
+          data: { id: 7, nome: "Pré", email: "pre@kontrol.test", papel: "laboratorio", permissoes: {} },
           error: null,
         }),
       }),
@@ -67,7 +75,7 @@ beforeEach(() => {
   linhasPerfil = { data: [{ id: "conta-nova" }], error: null };
   perfilUpdate.mockReturnValue({ eq: perfilEq });
   perfilEq.mockImplementation(() =>
-    Object.assign(Promise.resolve(resultadoPerfil), { select: perfilSelect }),
+    Object.assign(Promise.resolve(resultadoPerfil), { eq: perfilEq, select: perfilSelect }),
   );
   perfilSelect.mockImplementation(async () => linhasPerfil);
   clientFrom.mockImplementation((tabela: string) =>
@@ -82,7 +90,7 @@ function novoUsuario() {
   const formData = new FormData();
   formData.set("email", "novo@kontrol.test");
   formData.set("nome", "Novo");
-  formData.set("papel", "coordenador");
+  formData.set("papel", "laboratorio");
   return formData;
 }
 
@@ -129,6 +137,8 @@ describe("criarUsuario", () => {
 
     expect(result.ok).toBe(true);
     expect(deleteUser).not.toHaveBeenCalled();
+    expect(perfilUpdate.mock.calls[0]?.[0]).not.toHaveProperty("papel");
+    expect(perfilUpdate.mock.calls[0]?.[0]).not.toHaveProperty("permissoes");
   });
 });
 
@@ -143,6 +153,8 @@ describe("criarUsuarioPreAprovado", () => {
 
     expect(result.ok).toBe(false);
     expect(deleteUser).toHaveBeenCalledWith("conta-nova");
+    expect(perfilUpdate.mock.calls[0]?.[0]).not.toHaveProperty("papel");
+    expect(perfilUpdate.mock.calls[0]?.[0]).not.toHaveProperty("permissoes");
   });
 });
 
@@ -208,17 +220,41 @@ describe("alternarSuspensao", () => {
 });
 
 describe("editarUsuario", () => {
+  it("89: aceita id e nome e usa somente o papel lido pelo servidor como CAS", async () => {
+    linhasPerfil = { data: [{ id: "usuario-alvo" }], error: null };
+    const dados = new FormData();
+    dados.set("id", "usuario-alvo");
+    dados.set("nome", "Nome novo");
+    const { editarUsuario } = await import("./usuarios");
+    expect((await editarUsuario({ ok: false }, dados)).ok).toBe(true);
+    expect(perfilUpdate).toHaveBeenCalledWith({ nome: "Nome novo" });
+    expect(perfilEq.mock.calls).toEqual([["id", "usuario-alvo"], ["papel", "laboratorio"]]);
+    expect(updateUserById).toHaveBeenCalledWith("usuario-alvo", { user_metadata: { nome: "Nome novo" } });
+  });
+
+  it("89: recusa papel legado divergente sem alterar perfil ou Auth", async () => {
+    const dados = new FormData();
+    dados.set("id", "usuario-alvo");
+    dados.set("nome", "Nome novo");
+    dados.append("papel", "laboratorio");
+    dados.append("papel", "admin");
+    const { editarUsuario } = await import("./usuarios");
+    expect(await editarUsuario({ ok: false }, dados)).toMatchObject({ ok: false, message: expect.stringContaining("nomeação separada") });
+    expect(perfilUpdate).not.toHaveBeenCalled();
+    expect(updateUserById).not.toHaveBeenCalled();
+  });
+
   it("não altera o Auth quando o perfil recusa a edição", async () => {
-    resultadoPerfil = { error: { message: "permission denied" } };
+    linhasPerfil = { data: null, error: { message: "permission denied" } };
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Nome novo");
-    formData.set("papel", "laboratorio");
     const { editarUsuario } = await import("./usuarios");
 
     const result = await editarUsuario({ ok: false }, formData);
 
     expect(result.ok).toBe(false);
+    expect(perfilUpdate).toHaveBeenCalledWith({ nome: "Nome novo" });
     expect(updateUserById).not.toHaveBeenCalled();
   });
 });

@@ -11,7 +11,7 @@ import {
   type Etapa,
   type InsumoLinha,
 } from "@/lib/costing/engine";
-import { calcularTodas } from "@/lib/costing/loader";
+import { calcularTodas, carregarCusteioDaAnalise } from "@/lib/costing/loader";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpFormula, HelpTip } from "@/components/common/HelpTip";
 import { CustoAnaliseChart } from "@/components/analises/CustoAnaliseChart";
@@ -30,6 +30,7 @@ import { atualizarCatalogoAnalise } from "@/lib/actions/receita";
 import { AnaliseSituacao } from "@/components/analises/AnaliseCatalogoAcoes";
 import { podeEditarAnalises } from "@/lib/auth/permissao-efetiva";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { EquivalenciaFicha } from "@/components/analises/EquivalenciaFicha";
 
 export const dynamic = "force-dynamic";
 
@@ -115,10 +116,10 @@ export default async function AnaliseDetalhe({
   searchParams,
 }: {
   params: Promise<{ codigo: string }>;
-  searchParams: Promise<{ view?: string }>;
+  searchParams: Promise<{ view?: string; metodo_revisao_ref?: string }>;
 }) {
   const { codigo: codigoRaw } = await params;
-  const { view } = await searchParams;
+  const { view, metodo_revisao_ref } = await searchParams;
   const codigo = decodeURIComponent(codigoRaw);
   const activeView = isViewId(view) ? view : "resumo";
   const supabase = await createClient();
@@ -190,10 +191,18 @@ export default async function AnaliseDetalhe({
 
   let custoData = null as Awaited<ReturnType<typeof calcularTodas>> | null;
   let custo = null as Awaited<ReturnType<typeof calcularTodas>>["breakdowns"][number] | null;
+  let identidades: Awaited<ReturnType<typeof carregarCusteioDaAnalise>>["identidades"] = null;
   let erroCusteio = false;
   try {
-    custoData = await calcularTodas();
+    if (activeView === "custeio") {
+      const detalhe = await carregarCusteioDaAnalise(supabase, codigo);
+      custoData = detalhe.custeio;
+      identidades = detalhe.identidades;
+    } else {
+      custoData = await calcularTodas();
+    }
     custo = custoData.breakdowns.find((b) => b.codigo === codigo) ?? null;
+    if (activeView === "custeio" && !custo) erroCusteio = true;
   } catch {
     erroCusteio = true;
   }
@@ -406,6 +415,14 @@ export default async function AnaliseDetalhe({
         </Section>
         )}
 
+        {activeView === "materiais-insumos" && (
+          <EquivalenciaFicha
+            codigo={codigo}
+            metodoRevisaoRef={metodo_revisao_ref}
+            escritaHabilitada={process.env.KONTROL_EQUIVALENCIA_ESCRITA_REVISIONADA === "1"}
+          />
+        )}
+
         {activeView === "equipamentos" && (
         <Section
           title="Equipamentos"
@@ -458,6 +475,32 @@ export default async function AnaliseDetalhe({
             </p>
           )}
           <CustoAnaliseChart data={curvaCusto} capacidade={curvaCusto[0]?.capacidadeOperacional ?? g.amostrasDia} />
+          <div className="mt-3">
+            <h3 className="text-sm font-semibold">Proveniência do cálculo</h3>
+            {identidades === null ? (
+              <p className="text-sm text-warning-strong">Proveniência do cálculo indisponível.</p>
+            ) : identidades.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum insumo selecionado no cálculo.</p>
+            ) : (
+              <Table>
+                <thead>
+                  <tr>{["Necessidade (ID)", "Etapa (ID)", "Insumo / SKU (ID)", "Fonte do custo"].map((titulo) => (
+                    <th key={titulo} scope="col" className={th}>{titulo}</th>
+                  ))}</tr>
+                </thead>
+                <tbody>
+                  {identidades.map((linha) => (
+                    <tr key={linha.necessidade_id}>
+                      <td className={td}>{linha.necessidade_id}</td>
+                      <td className={td}>{linha.etapa_id ?? "Sem etapa vinculada"}</td>
+                      <td className={td}>{linha.insumo_id ?? "Sem insumo vinculado"}</td>
+                      <td className={td}>{linha.fonte_custo ?? "Sem custo de origem"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            )}
+          </div>
         </Section>
         )}
 

@@ -6,6 +6,7 @@ import {
   type GrupoAmostraDemanda,
 } from "@/components/orcamento/DemandaForm";
 import { calcularTodas } from "@/lib/costing/loader";
+import { custeioLaboratorialCompleto } from "@/lib/costing/completude-laboratorial";
 import { createClient } from "@/lib/supabase/server";
 import { calcularPrevisaoOperacionalDemanda } from "@/lib/orcamento/previsao-operacional";
 
@@ -19,7 +20,6 @@ export default async function NovaDemandaPage() {
     { data: analisesCatalogo },
     { data: etapasAnalises },
     { data: insumosAnalises },
-    { data: saldoEstoque },
     { breakdowns },
     { data: matrizes },
   ] = await Promise.all([
@@ -43,15 +43,9 @@ export default async function NovaDemandaPage() {
       unidade: string | null;
       quantidade_por_amostra: number | null;
       modo_cobranca: string | null;
-      status_vinculo_insumo: string | null;
-      insumo_id: number | null;
-      insumos: { custo_unitario?: number | null } | null;
     }> | null }> } })
       .from("insumo_analise")
-      .select("codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, unidade, quantidade_por_amostra, modo_cobranca, status_vinculo_insumo, insumo_id, insumos(custo_unitario)"),
-    (supabase as never as { from: (table: string) => { select: (columns: string) => Promise<{ data: Array<{ insumo_id: number; disponivel?: number | null }> | null }> } })
-      .from("v_estoque_saldo")
-      .select("insumo_id, disponivel"),
+      .select("codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, unidade, quantidade_por_amostra, modo_cobranca"),
     calcularTodas(),
     // A matriz do grupo referencia o cadastro (FK): só códigos cadastrados.
     supabase.from("matrizes_amostras").select("codigo, nome").eq("ativo", true).order("nome"),
@@ -80,22 +74,16 @@ export default async function NovaDemandaPage() {
       unidade,
       prazo_tecnico_dias: capacidades.length > 0 ? Math.max(1, Math.ceil(quantidadeBase / Math.min(...capacidades))) : null,
       matriz: null,
-      custeio_disponivel: breakdowns.some((breakdown) => breakdown.codigo === analise.codigo && Number(breakdown.custoTotal) > 0),
+      custeio_disponivel: custeioLaboratorialCompleto(breakdowns.find((breakdown) => breakdown.codigo === analise.codigo)),
       lote_padrao: previsaoBase?.lote_padrao ?? null,
       capacidade_dia: previsaoBase?.capacidade_dia ?? null,
       reagentes: (insumosAnalises ?? [])
         .filter((item) => item.codigo_analise === analise.codigo)
         .map((item) => {
-          const saldo = (saldoEstoque ?? []).find((saldoItem) => Number(saldoItem.insumo_id) === Number(item.insumo_id));
-          const disponivel = Number(saldo?.disponivel ?? 0);
-          const custoUnitario = Number((item.insumos as { custo_unitario?: number | null } | null)?.custo_unitario ?? 0);
           return {
             especificacao: item.especificacao_insumo ?? "Insumo sem especificação",
             unidade: item.unidade ?? "un",
             quantidade_por_amostra: Number(item.quantidade_por_amostra ?? 0),
-            custo_unitario: Number.isFinite(custoUnitario) ? custoUnitario : null,
-            status_vinculo_insumo: item.status_vinculo_insumo,
-            estoque_status: item.insumo_id == null ? "insumo não encontrado" : disponivel > 0 ? "suficiente" : "sem cadastro de saldo",
             modo_cobranca: item.modo_cobranca === "por_execucao" ? "por_execucao" as const : "por_amostra" as const,
           };
         })
@@ -137,32 +125,33 @@ export default async function NovaDemandaPage() {
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
-      <main className="app-page-container">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <Breadcrumbs
-              items={[
-                { label: "Orçamentos", href: "/orcamento/demandas" },
-                { label: "Novo orçamento" },
-              ]}
-            />
-            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
-              Entrada comercial
-            </p>
-            <div className="mt-0.5 flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Novo orçamento</h1>
+      <main className="app-page-container min-w-0">
+        <header className="border-b border-border pb-4">
+          <Breadcrumbs
+            items={[
+              { label: "Orçamentos", href: "/orcamento/demandas" },
+              { label: "Novo orçamento" },
+            ]}
+          />
+          <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-brand-700 dark:text-brand-300">Cadastro inicial</p>
+              <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Novo orçamento</h1>
+              <p className="mt-1 max-w-prose text-sm text-muted-foreground">
+                Preencha os dados e, se a modalidade incluir análises, revise a seleção antes de criar.
+                Criar o orçamento não emite a proposta.
+              </p>
             </div>
+            <Link
+              href="/orcamento/demandas"
+              className="inline-flex min-h-11 items-center rounded-md border border-input px-4 text-sm font-medium hover:bg-muted"
+            >
+              Voltar à lista
+            </Link>
           </div>
-          <Link
-            href="/orcamento/demandas"
-            className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-muted"
-          >
-            Voltar à lista
-          </Link>
-        </div>
+        </header>
 
-        {/* pb-4/px-4 casam com a barra de ação presa (-mx-4 -mb-4) do formulário. */}
-        <section className="mt-3 rounded-lg border border-border bg-card px-4 pb-4 pt-3 shadow-sm">
+        <div className="mt-4">
           <DemandaForm
             demanda={demandaNova}
             clientes={(clientes ?? []) as { id: number; nome: string }[]}
@@ -172,8 +161,9 @@ export default async function NovaDemandaPage() {
             analisesSelecionadas={[]}
             matrizes={(matrizes ?? []) as { codigo: string; nome: string }[]}
             modo="completo"
+            previaEquivalenciaHabilitada={process.env.KONTROL_EQUIVALENCIA_PREVIA === "1"}
           />
-        </section>
+        </div>
       </main>
     </div>
   );

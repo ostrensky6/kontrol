@@ -57,6 +57,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Validar equivalência na ficha da análise",
+        itens: [
+          "Abra Análises e a ficha em /analises/[codigo]. Consulte o contexto autorizado de equivalência: candidatos não são equivalências e a revisão da leitura não é CAS de escrita.",
+          "Registrar e revogar dependem das capacidades devolvidas pelo serviço, não de uma hierarquia presumida. Com escrita revisionada desligada, a consulta autorizada permanece disponível.",
+          "Escolha a necessidade, o SKU e o contexto de equipamento; informe referências da apresentação e da evidência técnica. Prepare sem gravar. A preparação fornece o CAS, isto é, a revisão esperada; editar a intenção exige preparar novamente. Confirme a gravação apenas após revisar os dados.",
+          "Para revogar, selecione uma decisão autorizada e informe o motivo. Em conflito de contexto ou identidade, releia e prepare outra intenção; não troque o CAS nem o UUID para forçar a tentativa anterior.",
+          "Após resultado indeterminado, não presuma rollback: a opção de repetir exatamente mantém payload, CAS e UUID da tentativa existente. Não faça replay cego. Separar nova intenção não cancela a anterior.",
+          "A memória da tentativa dura somente até desmontar o componente; sair da página ou recarregá-la não garante recuperação. Recibo histórico ou replay não prova estado atual nem desfaz revogação: consulte novamente. Dado indisponível não equivale a zero ou ausência de decisão.",
+        ],
+      },
+      {
         titulo: "Criar, duplicar e inativar",
         itens: [
           "Criar: Operação → Análises → 'Nova análise'. Comece em branco ou copiando etapas, materiais e equipamentos de outra análise.",
@@ -174,6 +185,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Acompanhar saldos por insumo e por lote, com data de validade.",
           "Registrar a chegada: quem recebe cadastra o lote e ele já fica disponível, sem etapa de aceite.",
           "Apontar o que precisa ser comprado já, contando o prazo total da compra (tramitação na universidade + entrega) e o que está a caminho.",
+        ],
+      },
+      {
+        titulo: "Fechamento mensal certificado por pessoa",
+        itens: [
+          "Em /estoque, selecione um insumo e abra Consumo mensal prospectivo. Use Consultar / reler estado atual para conhecer série, qualidade, configuração e capacidades.",
+          "Configurar critérios, certificar mês, executar transição e governar capacidades são operações distintas, autorizadas pelo serviço. Com escrita desligada, a leitura continua disponível; consultar não concede direito de gravar.",
+          "Na certificação, declare cobertura integral e ausência de ruptura e informe referência e SHA-256 de prova existente. É certificação humana: não é telemetria, upload nem verificação automática da prova.",
+          "Qualidade depende dos meses civis comparáveis, da mesma apresentação, da janela e do mínimo configurados. Certificar não executa transição automática. A estimativa manual permanece registrada; a série não é taxa diária multiplicada por 30.",
+          "Média não comprovada, mês sem quantidade ou série vazia não significam consumo zero. Zero confirmado na série é diferente de desconhecido; não substitui contagem física.",
+          "A interface identifica cada operação por UUID. Após erro ou resposta incerta, não reenvie automaticamente: releia antes de decidir outra operação. Recibo confirmado, inclusive repetido/histórico, não substitui o estado atual apresentado separadamente.",
         ],
       },
       {
@@ -521,6 +543,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Configurar e acompanhar avisos de equipamentos",
+        itens: [
+          "Abra /estoque/equipamentos, selecione a unidade e consulte Avisos do cadastro → Consultar configuração e direitos. Escolha o tipo de ocorrência e releia o contexto autorizado.",
+          "Configurar, governar direitos, avaliar, reconhecer e encaminhar dependem das capacidades explícitas retornadas. Com escrita desligada, as consultas permitidas continuam; o nome do papel sozinho não comprova uma concessão.",
+          "Para configurar, escolha origem e responsável devolvidos pela consulta, antecedência e motivo. A versão esperada (CAS) vem do contexto; zero só vale quando confirmado, nunca como substituto de versão desconhecida. Página vazia não prova ausência de regra; use os cursores de origens e responsáveis.",
+          "Para governar, selecione função e operação, consulte a concessão atual e confirme a mudança com motivo. Nenhuma política deve ser presumida. Em conflito de versão ou concessão, releia antes de outra operação.",
+          "Avaliar janela pode registrar pendência. Reconhecer registra ciência; encaminhar registra motivo e destino na trilha. Nenhum deles executa manutenção, resolve o problema, bloqueia automaticamente equipamento ou comprova envio de e-mail.",
+          "Após qualquer tentativa, confira resultado e releia regra/trilha antes de agir novamente. Não faça replay cego nem recrie UUID para contornar conflito. Referência ou histórico indisponível não significa ausência de avisos; referência alterada exige nova conferência.",
+        ],
+      },
+      {
         titulo: "Painel de insumos",
         itens: [
           "O painel usa o disponível registrado no sistema, da mesma fonte do Estoque (v_estoque_saldo). A conferência física não foi comprovada: o disponível pode ser zero mesmo com saldo em mãos.",
@@ -563,10 +596,40 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["cadastro", "projeto", "cliente", "fornecedor", "equipamento", "técnico", "local", "overhead", "salário", "remuneração", "lote", "planilha", "excel", "importar"],
+    termos: ["cadastro", "projeto", "cliente", "fornecedor", "equipamento", "técnico", "local", "overhead", "salário", "remuneração", "lote", "planilha", "excel", "importar", "/estoque/equipamentos"],
   },
 
   // ───────────────────────────── Governança ────────────────────────────
+  {
+    id: "nomeacoes",
+    titulo: "Nomear funções sem gerenciar contas",
+    grupo: "Governança",
+    href: "/nomeacoes",
+    resumo: "Consulta delegada de pessoas elegíveis e destinos autorizados.",
+    intro: "No início, abra Nomeação delegada — consultar acesso autorizado. Esta rota é separada da gestão de contas: não cria, suspende ou exclui usuários e não libera permissões individuais.",
+    secoes: [{ titulo: "Consultar, escolher e reler", itens: [
+      "Admin, Supervisor e Coordenador dependem da autorização efetiva do serviço. Não é necessário abrir Usuários nem presumir a permissão de gestão de contas. O próprio ator não aparece: não há autoalteração.",
+      "Use Reler contexto de nomeação. Escolha somente um destino devolvido para a pessoa. Destino igual à função atual é no-op e fica desabilitado; Coordenador recebe apenas Gestor → Gestor, sem mudança efetiva.",
+      "A gravação envia a função atual esperada como CAS. Em PAPEL_ALTERADO, erro, sucesso ou resultado incerto, releia antes de outra operação. Não force a troca com valores antigos ou com nova tentativa cega.",
+      "Use Próxima página para continuar a consulta. Ausência nesta página não prova inelegibilidade; falha de leitura não é página vazia nem autorização. Este fluxo não oferece um controle de ativação de escrita ao usuário.",
+    ] }],
+    termos: ["nomeação", "delegada", "supervisor", "coordenador", "CAS", "no-op"],
+  },
+  {
+    id: "vinculos-projeto",
+    titulo: "Consultar e alterar vínculos de um projeto",
+    grupo: "Cadastros",
+    href: "/projetos",
+    resumo: "Vínculo explícito separado da coordenação direta, no projeto selecionado.",
+    intro: "Abra um projeto existente em /projetos e consulte Vínculos explícitos do projeto no detalhe /projetos/[id]. O ID vem do projeto carregado: não é um campo livre e não se trata da etapa Custos do projeto do orçamento.",
+    secoes: [{ titulo: "Consultar, vincular e conferir", itens: [
+      "Consulta e alteração exigem Administrador apto, confirmado pelo serviço. Com escrita desligada, a consulta autorizada continua disponível; a tela não ativa a flag.",
+      "Use Reler vínculos do projeto e os cursores de Próxima página. Cada item distingue vínculo explícito e coordenação direta. Página parcial não é catálogo completo: ausência nela nunca significa desvínculo.",
+      "Adicionar ou remover altera apenas o vínculo explícito. Remover vínculo não remove coordenação direta. Uma pessoa já vinculada cujo papel mudou pode continuar disponível para remoção; isso não autoriza um novo vínculo.",
+      "Após sucesso, erro ou resultado não confirmado, releia antes de outra operação. Não há retry automático. Recibo não determina acesso efetivo: confira a projeção autorizada atual. Falha não significa lista vazia; trocar de projeto exige consultar o novo contexto.",
+    ] }],
+    termos: ["membresia", "vínculo", "coordenação direta", "administrador"],
+  },
   {
     id: "auditoria",
     titulo: "Auditoria",

@@ -43,6 +43,7 @@ import { STATUS_APROVADOS, STATUS_VIVOS, estaVencida } from "@/lib/orcamento/tra
 import { entradaDoSnapshot, mascararPessoalVisao, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { validarHistoricoFinalEquivalencia } from "@/lib/orcamento/snapshot-equivalencia-transporte";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,8 @@ export default async function OrcamentoFinalPage({
 
   const { data: versao } = await supabase.from("orcamento_final_versoes").select("*").eq("id", versaoId).single();
   if (!versao) notFound();
+  const contrato = validarHistoricoFinalEquivalencia(versao.snapshot, versao.total_final);
+  if (contrato.estado === "invalido") return <main className="app-page-container"><h1>Proposta indisponível</h1><p role="alert">{contrato.message}</p></main>;
 
   const [{ data: planoGerado }, { data: linksRaw }, { data: outrasVersoes }, { data: demandaAtual }, { data: acompanhamento }] =
     await Promise.all([
@@ -185,20 +188,21 @@ export default async function OrcamentoFinalPage({
         : null;
   const linkAtivo = links.find((l) => !l.revogado && !l.aprovado_em);
 
-  const snapshot = lerSnapshot(versao.snapshot);
-  const demanda = snapshot.demanda ?? demandaAtual;
+  const snapshotDocumento = contrato.estado === "equivalencia" ? contrato.snapshot : versao.snapshot;
+  const snapshot = lerSnapshot(snapshotDocumento);
+  const demanda = contrato.estado === "equivalencia" ? snapshot.demanda : snapshot.demanda ?? demandaAtual;
   // Não lança: versões antigas sem instituição ainda abrem, com aviso.
   const { identidade, aviso: avisoIdentidade } = resolverIdentidadeComAviso(demanda?.instituicao);
-  const total = Number(versao.total_final ?? 0);
+  const total = contrato.estado === "equivalencia" ? contrato.total : Number(versao.total_final ?? 0);
 
-  const complementos = await carregarComplementosDocumento(supabase, {
+  const complementos = contrato.estado === "equivalencia" ? null : await carregarComplementosDocumento(supabase, {
     identidade,
     codigosAnalises: [
       ...(snapshot.orcamentos_analises ?? []).flatMap((o) => (o.orcamento_itens ?? []).map((i) => i.codigo_analise)),
       ...(snapshot.orcamentos_projeto ?? []).flatMap((o) => (o.orcamento_projeto_analises ?? []).map((i) => i.codigo_analise)),
     ],
   });
-  const visao = montarVisaoInterna(entradaDoSnapshot(versao.snapshot, total, complementos.nomesAnalises));
+  const visao = montarVisaoInterna(contrato.estado === "equivalencia" ? entradaDoSnapshot(snapshotDocumento, total) : entradaDoSnapshot(snapshotDocumento, total, complementos!.nomesAnalises));
   const fundos = montarFundos(
     visao,
     acompanhamento
@@ -217,7 +221,7 @@ export default async function OrcamentoFinalPage({
   const diasValidade = Number(versao.validade_dias ?? 0);
   const textos = textosDaVersao({
     coluna: versao.textos_proposta,
-    snapshot: versao.snapshot,
+    snapshot: snapshotDocumento,
     escopoLegado: demanda?.escopo_preliminar || demanda?.descricao || null,
     validadeTexto:
       diasValidade > 0
@@ -229,14 +233,22 @@ export default async function OrcamentoFinalPage({
     demanda: demanda ?? null,
     visao,
     textos,
-    empresa: empresaDoSnapshot(versao.snapshot, identidade) ?? complementos.empresa,
+    empresa: contrato.estado === "equivalencia" ? {
+      codigo: contrato.snapshot.empresa_emissora.codigo,
+      nomeLegal: contrato.snapshot.empresa_emissora.nome_legal,
+      cnpj: contrato.snapshot.empresa_emissora.cnpj,
+      endereco: contrato.snapshot.empresa_emissora.endereco,
+      telefone: contrato.snapshot.empresa_emissora.telefone,
+      email: contrato.snapshot.empresa_emissora.email,
+      site: contrato.snapshot.empresa_emissora.site,
+    } : empresaDoSnapshot(versao.snapshot, identidade) ?? complementos!.empresa,
   });
   // Planilha interna (XLSX): estrutura antiga, mantida.
   const dadosExport = montarPropostaFinalExport({
     versao,
-    snapshot: versao.snapshot,
+    snapshot: snapshotDocumento,
     demanda: demanda ?? null,
-    responsavel: identidade.responsavel,
+    responsavel: contrato.estado === "equivalencia" ? "Não informado no snapshot" : identidade.responsavel,
   });
 
   const statusLabel = rotuloStatusVersaoFinal(statusEfetivoVersaoFinal(versao));
@@ -406,6 +418,7 @@ export default async function OrcamentoFinalPage({
 
         {aba === "interno" && (
           <section aria-label="Modo interno" className="mt-4 space-y-4 print:hidden">
+            {contrato.estado === "equivalencia" && <p className="text-sm">Valores emitidos congelados. O total comercial segue a Política A; não é o preço técnico de referência. Acompanhamento e fundos atuais são uma camada separada, não recálculo do emitido.</p>}
             <details className="group rounded-md border border-border bg-card px-3 py-2 text-sm">
               <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2">
                 <span className="font-medium">Link de aprovação do cliente:</span>

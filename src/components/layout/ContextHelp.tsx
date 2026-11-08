@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { AJUDA_TOPICOS } from "@/lib/ajuda/topics";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +30,17 @@ export type HelpContent = {
 };
 
 /** Ordem importa: a primeira regra que casar com a rota vence. */
+function orientacao(id: string, secao?: string): HelpContent {
+  const topico = AJUDA_TOPICOS.find((t) => t.id === id)!;
+  const secoes = secao ? topico.secoes.filter((s) => s.titulo === secao) : topico.secoes;
+  return { title: secao ?? topico.titulo, description: topico.resumo, checks: secoes.flatMap((s) => s.itens) };
+}
+
 export const HELP: Array<{ match: (path: string) => boolean; content: HelpContent }> = [
+  { match: (path) => path === "/nomeacoes" || path === "/nomeacoes/", content: orientacao("nomeacoes") },
+  { match: (path) => /^\/projetos\/[1-9]\d*\/?$/.test(path), content: orientacao("vinculos-projeto") },
+  { match: (path) => path === "/estoque/equipamentos" || path === "/estoque/equipamentos/", content: orientacao("cadastros", "Configurar e acompanhar avisos de equipamentos") },
+  { match: (path) => /^\/analises\/[^/]+\/?$/.test(path) && !["/analises/nova", "/analises/nova/"].includes(path), content: orientacao("analises", "Validar equivalência na ficha da análise") },
   {
     match: (path) => path.startsWith("/orcamento"),
     content: {
@@ -76,6 +87,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
         "Dar baixa retira material com motivo (consumo, perda ou quebra, vencimento). Sai pelo lote que vence antes.",
         "Quem registra a chegada cadastra o lote e ele já fica disponível. A entrega ao laboratório é a baixa.",
         "Planilha de insumos baixa a lista completa (também em Cadastros → Insumos → Planilha).",
+        ...orientacao("estoque", "Fechamento mensal certificado por pessoa").checks,
       ],
     },
   },

@@ -442,19 +442,19 @@ export function calcularAnaliseOrcamento(args: {
   params: Parametros;
   numeroAmostras: number;
   cenario?: Cenario;
-}): BreakdownOrcamento {
+}, lotePorInsumo?: (linha: InsumoLinha) => number | undefined): BreakdownOrcamento {
   const amostras = Math.max(0, args.numeroAmostras);
   const base = calcularAnalise(args);
   const lote = args.cenario?.loteAmostras ?? base.lote;
   const loteSeguro = lote > 0 ? lote : 1;
   const numeroExecucoes = amostras > 0 ? Math.ceil(amostras / loteSeguro) : 0;
   const sel = insumosSelecionados(args.insumos, args.cenario?.escolhasGrupo);
-  const lotesPorEtapa = lotePorEtapa(args.etapas);
+  const lotesPorEtapa = lotePorInsumo ? undefined : lotePorEtapa(args.etapas);
   const reagentes = reagentesTotal(
     sel,
     amostras,
     loteSeguro,
-    (linha) => lotesPorEtapa.get(chaveEtapa(linha.nome_etapa, linha.nome_atividade)),
+    lotePorInsumo ?? ((linha) => lotesPorEtapa?.get(chaveEtapa(linha.nome_etapa, linha.nome_atividade))),
   ).total;
   const equipamento = base.equipamento * amostras;
   const horasBancada = horasBancadaTotal(args.etapas, amostras, loteSeguro);

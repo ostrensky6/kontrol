@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { unstable_rethrow } from "next/navigation";
+import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { temPapel, usuarioAtual } from "@/lib/auth/roles";
 import {
@@ -10,25 +11,36 @@ import {
   gerarSenhaProvisoria,
   validadeSenhaProvisoria,
 } from "@/lib/auth/senha-provisoria";
-import {
-  PAPEIS,
-  PAPEL_PADRAO,
-  normalizePermissions,
-  selectedPermissionsFromForm,
-  type PapelUsuario,
-} from "@/lib/auth/permissions";
+import { isPapelUsuario } from "@/lib/auth/permissions";
+import { avaliarTrocaDeFuncao } from "@/lib/auth/contrato-funcao";
 import type { Database } from "@/lib/supabase/database.types";
 import type { FormState } from "./cadastros";
 
 /** Resultado que carrega a senha provisória gerada, mostrada uma única vez ao administrador. */
-export type UsuarioFormState = FormState & { senhaProvisoria?: string };
+export type UsuarioFormState = FormState & {
+  senhaProvisoria?: string;
+  codigo?: "PERMISSAO_INDIVIDUAL_DESATIVADA" | "PAPEL_ALTERADO";
+};
 
-const PAPEIS_VALIDOS = PAPEIS.map((papel) => papel.value);
 const BUCKET_ASSINATURAS = "user-signatures";
 const SENHA_MINIMA = 8;
 
-function isPapelValido(papel: string): papel is PapelUsuario {
-  return PAPEIS_VALIDOS.includes(papel as PapelUsuario);
+function negarPermissaoIndividual(formData: FormData): UsuarioFormState | null {
+  if (!formData.has("permissoes") && !formData.has("permissoes_presentes")) return null;
+  return {
+    ok: false,
+    codigo: "PERMISSAO_INDIVIDUAL_DESATIVADA",
+    message: "Permissões são geridas por função em Governança → Privilégios.",
+  };
+}
+
+async function sessaoComPapel() {
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data?.user?.id) return null;
+  const papel = await supabase.rpc("current_papel");
+  if (papel.error || !isPapelUsuario(papel.data)) return null;
+  return { supabase, id: data.user.id.toLowerCase(), papel: papel.data };
 }
 
 function mensagemErroAcao(error: unknown) {
@@ -48,27 +60,6 @@ function mensagemErroExclusaoUsuario(error: { message?: string; code?: string } 
   return "Não foi possível excluir o usuário. A exclusão não foi confirmada; verifique vínculos e arquivos associados antes de tentar novamente.";
 }
 
-/** Marcação efetiva da categoria (papel), como o banco a aplica (0124). */
-async function categoriaEfetiva(papel: string) {
-  const { data } = await createAdminClient()
-    .from("permissoes_categorias")
-    .select("permissoes")
-    .eq("papel", papel)
-    .maybeSingle();
-  return normalizePermissions(papel, papel === "admin" ? {} : data?.permissoes);
-}
-
-/**
- * O usuário guarda só as EXCEÇÕES à categoria. Assim, mudar a categoria em
- * Privilégios alcança todos que não têm exceção, e trocar o papel não deixa
- * para trás uma cópia das permissões do papel antigo.
- */
-function soExcecoes(selecionadas: Record<string, boolean>, categoria: Record<string, boolean>) {
-  return Object.fromEntries(
-    Object.entries(selecionadas).filter(([chave, valor]) => categoria[chave] !== valor),
-  );
-}
-
 type PerfilUpdate = Database["public"]["Tables"]["perfis"]["Update"];
 
 /**
@@ -81,7 +72,7 @@ async function ajustarPerfilDaContaNova(
   admin: ReturnType<typeof createAdminClient>,
   userId: string,
   email: string,
-  dados: PerfilUpdate,
+  dados: Omit<PerfilUpdate, "permissoes" | "papel">,
 ): Promise<FormState | null> {
   const supabase = await createClient();
   const { data, error } = await supabase.from("perfis").update(dados).eq("id", userId).select("id");
@@ -103,18 +94,6 @@ async function ajustarPerfilDaContaNova(
   };
 }
 
-async function permissoesDoUsuario(papel: string, formData?: FormData) {
-  if (papel === "admin") return {};
-  const categoria = await categoriaEfetiva(papel);
-  if (
-    formData &&
-    (formData.get("permissoes_presentes") === "1" || formData.getAll("permissoes").length > 0)
-  ) {
-    return soExcecoes(selectedPermissionsFromForm(formData, papel), categoria);
-  }
-  return {};
-}
-
 // ban "permanente" para suspensão; o GoTrue aceita uma duração em horas.
 const BAN_SUSPENSO = "876000h"; // ~100 anos
 
@@ -127,16 +106,19 @@ const AVISO_SENHA_PROVISORIA = `Copie a senha provisória e passe para a pessoa:
  */
 export async function criarUsuario(_prev: UsuarioFormState, formData: FormData): Promise<UsuarioFormState> {
   try {
-    if (!(await temPapel("admin"))) {
+    if ((await sessaoComPapel())?.papel !== "admin") {
       return { ok: false, message: "Sem permissão para cadastrar usuários." };
     }
+    const recusa = negarPermissaoIndividual(formData);
+    if (recusa) return recusa;
 
     const email = String(formData.get("email") ?? "").trim().toLowerCase();
     const nome = String(formData.get("nome") ?? "").trim();
-    const papel = String(formData.get("papel") ?? PAPEL_PADRAO);
+    const papel = formData.get("papel");
     if (!email) return { ok: false, message: "Informe o e-mail do usuário." };
-    if (!isPapelValido(papel)) return { ok: false, message: "Papel inválido." };
-    const permissoes = await permissoesDoUsuario(papel, formData);
+    if (papel !== "laboratorio") {
+      return { ok: false, message: "Crie a conta com a função inicial Laboratório; outras funções exigem nomeação separada." };
+    }
 
     const senhaProvisoria = gerarSenhaProvisoria();
     const admin = createAdminClient();
@@ -156,11 +138,9 @@ export async function criarUsuario(_prev: UsuarioFormState, formData: FormData):
       };
     }
 
-    // o trigger criou o perfil; ajusta nome/papel (e garante a flag)
+    // O trigger cria em Laboratório; somente a RPC separada muda a função.
     const falhaPerfil = await ajustarPerfilDaContaNova(admin, data.user.id, email, {
       nome: nome || null,
-      papel,
-      permissoes,
       senha_provisoria: true,
       suspenso: false,
     });
@@ -173,38 +153,96 @@ export async function criarUsuario(_prev: UsuarioFormState, formData: FormData):
       senhaProvisoria,
     };
   } catch (error) {
+    unstable_rethrow(error);
     return { ok: false, message: mensagemErroAcao(error) };
   }
 }
 
-/** Edita nome e papel de um usuário existente. */
-export async function editarUsuario(_prev: FormState, formData: FormData): Promise<FormState> {
+/** Edição cadastral continua Admin-only; nenhuma mudança de função é feita aqui. */
+export async function editarUsuario(_prev: UsuarioFormState, formData: FormData): Promise<UsuarioFormState> {
   try {
-    if (!(await temPapel("admin"))) {
+    const ator = await sessaoComPapel();
+    if (ator?.papel !== "admin") {
       return { ok: false, message: "Sem permissão para editar usuários." };
     }
+    const recusa = negarPermissaoIndividual(formData);
+    if (recusa) return recusa;
     const id = String(formData.get("id") ?? "");
-    const nome = String(formData.get("nome") ?? "").trim();
-    const papel = String(formData.get("papel") ?? "");
+    const nomeInformado = formData.get("nome");
     if (!id) return { ok: false, message: "Usuário inválido." };
-    if (!isPapelValido(papel)) return { ok: false, message: "Papel inválido." };
+    if (typeof nomeInformado !== "string") return { ok: false, message: "Informe o nome do usuário." };
+    const nome = nomeInformado.trim();
 
-    const admin = createAdminClient();
-    const supabase = await createClient();
-    const { error } = await supabase
+    const { supabase } = ator;
+    const alvo = await supabase.from("perfis").select("papel").eq("id", id).maybeSingle();
+    if (alvo.error || !isPapelUsuario(alvo.data?.papel)) {
+      return { ok: false, message: "Não foi possível confirmar a função atual do usuário." };
+    }
+    const papelAtual = alvo.data.papel;
+    if (formData.getAll("papel").some((legado) => legado !== papelAtual)) {
+      return { ok: false, message: "Use a nomeação separada para mudar a função." };
+    }
+    const { data, error } = await supabase
       .from("perfis")
-      .update({ nome: nome || null, papel, permissoes: await permissoesDoUsuario(papel, formData) })
-      .eq("id", id);
+      .update({ nome: nome || null })
+      .eq("id", id)
+      .eq("papel", papelAtual)
+      .select("id");
     // perfil recusado: o Auth fica como estava
     if (error) return { ok: false, message: error.message };
+    if (data?.length !== 1 || data[0]?.id !== id) {
+      return { ok: false, message: "O perfil mudou ou a edição não foi permitida." };
+    }
 
     // mantém o nome também no Auth (user_metadata)
-    const { error: authError } = await admin.auth.admin.updateUserById(id, { user_metadata: { nome } });
+    const { error: authError } = await createAdminClient().auth.admin.updateUserById(id, { user_metadata: { nome } });
     if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
     revalidatePath("/usuarios");
     return { ok: true, message: "Usuário atualizado." };
   } catch (error) {
+    unstable_rethrow(error);
     return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/** Único canal de troca de função; a 0151 é a autoridade transacional. */
+export async function nomearPapelUsuario(_prev: UsuarioFormState, formData: FormData): Promise<UsuarioFormState> {
+  try {
+    const recusa = negarPermissaoIndividual(formData);
+    if (recusa) return recusa;
+    const id = String(formData.get("id") ?? "").trim().toLowerCase();
+    const atualEsperado = formData.get("papel_atual_esperado");
+    const destino = formData.get("papel_destino");
+    if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/.test(id) ||
+      !isPapelUsuario(atualEsperado) || !isPapelUsuario(destino)) {
+      return { ok: false, message: "Dados de nomeação inválidos." };
+    }
+    const ator = await sessaoComPapel();
+    if (!ator || !avaliarTrocaDeFuncao(ator.id, id, ator.papel, atualEsperado, destino)) {
+      return { ok: false, message: "Troca de função não autorizada." };
+    }
+    const alvo = await ator.supabase.from("perfis").select("id, papel").eq("id", id).maybeSingle();
+    if (alvo.error || alvo.data?.id !== id || alvo.data.papel !== atualEsperado) {
+      return { ok: false, codigo: "PAPEL_ALTERADO", message: "Não foi possível confirmar a função esperada. Recarregue a lista." };
+    }
+    const { data, error } = await ator.supabase.rpc("nomear_papel_usuario", {
+      p_usuario_id: id,
+      p_papel_atual_esperado: atualEsperado,
+      p_papel_destino: destino,
+    });
+    if (error?.code === "40001") {
+      return { ok: false, codigo: "PAPEL_ALTERADO", message: "A função mudou. Recarregue a lista." };
+    }
+    // Não confirmar a mutação com HTTP 2xx sozinho ou resposta de outra transição.
+    if (error || !data || typeof data !== "object" || Array.isArray(data) ||
+      data.usuario_id !== id || data.papel !== destino || data.alterado !== true) {
+      return { ok: false, message: "A nomeação não foi confirmada. Recarregue a lista antes de tentar novamente." };
+    }
+    revalidatePath("/usuarios");
+    return { ok: true, message: "Função atualizada." };
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, message: "A nomeação não foi confirmada. Recarregue a lista antes de tentar novamente." };
   }
 }
 
@@ -333,17 +371,19 @@ export async function criarUsuarioPreAprovado(
   formData: FormData,
 ): Promise<UsuarioFormState> {
   try {
-    if (!(await temPapel("admin"))) {
+    const ator = await sessaoComPapel();
+    if (ator?.papel !== "admin") {
       return { ok: false, message: "Sem permissão para cadastrar usuários." };
     }
+    const recusa = negarPermissaoIndividual(formData);
+    if (recusa) return recusa;
 
     const id = Number(formData.get("pre_aprovado_id") ?? 0);
     if (!id) return { ok: false, message: "Pré-aprovação inválida." };
 
-    const supabase = await createClient();
-    const { data: pre, error: preError } = await supabase
+    const { data: pre, error: preError } = await ator.supabase
       .from("usuarios_pre_aprovados")
-      .select("id, nome, email, papel, permissoes")
+      .select("id, nome, email, papel")
       .eq("id", id)
       .single();
 
@@ -351,7 +391,10 @@ export async function criarUsuarioPreAprovado(
 
     const email = String(pre.email).trim().toLowerCase();
     const nome = String(pre.nome ?? "").trim();
-    const papel = isPapelValido(String(pre.papel)) ? String(pre.papel) : PAPEL_PADRAO;
+    const papel = pre.papel;
+    if (papel !== "laboratorio") {
+      return { ok: false, message: "A pré-aprovação não usa a função inicial Laboratório. Nenhuma conta foi criada." };
+    }
     const admin = createAdminClient();
     const senhaProvisoria = gerarSenhaProvisoria();
 
@@ -373,11 +416,6 @@ export async function criarUsuarioPreAprovado(
 
     const falhaPerfil = await ajustarPerfilDaContaNova(admin, data.user.id, email, {
       nome: nome || null,
-      papel,
-      permissoes:
-        papel === "admin"
-          ? {}
-          : soExcecoes(normalizePermissions(papel, pre.permissoes ?? {}), await categoriaEfetiva(papel)),
       senha_provisoria: true,
       suspenso: false,
     });
@@ -390,6 +428,7 @@ export async function criarUsuarioPreAprovado(
       senhaProvisoria,
     };
   } catch (error) {
+    unstable_rethrow(error);
     return { ok: false, message: mensagemErroAcao(error) };
   }
 }

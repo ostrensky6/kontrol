@@ -8,8 +8,8 @@ import { HelpExample, HelpFormula, HelpTip } from "@/components/common/HelpTip";
 /**
  * Etapa "Parâmetros Econômicos" dentro do fluxo do orçamento (plano §6.5).
  *
- * Layout denso de 3 blocos (§8.1): base técnica → parâmetros aplicados →
- * resultado final, na mesma tela. Convenção visual §8.2:
+ * Ordem de leitura: custos de origem, parâmetros aplicados e resultado do cálculo.
+ * Convenção visual §8.2:
  * - percentuais (escolhidos pelo usuário) em AZUL (ValorEntrada);
  * - subtotais, valores em R$ e total (calculados) em NEUTRO (ValorCalculado).
  *
@@ -29,14 +29,12 @@ export type ParametroAplicadoView = {
 };
 
 const pct = (v: number) => formatPercent(v, 2);
+type ValorOrigem = number | null | "nao_aplicavel";
 
-function Bloco({ titulo, ajuda, children }: { titulo: string; ajuda?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-border bg-muted/40 p-3">
-      <p className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{titulo}{ajuda}</p>
-      <div className="mt-2 space-y-1.5">{children}</div>
-    </div>
-  );
+function ValorDeOrigem({ valor, referencia }: { valor: ValorOrigem; referencia?: boolean }) {
+  if (valor === "nao_aplicavel") return <span className="text-muted-foreground">Não se aplica</span>;
+  if (valor === null) return <span className="text-warning-strong">Sem custo registrado</span>;
+  return <ValorCalculado estado={referencia ? "snapshot" : undefined}>{brl(valor)}</ValorCalculado>;
 }
 
 function Linha({
@@ -49,11 +47,11 @@ function Linha({
   forte?: boolean;
 }) {
   return (
-    <div className={`flex items-baseline justify-between gap-3 ${forte ? "border-t border-border pt-2" : ""}`}>
-      <span className={`text-xs ${forte ? "font-medium text-foreground" : "text-muted-foreground"}`}>
+    <div className={`flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 ${forte ? "border-t border-border pt-2" : ""}`}>
+      <dt className={`text-sm ${forte ? "font-medium text-foreground" : "text-muted-foreground"}`}>
         {rotulo}
-      </span>
-      <span className="tabular-nums text-sm">{children}</span>
+      </dt>
+      <dd className="ml-auto text-right text-sm tabular-nums">{children}</dd>
     </div>
   );
 }
@@ -67,87 +65,109 @@ export function PainelParametrosEconomicos({
   totalFinal,
   parametros,
   alertas = [],
+  pendencias = [],
+  economiaValida = true,
+  resultadoPronto = true,
+  editor,
 }: {
-  custoLaboratorio: number;
-  precoLaboratorio: number;
-  custoProjeto: number;
+  custoLaboratorio: ValorOrigem;
+  precoLaboratorio: ValorOrigem;
+  custoProjeto: ValorOrigem;
   subtotalTecnico: number;
   totalParametros: number;
   totalFinal: number;
   parametros: ParametroAplicadoView[];
   alertas?: string[];
+  pendencias?: string[];
+  economiaValida?: boolean;
+  resultadoPronto?: boolean;
+  editor?: React.ReactNode;
 }) {
+  const temBase = typeof custoLaboratorio === "number" || typeof custoProjeto === "number";
+  const baseParcial = custoLaboratorio === null || custoProjeto === null;
+  const temResultado = economiaValida && temBase;
+  const subtotalRotulo = baseParcial ? "Subtotal dos custos registrados" : "Subtotal técnico";
+  const avisos = [...new Set([...pendencias, ...alertas])];
+
   return (
-    <div className="mt-4">
-      <div className="grid gap-3 lg:grid-cols-3">
-        {/* Bloco 1 — base técnica (Política A: custo técnico + custo direto) */}
-        <Bloco titulo="Base de cálculo">
+    <div className="space-y-4">
+      <section className="min-w-0 border-t border-border pt-4">
+        <h3 className="text-base font-semibold">Custos de origem</h3>
+        <dl className="mt-3 grid gap-x-6 gap-y-2 rounded-md bg-muted/40 p-3 lg:grid-cols-2">
           <Linha rotulo="Custo laboratório (técnico)">
-            <ValorCalculado>{brl(custoLaboratorio)}</ValorCalculado>
+            <ValorDeOrigem valor={custoLaboratorio} />
           </Linha>
           <Linha rotulo="Custo projeto (direto)">
-            <ValorCalculado>{brl(custoProjeto)}</ValorCalculado>
-          </Linha>
-          <Linha rotulo="Subtotal técnico" forte>
-            <ValorCalculado estado="bloqueado">{brl(subtotalTecnico)}</ValorCalculado>
+            <ValorDeOrigem valor={custoProjeto} />
           </Linha>
           <Linha rotulo="Preço laboratório (referência)">
-            <ValorCalculado estado="snapshot">{brl(precoLaboratorio)}</ValorCalculado>
+            <ValorDeOrigem valor={precoLaboratorio} referencia />
           </Linha>
-        </Bloco>
+          <Linha rotulo={subtotalRotulo}>
+            <ValorCalculado estado="bloqueado">{temBase ? brl(subtotalTecnico) : "Indisponível"}</ValorCalculado>
+          </Linha>
+        </dl>
+        <p className="mt-2 text-xs text-muted-foreground">O preço de referência do laboratório não entra no subtotal.</p>
+      </section>
 
-        {/* Bloco 2 — parâmetros aplicados (percentual = entrada/azul, R$ = calculado) */}
-        <Bloco
-          titulo="Parâmetros aplicados · gross-up"
-          ajuda={
-            <HelpTip title="Gross-up">
-              <p>Os percentuais incidem sobre o <b>preço final</b>, e não sobre o custo. O preço de tabela do laboratório é só referência e não entra na conta.</p>
-              <HelpFormula>total = subtotal técnico ÷ (1 − soma dos %)</HelpFormula>
-              <HelpExample>Custo de R$ 1.000 com 16,33% de impostos e 20% de lucro (soma 36,33%) → R$ 1.000 ÷ 0,6367 = R$ 1.570,60.</HelpExample>
-            </HelpTip>
-          }
-        >
+      <section className="min-w-0 border-t border-border pt-4">
+        <div className="flex items-center gap-1">
+          <h3 className="text-base font-semibold">Parâmetros aplicados</h3>
+          <HelpTip title="Gross-up">
+            <p>Os percentuais incidem sobre o <b>preço final</b>, e não sobre o custo. O preço de tabela do laboratório é só referência e não entra na conta.</p>
+            <HelpFormula>total = subtotal técnico ÷ (1 − soma dos %)</HelpFormula>
+            <HelpExample>Custo de R$ 1.000 com 16,33% de impostos e 20% de lucro (soma 36,33%) → R$ 1.000 ÷ 0,6367 = R$ 1.570,60.</HelpExample>
+          </HelpTip>
+        </div>
+        <dl className="mt-3 space-y-2">
           {parametros.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhum parâmetro aplicado.</p>
+            null
           ) : (
             parametros.map((p) => (
               <Linha key={p.key} rotulo={p.label}>
                 <ValorEntrada>{pct(p.nominalRate)}</ValorEntrada>{" "}
                 <span className="text-muted-foreground/80">·</span>{" "}
-                <ValorCalculado>{brl(p.amount)}</ValorCalculado>
+                <ValorCalculado>{temResultado ? brl(p.amount) : "Indisponível"}</ValorCalculado>
               </Linha>
             ))
           )}
           {parametros.length > 0 && (
             <Linha rotulo="Total de parâmetros" forte>
-              <ValorCalculado estado="bloqueado">{brl(totalParametros)}</ValorCalculado>
+              <ValorCalculado estado="bloqueado">{temResultado ? brl(totalParametros) : "Indisponível"}</ValorCalculado>
             </Linha>
           )}
-        </Bloco>
+        </dl>
+        {parametros.length === 0 && <p className="text-sm text-muted-foreground">Nenhum parâmetro aplicado.</p>}
+        {editor}
+      </section>
 
-        {/* Bloco 3 — resultado final (calculado → neutro, total em destaque) */}
-        <Bloco titulo="Resultado final">
-          <Linha rotulo="Subtotal técnico">
-            <ValorCalculado>{brl(subtotalTecnico)}</ValorCalculado>
+      <section className="min-w-0 border-t border-border pt-4">
+        <h3 className="text-base font-semibold">Resultado do cálculo</h3>
+        <p className={`mt-1 text-sm ${resultadoPronto && temResultado ? "text-muted-foreground" : "text-warning-strong"}`}>
+          {!economiaValida ? "Parâmetros inválidos: ajuste os percentuais para calcular."
+            : !temBase ? "Sem base de custo para calcular o resultado."
+              : !resultadoPronto ? "Prévia com pendências. Não use como valor da proposta."
+                : "Valor calculado nesta etapa; não é uma versão emitida."}
+        </p>
+        <dl className="mt-3 space-y-2 rounded-md border border-border bg-card p-3">
+          <Linha rotulo={subtotalRotulo}>
+            <ValorCalculado>{temBase ? brl(subtotalTecnico) : "Indisponível"}</ValorCalculado>
           </Linha>
           <Linha rotulo="Total de parâmetros">
-            <ValorCalculado>{brl(totalParametros)}</ValorCalculado>
+            <ValorCalculado>{temResultado ? brl(totalParametros) : "Indisponível"}</ValorCalculado>
           </Linha>
-          <Linha rotulo="Total final" forte>
+          <Linha rotulo={resultadoPronto && temResultado ? "Total calculado" : "Total da prévia"} forte>
             <ValorCalculado estado="bloqueado" className="text-base">
-              {brl(totalFinal)}
+              {temResultado ? brl(totalFinal) : "Indisponível"}
             </ValorCalculado>
           </Linha>
-        </Bloco>
-      </div>
-
-      {alertas.length > 0 && (
-        <div className="mt-3 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-xs leading-5 text-warning-strong">
-          {alertas.map((a, i) => (
-            <p key={i}>{a}</p>
-          ))}
-        </div>
-      )}
+        </dl>
+        {avisos.length > 0 && (
+          <ul className="mt-3 list-disc space-y-1 rounded-md border border-warning-strong/30 bg-warning-soft py-2 pl-7 pr-3 text-sm text-warning-strong">
+            {avisos.map((aviso) => <li key={aviso}>{aviso}</li>)}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }

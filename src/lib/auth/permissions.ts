@@ -1,5 +1,5 @@
 /**
- * As seis funções (decisão do dono, 06/11/2026; migration 0146). Quem era
+ * As funções (Supervisor depende do catálogo físico 0151). Quem era
  * "Técnico" passou a "Laboratório". Laboratório, Compra e Cadastro estão no
  * mesmo nível; acima vêm Coordenador, Gestor e Administrador. O nível só
  * importa onde ainda há "papel mínimo"; o que cada função faz é a caixinha
@@ -11,6 +11,8 @@ export const PAPEIS = [
   { value: "cadastro", label: "Cadastro", nivel: 0 },
   { value: "coordenador", label: "Coordenador", nivel: 1 },
   { value: "gestor", label: "Gestor", nivel: 2 },
+  // Nomeação usa sua própria hierarquia; não ampliar guardas legadas de papel mínimo.
+  { value: "supervisor", label: "Supervisor", nivel: -1 },
   { value: "admin", label: "Administrador", nivel: 3 },
 ] as const;
 
@@ -40,7 +42,8 @@ export function nivelPapel(papel: string | null | undefined): number {
 /** true se o papel alcança o mínimo exigido. */
 export function papelAlcanca(papel: string | null | undefined, minimo: PapelUsuario | "tecnico"): boolean {
   const atual = nivelPapel(papel);
-  return atual >= 0 && atual >= nivelPapel(minimo);
+  const nivelMinimo = nivelPapel(minimo);
+  return atual >= 0 && nivelMinimo >= 0 && atual >= nivelMinimo;
 }
 export type PermissaoUsuario =
   | "orcamentos.visualizar"
@@ -272,6 +275,7 @@ const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
     "auditoria.visualizar",
     "configuracoes.ver",
   ],
+  supervisor: [],
   admin: PERMISSOES.map((permissao) => permissao.key),
 };
 

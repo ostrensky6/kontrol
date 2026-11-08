@@ -3,6 +3,7 @@ import {
   calcularAnalise,
   calcularAnaliseOrcamento,
   equipCustoDia,
+  insumosSelecionados,
   type Breakdown,
   type BreakdownOrcamento,
   type Cenario,
@@ -43,6 +44,8 @@ type CustoEstoqueRow = {
 };
 
 type InsumoAnaliseRow = {
+  id?: number;
+  etapa_id?: number | null;
   codigo_analise: string;
   nome_etapa: string;
   nome_atividade: string;
@@ -53,6 +56,16 @@ type InsumoAnaliseRow = {
   insumo_id: number | null;
   insumos: { custo_unitario: number | null } | null;
 };
+
+type IdentidadeInsumoCalculado = {
+  necessidade_id: number;
+  etapa_id: number | null;
+  insumo_id: number | null;
+  fonte_custo: string | null;
+};
+
+const idValido = (id: unknown): id is number =>
+  typeof id === "number" && Number.isSafeInteger(id) && id > 0;
 
 const numeroOuNull = (valor: unknown) => {
   if (valor == null) return null;
@@ -122,7 +135,33 @@ export async function calcularTodas(
   cenarioPorAnalise: Record<string, Cenario> = {},
   fonteCustoInsumos: FonteCustoInsumos = "custo_padrao",
 ): Promise<{ breakdowns: Breakdown[]; params: Parametros; valorHoraPessoal: number; custoHoraOverhead: number }> {
-  const supabase = await createClient();
+  const { custeio } = await carregarCusteio(await createClient(), cenarioPorAnalise, fonteCustoInsumos);
+  return custeio;
+}
+
+/** Leitura da aba Custo; não acrescenta identidade ao Breakdown nem aos snapshots. */
+export async function carregarCusteioDaAnalise(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  codigo: string,
+  cenario?: Cenario,
+) {
+  const cenarios = cenario ? { [codigo]: cenario } : {};
+  const detalhe = await carregarCusteio(supabase, cenarios, "custo_padrao", codigo).catch(() => null);
+  if (detalhe && detalhe.identidades !== null) return detalhe;
+  return { custeio: await calcularTodas(cenarios), identidades: null };
+}
+
+async function carregarCusteio(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  cenarioPorAnalise: Record<string, Cenario>,
+  fonteCustoInsumos: FonteCustoInsumos,
+  codigoIdentidade?: string,
+) {
+  const catalogo = supabase.from("analises").select("codigo");
+  const camposReceita = "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)";
+  const receita = codigoIdentidade === undefined
+    ? supabase.from("insumo_analise").select(camposReceita)
+    : supabase.from("insumo_analise").select(`id, etapa_id, ${camposReceita}`).eq("codigo_analise", codigoIdentidade);
 
   const [
     { data: analises },
@@ -131,22 +170,18 @@ export async function calcularTodas(
     { data: equipAnalise },
     { data: valorHoraPessoalTotal, error: valorHoraPessoalError },
     { data: overhead },
-    { data: insumoAnalise },
+    { data: insumoAnalise, error: insumoAnaliseError },
     { data: parametros },
     { data: custosEstoque },
   ] = await Promise.all([
-    supabase.from("analises").select("codigo").order("codigo"),
+    (codigoIdentidade === undefined ? catalogo : catalogo.eq("codigo", codigoIdentidade)).order("codigo"),
     supabase.from("etapas").select("*"),
     supabase.from("equipamentos").select("*"),
     supabase.from("equipamento_analise").select("*"),
     // Salários individuais não são lidos aqui (migration 0112): só o agregado.
     supabase.rpc("valor_hora_pessoal_total"),
     supabase.from("overhead").select("*"),
-    supabase
-      .from("insumo_analise")
-      .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
-      ),
+    receita,
     supabase.from("parametros").select("chave, valor"),
     supabase
       .from("v_custo_estoque_vigente")
@@ -193,13 +228,20 @@ export async function calcularTodas(
     return acc + (base * Number(o.percentual_compensada)) / 100;
   }, 0);
 
+  // Só uma leitura bem-sucedida confirma que a receita não tem insumos.
+  if (insumoAnaliseError || !Array.isArray(insumoAnalise)) {
+    return { custeio: { breakdowns: [], params, valorHoraPessoal, custoHoraOverhead }, identidades: null };
+  }
+
   // custo/dia por equipamento (depreciação linear)
   const custoDiaPorEquip = new Map<number, number>();
   for (const e of equipamentos ?? []) {
     custoDiaPorEquip.set(e.id, equipCustoDia(e, params.dias_uteis_ano));
   }
 
-  const breakdowns: Breakdown[] = (analises ?? []).map((a) => {
+  let identidades: IdentidadeInsumoCalculado[] | null = null;
+  const breakdowns: Breakdown[] = [];
+  for (const a of analises ?? []) {
     const codigo = a.codigo;
     const etapasA = (etapas ?? []).filter((e) => e.codigo_analise === codigo);
     const equipA = montarEquipamentosAlocados(
@@ -207,17 +249,39 @@ export async function calcularTodas(
       codigo,
       custoDiaPorEquip,
     );
-    const insumosA = ((insumoAnalise ?? []) as InsumoAnaliseRow[])
+    const identidadePorLinha = codigo === codigoIdentidade ? new Map<InsumoLinha, IdentidadeInsumoCalculado>() : null;
+    const insumosA = (insumoAnalise as InsumoAnaliseRow[])
       .filter((i) => i.codigo_analise === codigo)
-      .map((i) =>
-        montarInsumoComCusto(
+      .map((i) => {
+        const linha = montarInsumoComCusto(
           i,
           i.insumo_id == null ? undefined : custoPorInsumo.get(i.insumo_id),
           fonteCustoInsumos,
-        ),
-      );
+        );
+        if (identidadePorLinha && idValido(i.id)
+          && (i.etapa_id === null || idValido(i.etapa_id))
+          && (i.insumo_id === null || idValido(i.insumo_id))) {
+          identidadePorLinha.set(linha, {
+            necessidade_id: i.id,
+            etapa_id: i.etapa_id,
+            insumo_id: i.insumo_id,
+            fonte_custo: linha.custo_unitario_estoque == null ? null : linha.fonte_custo ?? null,
+          });
+        }
+        return linha;
+      });
+    const cenario = cenarioPorAnalise[codigo];
+    if (identidadePorLinha) {
+      const selecionadas = insumosSelecionados(insumosA, cenario?.escolhasGrupo);
+      // Inverter apenas para detectar empate dependente da ordem, não para desempatar.
+      const invertidas = new Set(insumosSelecionados([...insumosA].reverse(), cenario?.escolhasGrupo));
+      if (invertidas.size !== selecionadas.length || selecionadas.some((linha) => !invertidas.has(linha))) continue;
+      const rastros = selecionadas.map((linha) => identidadePorLinha.get(linha));
+      if (!rastros.every((identidade) => identidade !== undefined)) continue;
+      identidades = rastros;
+    }
 
-    return calcularAnalise({
+    breakdowns.push(calcularAnalise({
       codigo,
       etapas: etapasA,
       equip: equipA,
@@ -225,11 +289,11 @@ export async function calcularTodas(
       valorHoraPessoal,
       custoHoraOverhead,
       params,
-      cenario: cenarioPorAnalise[codigo],
-    });
-  });
+      cenario,
+    }));
+  }
 
-  return { breakdowns, params, valorHoraPessoal, custoHoraOverhead };
+  return { custeio: { breakdowns, params, valorHoraPessoal, custoHoraOverhead }, identidades };
 }
 
 export async function carregarSimuladorCusteio(
@@ -246,7 +310,7 @@ export async function carregarSimuladorCusteio(
     { data: etapas },
     { data: equipamentos },
     { data: equipAnalise },
-    { data: insumoAnalise },
+    { data: insumoAnalise, error: insumoAnaliseError },
     { data: custosEstoque },
   ] = await Promise.all([
     supabase.from("analises").select("codigo").eq("ativo", true).eq("ofertavel", true).order("codigo"),
@@ -266,6 +330,9 @@ export async function carregarSimuladorCusteio(
   ]);
   const codigosAtivos = new Set((analises ?? []).map((analise) => analise.codigo));
   const { breakdowns, params, valorHoraPessoal, custoHoraOverhead } = await calcularTodas({}, fonteCustoInsumos);
+  if (insumoAnaliseError || !Array.isArray(insumoAnalise)) {
+    return { analises: [], params, valorHoraPessoal, custoHoraOverhead };
+  }
   const custoPorInsumo = new Map(
     ((custosEstoque ?? []) as CustoEstoqueRow[]).map(
       (custo) => [custo.insumo_id, custo] as const,
@@ -284,7 +351,7 @@ export async function carregarSimuladorCusteio(
     analises: breakdowns
       .filter((b) => codigosAtivos.has(b.codigo))
       .map((b) => {
-        const linhas = ((insumoAnalise ?? []) as InsumoAnaliseRow[])
+        const linhas = (insumoAnalise as InsumoAnaliseRow[])
           .filter((i) => i.codigo_analise === b.codigo)
           .map((i) =>
             montarInsumoComCusto(
