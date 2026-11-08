@@ -150,6 +150,14 @@ export function consumoInsumo(
   return linha.modo_cobranca === "por_execucao" ? q * execucoes : q * amostras;
 }
 
+/** Nomes dos insumos selecionados cujo custo não pôde ser calculado. */
+export function insumosSemCusto(linhas: InsumoLinha[]): string[] {
+  const nomes = linhas
+    .filter((l) => n(l.quantidade_por_amostra) > 0 && !(custoUnitarioNormalizado(l) > 0))
+    .map((l) => l.especificacao_insumo ?? "(insumo sem nome)");
+  return [...new Set(nomes)];
+}
+
 /** Seleciona as linhas de insumo válidas aplicando as escolhas de grupo. */
 export function insumosSelecionados(
   linhas: InsumoLinha[],
@@ -172,11 +180,13 @@ export function insumosSelecionados(
         ...opcoes.filter((o) => o.especificacao_insumo === escolhida),
       );
     } else {
-      // default: a opção mais barata por amostra
+      // Padrão de segurança (plano de evolução, 07/11/2026): entre alternativas
+      // válidas, orçar a de MAIOR custo por amostra. Opção sem preço não vence
+      // por "custo zero"; ela aparece em insumosSemCusto quando escolhida.
       const ord = [...opcoes].sort(
         (a, b) =>
-          custoUnitarioNormalizado(a) * n(a.quantidade_por_amostra) -
-          custoUnitarioNormalizado(b) * n(b.quantidade_por_amostra),
+          custoUnitarioNormalizado(b) * n(b.quantidade_por_amostra) -
+          custoUnitarioNormalizado(a) * n(a.quantidade_por_amostra),
       );
       if (ord[0]) escolhidas.push(ord[0]);
     }
@@ -258,6 +268,11 @@ function horasBancadaTotal(etapas: Etapa[], numeroAmostras: number, loteFallback
 
 export type Breakdown = {
   codigo: string;
+  /**
+   * Insumos que entraram no cálculo sem preço (ou sem conversão de unidade).
+   * O custo deles foi contado como zero, então o total está INCOMPLETO.
+   */
+  insumosSemCusto: string[];
   lote: number;
   reagentes: number;
   equipamento: number;
@@ -364,6 +379,7 @@ export function calcularAnalise(args: {
 
   return {
     codigo: args.codigo,
+    insumosSemCusto: insumosSemCusto(selic),
     lote,
     reagentes,
     equipamento,

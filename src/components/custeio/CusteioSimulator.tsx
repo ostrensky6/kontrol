@@ -136,7 +136,7 @@ export function CusteioSimulator({
                 }
                 className={`mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-medium ${TOM_ENTRADA}`}
               >
-                <option value="">opção mais barata</option>
+                <option value="">opção mais cara (padrão de segurança)</option>
                 {grupo.opcoes.map((opcao) => (
                   <option key={opcao} value={opcao}>
                     {opcao}

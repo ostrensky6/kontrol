@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { calcularTodas, type FonteCustoInsumos } from "@/lib/costing/loader";
 import type { Breakdown } from "@/lib/costing/engine";
+import { insumosSemCustoDosItens } from "@/lib/orcamento/insumos-sem-custo";
 import { registrarVersaoParametrosEconomicos } from "@/lib/orcamento/parametros-versionamento";
 import {
   montarSnapshotLaboratorio,
@@ -184,7 +185,7 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
       .single(),
     supabase
       .from("orcamento_itens")
-      .select("id")
+      .select("id, valor_snapshot")
       .eq("orcamento_id", id),
   ]);
   if (anteriorError || !anterior) {
@@ -193,6 +194,13 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
   if (itensError) return falha("Não foi possível conferir as análises do orçamento. Tente novamente.");
   if ((itens ?? []).length === 0) {
     return falha("Adicione ao menos uma análise antes de revisar os custos laboratoriais.");
+  }
+  // Plano de evolução: preço ausente não vira custo zero na proposta.
+  const semPreco = insumosSemCustoDosItens(itens ?? []);
+  if (semPreco.length > 0) {
+    return falha(
+      `Há insumos sem preço no cálculo: ${semPreco.join(", ")}. Cadastre o preço em Cadastros → Insumos e use “Recalcular preços” antes de revisar.`,
+    );
   }
 
   // Transição primeiro: se o banco recusar, nada foi gravado e o módulo não
@@ -261,6 +269,7 @@ function itemDoCusteio(b: Breakdown, n: number, fonteCustoInsumos: FonteCustoIns
       },
       proveniencia_dimensional: b.provenienciaDimensional ?? [],
       fonte_custo_insumos: fonteCustoInsumos,
+      insumos_sem_custo: b.insumosSemCusto ?? [],
     },
   };
 }
@@ -476,6 +485,7 @@ export async function recalcularOrcamento(
         },
         proveniencia_dimensional: b.provenienciaDimensional ?? [],
         fonte_custo_insumos: fonteCustoInsumos,
+        insumos_sem_custo: b.insumosSemCusto ?? [],
       },
     };
   });

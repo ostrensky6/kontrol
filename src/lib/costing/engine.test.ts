@@ -6,6 +6,7 @@ import {
   horasBancadaPorExecucao,
   horasBancadaPorAmostra,
   insumosSelecionados,
+  insumosSemCusto,
   reagentesPorAmostra,
   reagentesTotal,
   calcularAnalise,
@@ -125,13 +126,30 @@ const ins = (over: Partial<InsumoLinha>): InsumoLinha => ({
 });
 
 describe("insumosSelecionados", () => {
-  it("inclui sempre os sem grupo e, por padrão, a opção mais barata de cada grupo", () => {
+  it("inclui sempre os sem grupo e, por padrão, a opção de MAIOR custo de cada grupo", () => {
     const sel = insumosSelecionados([
       ins({ especificacao_insumo: "base", grupo_escolha: null, custo_unitario: 5 }),
       ins({ especificacao_insumo: "kitA", grupo_escolha: "kit", custo_unitario: 100 }),
       ins({ especificacao_insumo: "kitB", grupo_escolha: "kit", custo_unitario: 40 }),
     ]);
-    expect(sel.map((s) => s.especificacao_insumo).sort()).toEqual(["base", "kitB"]);
+    expect(sel.map((s) => s.especificacao_insumo).sort()).toEqual(["base", "kitA"]);
+  });
+
+  it("opção sem preço não vence por custo zero", () => {
+    const sel = insumosSelecionados([
+      ins({ especificacao_insumo: "kitA", grupo_escolha: "kit", custo_unitario: 40 }),
+      ins({ especificacao_insumo: "kitSemPreco", grupo_escolha: "kit", custo_unitario: null }),
+    ]);
+    expect(sel.map((s) => s.especificacao_insumo)).toEqual(["kitA"]);
+  });
+
+  it("aponta insumos selecionados sem custo", () => {
+    expect(insumosSemCusto([
+      ins({ especificacao_insumo: "ok", custo_unitario: 3 }),
+      ins({ especificacao_insumo: "semPreco", custo_unitario: null }),
+      ins({ especificacao_insumo: "zero", custo_unitario: 0 }),
+      ins({ especificacao_insumo: "naoUsado", custo_unitario: null, quantidade_por_amostra: 0 }),
+    ])).toEqual(["semPreco", "zero"]);
   });
 
   it("respeita a escolha explícita do grupo", () => {

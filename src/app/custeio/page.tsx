@@ -94,8 +94,9 @@ export default async function CusteioPage() {
               lote.
             </p>
             <p>
-              Quando a análise aceita reagentes alternativos, entra por enquanto o{" "}
-              <b>mais barato</b>.
+              Quando a análise aceita reagentes alternativos, entra o <b>mais caro</b>, por
+              segurança. Insumo sem preço cadastrado não conta como zero: o orçamento avisa e
+              não deixa revisar até o preço ser cadastrado.
             </p>
             <HelpExample>
               Controle de R$ 60 por corrida e lote de 12 amostras: R$ 5 por amostra.

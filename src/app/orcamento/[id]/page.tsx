@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
+import { insumosSemCustoDosItens } from "@/lib/orcamento/insumos-sem-custo";
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
@@ -183,11 +184,13 @@ export default async function OrcamentoDetalhe({
   });
 
   const eventos = await listarEventos("orcamento", orcId);
+  const insumosSemPreco = insumosSemCustoDosItens(itens);
   const revisaoPendencias = [
     !orc.cliente_nome ? "informar cliente" : null,
     !orc.responsavel ? "informar responsável técnico" : null,
     itens.length === 0 ? "adicionar ao menos uma análise" : null,
     desatualizado ? "recalcular preços após mudança de parâmetros" : null,
+    insumosSemPreco.length > 0 ? `cadastrar preço de: ${insumosSemPreco.join(", ")}` : null,
   ].filter(Boolean) as string[];
   const custoResumo = Number(totaisOperacionais.custo ?? totalCusto);
   const tabs = [
@@ -283,6 +286,12 @@ export default async function OrcamentoDetalhe({
           <p className="no-print mt-3 rounded-md bg-warning-soft px-3 py-1.5 text-sm text-warning-strong">
             Os parâmetros de custo mudaram desde a emissão. Use “Recalcular
             preços” para atualizar os valores deste orçamento.
+          </p>
+        )}
+        {insumosSemPreco.length > 0 && (
+          <p role="status" className="no-print mt-3 rounded-md bg-warning-soft px-3 py-1.5 text-sm text-warning-strong">
+            Custo incompleto: {insumosSemPreco.join(", ")} {insumosSemPreco.length === 1 ? "está sem preço e foi contado" : "estão sem preço e foram contados"} como
+            zero. Cadastre o preço em Cadastros → Insumos e use “Recalcular preços”.
           </p>
         )}
         {erroExclusao && (
