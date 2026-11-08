@@ -109,6 +109,11 @@ usado como alvo de producao, homologacao, migrations ou exemplos ativos.
 4. No Supabase Auth, manter Site URL/Redirect URLs para `https://kontrol-atgc.vercel.app`.
 5. Para publicar, usar o fluxo GitHub/Vercel em `main`; `npm run prod:deploy` e API Vercel ficam para excecoes controladas.
 6. Validar login admin, `/`, `/analises`, `/orcamento`, `/orcamento/demandas`, `/estoque`, `/compras`, `/governanca/privilegios`, `/usuarios`, `/auditoria` e `/governanca/backups`.
+7. Depois de cada publicacao, conferir o que o dominio oficial serve:
+   `npm run prod:rastreio -- --env-file G:\Aplicativos\Kontrol\.env.local`.
+   Le `https://kontrol-atgc.vercel.app/api/versao`, compara o commit com
+   `origin/main` e a migration esperada com a ultima registrada no banco, e
+   sai com erro se algo divergir. Sem `--env-file`, confere so dominio e commit.
 
 ## Como aplicar uma migration em producao
 

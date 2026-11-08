@@ -103,7 +103,7 @@ export function AjudaCentro() {
                         type="button"
                         onClick={() => escolher(topico.id)}
                         aria-current={ativo ? "true" : undefined}
-                        className={`w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors ${
+                        className={`min-h-11 w-full rounded-md px-2.5 py-2 text-left text-sm transition-colors lg:min-h-0 ${
                           ativo
                             ? "bg-brand-50 font-medium text-brand-800 dark:bg-brand-950/40 dark:text-brand-200"
                             : "text-foreground hover:bg-muted"
@@ -127,7 +127,7 @@ export function AjudaCentro() {
             <button
               type="button"
               onClick={voltarParaLista}
-              className="mb-4 inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline lg:hidden"
+              className="mb-2 inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground hover:underline lg:hidden"
             >
               <ArrowLeft className="h-3.5 w-3.5" />
               Voltar à lista

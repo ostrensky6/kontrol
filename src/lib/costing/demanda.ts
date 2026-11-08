@@ -145,6 +145,14 @@ export async function computarDemandaPlano(
   // sem o cadastro do insumo a conversão de unidade cairia em 1 sem aviso
   const erroLeitura = saldoError ?? saldoUnidadeError ?? reservasError ?? insumosError;
   if (erroLeitura) throw new Error(`Não foi possível ler saldo e reservas do estoque: ${erroLeitura.message}`);
+  // Leitura sem erro mas sem a linha do insumo (ex.: RLS) também cairia em fator 1.
+  const insumosLidos = new Set((insumos ?? []).map((c) => c.id as number));
+  const semCadastro = ids.filter((id) => !insumosLidos.has(id));
+  if (semCadastro.length > 0) {
+    throw new Error(
+      `Cadastro não encontrado para o(s) insumo(s) ${semCadastro.join(", ")}; a conversão de unidade não pode ser presumida.`,
+    );
+  }
   const sMap = new Map(
     (saldo ?? []).map((s) => [s.insumo_id as number, s as { unidade: string | null; disponivel: number }]),
   );
@@ -164,6 +172,13 @@ export async function computarDemandaPlano(
       .in("id", loteIds);
     // sem o lote, a reserva em embalagens seria contada como unidade
     if (lotesError) throw new Error(`Não foi possível ler os lotes reservados: ${lotesError.message}`);
+    const lotesLidos = new Set((lotes ?? []).map((lote) => lote.id as number));
+    const lotesSemLeitura = loteIds.filter((id) => !lotesLidos.has(id));
+    if (lotesSemLeitura.length > 0) {
+      throw new Error(
+        `Lote(s) reservado(s) ${lotesSemLeitura.join(", ")} não encontrado(s); a reserva não pode ser convertida.`,
+      );
+    }
     for (const lote of lotes ?? []) {
       if (lote.modelo_quantidade === "EMBALAGEM_FECHADA") {
         conteudoLote.set(lote.id as number, num(lote.conteudo_embalagem_snapshot) || 1);
