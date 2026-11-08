@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@supabase/supabase-js";
 import { dispatchPendingNotificationEmails } from "@/lib/notifications/email";
+import { gerarResumoSemanal, type ClienteResumo } from "@/lib/notifications/resumo-semanal";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,6 +37,14 @@ export async function GET(request: Request) {
     return Response.json({ ok: false, error: error.message }, { status: 500 });
   }
 
+  // Segunda-feira: resumo da semana para Coordenador ou acima (vai junto no e-mail abaixo).
+  let resumoSemanal: { gerado: boolean; motivo?: string };
+  try {
+    resumoSemanal = await gerarResumoSemanal(supabase as unknown as ClienteResumo);
+  } catch (erro) {
+    resumoSemanal = { gerado: false, motivo: erro instanceof Error ? erro.message : "falha" };
+  }
+
   const email = await dispatchPendingNotificationEmails(
     supabase as unknown as Parameters<typeof dispatchPendingNotificationEmails>[0],
   );
@@ -52,6 +61,7 @@ export async function GET(request: Request) {
     job: "reposicao-suprimentos",
     executed_at: new Date().toISOString(),
     result: data ?? null,
+    resumo_semanal: resumoSemanal,
     email,
   });
 }
