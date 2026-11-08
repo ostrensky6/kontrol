@@ -693,6 +693,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Crie o usuário e escolha a função dele; ele entra com senha provisória e troca no primeiro acesso.",
           "Use os três pontinhos para editar a função, ajustar permissões só daquela pessoa, enviar a assinatura, alterar a senha, suspender ou excluir.",
           "Para mudar o que uma função inteira pode fazer, use Governança → Privilégios.",
+          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem em Notificações (e por e-mail, quando configurado) o resumo da semana: insumos abaixo do mínimo ou vencidos, pedidos internos aguardando validação e manutenções de equipamento a vencer sem encaminhamento.",
         ],
       },
     ],
