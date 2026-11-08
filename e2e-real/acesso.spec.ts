@@ -8,7 +8,7 @@ test("sem sessão, qualquer área manda para o login", async ({ page }) => {
 
 test("senha errada mostra erro e não entra", async ({ page }) => {
   await entrar(page, ADMIN, "senha-errada-de-proposito");
-  await expect(page.getByRole("alert")).toContainText("E-mail ou senha inválidos.");
+  await expect(page.getByRole("alert").filter({ hasText: "E-mail ou senha inválidos." })).toBeVisible();
   await expect(page).toHaveURL(/\/login/);
 });
 
