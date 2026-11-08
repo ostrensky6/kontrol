@@ -97,7 +97,7 @@ begin
     'consumo_manual_insumos',
     'estoque_movimentacoes','insumo_analise','inventario_contagens','lotes_estoque',
     'pedidos_compra_item_recebimentos','pedidos_compra_itens','pedidos_internos_item_recebimentos',
-    'pedidos_internos_itens','planejamento_lote_conferencias','reservas_estoque']::text[] then
+    'pedidos_internos_itens','planejamento_lote_conferencias','reservas_disputas','reservas_estoque']::text[] then
     raise exception 'BLOCKERS: famílias FK divergentes: %', v_familias;
   end if;
 end $$;
