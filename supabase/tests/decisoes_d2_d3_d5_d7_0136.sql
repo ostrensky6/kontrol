@@ -48,6 +48,11 @@ begin
 
   insert into public.projetos (nome, coordenador_id) values ('TS-0136 projeto', pg_temp.uid('coord')) returning id into v_projeto;
   perform set_config('t0136.projeto', v_projeto::text, true);
+  -- 0160: quem valida precisa estar ligado ao projeto.
+  if to_regclass('kontrol_private.projetos_vinculos') is not null then
+    execute 'insert into kontrol_private.projetos_vinculos (projeto_id, usuario_id) values ($1, $2) on conflict do nothing'
+      using v_projeto, pg_temp.uid('outro');
+  end if;
 
   -- inventário: lote de 20 un a R$ 100
   insert into public.insumos (especificacao, unidade, custo_unitario) values ('TS-0136 reagente', 'un', 100) returning id into v_insumo;
