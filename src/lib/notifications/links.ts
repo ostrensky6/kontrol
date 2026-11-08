@@ -11,6 +11,8 @@ export function caminhoNotificacao(entidadeTipo: string | null, entidadeId: numb
       return id ? `/compras/${id}` : "/compras";
     case "resumo_semanal":
       return "/";
+    case "incidente":
+      return id ? `/governanca/incidentes#incidente-${id}` : "/governanca/incidentes";
     case "pedido_interno":
       return id ? `/pedido/${id}` : "/pedido";
     case "lote":
