@@ -104,12 +104,6 @@ function byUnit<T extends { equipamento_unidade_id: number }>(items: T[]) {
   }, {});
 }
 
-function ultimaManutencao(items: ManutencaoEquipamento[]) {
-  return [...items]
-    .filter((item) => item.status === "concluida")
-    .sort((a, b) => dateTime(b.data_conclusao ?? b.data_programada) - dateTime(a.data_conclusao ?? a.data_programada))[0] ?? null;
-}
-
 function proximaManutencao(items: ManutencaoEquipamento[]) {
   return [...items]
     .filter((item) => ["agendada", "em_execucao", "vencida"].includes(item.status))
@@ -141,7 +135,6 @@ export default async function EquipamentosPage({
   const { data } = scanId ? await query.eq("id", scanId) : await query;
   const unidades = (data ?? []) as unknown as UnidadeEquipamento[];
   const unidadeIds = unidades.map((unidade) => unidade.id);
-
   const [manutencoesResult, planosResult, logsResult] = unidadeIds.length > 0
     ? await Promise.all([
         supabase
@@ -162,8 +155,9 @@ export default async function EquipamentosPage({
           .order("criado_em", { ascending: false })
           .limit(200),
       ])
-    : [{ data: [] }, { data: [] }, { data: [] }];
+    : [{ data: [], error: null }, { data: [] }, { data: [] }];
 
+  const manutencoesIndisponiveis = manutencoesResult.error != null;
   const manutencoesPorUnidade = byUnit((manutencoesResult.data ?? []) as unknown as ManutencaoEquipamento[]);
   const logsPorUnidade = byUnit((logsResult.data ?? []) as unknown as StatusLogEquipamento[]);
   const planos = (planosResult.data ?? []) as unknown as PlanoManutencao[];
@@ -318,8 +312,9 @@ export default async function EquipamentosPage({
                 <h2 className="text-lg font-semibold tracking-tight">Operação básica</h2>
                 <HelpTip title="Operação básica">
                   <p>
-                    Resumo de cada aparelho: última manutenção, <b>próxima ação</b> prevista, plano
-                    ativo e as últimas mudanças de situação.
+                    Até 200 registros de manutenção são carregados nesta consulta. Por unidade, o resumo
+                    mostra a conclusão datada mais recente e as conclusões sem data, além da <b>próxima ação</b>,
+                    do plano ativo e das mudanças recentes de situação.
                   </p>
                   <HelpExample>Próxima ação: “calibração · 12/10/2026”.</HelpExample>
                 </HelpTip>
@@ -338,7 +333,11 @@ export default async function EquipamentosPage({
               const equipamento = asOne(unidade.equipamentos);
               const meta = statusMeta(unidade.status_operacional, unidade.ativo);
               const manutencoes = manutencoesPorUnidade[unidade.id] ?? [];
-              const ultima = ultimaManutencao(manutencoes);
+              const concluidas = manutencoesIndisponiveis ? [] : manutencoes.filter((item) => item.status === "concluida");
+              const ultimaDatada = concluidas
+                .filter((item) => item.data_conclusao != null)
+                .sort((a, b) => dateTime(b.data_conclusao) - dateTime(a.data_conclusao))[0];
+              const semData = concluidas.filter((item) => item.data_conclusao == null);
               const proxima = proximaManutencao(manutencoes);
               const plano = planoAplicavel(unidade, planos);
               const historico = (logsPorUnidade[unidade.id] ?? []).slice(0, 3);
@@ -365,22 +364,43 @@ export default async function EquipamentosPage({
 
                   <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-md border border-border/70 p-3">
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Última manutenção</dt>
-                      <dd className="mt-1 text-sm font-medium">
-                        {ultima ? `${labelTipo(ultima.tipo)} · ${formatDate(ultima.data_conclusao ?? ultima.data_programada)}` : "Sem registro concluído"}
-                      </dd>
-                      {ultima?.resultado && (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ultima.resultado}</p>
+                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Conclusões no recorte carregado</dt>
+                      {ultimaDatada?.data_conclusao != null && (
+                        <dd className="mt-1 text-sm font-medium">
+                          <p>{labelTipo(ultimaDatada.tipo)} · Concluída em {formatDate(ultimaDatada.data_conclusao)}</p>
+                          {ultimaDatada.resultado && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{ultimaDatada.resultado}</p>
+                          )}
+                        </dd>
+                      )}
+                      {semData.map((item) => (
+                        <dd key={item.id} className="mt-2 text-sm font-medium">
+                          <p>{labelTipo(item.tipo)} · Data de conclusão não informada</p>
+                          {item.resultado && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.resultado}</p>
+                          )}
+                        </dd>
+                      ))}
+                      {concluidas.length === 0 && (
+                        <dd className="mt-1 text-sm font-medium">
+                          {manutencoesIndisponiveis
+                            ? "Não foi possível carregar as conclusões. Atualize a página para tentar novamente."
+                            : "Nenhuma manutenção concluída no recorte carregado"}
+                        </dd>
                       )}
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
                       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próxima ação</dt>
                       <dd className="mt-1 text-sm font-medium">
-                        {proxima
-                          ? `${labelTipo(proxima.tipo)} · ${formatDate(proxima.data_programada)}`
-                          : plano
-                            ? `${labelTipo(plano.tipo)} · a cada ${plano.periodicidade_dias} dias`
-                            : "Sem agenda/plano ativo"}
+                        {manutencoesIndisponiveis || !Array.isArray(manutencoesResult.data)
+                          ? "Agenda indisponível no recorte carregado."
+                          : proxima
+                            ? `${labelTipo(proxima.tipo)} · ${formatDate(proxima.data_programada)}`
+                            : !Array.isArray(planosResult.data) || ("error" in planosResult && planosResult.error != null)
+                              ? "Sem ocorrência aberta no recorte; plano indisponível."
+                              : plano
+                                ? `${labelTipo(plano.tipo)} · a cada ${plano.periodicidade_dias} dias`
+                                : "Sem agenda/plano ativo"}
                       </dd>
                       {proxima?.bloqueia_operacao && (
                         <p className="mt-1 text-xs font-medium text-danger-strong">Bloqueia operação</p>
@@ -388,11 +408,17 @@ export default async function EquipamentosPage({
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
                       <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Plano ativo</dt>
-                      <dd className="mt-1 text-sm font-medium">
-                        {plano ? `${labelTipo(plano.tipo)} · tolerância ${plano.tolerancia_dias} dias` : "Nenhum plano aplicável"}
-                      </dd>
-                      {plano?.descricao && (
-                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{plano.descricao}</p>
+                      {!Array.isArray(planosResult.data) || ("error" in planosResult && planosResult.error != null) ? (
+                        <dd className="mt-1 text-sm font-medium">Planos indisponíveis no recorte carregado.</dd>
+                      ) : (
+                        <>
+                          <dd className="mt-1 text-sm font-medium">
+                            {plano ? `${labelTipo(plano.tipo)} · tolerância ${plano.tolerancia_dias} dias` : "Nenhum plano aplicável"}
+                          </dd>
+                          {plano?.descricao && (
+                            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{plano.descricao}</p>
+                          )}
+                        </>
                       )}
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
@@ -408,6 +434,42 @@ export default async function EquipamentosPage({
                       </dd>
                     </div>
                   </dl>
+                  <details className="mt-4 border-t border-border/70 pt-2">
+                    <summary className="min-h-10 cursor-pointer rounded-sm py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">
+                      Datas registradas da unidade #{unidade.id}
+                    </summary>
+                    {manutencoesIndisponiveis || !Array.isArray(manutencoesResult.data) ? (
+                      <p className="mt-2 text-sm">Não foi possível carregar as datas registradas. Atualize a página para tentar novamente.</p>
+                    ) : manutencoes.length === 0 ? (
+                      <p className="mt-2 text-sm">Nenhuma ocorrência desta unidade no recorte carregado.</p>
+                    ) : (
+                      <>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                          Datas das ocorrências no recorte carregado. A próxima data registrada não define vencimento.
+                        </p>
+                        <ul className="mt-2 divide-y divide-border/70">
+                          {manutencoes.map((item) => (
+                            <li key={item.id} className="min-w-0 py-3">
+                              <p className="text-sm font-medium">Ocorrência #{item.id} · {labelTipo(item.tipo)}</p>
+                              <dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
+                                {([
+                                  ["Data programada", item.data_programada],
+                                  ["Início registrado", item.data_inicio],
+                                  ["Conclusão registrada", item.data_conclusao],
+                                  ["Próxima data registrada", item.proxima_data],
+                                ] as const).map(([rotulo, data]) => (
+                                  <div key={rotulo}>
+                                    <dt className="text-muted-foreground">{rotulo}</dt>
+                                    <dd>{data ? <time dateTime={data}>{formatDate(data)}</time> : "Não informada"}</dd>
+                                  </div>
+                                ))}
+                              </dl>
+                            </li>
+                          ))}
+                        </ul>
+                      </>
+                    )}
+                  </details>
                 </article>
               );
             })}

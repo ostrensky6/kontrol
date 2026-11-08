@@ -19,6 +19,10 @@ import {
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatNumber as fmt } from "@/lib/formatters";
 
+export type SaidasDiarias =
+  | { estado: "provisoria"; taxa: number; janelaDias: number; unidadeReferencia: string }
+  | { estado: "indisponivel" | "falha" | "parcial"; motivo: string };
+
 export type SaldoRow = {
   insumoId: number;
   especificacao: string;
@@ -32,6 +36,8 @@ export type SaldoRow = {
   reservado: number;
   disponivel: number;
   pontoReposicao: number;
+  saidasDiarias: SaidasDiarias;
+  /** Preservado para ordenação; não representa evidência de exibição. */
   consumoMedioDiario: number;
   diasCobertura: number | null;
   pontoSugerido: number;
@@ -104,6 +110,27 @@ function LoteStatusBadge({ status, label }: { status: string; label: string }) {
   return <Badge className={className}>{label}</Badge>;
 }
 
+function SaidasDiariasValor({ leitura }: { leitura: SaidasDiarias }) {
+  if (leitura.estado === "provisoria") {
+    return (
+      <>
+        <span className="block break-words font-medium text-foreground">
+          {leitura.taxa < 0.01 ? "< 0,01" : fmt(leitura.taxa)} {leitura.unidadeReferencia}/dia
+        </span>
+        <span className="block text-xs text-muted-foreground">Provisória · {leitura.janelaDias} dias</span>
+      </>
+    );
+  }
+  return (
+    <>
+      <span className="block text-sm text-foreground">
+        {leitura.estado === "parcial" ? "Leitura parcial" : leitura.estado === "falha" ? "Falha na leitura" : "Indisponível"}
+      </span>
+      <span className="block text-xs text-muted-foreground">{leitura.motivo}</span>
+    </>
+  );
+}
+
 const saldoColumns = (podeMovimentar: boolean, entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unknown>[] => [
   {
     accessorKey: "especificacao",
@@ -141,10 +168,14 @@ const saldoColumns = (podeMovimentar: boolean, entradaInicialInsumoId?: number):
   },
   {
     accessorKey: "consumoMedioDiario",
-    header: "Saídas/dia",
+    header: "Saídas/dia · provisório",
     sortingFn: numericSort,
     meta: { align: "right" },
-    cell: ({ row }) => (row.original.consumoMedioDiario > 0 ? fmt(row.original.consumoMedioDiario) : "—"),
+    cell: ({ row }) => (
+      <div className="ml-auto max-w-40 whitespace-normal">
+        <SaidasDiariasValor leitura={row.original.saidasDiarias} />
+      </div>
+    ),
   },
   {
     accessorKey: "diasCobertura",
@@ -295,39 +326,47 @@ export function SaldoTable({
   rows,
   podeMovimentar,
   entradaInicialInsumoId,
-  janelaDias = 90,
 }: {
   rows: SaldoRow[];
   /** permissão "estoque.movimentar": mostra + Entrada e Dar baixa */
   podeMovimentar: boolean;
   entradaInicialInsumoId?: number;
-  janelaDias?: number;
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center gap-1">
+      <div className="mb-2 flex flex-wrap items-center gap-1">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Saldo por insumo</h2>
         <HelpTip title="Como ler o saldo">
-          <p>
-            Insumo contado em frascos mostra o saldo em <b>frascos</b> (ex.: frasco(s) de 100 mL).
-          </p>
-          <p>
-            <b>Em mãos</b> soma os lotes guardados. <b>Disponível</b> é o
-            que sobra depois das reservas dos planos, sem contar vencidos.
-          </p>
-          <p>
-            <b>Saídas/dia</b> é a média do que saiu do almoxarifado para o laboratório nos últimos {janelaDias} dias. Cobertura é quantos dias o disponível dura nesse ritmo.
-            O <b>ponto sugerido</b> é o maior entre o ponto cadastrado e as saídas previstas durante o prazo
-            da compra (tramitação na universidade + entrega do fornecedor), mais o estoque de segurança.
-            O insumo vira <b>Repor</b> quando o disponível mais o que já está a caminho fica abaixo dele.
-          </p>
-          <p>
-            <b>Reposição aguardando aprovação</b>: o que falta já foi pedido, mas o pedido ainda espera
-            aprovação. Um insumo pode ter mais de um status (ex.: sem estoque e repor).
-          </p>
-          <HelpExample>
-            10 em mãos, 4 reservados → 6 disponíveis. Consumo de 0,5/dia → cobertura de 12 dias.
-          </HelpExample>
+          <div
+            role="region"
+            aria-label="Orientações de leitura do saldo"
+            tabIndex={0}
+            className="max-h-[min(36dvh,22rem)] space-y-2 overflow-y-auto rounded-sm pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+          >
+            <p>
+              <b>Saídas/dia</b> mostra o ritmo provisório de saídas registradas na previsão de suprimentos, na unidade e na janela nominal de cada insumo. Não comprova série mensal, cobertura histórica ou ausência de rupturas.
+            </p>
+            <p>
+              Insumo contado em frascos mostra o saldo em <b>frascos</b> (ex.: frasco(s) de 100 mL).
+            </p>
+            <p>
+              <b>Em mãos</b> soma os lotes guardados. <b>Disponível</b> é o
+              que sobra depois das reservas dos planos, sem contar vencidos.
+            </p>
+            <p>
+              <b>Cobertura</b> é quantos dias o disponível dura na previsão operacional.
+              O <b>ponto sugerido</b> é o maior entre o ponto cadastrado e as saídas previstas durante o prazo
+              da compra (tramitação na universidade + entrega do fornecedor), mais o estoque de segurança.
+              O insumo vira <b>Repor</b> quando o disponível mais o que já está a caminho fica abaixo dele.
+            </p>
+            <p>
+              <b>Reposição aguardando aprovação</b>: o que falta já foi pedido, mas o pedido ainda espera
+              aprovação. Um insumo pode ter mais de um status (ex.: sem estoque e repor).
+            </p>
+            <HelpExample>
+              10 em mãos, 4 reservados → 6 disponíveis. Consumo de 0,5/dia → cobertura de 12 dias.
+            </HelpExample>
+          </div>
         </HelpTip>
       </div>
       <DataTable
@@ -343,9 +382,15 @@ export function SaldoTable({
           },
         ]}
         getMobileTitle={(row) => row.especificacao}
-        getMobileDescription={(row) =>
-          `${fmt(row.disponivel)} ${row.unidade} disponível · cobertura ${row.diasCobertura != null ? `${fmt(row.diasCobertura)} d` : "—"} · ponto sugerido ${row.pontoSugerido ? fmt(row.pontoSugerido) : "—"}`
-        }
+        getMobileDescription={(row) => (
+          <>
+            {`${fmt(row.disponivel)} ${row.unidade} disponível · cobertura ${row.diasCobertura != null ? `${fmt(row.diasCobertura)} d` : "—"} · ponto sugerido ${row.pontoSugerido ? fmt(row.pontoSugerido) : "—"}`}
+            <div className="mt-2">
+              <span className="block text-xs">Saídas/dia</span>
+              <SaidasDiariasValor leitura={row.saidasDiarias} />
+            </div>
+          </>
+        )}
         getMobileMeta={(row) => <SaldoStatusBadge situacoes={row.situacoes} />}
         getMobileActions={
           podeMovimentar

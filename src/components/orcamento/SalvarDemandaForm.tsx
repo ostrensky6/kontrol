@@ -1,14 +1,32 @@
 "use client";
 
-import { useActionState, type ReactNode } from "react";
+import { startTransition, useActionState, useEffect, useRef, type ReactNode } from "react";
+import { unstable_rethrow } from "next/navigation";
 import { salvarDemanda, type DemandaFormState } from "@/lib/actions/demandas";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
 const initialState: DemandaFormState = { ok: false };
-const salvarComEstado: (
+const SALVAMENTO_NAO_CONFIRMADO =
+  "Não foi possível confirmar o salvamento. Os dados continuam neste formulário. Confira o registro antes de tentar novamente.";
+
+async function salvarComEstado(
   state: DemandaFormState,
   formData: FormData,
-) => Promise<DemandaFormState> = salvarDemanda;
+): Promise<DemandaFormState> {
+  if (navigator.onLine === false) {
+    return {
+      ok: false,
+      message: "Alterações não enviadas. Os dados continuam neste formulário. Tente novamente quando houver conexão.",
+    };
+  }
+
+  try {
+    return await salvarDemanda(state, formData);
+  } catch (error) {
+    unstable_rethrow(error);
+    return { ok: false, message: SALVAMENTO_NAO_CONFIRMADO };
+  }
+}
 
 /**
  * Formulário "Dados do orçamento": os grupos de campos vêm como filhos
@@ -27,16 +45,33 @@ export function SalvarDemandaForm({
   /** nome da próxima etapa; com ele aparece o botão "Salvar e ir para …" */
   rotuloContinuar?: string | null;
 }) {
-  const [state, formAction, pending] = useActionState(salvarComEstado, initialState);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [estadoNativo, acaoNativa, pendenteNativo] = useActionState(salvarDemanda, initialState);
+  const [estadoLocal, acaoLocal, pendenteLocal] = useActionState(salvarComEstado, initialState);
+  const state = estadoLocal === initialState ? estadoNativo : estadoLocal;
+  const pending = pendenteNativo || pendenteLocal;
   const salvamentoConfirmado = state.ok && Boolean(state.savedAt);
   const mensagem = state.ok && !state.savedAt
-    ? "O salvamento não pôde ser confirmado. Tente novamente."
+    ? SALVAMENTO_NAO_CONFIRMADO
     : state.message;
+  const salvamentoLocal = estadoLocal.ok ? estadoLocal.savedAt : undefined;
+
+  useEffect(() => {
+    if (salvamentoLocal) formRef.current?.reset();
+  }, [salvamentoLocal]);
 
   return (
     <form
-      action={formAction}
+      ref={formRef}
+      action={acaoNativa}
       {...formularioSemPerda(salvamentoConfirmado ? state : { ok: false, message: mensagem })}
+      onSubmit={(event) => {
+        // Após hidratar, preserva os campos até confirmar; sem JS, vale a action nativa.
+        event.preventDefault();
+        if (pending) return;
+        const dados = new FormData(event.currentTarget, (event.nativeEvent as SubmitEvent).submitter);
+        startTransition(() => acaoLocal(dados));
+      }}
       aria-busy={pending}
       className="mt-3 space-y-3"
     >

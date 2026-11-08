@@ -18,6 +18,7 @@ import { Timeline } from "@/components/common/Timeline";
 import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl } from "@/lib/formatters";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
+import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
 
 export const dynamic = "force-dynamic";
 
@@ -68,12 +69,20 @@ type CompraItemRecebimento = {
 };
 
 type PedidoCompraItensQuery = {
-  select: (columns: string) => {
+  select: (columns: string, options: { count: "exact" }) => {
     eq: (column: string, value: number) => {
-      order: (column: string) => PromiseLike<{ data: PedidoCompraItemRow[] | null; error: unknown }>;
+      order: (column: string) => PromiseLike<{ data: PedidoCompraItemRow[] | null; count: number | null; error: unknown }>;
     };
   };
 };
+
+function formatarDuracao(ms: number) {
+  if (ms > 0 && ms < 60_000) return "Menos de 1 min";
+  const minutos = Math.floor(ms / 60_000);
+  const dias = Math.floor(minutos / 1440);
+  const horas = Math.floor(minutos / 60) % 24;
+  return [dias ? `${fmt(dias)} d` : "", horas ? `${horas} h` : "", `${minutos % 60} min`].filter(Boolean).join(" ");
+}
 
 export default async function PedidoDetalhe({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -88,9 +97,9 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   if (!pedido) notFound();
 
   const semFornecedor = pedido.status === "solicitado" && pedido.fornecedor_id == null;
-  const [{ data: itens }, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
+  const [consultaItens, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
     (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
-      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)")
+      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)", { count: "exact" })
       .eq("pedido_id", pedidoId)
       .order("id"),
     supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
@@ -103,6 +112,17 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
       ? supabase.from("fornecedores").select("id, nome, ativo").order("nome")
       : Promise.resolve({ data: [] as { id: number; nome: string; ativo: boolean }[] }),
   ]);
+  const { data: itens } = consultaItens;
+  // SELECT autenticado sem recorte de linhas para itens (0014) e livro (0092).
+  const prazo = prazoRecebimentoObservado(pedido, { ...consultaItens, escopoComprovado: true });
+  const prazoSemDuracao = {
+    cancelada: "Compra cancelada. Fora da amostra.",
+    nao_recebida: "O recebimento integral ainda não foi registrado.",
+    consulta_ou_escopo_incompleto: "Prazo indisponível. A consulta dos itens e recebimentos não está completa.",
+    livro_incompleto_ou_inconsistente: "O livro formal não comprova o recebimento integral desta compra.",
+    data_invalida_ou_invertida: "As datas registradas não permitem calcular o prazo.",
+    pendencia: "Há itens com pendência. O recebimento integral não foi comprovado.",
+  };
 
   // D1 (0130): compra que nasceu de pedido interno só é aprovada/enviada depois
   // que o pedido chega a "Aprovado para compra". O banco garante; aqui só
@@ -188,6 +208,38 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
             .
           </p>
         )}
+
+        <section aria-labelledby="prazo-recebimento" className="mt-4 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+          <h2 id="prazo-recebimento" className="font-semibold">Da compra formal ao recebimento integral</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Da criação da compra formal ao registro do recebimento integral no livro. A chegada física, a tramitação do
+            pedido interno ou da Funpar e o prazo total do processo ficam fora deste intervalo.
+          </p>
+          {prazo.estado === "observado" ? (
+            <>
+              <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-2">
+                <div>
+                  <dt className="text-xs text-muted-foreground">Início · criação</dt>
+                  <dd><time dateTime={prazo.inicioEm}>{formatDateTime(prazo.inicioEm)}</time></dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Fim · registro integral</dt>
+                  <dd><time dateTime={prazo.fimEm}>{formatDateTime(prazo.fimEm)}</time></dd>
+                </div>
+                <div>
+                  <dt className="text-xs text-muted-foreground">Duração observada</dt>
+                  <dd className="font-medium tabular-nums">{formatarDuracao(prazo.duracaoMs)}</dd>
+                </div>
+              </dl>
+              <p className="mt-2 text-xs text-muted-foreground">
+                Origem: livro formal de recebimentos · Amostra: {prazo.n} compra · Fonte financiadora não identificada.
+                Este tempo observado não é uma estimativa de fornecedor.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-muted-foreground">{prazoSemDuracao[prazo.motivo]}</p>
+          )}
+        </section>
 
         {semFornecedor && (
           <section
