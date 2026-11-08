@@ -877,6 +877,9 @@ export type Database = {
       }
       equipamentos: {
         Row: {
+          custo_parceiro_estimado: boolean
+          custo_parceiro_fonte: string | null
+          custo_parceiro_por_amostra: number | null
           custo_unitario: number
           data_aquisicao: string | null
           data_validade: string | null
@@ -889,6 +892,9 @@ export type Database = {
           vida_util_anos: number | null
         }
         Insert: {
+          custo_parceiro_estimado?: boolean
+          custo_parceiro_fonte?: string | null
+          custo_parceiro_por_amostra?: number | null
           custo_unitario?: number
           data_aquisicao?: string | null
           data_validade?: string | null
@@ -901,6 +907,9 @@ export type Database = {
           vida_util_anos?: number | null
         }
         Update: {
+          custo_parceiro_estimado?: boolean
+          custo_parceiro_fonte?: string | null
+          custo_parceiro_por_amostra?: number | null
           custo_unitario?: number
           data_aquisicao?: string | null
           data_validade?: string | null

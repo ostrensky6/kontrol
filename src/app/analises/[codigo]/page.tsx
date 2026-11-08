@@ -48,6 +48,8 @@ type EquipamentoVinculado = {
     percentual_manutencao_anual: number | null;
     manutencao_anual_fixa: number | null;
     possui: boolean | null;
+    custo_parceiro_por_amostra?: number | null;
+    custo_parceiro_estimado?: boolean | null;
   } | null;
 };
 
@@ -155,7 +157,7 @@ export default async function AnaliseDetalhe({
     supabase
       .from("equipamento_analise")
       .select(
-        "id, equipamento_id, peso_alocacao, equipamentos(nome, quantidade, custo_unitario, vida_util_anos, percentual_manutencao_anual, manutencao_anual_fixa, possui)",
+        "id, equipamento_id, peso_alocacao, equipamentos(nome, quantidade, custo_unitario, vida_util_anos, percentual_manutencao_anual, manutencao_anual_fixa, possui, custo_parceiro_por_amostra, custo_parceiro_estimado)",
       )
       .eq("codigo_analise", codigo)
       .gt("peso_alocacao", 0),
@@ -384,6 +386,12 @@ export default async function AnaliseDetalhe({
           <p role="status" className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-strong">
             Custo incompleto: {custo.insumosSemCusto.join(", ")} {custo.insumosSemCusto.length === 1 ? "está" : "estão"} sem
             preço ou sem conversão de unidade. Cadastre em Cadastros → Insumos; até lá o valor conta como zero.
+          </p>
+        )}
+        {custo && (custo.equipamentosEstimados ?? []).length > 0 && (
+          <p role="status" className="mt-3 rounded-md bg-info-soft px-3 py-2 text-sm text-info-strong">
+            Estimativa: o custo por amostra de {(custo.equipamentosEstimados ?? []).join(", ")} (equipamento de parceiro) ainda não
+            foi confirmado. Atualize em Cadastros → Equipamentos quando tiver o valor do parceiro.
           </p>
         )}
 
@@ -645,6 +653,9 @@ function toEquipAlloc(linha: EquipamentoVinculado, diasUteisAno: number): EquipA
   return {
     peso: Number(linha.peso_alocacao ?? 0),
     custoDia: linha.equipamentos ? equipCustoDia(linha.equipamentos, diasUteisAno) : 0,
+    custoPorAmostra: linha.equipamentos?.custo_parceiro_por_amostra ?? null,
+    nome: linha.equipamentos?.nome,
+    estimado: linha.equipamentos?.custo_parceiro_estimado === true,
   };
 }
 

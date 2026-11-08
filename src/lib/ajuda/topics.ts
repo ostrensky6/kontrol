@@ -157,6 +157,14 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Equipamento de parceiro",
+        itens: [
+          "Quando a análise usa equipamento de outra instituição que cobra por amostra, cadastre o equipamento em Cadastros → Equipamentos e preencha 'Custo do parceiro por amostra'.",
+          "O valor entra no custo de equipamento da análise (valor × peso do vínculo na aba Equipamentos da análise).",
+          "Se o valor ainda não foi confirmado, marque 'Valor do parceiro é estimativa' e diga de onde veio; a análise mostra o aviso até a confirmação.",
+        ],
+      },
+      {
         titulo: "Resolver custo pendente no orçamento",
         itens: [
           "Se aparecer custo pendente em 'Novo orçamento' ou em 'Parâmetros econômicos', não trate a falta de base como custo zero nem use a prévia incompleta como total da proposta.",

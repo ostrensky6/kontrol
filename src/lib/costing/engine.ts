@@ -17,7 +17,15 @@ export type Etapa = {
   tempo_bancada_h: number | null;
 };
 
-export type EquipAlloc = { peso: number; custoDia: number }; // custoDia já calculado
+export type EquipAlloc = {
+  peso: number;
+  custoDia: number; // custoDia já calculado (equipamento próprio)
+  /** 0161: equipamento de parceiro cobrado por amostra (R$/amostra × peso). */
+  custoPorAmostra?: number | null;
+  nome?: string;
+  /** valor do parceiro é estimativa, não preço confirmado */
+  estimado?: boolean;
+};
 
 export type InsumoLinha = {
   nome_etapa: string;
@@ -279,6 +287,8 @@ export type Breakdown = {
    * O custo deles foi contado como zero, então o total está INCOMPLETO.
    */
   insumosSemCusto: string[];
+  /** 0161: equipamentos de parceiro cujo custo por amostra é estimativa. */
+  equipamentosEstimados?: string[];
   lote: number;
   reagentes: number;
   equipamento: number;
@@ -317,6 +327,15 @@ export type CurvaCustoAmostrasPonto = {
   custoTotalCiclo: number;
 };
 
+/** Equipamento de parceiro: R$ por amostra × peso (0161). */
+export function equipamentoParceiroPorAmostra(equip: EquipAlloc[]) {
+  return equip.reduce((a, e) => {
+    const peso = Number.isFinite(e.peso) && e.peso > 0 ? e.peso : 0;
+    const custo = Number(e.custoPorAmostra);
+    return a + (Number.isFinite(custo) && custo > 0 ? peso * custo : 0);
+  }, 0);
+}
+
 function equipamentoDiaTotal(equip: EquipAlloc[]) {
   return equip.reduce((a, e) => {
     const peso = Number.isFinite(e.peso) && e.peso > 0 ? e.peso : 0;
@@ -345,7 +364,7 @@ export function calcularAnalise(args: {
   const reagentes = reagentesPorAmostra(selic, lote).total;
 
   const equipDia = equipamentoDiaTotal(args.equip);
-  const equipamento = g.amostrasDia > 0 ? equipDia / g.amostrasDia : 0;
+  const equipamento = (g.amostrasDia > 0 ? equipDia / g.amostrasDia : 0) + equipamentoParceiroPorAmostra(args.equip);
 
   const hBancada = horasBancadaPorAmostra(args.etapas);
   const pessoal = hBancada * args.valorHoraPessoal;
@@ -386,6 +405,7 @@ export function calcularAnalise(args: {
   return {
     codigo: args.codigo,
     insumosSemCusto: insumosSemCusto(selic),
+    equipamentosEstimados: args.equip.filter((e) => e.estimado && Number(e.custoPorAmostra) > 0).map((e) => e.nome ?? "Equipamento de parceiro"),
     lote,
     reagentes,
     equipamento,

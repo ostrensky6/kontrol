@@ -223,6 +223,17 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         min: 0,
         ajuda: "Valor anual de um contrato de manutenção. Quando preenchido, **substitui** a fração acima.",
       },
+      {
+        name: "custo_parceiro_por_amostra",
+        label: "Custo do parceiro por amostra (R$)",
+        tipo: "currency",
+        min: 0,
+        grupo: "Equipamento de parceiro",
+        ajuda: "Para equipamento de **outra instituição** que cobra por amostra. Entra no custo de equipamento da análise (valor × peso), além da depreciação e manutenção, se houver.",
+        exemplo: "Sequenciador de parceiro a R$ 35 por amostra com peso 1 → R$ 35 por amostra no custo da análise.",
+      },
+      { name: "custo_parceiro_estimado", label: "Valor do parceiro é estimativa", tipo: "checkbox" },
+      { name: "custo_parceiro_fonte", label: "De onde veio o valor", tipo: "text", colSpan: 2, ajuda: "Proposta, e-mail ou tabela do parceiro, com data." },
     ],
   },
 
