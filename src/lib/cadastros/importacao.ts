@@ -150,6 +150,31 @@ export function valorCelula(cell: ExcelJS.Cell): unknown {
 }
 
 /** Mapa cabeçalho normalizado → chave interna (campo, id técnico ou coluna extra). */
+/** Cabeçalhos alternativos aceitos para insumos (planilha do próprio laboratório). */
+const ALIASES_INSUMOS: [string, string][] = [
+  ["Marca", "fabricante"],
+  ["Fabricante", "fabricante"],
+  ["Código", "codigo_fabricante"],
+  ["Catálogo", "codigo_fabricante"],
+  ["Referência", "codigo_fabricante"],
+  ["Part number", "codigo_fabricante"],
+  ["Preço", "custo_total_embalagem"],
+  ["Preço (R$)", "custo_total_embalagem"],
+  ["Valor", "custo_total_embalagem"],
+  ["Valor (R$)", "custo_total_embalagem"],
+  ["Preço da embalagem", "custo_total_embalagem"],
+  ["Conteúdo da embalagem", "quantidade_embalagem"],
+  ["Qtd. na embalagem", "quantidade_embalagem"],
+  ["Fornecedor", "fornecedor_id"],
+  ["Categoria", "nome_item"],
+  ["Mínimo", "ponto_reposicao"],
+  ["Estoque mínimo", "ponto_reposicao"],
+  ["Armazenamento", "condicao_armazenamento"],
+  ["Validade", "data_validade"],
+  ["Data de vencimento", "data_validade"],
+  ["Vencimento", "data_validade"],
+];
+
 export function mapaCabecalhos(cfg: CadastroConfig) {
   const mapa = new Map<string, string>();
   mapa.set(normalizarChave(TECH_ID_HEADER), "id");
@@ -163,6 +188,12 @@ export function mapaCabecalhos(cfg: CadastroConfig) {
     }
   }
   if (cfg.slug === "insumos") {
+    // Nomes comuns em planilhas feitas à mão. Só valem quando não colidem
+    // com um rótulo do modelo (o modelo sempre ganha).
+    for (const [alias, chave] of ALIASES_INSUMOS) {
+      const normalizado = normalizarChave(alias);
+      if (!mapa.has(normalizado)) mapa.set(normalizado, chave);
+    }
     mapa.set(normalizarChave(QUANTIDADE_INSUMO_LABEL), QUANTIDADE_INSUMO_KEY);
     mapa.set(normalizarChave("Quantidade"), QUANTIDADE_INSUMO_KEY);
     mapa.set(normalizarChave(CODIGOS_BARRAS_LABEL), CODIGOS_BARRAS_KEY);
@@ -281,6 +312,8 @@ export type AbaLida = {
   linhas: LinhaImportada[];
   /** chaves internas das colunas reconhecidas no cabeçalho */
   colunas: Set<string>;
+  /** títulos de coluna que o importador não reconheceu (dados ignorados) */
+  ignoradas: string[];
 };
 
 /** Quantas linhas do topo são examinadas à procura do cabeçalho. */
@@ -326,10 +359,25 @@ export function lerAbaCadastro(
   const headers: string[] = [];
   const colunas = new Set<string>();
   const headerMap = mapaCabecalhos(cfg);
+  const ignoradas: string[] = [];
+  // Colunas só de leitura do modelo (calculadas na exportação) não contam como ignoradas.
+  const soLeitura = new Set(
+    (cfg.colunasXlsx ?? []).flatMap((coluna) => [normalizarChave(coluna.key), normalizarChave(coluna.label)]),
+  );
   sheet.getRow(linhaCabecalho).eachCell((cell, colNumber) => {
-    const chave = headerMap.get(normalizarChave(valorCelula(cell))) ?? "";
+    const titulo = valorCelula(cell);
+    const chave = headerMap.get(normalizarChave(titulo)) ?? "";
     headers[colNumber] = chave;
     if (chave) colunas.add(chave);
+    else if (
+      titulo != null &&
+      String(titulo).trim() &&
+      !soLeitura.has(normalizarChave(titulo)) &&
+      // Coluna bruta do banco que a exportação acrescenta (ex.: custo_unitario, ativo).
+      !/^[a-z][a-z0-9_]*$/.test(String(titulo).trim())
+    ) {
+      ignoradas.push(String(titulo).trim());
+    }
   });
 
   const campoPorNome = new Map(cfg.campos.map((campo) => [campo.name, campo]));
@@ -414,7 +462,7 @@ export function lerAbaCadastro(
     });
   });
 
-  return { linhas, colunas };
+  return { linhas, colunas, ignoradas };
 }
 
 /**
