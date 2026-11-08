@@ -168,13 +168,12 @@ begin
     raise exception '0167: estimativa manual deveria entrar na auditoria';
   end if;
 
-  -- vínculo apagado em cascata entra; gravação direta (como a do Admin pela
-  -- função, que já tem trilha própria) não duplica
+  -- vínculo criado e depois apagado em cascata entram na trilha
   insert into public.projetos (nome) values ('TS-0167 projeto') returning id into v_p;
   insert into kontrol_private.projetos_vinculos (projeto_id, usuario_id) values (v_p, v_u);
-  if exists (select 1 from public.auditoria where tabela = 'projetos_vinculos'
-              and registro_id = v_p::text || ':' || v_u::text) then
-    raise exception '0167: gravação direta do vínculo não deveria duplicar a trilha';
+  if not exists (select 1 from public.auditoria where tabela = 'projetos_vinculos'
+                  and registro_id = v_p::text || ':' || v_u::text and acao = 'insert') then
+    raise exception '0167: vínculo criado deveria entrar na auditoria';
   end if;
   delete from public.projetos where id = v_p;
   if not exists (select 1 from public.auditoria where tabela = 'projetos_vinculos'

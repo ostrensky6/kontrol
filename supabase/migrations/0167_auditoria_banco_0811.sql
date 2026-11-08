@@ -23,11 +23,13 @@
 --    abertos (decisão de 08/11).
 --
 -- 4. Auditoria do que faltava: estimativa manual de consumo (0152, apagada
---    pela exclusão em cascata da 0157) e vínculos de projeto (0151) quando
---    mudam por gatilho ou cascata. A configuração pelo Admin
---    (configurar_vinculo_projeto) já grava a própria trilha e não duplica.
+--    pela exclusão em cascata da 0157) e todo vínculo de projeto (0151),
+--    inclusive o criado pelo gatilho de projeto novo e o apagado em cascata.
+--    configurar_vinculo_projeto deixa de gravar a trilha à mão (o gatilho
+--    grava, no mesmo formato), para não duplicar.
 --
--- Rollback: restaurar consumo_mensal_calculo da 0157; alter table
+-- Rollback: restaurar consumo_mensal_calculo e configurar_vinculo_projeto
+-- das migrations 0157 e 0151; alter table
 -- public.estoque_movimentacoes alter column data set default current_date;
 -- alter policy <cada política listada em kontrol_private.leituras_0167>
 -- using (true); drop trigger aud_consumo_manual_insumos on
@@ -209,10 +211,9 @@ create trigger aud_consumo_manual_insumos
   after insert or update or delete on kontrol_private.consumo_manual_insumos
   for each row execute function public.fn_auditoria('insumo_id');
 
--- Vínculo criado pelo gatilho de projeto novo (0160) ou apagado em cascata
--- (projeto ou perfil excluído). A mudança direta pelo Admin passa por
--- configurar_vinculo_projeto, que já grava a trilha: só entra aqui o que
--- vem de outro gatilho (pg_trigger_depth > 1).
+-- Todo vínculo de projeto entra na trilha, no formato que a 0151 usava
+-- (registro "projeto:usuário", com quem fez). Pega também o vínculo criado
+-- pelo gatilho de projeto novo (0160) e o apagado em cascata.
 create function kontrol_private.auditar_vinculo_projeto()
 returns trigger
 language plpgsql
@@ -220,27 +221,30 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_chave text;
+  v_projeto bigint;
+  v_alvo uuid;
+  v_trilha jsonb;
   v_usuario text;
 begin
-  if pg_catalog.pg_trigger_depth() > 1 then
-    if tg_op = 'DELETE' then
-      v_chave := old.projeto_id::text || ':' || old.usuario_id::text;
-    else
-      v_chave := new.projeto_id::text || ':' || new.usuario_id::text;
-    end if;
+  if tg_op = 'DELETE' then
+    v_projeto := old.projeto_id; v_alvo := old.usuario_id;
+  else
+    v_projeto := new.projeto_id; v_alvo := new.usuario_id;
+  end if;
+  v_trilha := pg_catalog.jsonb_build_object('projeto_id', v_projeto, 'usuario_id', v_alvo, 'ator_id', auth.uid());
+  select coalesce(p.email, p.id::text) into v_usuario from public.perfis p where p.id = auth.uid();
+  if v_usuario is null then
     begin
       v_usuario := nullif(pg_catalog.current_setting('request.jwt.claims', true), '')::jsonb ->> 'email';
     exception when others then
       v_usuario := null;
     end;
-    insert into public.auditoria(tabela, registro_id, acao, valor_anterior, valor_novo, usuario)
-    values ('projetos_vinculos', v_chave,
-            pg_catalog.lower(tg_op),
-            case when tg_op = 'DELETE' then pg_catalog.to_jsonb(old) end,
-            case when tg_op = 'INSERT' then pg_catalog.to_jsonb(new) end,
-            coalesce(v_usuario, pg_catalog.current_setting('app.usuario', true)));
   end if;
+  insert into public.auditoria(tabela, registro_id, acao, valor_anterior, valor_novo, usuario)
+  values ('projetos_vinculos', v_projeto::text || ':' || v_alvo::text, pg_catalog.lower(tg_op),
+          case when tg_op = 'DELETE' then v_trilha end,
+          case when tg_op = 'INSERT' then v_trilha end,
+          coalesce(v_usuario, pg_catalog.current_setting('app.usuario', true)));
   return null;
 end $$;
 revoke all on function kontrol_private.auditar_vinculo_projeto() from public, anon, authenticated;
@@ -249,5 +253,51 @@ drop trigger if exists aud_projetos_vinculos on kontrol_private.projetos_vinculo
 create trigger aud_projetos_vinculos
   after insert or delete on kontrol_private.projetos_vinculos
   for each row execute function kontrol_private.auditar_vinculo_projeto();
+
+-- Mesma função da 0151, sem a gravação manual da trilha (agora é do gatilho).
+create or replace function public.configurar_vinculo_projeto(
+  p_projeto_id bigint, p_usuario_id uuid, p_vinculado boolean
+)
+returns jsonb language plpgsql security definer set search_path = '' as $$
+declare
+  v_ator uuid := kontrol_private.exigir_sessao_nomeacao();
+  v_email text;
+  v_papel text;
+  v_coordenador uuid;
+  v_alterado boolean;
+begin
+  if p_projeto_id is null or p_projeto_id <= 0 or p_usuario_id is null or p_vinculado is null then
+    raise exception 'Informe projeto, usuário e estado do vínculo.' using errcode = '22023';
+  end if;
+  perform kontrol_private.serializar_nomeacao();
+  select coalesce(p.email,p.id::text) into v_email from public.perfis p
+    where p.id = v_ator and p.papel = 'admin' and not p.suspenso and not p.senha_provisoria for update;
+  if not found then
+    raise exception 'Somente Administrador pode configurar o vínculo.' using errcode = '42501';
+  end if;
+  select p.papel into v_papel from public.perfis p where p.id = p_usuario_id for update;
+  if not found then raise exception 'Perfil de destino não encontrado.' using errcode = 'P0002'; end if;
+  select p.coordenador_id into v_coordenador from public.projetos p where p.id = p_projeto_id for update;
+  if not found then raise exception 'Projeto não encontrado.' using errcode = 'P0002'; end if;
+  if p_vinculado and v_papel not in ('coordenador','gestor') then
+    raise exception 'Vínculo explícito exige Coordenador ou Gestor.' using errcode = '22023';
+  end if;
+  if p_vinculado then
+    insert into kontrol_private.projetos_vinculos(projeto_id,usuario_id)
+    values (p_projeto_id,p_usuario_id) on conflict do nothing;
+    v_alterado := found;
+  else
+    delete from kontrol_private.projetos_vinculos
+    where projeto_id = p_projeto_id and usuario_id = p_usuario_id;
+    v_alterado := found;
+  end if;
+  -- a trilha agora é gravada pelo gatilho aud_projetos_vinculos (0167)
+  return pg_catalog.jsonb_build_object('projeto_id',p_projeto_id,'usuario_id',p_usuario_id,
+    'vinculado',p_vinculado,'alterado',v_alterado,
+    'coordenacao_direta',coalesce(v_papel='coordenador' and v_coordenador=p_usuario_id,false));
+end $$;
+revoke all on function public.configurar_vinculo_projeto(bigint,uuid,boolean)
+  from public, anon, authenticated, service_role;
+grant execute on function public.configurar_vinculo_projeto(bigint,uuid,boolean) to authenticated;
 
 commit;
