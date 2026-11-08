@@ -48,6 +48,7 @@ type InsumoAnaliseRow = {
   nome_atividade: string;
   especificacao_insumo: string | null;
   grupo_escolha: string | null;
+  alternativa_situacao?: string | null;
   quantidade_por_amostra: number | null;
   modo_cobranca: string | null;
   insumo_id: number | null;
@@ -89,6 +90,7 @@ function montarInsumoComCusto(
     nome_atividade: linha.nome_atividade,
     especificacao_insumo: linha.especificacao_insumo,
     grupo_escolha: linha.grupo_escolha,
+    alternativa_situacao: linha.alternativa_situacao ?? null,
     quantidade_por_amostra: linha.quantidade_por_amostra,
     modo_cobranca: linha.modo_cobranca,
     insumo_id: linha.insumo_id,
@@ -145,7 +147,7 @@ export async function calcularTodas(
     supabase
       .from("insumo_analise")
       .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
+        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
       ),
     supabase.from("parametros").select("chave, valor"),
     supabase
@@ -256,7 +258,7 @@ export async function carregarSimuladorCusteio(
     supabase
       .from("insumo_analise")
       .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
+        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
       ),
     supabase
       .from("v_custo_estoque_vigente")

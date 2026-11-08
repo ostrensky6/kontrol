@@ -68,6 +68,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Reagentes alternativos",
+        itens: [
+          "Insumos com o mesmo 'Grupo' na aba Insumos são alternativas: o orçamento usa só uma, a mais cara entre as que servem (padrão de segurança).",
+          "Insumo sem preço cadastrado não conta como zero: a análise e o orçamento avisam, e a revisão do orçamento fica bloqueada até cadastrar o preço.",
+          "Para tirar uma alternativa do cálculo, abra a análise → Insumos → 'Alternativas', escolha 'Não serve' e escreva o motivo. O grupo sempre fica com pelo menos uma.",
+          "Laboratório, Coordenador, Supervisor e Administrador registram essa decisão; cada registro fica no histórico e na Auditoria. Trocar o insumo da linha zera a avaliação.",
+        ],
+      },
+      {
         titulo: "Boas práticas",
         itens: [
           "Use nomes consistentes e evite duplicar análises que são essencialmente a mesma.",
@@ -76,7 +85,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["ensaio", "exame", "catálogo", "método", "matriz", "nova análise", "duplicar", "inativar", "reativar", "desativar"],
+    termos: ["ensaio", "exame", "catálogo", "método", "matriz", "nova análise", "duplicar", "inativar", "reativar", "desativar", "alternativa", "grupo de escolha", "sem preço"],
   },
   {
     id: "insumos-por-analise",

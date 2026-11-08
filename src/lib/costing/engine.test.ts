@@ -348,3 +348,21 @@ describe("calcularAnalise — cascata custo→preço", () => {
     expect(curva[10].custoUnitarioMedio).toBeCloseTo(222 / 11, 6);
   });
 });
+
+describe("alternativa invalidada (0159)", () => {
+  const base = { nome_etapa: "E", nome_atividade: "A", quantidade_por_amostra: 1, modo_cobranca: "por_amostra" };
+  it("sai do cálculo e a mais cara entre as restantes entra", () => {
+    const sel = insumosSelecionados([
+      { ...base, especificacao_insumo: "Kit caro", grupo_escolha: "kit", custo_unitario: 9, alternativa_situacao: "invalida" },
+      { ...base, especificacao_insumo: "Kit médio", grupo_escolha: "kit", custo_unitario: 6, alternativa_situacao: null },
+      { ...base, especificacao_insumo: "Kit barato", grupo_escolha: "kit", custo_unitario: 3, alternativa_situacao: "valida" },
+    ]);
+    expect(sel.map((l) => l.especificacao_insumo)).toEqual(["Kit médio"]);
+  });
+  it("se todas estiverem invalidadas, o grupo não some", () => {
+    const sel = insumosSelecionados([
+      { ...base, especificacao_insumo: "Kit A", grupo_escolha: "kit", custo_unitario: 9, alternativa_situacao: "invalida" },
+    ]);
+    expect(sel).toHaveLength(1);
+  });
+});

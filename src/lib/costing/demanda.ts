@@ -56,7 +56,7 @@ export async function computarDemandaPlano(
     supabase
       .from("insumo_analise")
       .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
+        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
       )
       .in("codigo_analise", codigos),
   ]);
@@ -83,6 +83,7 @@ export async function computarDemandaPlano(
           nome_atividade: string;
           especificacao_insumo: string | null;
           grupo_escolha: string | null;
+          alternativa_situacao?: string | null;
           quantidade_por_amostra: number | null;
           modo_cobranca: string | null;
           insumo_id: number | null;
@@ -93,6 +94,7 @@ export async function computarDemandaPlano(
           nome_atividade: r.nome_atividade,
           especificacao_insumo: r.especificacao_insumo,
           grupo_escolha: r.grupo_escolha,
+          alternativa_situacao: r.alternativa_situacao ?? null,
           quantidade_por_amostra: r.quantidade_por_amostra,
           modo_cobranca: r.modo_cobranca,
           custo_unitario: r.insumos?.custo_unitario ?? null,

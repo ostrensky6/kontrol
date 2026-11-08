@@ -24,6 +24,7 @@ export type InsumoOperacao = {
   nome_etapa?: string | null;
   nome_atividade?: string | null;
   grupo_escolha?: string | null;
+  alternativa_situacao?: string | null;
   custo_unitario?: number | null;
   insumos?: { custo_unitario?: number | null } | null;
 };

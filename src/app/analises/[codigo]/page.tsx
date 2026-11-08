@@ -7,6 +7,7 @@ import {
   equipCustoDia,
   gargalo,
   horasBancadaPorAmostra,
+  insumosSelecionados,
   type EquipAlloc,
   type Etapa,
   type InsumoLinha,
@@ -29,6 +30,8 @@ import {
 import { atualizarCatalogoAnalise } from "@/lib/actions/receita";
 import { AnaliseSituacao } from "@/components/analises/AnaliseCatalogoAcoes";
 import { podeEditarAnalises } from "@/lib/auth/permissao-efetiva";
+import { usuarioAtual } from "@/lib/auth/roles";
+import { AlternativasValidacao, type AlternativaLinha } from "@/components/analises/AlternativasValidacao";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
@@ -54,6 +57,9 @@ type MaterialVinculado = {
   nome_atividade: string;
   especificacao_insumo: string | null;
   grupo_escolha: string | null;
+  alternativa_situacao: string | null;
+  alternativa_observacao: string | null;
+  alternativa_validada_em: string | null;
   quantidade_por_amostra: number | null;
   unidade: string | null;
   modo_cobranca: string | null;
@@ -122,7 +128,10 @@ export default async function AnaliseDetalhe({
   const codigo = decodeURIComponent(codigoRaw);
   const activeView = isViewId(view) ? view : "resumo";
   const supabase = await createClient();
-  const podeEditar = await podeEditarAnalises();
+  const [podeEditar, usuario] = await Promise.all([podeEditarAnalises(), usuarioAtual()]);
+  // 0159: quem valida alternativas (o banco confere de novo).
+  const podeValidarAlternativas = Boolean(usuario && !usuario.suspenso
+    && ["laboratorio", "coordenador", "supervisor", "admin"].includes(usuario.papel));
 
   const { data: analise } = await supabase
     .from("analises")
@@ -153,7 +162,7 @@ export default async function AnaliseDetalhe({
     supabase
       .from("insumo_analise")
       .select(
-        "id, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, unidade, modo_cobranca, base_calculo, preferencial, etapa_id, insumo_id, insumos(especificacao, nome_item, unidade, custo_unitario, estoque_seguranca, ponto_reposicao, lead_time_dias)",
+        "id, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, alternativa_observacao, alternativa_validada_em, quantidade_por_amostra, unidade, modo_cobranca, base_calculo, preferencial, etapa_id, insumo_id, insumos(especificacao, nome_item, unidade, custo_unitario, estoque_seguranca, ponto_reposicao, lead_time_dias)",
       )
       .eq("codigo_analise", codigo)
       .order("nome_etapa"),
@@ -204,6 +213,22 @@ export default async function AnaliseDetalhe({
   const prazoPosAnalise = Math.max(0, ...etapasPosAnalise.map((e) => Number((e as unknown as { dia_fim_max?: number | null }).dia_fim_max ?? 0)));
   const prazoTotal = Math.max(prazoLaboratorio, prazoPosAnalise);
   const posAnaliseSemParametros = etapasPosAnalise.some((e) => !e.tempo_maquina_h && !e.tempo_bancada_h);
+  const comId = materiaisT.map((m) => ({ ...toInsumoLinha(m), id: m.id }));
+  const alternativasOrcadas = insumosSelecionados(comId).map((l) => l.id);
+  const alternativas: AlternativaLinha[] = materiaisT
+    .filter((m) => m.grupo_escolha && m.grupo_escolha.trim() !== "")
+    .map((m) => {
+      const custo = m.insumos?.custo_unitario ?? null;
+      return {
+        id: m.id,
+        grupo_escolha: (m.grupo_escolha as string).trim(),
+        especificacao_insumo: m.especificacao_insumo,
+        custo_por_amostra: custo != null ? custo * Number(m.quantidade_por_amostra ?? 0) : null,
+        alternativa_situacao: m.alternativa_situacao ?? null,
+        alternativa_observacao: m.alternativa_observacao ?? null,
+        alternativa_validada_em: m.alternativa_validada_em ?? null,
+      };
+    });
   const curvaCusto =
     custoData && !erroCusteio
       ? calcularCurvaCustoAmostras({
@@ -398,7 +423,7 @@ export default async function AnaliseDetalhe({
             <HelpTip title="Cobrança e grupos">
               <p>Materiais técnicos, item de estoque, consumo por amostra e modo de cobrança.</p>
               <p><b>Cobrança</b> “por amostra” multiplica o consumo pelo número de amostras; “por execução” cobra o item uma vez por corrida e divide entre as amostras do lote.</p>
-              <p>Linhas com o mesmo <b>Grupo</b> são alternativas: entra só uma. Por segurança, o orçamento usa a mais cara, a não ser que outra seja escolhida.</p>
+              <p>Linhas com o mesmo <b>Grupo</b> são alternativas: entra só uma. Por segurança, o orçamento usa a mais cara entre as que servem; em “Alternativas”, abaixo da tabela, marque a que não serve.</p>
               <HelpExample>Controle de R$ 60 por execução e lote de 12: R$ 5 por amostra.</HelpExample>
             </HelpTip>
           }
@@ -408,6 +433,12 @@ export default async function AnaliseDetalhe({
             materiais={materiaisT.map(toMaterialEditRowData)}
             insumos={insumosOpcoes.map(toInsumoOption)}
             podeEditar={podeEditar}
+          />
+          <AlternativasValidacao
+            codigo={codigo}
+            linhas={alternativas}
+            orcadas={alternativasOrcadas}
+            podeValidar={podeValidarAlternativas}
           />
         </Section>
         )}
@@ -595,6 +626,7 @@ function toInsumoLinha(material: MaterialVinculado): InsumoLinha {
     nome_atividade: material.nome_atividade,
     especificacao_insumo: material.especificacao_insumo,
     grupo_escolha: material.grupo_escolha,
+    alternativa_situacao: material.alternativa_situacao ?? null,
     quantidade_por_amostra: material.quantidade_por_amostra,
     modo_cobranca: material.modo_cobranca,
     custo_unitario: material.insumos?.custo_unitario ?? null,

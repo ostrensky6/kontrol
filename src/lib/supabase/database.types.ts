@@ -1199,6 +1199,10 @@ export type Database = {
           especificacao_insumo: string | null
           etapa_id: number | null
           grupo_escolha: string | null
+          alternativa_observacao: string | null
+          alternativa_situacao: string | null
+          alternativa_validada_em: string | null
+          alternativa_validada_por: string | null
           id: number
           insumo_id: number | null
           modo_cobranca: string | null
@@ -1214,6 +1218,10 @@ export type Database = {
           especificacao_insumo?: string | null
           etapa_id?: number | null
           grupo_escolha?: string | null
+          alternativa_observacao?: string | null
+          alternativa_situacao?: string | null
+          alternativa_validada_em?: string | null
+          alternativa_validada_por?: string | null
           id?: never
           insumo_id?: number | null
           modo_cobranca?: string | null
@@ -1229,6 +1237,10 @@ export type Database = {
           especificacao_insumo?: string | null
           etapa_id?: number | null
           grupo_escolha?: string | null
+          alternativa_observacao?: string | null
+          alternativa_situacao?: string | null
+          alternativa_validada_em?: string | null
+          alternativa_validada_por?: string | null
           id?: never
           insumo_id?: number | null
           modo_cobranca?: string | null
