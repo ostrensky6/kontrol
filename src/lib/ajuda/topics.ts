@@ -245,6 +245,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "A confiança sobe com o histórico: alta com 6 meses ou mais, saída em pelo menos 4 deles e consumo parecido de um mês para outro.",
           "O consumo de referência é o calculado quando a confiança é alta. Antes disso, vale a estimativa manual em embalagens por mês, se alguém a registrou.",
           "Uma nova estimativa manual não apaga as anteriores. Os limites do cálculo ficam em Parâmetros.",
+          "Quando o insumo tem prazo de compra e as unidades conferem, o painel mostra quanto falta para cobrir o prazo com o consumo de referência (inclusive a estimativa manual), já descontando o disponível e os pedidos abertos.",
         ],
       },
       {

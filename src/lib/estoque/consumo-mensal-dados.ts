@@ -73,3 +73,43 @@ export function rotuloUnidade(unidade: string, valor: number | null): string {
   if (unidade === "embalagem") return valor === 1 ? "embalagem" : "embalagens";
   return unidade;
 }
+
+export type PrevisaoInsumo = {
+  disponivel: number | null;
+  qtd_pedida_aberta: number | null;
+  estoque_seguranca: number | null;
+  lead_time_dias: number | null;
+  qtd_sugerida_compra: number | null;
+  unidade_saldo: string | null;
+  modelo_quantidade: string | null;
+};
+
+export type SugestaoCobertura = {
+  quantidade: number;
+  necessidade: number;
+  prazoDias: number;
+  sugestaoAtual: number;
+};
+
+/**
+ * Quanto comprar para cobrir o prazo de compra usando o consumo de
+ * referência (calculado ou estimativa manual), descontando o disponível e o
+ * que já está em pedido aberto (plano de evolução, item 6). Só quando as
+ * unidades conferem; nunca inventa conversão.
+ */
+export function sugestaoCobertura(c: ConsumoMensal, p: PrevisaoInsumo | null): SugestaoCobertura | null {
+  const ref = c.referencia.valor;
+  if (!p || ref === null || ref <= 0) return null;
+  const prazo = Number(p.lead_time_dias);
+  if (!Number.isFinite(prazo) || prazo <= 0) return null;
+  const emEmbalagens = c.unidade === "embalagem" && p.modelo_quantidade === "EMBALAGEM_FECHADA";
+  if (!emEmbalagens && c.unidade !== p.unidade_saldo) return null;
+  const necessidade = (ref / 30) * prazo + Math.max(0, Number(p.estoque_seguranca ?? 0));
+  const falta = Math.max(0, necessidade - Number(p.disponivel ?? 0) - Number(p.qtd_pedida_aberta ?? 0));
+  return {
+    quantidade: emEmbalagens ? Math.ceil(falta) : Math.round(falta * 100) / 100,
+    necessidade: Math.round(necessidade * 100) / 100,
+    prazoDias: prazo,
+    sugestaoAtual: Number(p.qtd_sugerida_compra ?? 0),
+  };
+}

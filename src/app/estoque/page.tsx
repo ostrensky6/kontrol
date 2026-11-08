@@ -27,7 +27,7 @@ import type { Tables } from "@/lib/supabase/database.types";
 import { lerConsumoManual, type RevisaoConsumoManual } from "@/lib/actions/consumo-manual";
 import { RegistrarConsumoManualForm } from "@/components/estoque/RegistrarConsumoManualForm";
 import { ConsumoMensalPainel } from "@/components/estoque/ConsumoMensalPainel";
-import { lerConsumoMensal } from "@/lib/estoque/consumo-mensal";
+import { lerConsumoMensal, lerPrevisaoInsumo } from "@/lib/estoque/consumo-mensal";
 
 export const dynamic = "force-dynamic";
 
@@ -260,12 +260,13 @@ export default async function EstoquePage({
   const cursorInvalido = query.consumo_antes !== undefined && antesDaRevisao === null;
   const insumosConsultaveis = saldoRows.filter(({ insumoId }) => Number.isSafeInteger(insumoId) && insumoId > 0);
   const insumoSelecionado = insumosConsultaveis.find(({ insumoId }) => insumoId === insumoConsultado);
-  const [consumoManual, consumoMensal] = insumoSelecionado && !cursorInvalido
+  const [consumoManual, consumoMensal, previsaoInsumo] = insumoSelecionado && !cursorInvalido
     ? await Promise.all([
       lerConsumoManual(insumoSelecionado.insumoId, antesDaRevisao, 25),
       lerConsumoMensal(insumoSelecionado.insumoId),
+      lerPrevisaoInsumo(insumoSelecionado.insumoId),
     ])
-    : [null, null];
+    : [null, null, null];
   const hoje = hojeIso();
   const loteRows: LoteRow[] = lotes.map((l) => {
     const ins = l.insumos;
@@ -459,7 +460,7 @@ export default async function EstoquePage({
               <p className="mt-2 text-sm text-warning-strong">Página de histórico inválida. <Link prefetch={false} className="underline" href={hrefConsumo(insumoSelecionado.insumoId)}>Voltar às revisões recentes</Link>.</p>
             )}
             {insumoSelecionado && consumoMensal && antesDaRevisao === null && (
-              <ConsumoMensalPainel leitura={consumoMensal} especificacao={insumoSelecionado.especificacao} />
+              <ConsumoMensalPainel leitura={consumoMensal} especificacao={insumoSelecionado.especificacao} previsao={previsaoInsumo} />
             )}
             {consumoManual && !consumoManual.ok && (
               <p role="status" className="mt-3 text-sm text-warning-strong">Estimativa indisponível. {consumoManual.message}</p>
