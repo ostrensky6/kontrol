@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
@@ -11,7 +12,7 @@ import {
 } from "@/lib/estoque/baixa";
 import { rotuloDoSaldo, situacoesDoSaldo } from "@/lib/estoque/situacao-insumo";
 import Link from "next/link";
-import { formatCurrency, formatDate, formatNumber, formatPercent } from "@/lib/formatters";
+import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from "@/lib/formatters";
 import { DownloadButton } from "@/components/common/DownloadButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import {
@@ -23,6 +24,10 @@ import {
 } from "@/components/estoque/EstoqueTables";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 import type { Tables } from "@/lib/supabase/database.types";
+import { lerConsumoManual, type RevisaoConsumoManual } from "@/lib/actions/consumo-manual";
+import { RegistrarConsumoManualForm } from "@/components/estoque/RegistrarConsumoManualForm";
+import { ConsumoMensalPainel } from "@/components/estoque/ConsumoMensalPainel";
+import { lerConsumoMensal } from "@/lib/estoque/consumo-mensal";
 
 export const dynamic = "force-dynamic";
 
@@ -97,10 +102,38 @@ function leituraSaidasDiarias(
   return { estado: "provisoria", taxa, janelaDias, unidadeReferencia };
 }
 
+const decimalConsumo = new Intl.NumberFormat("en-US", { useGrouping: false, maximumSignificantDigits: 21 });
+
+function inteiroDaConsulta(valor: string | string[] | undefined) {
+  const n = typeof valor === "string" && /^\d+$/.test(valor) ? Number(valor) : NaN;
+  return Number.isSafeInteger(n) && n > 0 ? n : null;
+}
+
+function hrefConsumo(insumoId: number, antes?: number) {
+  return `/estoque?consumo_insumo=${insumoId}${antes == null ? "" : `&consumo_antes=${antes}`}#consumo-manual`;
+}
+
+function DadosRevisaoConsumo({ registro }: { registro: RevisaoConsumoManual }) {
+  return (
+    <>
+      <p className="font-medium text-foreground">
+        Revisão {registro.revisao} · {decimalConsumo.format(registro.quantidade_embalagens_mes).replace(".", ",")} embalagens/mês
+      </p>
+      <dl className="mt-1 grid gap-1 text-sm text-muted-foreground sm:grid-cols-2">
+        <div><dt className="font-medium text-foreground">Apresentação confirmada</dt><dd>{decimalConsumo.format(registro.conteudo_embalagem).replace(".", ",")} {registro.unidade_conteudo} por embalagem</dd></div>
+        <div><dt className="font-medium text-foreground">Data de referência</dt><dd><time dateTime={registro.data_referencia}>{formatDate(registro.data_referencia)}</time></dd></div>
+        <div className="min-w-0 break-words"><dt className="font-medium text-foreground">Fonte</dt><dd>{registro.fonte}</dd></div>
+        <div className="min-w-0 break-words"><dt className="font-medium text-foreground">Motivo</dt><dd>{registro.motivo}</dd></div>
+      </dl>
+      <p className="mt-1 text-xs text-muted-foreground">Registrada em <time dateTime={registro.registrado_em}>{formatDateTime(registro.registrado_em)}</time></p>
+    </>
+  );
+}
+
 export default async function EstoquePage({
   searchParams,
 }: {
-  searchParams: Promise<{ entrada?: string | string[] }>;
+  searchParams: Promise<{ entrada?: string | string[]; consumo_insumo?: string | string[]; consumo_antes?: string | string[] }>;
 }) {
   const query = await searchParams;
   const entrada = Array.isArray(query.entrada) ? query.entrada[0] : query.entrada;
@@ -222,6 +255,17 @@ export default async function EstoquePage({
       lotesBaixa: lotesBaixaPorInsumo.get(Number(s.insumo_id)) ?? [],
     };
   });
+  const insumoConsultado = inteiroDaConsulta(query.consumo_insumo);
+  const antesDaRevisao = inteiroDaConsulta(query.consumo_antes);
+  const cursorInvalido = query.consumo_antes !== undefined && antesDaRevisao === null;
+  const insumosConsultaveis = saldoRows.filter(({ insumoId }) => Number.isSafeInteger(insumoId) && insumoId > 0);
+  const insumoSelecionado = insumosConsultaveis.find(({ insumoId }) => insumoId === insumoConsultado);
+  const [consumoManual, consumoMensal] = insumoSelecionado && !cursorInvalido
+    ? await Promise.all([
+      lerConsumoManual(insumoSelecionado.insumoId, antesDaRevisao, 25),
+      lerConsumoMensal(insumoSelecionado.insumoId),
+    ])
+    : [null, null];
   const hoje = hojeIso();
   const loteRows: LoteRow[] = lotes.map((l) => {
     const ins = l.insumos;
@@ -383,6 +427,101 @@ export default async function EstoquePage({
             podeMovimentar={podeBaixar}
             entradaInicialInsumoId={entradaInicialInsumoId}
           />
+          <section id="consumo-manual" aria-labelledby="titulo-consumo-manual" tabIndex={-1} className="mt-4 scroll-mt-20 rounded-lg border border-border bg-card p-4">
+            <div className="flex items-center gap-1">
+              <h3 id="titulo-consumo-manual" className="text-base font-semibold">Consumo mensal</h3>
+              <HelpTip title="Consumo mensal">
+                <p>Escolha um insumo para ver quanto saiu do estoque em cada mês e o consumo de referência.</p>
+                <p>Quando ainda há pouco histórico, informe uma estimativa manual em embalagens por mês. Ela vale até o cálculo ganhar confiança alta.</p>
+                <p>Uma nova estimativa não apaga as anteriores; o histórico fica guardado.</p>
+              </HelpTip>
+            </div>
+            {insumosConsultaveis.length > 0 ? (
+              <form action="/estoque#consumo-manual" method="get" className="mt-3 flex flex-wrap items-end gap-2">
+                <label className="min-w-0 flex-1 text-sm font-medium">
+                  Insumo
+                  <select name="consumo_insumo" defaultValue={insumoSelecionado?.insumoId ?? ""} required className="mt-1 block min-h-11 w-full rounded-md border border-input bg-background px-2 text-sm">
+                    <option value="" disabled>Selecione um insumo do saldo</option>
+                    {insumosConsultaveis.map(({ insumoId, especificacao }) => (
+                      <option key={insumoId} value={insumoId}>{especificacao} · #{insumoId}</option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit" className="min-h-11 rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">Ver consumo</button>
+              </form>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">Nenhum insumo disponível no saldo para consulta.</p>
+            )}
+            {query.consumo_insumo !== undefined && !insumoSelecionado && (
+              <p className="mt-2 text-sm text-warning-strong">Insumo indisponível nesta lista. Selecione um insumo do saldo.</p>
+            )}
+            {insumoSelecionado && cursorInvalido && (
+              <p className="mt-2 text-sm text-warning-strong">Página de histórico inválida. <Link prefetch={false} className="underline" href={hrefConsumo(insumoSelecionado.insumoId)}>Voltar às revisões recentes</Link>.</p>
+            )}
+            {insumoSelecionado && consumoMensal && antesDaRevisao === null && (
+              <ConsumoMensalPainel leitura={consumoMensal} especificacao={insumoSelecionado.especificacao} />
+            )}
+            {consumoManual && !consumoManual.ok && (
+              <p role="status" className="mt-3 text-sm text-warning-strong">Estimativa indisponível. {consumoManual.message}</p>
+            )}
+            {insumoSelecionado && consumoManual?.ok && (
+              <div className="mt-4 space-y-4 border-t border-border pt-3">
+                <div>
+                  <h4 className="text-sm font-semibold">Estimativa manual vigente</h4>
+                  {consumoManual.vigente === null ? (
+                    <p className="mt-1 text-sm text-muted-foreground">Nenhuma estimativa manual registrada.</p>
+                  ) : (
+                    <div className="mt-1 text-sm"><DadosRevisaoConsumo registro={consumoManual.vigente} /></div>
+                  )}
+                </div>
+                <div>
+                  <h4 className="text-sm font-semibold">Histórico de revisões</h4>
+                  {consumoManual.historico.length === 0 ? (
+                    <p className="mt-1 text-sm text-muted-foreground">Nenhuma revisão nesta página.</p>
+                  ) : (
+                    <ul className="mt-1 divide-y divide-border text-sm">
+                      {consumoManual.historico.map((registro) => (
+                        <li key={registro.revisao} className="py-2"><DadosRevisaoConsumo registro={registro} /></li>
+                      ))}
+                    </ul>
+                  )}
+                  {(antesDaRevisao !== null || consumoManual.proxima_antes_da_revisao !== null) && (
+                    <nav aria-label="Páginas do histórico de estimativa" className="mt-1 flex flex-wrap gap-x-4 text-sm text-primary">
+                      {antesDaRevisao !== null && <Link prefetch={false} className="inline-flex min-h-11 items-center underline" href={hrefConsumo(insumoSelecionado.insumoId)}>Revisões recentes</Link>}
+                      {consumoManual.proxima_antes_da_revisao !== null && (
+                        <Link prefetch={false} className="inline-flex min-h-11 items-center underline" href={hrefConsumo(insumoSelecionado.insumoId, consumoManual.proxima_antes_da_revisao)}>Revisões mais antigas</Link>
+                      )}
+                    </nav>
+                  )}
+                </div>
+                {antesDaRevisao !== null ? (
+                  <p className="text-sm text-muted-foreground">Páginas anteriores são somente para consulta.</p>
+                ) : (
+                  <>
+                    {consumoManual.apresentacao?.estado === "disponivel" ? (
+                      <p className="text-sm">Cada embalagem tem {decimalConsumo.format(consumoManual.apresentacao.conteudo).replace(".", ",")} {consumoManual.apresentacao.unidade}.</p>
+                    ) : (
+                      <p className="text-sm text-warning-strong">Para registrar a estimativa, preencha no cadastro do insumo quanto vem em cada embalagem.</p>
+                    )}
+                    {consumoManual.podeRegistrar && consumoManual.apresentacao?.estado === "disponivel" ? (
+                      <RegistrarConsumoManualForm
+                        key={insumoSelecionado.insumoId}
+                        preimagem={{
+                          insumoId: insumoSelecionado.insumoId,
+                          operacaoId: randomUUID(),
+                          revisaoEsperada: consumoManual.vigente?.revisao ?? 0,
+                          conteudo: decimalConsumo.format(consumoManual.apresentacao.conteudo),
+                          unidade: consumoManual.apresentacao.unidade,
+                        }}
+                      />
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Sua função não permite registrar estimativa. O histórico continua visível.</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </section>
         </div>
 
 

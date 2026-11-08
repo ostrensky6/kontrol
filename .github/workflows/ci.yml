@@ -116,6 +116,12 @@ jobs:
       - name: Validar registro de leituras protegido e auditoria da cascata (0148)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/registro_leituras_0148.sql
 
+      - name: Validar base do catálogo de funções e estimativa manual de consumo (0151, 0152)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/consumo_manual_insumos_0152.sql
+
+      - name: Validar consumo mensal automático e exclusão com estimativa (0157)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/consumo_mensal_automatico_0157.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

@@ -94,6 +94,7 @@ begin
   from pg_constraint fk join pg_class c on c.oid = fk.conrelid
   where fk.contype = 'f' and fk.confrelid = 'public.insumos'::regclass;
   if v_familias is distinct from array[
+    'consumo_manual_insumos',
     'estoque_movimentacoes','insumo_analise','inventario_contagens','lotes_estoque',
     'pedidos_compra_item_recebimentos','pedidos_compra_itens','pedidos_internos_item_recebimentos',
     'pedidos_internos_itens','planejamento_lote_conferencias','reservas_estoque']::text[] then

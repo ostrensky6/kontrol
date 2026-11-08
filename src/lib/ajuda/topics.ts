@@ -211,6 +211,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Consumo mensal",
+        itens: [
+          "No fim da página do Estoque, em 'Consumo mensal', escolha o insumo e clique em 'Ver consumo'.",
+          "O Kontrol soma sozinho as saídas de cada mês completo dos últimos 12 meses. Ajustes de inventário não contam como consumo.",
+          "A confiança sobe com o histórico: alta com 6 meses ou mais, saída em pelo menos 4 deles e consumo parecido de um mês para outro.",
+          "O consumo de referência é o calculado quando a confiança é alta. Antes disso, vale a estimativa manual em embalagens por mês, se alguém a registrou.",
+          "Uma nova estimativa manual não apaga as anteriores. Os limites do cálculo ficam em Parâmetros.",
+        ],
+      },
+      {
         titulo: "Conferir saldo e estoque físico",
         itens: [
           "Saldo registrado zero significa que o sistema mostra zero naquele registro. Saldo não conferido ou indisponível significa que ainda não dá para afirmar a quantidade. Nenhum dos dois substitui a contagem do estoque físico.",
@@ -218,7 +228,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["saldo", "lote", "validade", "fefo", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
+    termos: ["saldo", "lote", "validade", "fefo", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
   },
   {
     id: "planejamento",
@@ -523,7 +533,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Painel de insumos",
         itens: [
-          "O painel usa o disponível registrado no sistema, da mesma fonte do Estoque (v_estoque_saldo). A conferência física não foi comprovada: o disponível pode ser zero mesmo com saldo em mãos.",
+          "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir.",
           "Crítico no sistema é o disponível abaixo do ponto de reposição, inclusive zero. Zero sem ponto de reposição aparece em Sem mínimo definido.",
           "Saldo não conferido significa que não há dado de saldo nesta leitura. Saldo indisponível indica falha de leitura ou valor inválido. Confira no Inventário, em Estoque, se você tiver acesso.",
           "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. Não gera compra automática nem garante a data de chegada.",

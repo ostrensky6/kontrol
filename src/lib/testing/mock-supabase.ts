@@ -2365,6 +2365,18 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         store.analises = (store.analises ?? []).filter((a) => a.codigo !== args.p_codigo);
         return { data: { codigo: args.p_codigo, excluida: true }, error: null };
       }
+      // Consumo mensal automático (0157): saídas por mês civil completo.
+      if (fn === "consumo_mensal_insumo") {
+        const insumoId = Number(args.p_insumo_id);
+        if (!store.v_estoque_saldo.some((item) => Number(item.insumo_id) === insumoId)) {
+          return { data: null, error: { message: "Insumo não disponível no estoque para esta sessão.", code: "42501" } };
+        }
+        return { data: mockConsumoMensal(insumoId), error: null };
+      }
+      // Estimativa manual (0152): o mock começa sem estimativas registradas.
+      if (fn === "ler_consumo_manual_insumo") {
+        return { data: { estado: "nenhuma", vigente: null, historico: [], proxima_antes_da_revisao: null }, error: null };
+      }
       // Uma RPC sem simulação precisa falhar explicitamente. O fallback
       // anterior (`{ data: null, error: null }`) devolvia sucesso para
       // qualquer função desconhecida — inclusive para funções que não
@@ -2381,3 +2393,29 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
   };
 }
 
+
+function mockConsumoMensal(insumoId: number) {
+  const agora = new Date();
+  const meses: { mes: string; saidas: number; ajustes: number }[] = [];
+  const movs = (store.estoque_movimentacoes ?? []).filter((m) => Number(m.insumo_id) === insumoId);
+  for (let k = 1; k <= 12; k += 1) {
+    const d = new Date(Date.UTC(agora.getUTCFullYear(), agora.getUTCMonth() - k, 1));
+    const mes = d.toISOString().slice(0, 7);
+    const doMes = movs.filter((m) => String(m.data ?? "").slice(0, 7) === mes);
+    meses.push({
+      mes,
+      saidas: doMes.filter((m) => m.tipo === "saida").reduce((t, m) => t + Number(m.quantidade ?? 0), 0),
+      ajustes: doMes.filter((m) => m.tipo === "ajuste").length,
+    });
+  }
+  const comSaida = meses.filter((m) => m.saidas > 0).length;
+  const media = comSaida > 0 ? meses.reduce((t, m) => t + m.saidas, 0) / meses.length : null;
+  const confianca = comSaida === 0 ? "sem_dados" : comSaida >= 4 ? "alta" : comSaida >= 2 ? "media" : "baixa";
+  return {
+    insumo_id: insumoId, unidade: "embalagem", janela_meses: 12,
+    meses_historico: comSaida === 0 ? 0 : meses.length, meses_com_saida: comSaida,
+    media_mensal: media, variacao: null, ajustes: meses.reduce((t, m) => t + m.ajustes, 0), confianca,
+    meses: comSaida === 0 ? [] : meses, manual: null,
+    referencia: media === null ? { origem: "nenhuma", valor: null } : { origem: "calculado", valor: media },
+  };
+}
