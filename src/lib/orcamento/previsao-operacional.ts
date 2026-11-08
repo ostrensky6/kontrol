@@ -71,7 +71,7 @@ export function calcularPrevisaoOperacionalDemanda(args: {
     const lotes = Math.max(1, Math.ceil(quantidade / lotePadrao));
     const prazoDias = capacidadeDia > 0 ? Math.max(1, Math.ceil(quantidade / capacidadeDia)) : null;
     // mesma seleção do custeio e do planejamento: sem grupo entra sempre;
-    // em cada grupo de escolha, só uma alternativa (a mais barata por amostra)
+    // em cada grupo de escolha, só uma alternativa (a de maior custo, padrão de segurança)
     const linhas = args.insumos
       .filter((insumo) => insumo.codigo_analise === analise.codigo_analise)
       .map((insumo) => ({

@@ -238,6 +238,7 @@ describe("actions de orcamentos", () => {
     calcularTodas.mockResolvedValue({
       breakdowns: [{
         codigo: "A1",
+        insumosSemCusto: [],
         lote: 10,
         reagentes: 5,
         equipamento: 0,
@@ -291,6 +292,7 @@ describe("actions de orcamentos", () => {
     calcularTodas.mockResolvedValue({
       breakdowns: [{
         codigo: "A1",
+        insumosSemCusto: [],
         lote: 10,
         reagentes: 5,
         equipamento: 0,

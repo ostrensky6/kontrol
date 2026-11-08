@@ -105,10 +105,12 @@ export default async function AnalisesPage() {
   const equipamentosAnalise = equipamentosAnaliseResult.data;
 
   let custos = new Map<string, number>();
+  let semPreco = new Map<string, string[]>();
   let erroCusteio = false;
   try {
     const { breakdowns } = await calcularTodas();
     custos = new Map(breakdowns.map((b) => [b.codigo, b.preco]));
+    semPreco = new Map(breakdowns.map((b) => [b.codigo, b.insumosSemCusto ?? []]));
   } catch {
     erroCusteio = true;
     custos = new Map();
@@ -134,6 +136,8 @@ export default async function AnalisesPage() {
     }
     if (analise.ativo && !analise.ofertavel) avisos.push("ativa, mas fora da oferta comercial");
     if (analise.ativo && (custos.get(analise.codigo) ?? 0) <= 0) avisos.push("sem preço calculado");
+    const faltando = semPreco.get(analise.codigo) ?? [];
+    if (faltando.length > 0) avisos.push(`insumo sem preço: ${faltando.join(", ")}`);
 
     return {
       analise,

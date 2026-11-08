@@ -355,6 +355,12 @@ export default async function AnaliseDetalhe({
             <Stat label="Preço atual" value={custo ? formatCurrency(custo.preco) : "-"} compact />
           </section>
         )}
+        {custo && custo.insumosSemCusto.length > 0 && (
+          <p role="status" className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+            Custo incompleto: {custo.insumosSemCusto.join(", ")} {custo.insumosSemCusto.length === 1 ? "está" : "estão"} sem
+            preço ou sem conversão de unidade. Cadastre em Cadastros → Insumos; até lá o valor conta como zero.
+          </p>
+        )}
 
         {activeView === "ficha-tecnica" && (
         <Section
@@ -392,7 +398,7 @@ export default async function AnaliseDetalhe({
             <HelpTip title="Cobrança e grupos">
               <p>Materiais técnicos, item de estoque, consumo por amostra e modo de cobrança.</p>
               <p><b>Cobrança</b> “por amostra” multiplica o consumo pelo número de amostras; “por execução” cobra o item uma vez por corrida e divide entre as amostras do lote.</p>
-              <p>Linhas com o mesmo <b>Grupo</b> são alternativas: entra só uma, por padrão a mais barata.</p>
+              <p>Linhas com o mesmo <b>Grupo</b> são alternativas: entra só uma. Por segurança, o orçamento usa a mais cara, a não ser que outra seja escolhida.</p>
               <HelpExample>Controle de R$ 60 por execução e lote de 12: R$ 5 por amostra.</HelpExample>
             </HelpTip>
           }

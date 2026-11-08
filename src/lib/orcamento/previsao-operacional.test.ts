@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { calcularPrevisaoOperacionalDemanda } from "./previsao-operacional";
 
 describe("previsao de reagentes usa a mesma selecao do planejamento", () => {
-  it("em um grupo de escolha considera so uma alternativa (a mais barata por amostra)", () => {
+  it("em um grupo de escolha considera so uma alternativa (a de maior custo por amostra, por segurança)", () => {
     const [previsao] = calcularPrevisaoOperacionalDemanda({
       analises: [{ codigo_analise: "PCR", quantidade_amostras: 10 }],
       etapas: [{ codigo_analise: "PCR", nome_etapa: "Extração", nome_atividade: "Extrair", execucoes_por_dia: 1, amostras_por_execucao: 10 }],
@@ -14,7 +14,7 @@ describe("previsao de reagentes usa a mesma selecao do planejamento", () => {
     });
     expect(previsao.reagentes.map((r) => [r.especificacao, r.consumo_total])).toEqual([
       ["Tampão", 20],
-      ["Kit A", 10],
+      ["Kit B", 10],
     ]);
   });
 });
