@@ -355,18 +355,37 @@ const baseStore = (): Store => {
   })),
   tecnicos: [],
   overhead: [],
-  insumo_analise: HISTORICAL_ANALISE_CODES.map((codigo, index) => ({
-    codigo_analise: codigo,
-    nome_etapa: "Preparo",
-    nome_atividade: codigo.includes("qPCR") ? "qPCR" : "Rotina laboratorial",
-    especificacao_insumo: `Insumo mock ${codigo}`,
-    unidade: "un",
-    grupo_escolha: null,
-    quantidade_por_amostra: 1,
-    modo_cobranca: "por_amostra",
-    insumo_id: insumos[index].id,
-    insumos: { custo_unitario: insumos[index].custo_unitario },
-  })),
+  insumo_analise: [
+    ...HISTORICAL_ANALISE_CODES.map((codigo, index) => ({
+      id: 9001 + index,
+      codigo_analise: codigo,
+      nome_etapa: "Preparo",
+      nome_atividade: codigo.includes("qPCR") ? "qPCR" : "Rotina laboratorial",
+      especificacao_insumo: `Insumo mock ${codigo}`,
+      unidade: "un",
+      // Sanger tem uma alternativa mais barata (0159); a mais cara continua orçada.
+      grupo_escolha: codigo === "Sanger" ? "kit_sanger" : null,
+      alternativa_situacao: null,
+      quantidade_por_amostra: 1,
+      modo_cobranca: "por_amostra",
+      insumo_id: insumos[index].id,
+      insumos: { custo_unitario: insumos[index].custo_unitario },
+    })),
+    {
+      id: 9100,
+      codigo_analise: "Sanger",
+      nome_etapa: "Preparo",
+      nome_atividade: "Rotina laboratorial",
+      especificacao_insumo: "Insumo mock Sanger alternativo",
+      unidade: "un",
+      grupo_escolha: "kit_sanger",
+      alternativa_situacao: null,
+      quantidade_por_amostra: 1,
+      modo_cobranca: "por_amostra",
+      insumo_id: null,
+      insumos: { custo_unitario: 5 },
+    },
+  ],
   v_custo_estoque_vigente: custosEstoque,
   parametros: [
     { chave: "dias_uteis_ano", valor: 222 },
@@ -2057,6 +2076,22 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
             .map((tecnico) => ({ id: tecnico.id, valor_mes: pode ? tecnico.valor_mes : null })),
           error: null,
         };
+      }
+      if (fn === "validar_alternativa_insumo") {
+        const linha = (store.insumo_analise ?? []).find((row) => Number(row.id) === Number(args.p_insumo_analise_id));
+        if (!linha || !linha.grupo_escolha) return { data: null, error: { message: "Linha de insumo não encontrada.", code: "P0002" } };
+        if (args.p_decisao === "invalida") {
+          const restantes = (store.insumo_analise ?? []).filter((row) =>
+            row.codigo_analise === linha.codigo_analise && row.grupo_escolha === linha.grupo_escolha
+            && row.id !== linha.id && row.alternativa_situacao !== "invalida");
+          if (restantes.length === 0) {
+            return { data: null, error: { message: `O grupo "${String(linha.grupo_escolha)}" ficaria sem nenhuma alternativa válida.`, code: "23514" } };
+          }
+        }
+        linha.alternativa_situacao = args.p_decisao;
+        linha.alternativa_observacao = args.p_observacao;
+        linha.alternativa_validada_em = new Date().toISOString();
+        return { data: { id: linha.id, situacao: args.p_decisao }, error: null };
       }
       if (fn === "valor_hora_pessoal_total") return { data: valorHoraPessoalTotalMock(), error: null };
       if (fn === "orcamento_projeto_catalogo_listar") {

@@ -28,6 +28,8 @@ export type InsumoLinha = {
   modo_cobranca: string | null; // 'por_execucao' | 'por_amostra' | null
   custo_unitario: number | null; // do insumo ligado (null se não cadastrado)
   insumo_id?: number | null; // usado p/ demanda de estoque
+  /** 0159: 'invalida' tira a alternativa do cálculo enquanto o grupo tiver outra. */
+  alternativa_situacao?: string | null;
   unidade_estoque?: string | null;
   unidade_consumo?: string | null;
   fator_conversao?: number | null;
@@ -159,21 +161,25 @@ export function insumosSemCusto(linhas: InsumoLinha[]): string[] {
 }
 
 /** Seleciona as linhas de insumo válidas aplicando as escolhas de grupo. */
-export function insumosSelecionados(
-  linhas: InsumoLinha[],
+export function insumosSelecionados<T extends InsumoLinha>(
+  linhas: T[],
   escolhasGrupo: Record<string, string> = {},
-): InsumoLinha[] {
+): T[] {
   // agrupa por grupo_escolha; sem grupo => sempre incluído.
   const semGrupo = linhas.filter((l) => !l.grupo_escolha);
   const comGrupo = linhas.filter((l) => l.grupo_escolha);
-  const grupos = new Map<string, InsumoLinha[]>();
+  const grupos = new Map<string, T[]>();
   for (const l of comGrupo) {
     const k = l.grupo_escolha as string;
     if (!grupos.has(k)) grupos.set(k, []);
     grupos.get(k)!.push(l);
   }
-  const escolhidas: InsumoLinha[] = [];
-  for (const [grupo, opcoes] of grupos) {
+  const escolhidas: T[] = [];
+  for (const [grupo, todas] of grupos) {
+    // Alternativa invalidada pelo laboratório (0159) não é orçada, salvo se
+    // o grupo não tiver outra (o banco já impede esse caso).
+    const validas = todas.filter((o) => o.alternativa_situacao !== "invalida");
+    const opcoes = validas.length > 0 ? validas : todas;
     const escolhida = escolhasGrupo[grupo];
     if (escolhida) {
       escolhidas.push(
