@@ -27,6 +27,16 @@ export type AjudaTopico = {
   termos?: string[];
 };
 
+/** Busca textual da Central; a associação contextual continua em ContextHelp. */
+export function topicoCasa(topico: AjudaTopico, termo: string) {
+  const normalizar = (texto: string) => texto.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const consulta = termo.trim();
+  if (!consulta) return true;
+  const alvo = normalizar([topico.titulo, topico.href, topico.grupo, topico.resumo, topico.intro,
+    ...topico.secoes.flatMap((s) => [s.titulo, ...s.itens]), ...(topico.termos ?? [])].join(" "));
+  return normalizar(consulta).split(/\s+/).every((palavra) => alvo.includes(palavra));
+}
+
 export const AJUDA_TOPICOS: AjudaTopico[] = [
   // ───────────────────────────── Operação ─────────────────────────────
   {
@@ -137,6 +147,13 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Sem a permissão, o valor aparece mascarado; o custo das análises continua correto.",
         ],
       },
+      {
+        titulo: "Resolver custo pendente no orçamento",
+        itens: [
+          "Se aparecer custo pendente em 'Novo orçamento' ou em 'Parâmetros econômicos', não trate a falta de base como custo zero nem use a prévia incompleta como total da proposta.",
+          "Abra a ficha em Análises e confira os insumos usados. Verifique o preço, a unidade cadastrada e a conversão para a unidade de consumo. Em Custeio, confira o custo da análise antes de voltar ao orçamento.",
+        ],
+      },
     ],
     termos: ["custo", "preço", "margem", "overhead", "simulação", "salário", "remuneração", "parâmetros de custeio"],
   },
@@ -191,6 +208,13 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Confira o material ao registrar a chegada: número do lote, validade e quantidade ficam no histórico.",
           "Fique atento aos itens vencendo — priorize o consumo deles (o que vence primeiro sai primeiro).",
           "Use o rastreio para saber em quais análises um lote foi utilizado.",
+        ],
+      },
+      {
+        titulo: "Conferir saldo e estoque físico",
+        itens: [
+          "Saldo registrado zero significa que o sistema mostra zero naquele registro. Saldo não conferido ou indisponível significa que ainda não dá para afirmar a quantidade. Nenhum dos dois substitui a contagem do estoque físico.",
+          "Para conferir o material no local, vá a Suprimentos → Inventário. Registre a contagem do item ou lote e compare com o saldo do sistema, conforme seu acesso.",
         ],
       },
     ],
@@ -319,7 +343,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   // ───────────────────────────── Orçamentos ────────────────────────────
   {
     id: "orcamento-demandas",
-    titulo: "Orçamentos",
+    titulo: "Criar e revisar um orçamento",
     grupo: "Orçamentos",
     href: "/orcamento/demandas",
     resumo: "Pedidos de cliente em andamento, antes da proposta emitida.",
@@ -335,15 +359,23 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
-        titulo: "Passo a passo",
+        titulo: "Criar e revisar antes de emitir",
         itens: [
           "Registre o que o cliente solicitou e o contexto.",
           "Complemente com escopo e prazo para calcular o orçamento.",
-          "Quando estiver completo, emita a proposta.",
+          "Criar o orçamento não emite a proposta. Revise os custos e, quando a etapa se aplicar, confira os Parâmetros econômicos antes de seguir para Proposta final.",
+          "A emissão é uma ação separada na etapa Proposta final. Para consultar uma versão já emitida, use o Histórico de Orçamentos.",
+        ],
+      },
+      {
+        titulo: "Conferir um salvamento sem confirmação",
+        itens: [
+          "Ao editar em 'Dados do orçamento', se a tela avisar que não foi possível confirmar o salvamento, os campos continuam nesta aba. Confira o registro em outra aba antes de tentar novamente: a falta de confirmação não diz se a alteração foi gravada.",
+          "Se aparecer 'Alterações não enviadas' por falta de conexão, não houve envio. Mantenha o formulário aberto e tente novamente quando houver conexão.",
         ],
       },
     ],
-    termos: ["lead", "cliente", "proposta", "demanda comercial"],
+    termos: ["lead", "cliente", "proposta", "demanda comercial", "criar orçamento sem emitir", "salvamento não confirmado"],
   },
   {
     id: "orcamento-analises",
@@ -417,6 +449,32 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     termos: ["projeto", "rubrica", "pessoal", "meses", "viagens", "diárias", "catálogo", "revisão"],
   },
   {
+    id: "orcamento-historico",
+    titulo: "Consultar uma proposta já emitida",
+    grupo: "Orçamentos",
+    href: "/orcamento/historico",
+    resumo: "Localize a versão emitida, abra o documento e compare com a anterior.",
+    intro:
+      "Consulte os custos, parâmetros e valores gravados na emissão. Não recalcule esses valores com os cadastros atuais: eles podem ter mudado desde então.",
+    secoes: [
+      {
+        titulo: "Passo a passo",
+        itens: [
+          "Em 'Histórico de Orçamentos', busque por 'Número, título ou cliente' e clique em 'Filtrar'. Confira a versão (v1, v2…) e a data de emissão.",
+          "Clique no número da proposta ou abra 'Detalhes' → 'Abrir / PDF' para consultar a emissão.",
+          "Se houver uma versão anterior disponível, abra 'Detalhes' → 'Comparar com a anterior' para ver as duas lado a lado.",
+        ],
+      },
+      {
+        titulo: "Se não encontrar a proposta",
+        itens: [
+          "Use 'Limpar' se houver filtros ativos. Confira os dados da busca, se a proposta chegou a ser emitida e se você tem acesso a ela.",
+        ],
+      },
+    ],
+    termos: ["histórico", "proposta emitida", "versão anterior", "segunda via", "PDF"],
+  },
+  {
     id: "orcamento-parametros",
     titulo: "Parâmetros econômicos",
     grupo: "Orçamentos",
@@ -465,11 +523,11 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Painel de insumos",
         itens: [
-          "A tela inicial de Cadastros é um painel com todos os insumos ativos: quantos há, quantos têm estoque, quantos estão acima do mínimo e quantos estão em nível crítico.",
-          "Mínimo = ponto de reposição do cadastro do insumo. Nível crítico = disponível abaixo dele, incluindo o que está em falta (zerado).",
-          "O nível crítico não é o Repor do Estoque: o Repor também conta o que está a caminho e o prazo da compra, então os dois podem mostrar números diferentes para o mesmo insumo.",
-          "Filtre por categoria de compra, categoria curta, código do fabricante, situação ou pelo nome do item; clique num indicador ou numa categoria da lista para filtrar direto.",
-          "Os gráficos mostram a situação por categoria e as entradas e saídas dos últimos 12 meses do recorte escolhido.",
+          "O painel usa o disponível registrado no sistema, da mesma fonte do Estoque (v_estoque_saldo). A conferência física não foi comprovada: o disponível pode ser zero mesmo com saldo em mãos.",
+          "Crítico no sistema é o disponível abaixo do ponto de reposição, inclusive zero. Zero sem ponto de reposição aparece em Sem mínimo definido.",
+          "Saldo não conferido significa que não há dado de saldo nesta leitura. Saldo indisponível indica falha de leitura ou valor inválido. Confira no Inventário, em Estoque, se você tiver acesso.",
+          "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. Não gera compra automática nem garante a data de chegada.",
+          "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
         ],
       },
       {

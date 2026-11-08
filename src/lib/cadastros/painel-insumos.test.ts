@@ -26,7 +26,7 @@ const saldos = [
   { insumo_id: 1, disponivel: 0, em_maos: 1, unidade_saldo: "un" },
   { insumo_id: 2, disponivel: "1", em_maos: 1, unidade_saldo: "frasco" },
   { insumo_id: 3, disponivel: 8, em_maos: 8, unidade_saldo: "cx" },
-  // insumo 4 sem linha de saldo: conta como zero
+  // insumo 4 sem linha de saldo
 ];
 
 const itens = montarInsumosPainel(insumos, saldos);
@@ -46,34 +46,80 @@ describe("montarInsumosPainel", () => {
     expect(itens.map((i) => [i.id, i.situacao])).toEqual([
       [1, "em_falta"],
       [2, "abaixo_minimo"],
-      [4, "sem_minimo"],
       [3, "ok"],
+      [4, "saldo_indisponivel"],
     ]);
     const tubo = itens.find((i) => i.id === 4)!;
-    expect(tubo.disponivel).toBe(0);
+    expect(tubo).toMatchObject({ disponivel: null, emMaos: null, estadoSaldo: "nao_conferido" });
     expect(tubo.categoriaCurta).toBe(SEM_CATEGORIA);
     expect(tubo.unidade).toBe("pct");
   });
 
   it("leitura de saldo com falha: quem ficou sem linha é indisponível, não zero nem crítico", () => {
     // só a primeira linha chegou antes do erro
-    const parcial = montarInsumosPainel(insumos, saldos.slice(0, 1), { saldosCompletos: false });
-    const situacoes = Object.fromEntries(parcial.map((i) => [i.id, i.situacao]));
-    expect(situacoes).toEqual({ 1: "em_falta", 2: "saldo_indisponivel", 3: "saldo_indisponivel", 4: "saldo_indisponivel" });
-    expect(parcial.find((i) => i.id === 2)!.disponivel).toBeNull();
+    const parcial = montarInsumosPainel(insumos, [saldos[1]], { saldosCompletos: false });
+    expect(parcial[0]).toMatchObject({ id: 2, disponivel: 1, estadoSaldo: "saldo_sistema" });
+    expect(parcial.find((i) => i.id === 1)).toMatchObject({
+      disponivel: null, emMaos: null, estadoSaldo: "saldo_indisponivel",
+    });
     const resumo = resumirPainel(parcial);
     expect(resumo.critico).toBe(1);
     expect(resumo.saldoIndisponivel).toBe(3);
-    expect(resumo.comEstoque).toBe(0);
+    expect(resumo.comEstoque).toBe(1);
     expect(resumo.saude).toBe(0);
   });
 
-  it("três casos separados: erro, consulta vazia e zero confirmado", () => {
+  it("separa erro e consulta vazia de disponibilidade zero, mesmo com estoque em mãos", () => {
     const um = [insumos[0]];
-    expect(montarInsumosPainel(um, [], { saldosCompletos: false })[0].situacao).toBe("saldo_indisponivel");
-    // consulta completa e vazia: o insumo não tem lote, então é zero
-    expect(montarInsumosPainel(um, [])[0]).toMatchObject({ disponivel: 0, situacao: "em_falta" });
-    expect(montarInsumosPainel(um, [{ insumo_id: 1, disponivel: 0 }])[0]).toMatchObject({ disponivel: 0, situacao: "em_falta" });
+    const [erro] = montarInsumosPainel(um, [], { saldosCompletos: false });
+    const [ausente] = montarInsumosPainel(um, []);
+    const [zero] = montarInsumosPainel(um, [saldos[0]]);
+    expect(erro).toMatchObject({ disponivel: null, estadoSaldo: "saldo_indisponivel" });
+    expect(ausente).toMatchObject({ disponivel: null, estadoSaldo: "nao_conferido" });
+    expect(zero).toMatchObject({ disponivel: 0, emMaos: 1, estadoSaldo: "saldo_sistema", situacao: "em_falta" });
+    const desconhecidos = [erro, ausente];
+    expect(filtrarLista(desconhecidos, { ...FILTROS_PAINEL_VAZIOS, situacao: "critico" })).toEqual([]);
+    expect(resumirPainel(desconhecidos)).toMatchObject({ emFalta: 0, critico: 0, saude: null });
+    expect(filtrarLista([zero], { ...FILTROS_PAINEL_VAZIOS, situacao: "critico" })).toEqual([zero]);
+    expect(resumirPainel([zero])).toMatchObject({ emFalta: 1, critico: 1, saldoIndisponivel: 0, saude: 0 });
+  });
+
+  it.each(["insumo sem lotes", "insumo consumido até zero"])(
+    "detecta o zero explícito retornado pela view para %s, sem inferir diferença física",
+    () => {
+      // Ambos os contextos produzem a mesma linha na view; ela não atesta o físico.
+      const [item] = montarInsumosPainel([insumos[0]], [
+        { insumo_id: 1, disponivel: 0, em_maos: 0, unidade_saldo: "un" },
+      ]);
+      expect(item).toMatchObject({ disponivel: 0, emMaos: 0, estadoSaldo: "saldo_sistema", situacao: "em_falta" });
+      expect(filtrarLista([item], { ...FILTROS_PAINEL_VAZIOS, situacao: "critico" })).toEqual([item]);
+      expect(resumirPainel([item])).toMatchObject({ emFalta: 1, critico: 1, saldoIndisponivel: 0 });
+    },
+  );
+
+  it("mantém zero sem mínimo detectável como saldo de sistema, sem torná-lo crítico", () => {
+    const lista = montarInsumosPainel([insumos[3]], [
+      { insumo_id: 4, disponivel: 0, em_maos: 0, unidade_saldo: "pct" },
+    ]);
+    expect(lista[0]).toMatchObject({ disponivel: 0, estadoSaldo: "saldo_sistema", situacao: "sem_minimo" });
+    expect(lista.filter((item) => item.estadoSaldo === "saldo_sistema" && item.disponivel === 0)).toHaveLength(1);
+    expect(filtrarLista(lista, { ...FILTROS_PAINEL_VAZIOS, situacao: "critico" })).toEqual([]);
+    expect(resumirPainel(lista)).toMatchObject({ semMinimo: 1, emFalta: 0, critico: 0, saldoIndisponivel: 0, saude: null });
+  });
+
+  it.each([null, undefined, "", "  ", "inválido", Infinity, -1])(
+    "saldo ausente ou inválido (%s) não vira zero",
+    (disponivel) => {
+      expect(montarInsumosPainel([insumos[0]], [{ insumo_id: 1, disponivel }])[0]).toMatchObject({
+        disponivel: null, emMaos: null, estadoSaldo: "saldo_indisponivel",
+      });
+    },
+  );
+
+  it("mantém o saldo positivo e a unidade de sistema sem atribuir conferência", () => {
+    expect(itens.find((i) => i.id === 2)).toMatchObject({
+      disponivel: 1, emMaos: 1, unidade: "frasco", estadoSaldo: "saldo_sistema", situacao: "abaixo_minimo",
+    });
   });
 });
 
@@ -86,8 +132,8 @@ describe("resumo", () => {
       critico: 2,
       emFalta: 1,
       abaixoMinimo: 1,
-      semMinimo: 1,
-      saldoIndisponivel: 0,
+      semMinimo: 0,
+      saldoIndisponivel: 1,
       saude: 1 / 3,
     });
   });
@@ -100,7 +146,7 @@ describe("resumo", () => {
     expect(resumoPorCategoria(itens, "categoriaCompra")).toEqual([
       { categoria: "Reagentes", total: 2, ok: 0, critico: 2, semMinimo: 0, saldoIndisponivel: 0 },
       { categoria: "Plásticos", total: 1, ok: 1, critico: 0, semMinimo: 0, saldoIndisponivel: 0 },
-      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 1, saldoIndisponivel: 0 },
+      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 0, saldoIndisponivel: 1 },
     ]);
   });
 });

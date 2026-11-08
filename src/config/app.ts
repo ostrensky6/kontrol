@@ -1,4 +1,4 @@
 /** Identificação do aplicativo (nome, versão, ano) — fonte única. */
 export const APP_NAME = "Kontrol";
-export const APP_VERSION = "1.3.9";
+export const APP_VERSION = "1.3.10";
 export const APP_YEAR = 2026;

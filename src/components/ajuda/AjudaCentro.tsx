@@ -4,31 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, ArrowUpRight, Search } from "lucide-react";
 
-import { AJUDA_GRUPOS, AJUDA_TOPICOS, type AjudaTopico } from "@/lib/ajuda/topics";
-
-const DIACRITICOS = /[̀-ͯ]/g;
-
-function normalizar(texto: string) {
-  return texto.toLowerCase().normalize("NFD").replace(DIACRITICOS, "");
-}
-
-function topicoCasa(topico: AjudaTopico, termo: string) {
-  if (!termo) return true;
-  const alvo = normalizar(
-    [
-      topico.titulo,
-      topico.grupo,
-      topico.resumo,
-      topico.intro,
-      ...topico.secoes.flatMap((secao) => [secao.titulo, ...secao.itens]),
-      ...(topico.termos ?? []),
-    ].join(" "),
-  );
-  return normalizar(termo)
-    .split(/\s+/)
-    .filter(Boolean)
-    .every((palavra) => alvo.includes(palavra));
-}
+import { AJUDA_GRUPOS, AJUDA_TOPICOS, topicoCasa } from "@/lib/ajuda/topics";
 
 export function AjudaCentro() {
   const [busca, setBusca] = useState("");
