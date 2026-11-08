@@ -27,6 +27,10 @@ describe("ajuda contextual", () => {
     expect(ajudaParaRota("/estoque/leitura").title).toBe("Entrada e saída por leitura");
     expect(ajudaParaRota("/orcamento/demandas").title).toBe("Orçamento");
     expect(ajudaParaRota("/parametros").title).toBe("Custeio");
+    expect(ajudaParaRota("/governanca/incidentes").title).toBe("Incidentes");
+    expect(ajudaParaRota("/governanca/privilegios").title).toBe("Governança");
+    expect(ajudaParaRota("/notificacoes").title).toBe("Notificações");
+    expect(ajudaParaRota("/pedido/12").title).toBe("Compras");
     expect(ajudaParaRota("/qualquer-coisa").title).toBe("Kontrol");
   });
 });
