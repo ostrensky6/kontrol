@@ -365,8 +365,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Cheque divergências de quantidade no recebimento antes de fechar o pedido.",
         ],
       },
+      {
+        titulo: "Prazos de compra (ATGC, Funpar e outros caminhos)",
+        itens: [
+          "Em Suprimentos → Ferramentas → 'Prazos de compra', veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
+          "O prazo aparece por caminho (Funpar, compra direta ATGC, universidade...), por categoria e por insumo, com o número de compras medidas e a confiança.",
+          "Curto: metade das compras chegou até ali. Intermediário: 3 de cada 4. Conservador: 9 de cada 10. Para insumo crítico, planeje pelo conservador.",
+          "Pedido aberto, atrasado ou cancelado não entra na conta. Informe a instituição ou a modalidade no pedido para o caminho sair certo.",
+        ],
+      },
     ],
-    termos: ["fornecedor", "recebimento", "aprovação", "pedido de compra"],
+    termos: ["fornecedor", "recebimento", "aprovação", "pedido de compra", "prazo", "funpar", "lead time", "tempo de compra"],
   },
 
   // ───────────────────────────── Orçamentos ────────────────────────────
