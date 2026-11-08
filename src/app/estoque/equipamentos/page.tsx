@@ -5,6 +5,20 @@ import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { pode } from "@/lib/auth/permissao-efetiva";
+import {
+  EncaminharAvisoForm,
+  NovaUnidadeForm,
+  PlanoManutencaoForm,
+  RegistrarManutencaoForm,
+} from "@/components/estoque/EquipamentoForms";
+import {
+  ordenarAvisos,
+  ROTULO_DECISAO,
+  rotuloTipo,
+  textoPrazo,
+  type AvisoEquipamento,
+} from "@/lib/equipamentos/avisos";
 
 export const dynamic = "force-dynamic";
 
@@ -132,7 +146,16 @@ export default async function EquipamentosPage({
     .select("id, equipamento_id, codigo_patrimonio, numero_serie, fabricante, modelo, status_operacional, ativo, observacoes, equipamentos(nome), locais(nome)")
     .order("id", { ascending: true });
 
-  const { data } = scanId ? await query.eq("id", scanId) : await query;
+  const [{ data }, avisosResult, catalogoResult, antecedenciaResult, podeEditar] = await Promise.all([
+    scanId ? query.eq("id", scanId) : query,
+    supabase
+      .from("v_equipamento_avisos")
+      .select("equipamento_unidade_id, tipo, obrigatorio, periodicidade_dias, antecedencia_dias, ultima_conclusao, vencimento, situacao, dias_para_vencer, agendada_para, encaminhamento_decisao, encaminhamento_observacao, encaminhado_em, encaminhado")
+      .limit(500),
+    supabase.from("equipamentos").select("id, nome").order("nome").limit(500),
+    supabase.from("parametros").select("valor").eq("chave", "equipamento_aviso_antecedencia_dias").maybeSingle(),
+    pode("cadastros.editar"),
+  ]);
   const unidades = (data ?? []) as unknown as UnidadeEquipamento[];
   const unidadeIds = unidades.map((unidade) => unidade.id);
   const [manutencoesResult, planosResult, logsResult] = unidadeIds.length > 0
@@ -161,6 +184,19 @@ export default async function EquipamentosPage({
   const manutencoesPorUnidade = byUnit((manutencoesResult.data ?? []) as unknown as ManutencaoEquipamento[]);
   const logsPorUnidade = byUnit((logsResult.data ?? []) as unknown as StatusLogEquipamento[]);
   const planos = (planosResult.data ?? []) as unknown as PlanoManutencao[];
+  const avisosIndisponiveis = avisosResult.error != null;
+  const unidadesPorId = new Map(unidades.map((u) => [u.id, u]));
+  const avisos = ordenarAvisos(((avisosResult.data ?? []) as unknown as AvisoEquipamento[])
+    .filter((a) => unidadesPorId.has(a.equipamento_unidade_id)));
+  const avisosPendentes = avisos.filter((a) => !a.encaminhado);
+  const avisosEncaminhados = avisos.filter((a) => a.encaminhado);
+  const catalogo = ((catalogoResult.data ?? []) as { id: number; nome: string }[]);
+  const antecedenciaPadrao = Number(antecedenciaResult.data?.valor ?? 90);
+  const nomeUnidade = (id: number) => {
+    const u = unidadesPorId.get(id);
+    const nome = asOne(u?.equipamentos)?.nome ?? `Equipamento #${u?.equipamento_id ?? "?"}`;
+    return `${nome} · ${u?.codigo_patrimonio ?? u?.numero_serie ?? `unidade #${id}`}`;
+  };
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -178,9 +214,10 @@ export default async function EquipamentosPage({
                   Escaneie o QR colado no aparelho para abrir a ficha.
                 </p>
                 <p>
-                  Esta página <b>só consulta</b>: manutenção e mudança de situação são feitas no
-                  cadastro.
+                  Os avisos mostram calibrações e manutenções vencidas ou perto de vencer. Cada aviso fica na
+                  lista até alguém registrar o que foi decidido ou agendar o serviço.
                 </p>
+                <p>Nada é bloqueado sozinho: quem decide é a pessoa responsável.</p>
               </HelpTip>
             </div>
           </div>
@@ -199,6 +236,82 @@ export default async function EquipamentosPage({
               Ver todas
             </Link>
           </div>
+        )}
+
+        <section aria-labelledby="titulo-avisos-equipamentos" className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-center gap-1">
+            <h2 id="titulo-avisos-equipamentos" className="text-base font-semibold">Avisos de manutenção e calibração</h2>
+            <HelpTip title="Como os avisos funcionam">
+              <p>O vencimento vem da próxima data informada na última manutenção concluída ou, sem ela, da última conclusão somada à frequência do plano.</p>
+              <p>O aviso aparece {antecedenciaPadrao} dias antes, ou com a antecedência definida no plano da unidade. O prazo padrão fica em Parâmetros.</p>
+              <p>Agendar o serviço ou registrar um encaminhamento tira o aviso da lista de pendentes.</p>
+            </HelpTip>
+          </div>
+          {avisosIndisponiveis ? (
+            <p role="status" className="mt-2 text-sm text-warning-strong">Não foi possível carregar os avisos. Atualize a página para tentar de novo.</p>
+          ) : avisosPendentes.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              {avisos.length === 0 ? "Nenhum aviso. Para receber avisos, defina a frequência de cada unidade em “Definir frequência e aviso”." : "Nenhum aviso pendente; todos já foram encaminhados."}
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-border">
+              {avisosPendentes.map((a) => (
+                <li key={`${a.equipamento_unidade_id}-${a.tipo}`} className="py-3">
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${a.situacao === "proximo" ? "bg-warning-soft text-warning-strong" : "bg-danger-soft text-danger-strong"}`}>
+                      {textoPrazo(a)}
+                    </span>
+                    <span className="text-sm font-medium">{rotuloTipo(a.tipo)}</span>
+                    <Link href={`/estoque/equipamentos?focus=${a.equipamento_unidade_id}`} className="text-sm underline-offset-4 hover:underline">
+                      {nomeUnidade(a.equipamento_unidade_id)}
+                    </Link>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {a.vencimento ? `Vencimento ${formatDate(a.vencimento)}` : "Sem data de referência"}
+                    {a.ultima_conclusao ? ` · última em ${formatDate(a.ultima_conclusao)}` : ""}
+                    {` · a cada ${a.periodicidade_dias} dias`}
+                    {a.obrigatorio ? " · obrigatório" : ""}
+                  </p>
+                  {podeEditar && (
+                    <details className="mt-2">
+                      <summary className="min-h-10 cursor-pointer py-2 text-sm font-medium text-primary">Encaminhar</summary>
+                      <div className="mt-2 rounded-md border border-border p-3">
+                        <EncaminharAvisoForm unidadeId={a.equipamento_unidade_id} tipo={a.tipo} vencimento={a.vencimento} />
+                      </div>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+          {avisosEncaminhados.length > 0 && (
+            <details className="mt-3 border-t border-border pt-2">
+              <summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">Já encaminhados ({avisosEncaminhados.length})</summary>
+              <ul className="mt-1 divide-y divide-border text-sm">
+                {avisosEncaminhados.map((a) => (
+                  <li key={`enc-${a.equipamento_unidade_id}-${a.tipo}`} className="py-2">
+                    <p><span className="font-medium">{rotuloTipo(a.tipo)}</span> · {nomeUnidade(a.equipamento_unidade_id)} · {textoPrazo(a)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.agendada_para
+                        ? `Agendada para ${formatDate(a.agendada_para)}`
+                        : `${a.encaminhamento_decisao ? ROTULO_DECISAO[a.encaminhamento_decisao] : "Encaminhado"}${a.encaminhamento_observacao ? `: ${a.encaminhamento_observacao}` : ""}${a.encaminhado_em ? ` (${formatDate(a.encaminhado_em)})` : ""}`}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+        </section>
+
+        {podeEditar && !scanId && (
+          <details className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
+            <summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">+ Cadastrar unidade física</summary>
+            <div className="mt-3">
+              {catalogo.length > 0
+                ? <NovaUnidadeForm equipamentos={catalogo} />
+                : <p className="text-sm text-muted-foreground">Cadastre primeiro o equipamento em Cadastro de tipos.</p>}
+            </div>
+          </details>
         )}
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
@@ -445,7 +558,7 @@ export default async function EquipamentosPage({
                     ) : (
                       <>
                         <p className="mt-2 text-sm text-muted-foreground">
-                          Datas das ocorrências no recorte carregado. A próxima data registrada não define vencimento.
+                          Datas das ocorrências no recorte carregado.
                         </p>
                         <ul className="mt-2 divide-y divide-border/70">
                           {manutencoes.map((item) => (
@@ -470,6 +583,18 @@ export default async function EquipamentosPage({
                       </>
                     )}
                   </details>
+                  {podeEditar && (
+                    <>
+                      <details className="border-t border-border/70 pt-2">
+                        <summary className="min-h-10 cursor-pointer rounded-sm py-2 text-sm font-medium">Registrar manutenção ou calibração</summary>
+                        <div className="mt-2"><RegistrarManutencaoForm unidadeId={unidade.id} /></div>
+                      </details>
+                      <details className="border-t border-border/70 pt-2">
+                        <summary className="min-h-10 cursor-pointer rounded-sm py-2 text-sm font-medium">Definir frequência e aviso</summary>
+                        <div className="mt-2"><PlanoManutencaoForm unidadeId={unidade.id} antecedenciaPadrao={antecedenciaPadrao} /></div>
+                      </details>
+                    </>
+                  )}
                 </article>
               );
             })}
