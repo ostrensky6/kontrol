@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { computarDemandaPlano } from "@/lib/costing/demanda";
+import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { gargalo, type Etapa } from "@/lib/costing/engine";
 import { reservarEquipamentoDoPlano } from "@/lib/actions/planejamento";
 import { comprarFaltasDoPlano } from "@/lib/actions/compras";
@@ -157,6 +158,8 @@ export default async function PlanoDetalhe({
 
   const demanda = await computarDemandaPlano(supabase, planId);
   const demandaIds = demanda.map((d) => d.insumo_id);
+  // Falta de uma marca pode ser coberta por outra do mesmo tipo técnico (item 8).
+  const { equivalentes } = await lerEquivalentesComSaldo(supabaseUntyped, demanda.filter((d) => d.falta > 0).map((d) => d.insumo_id));
   const [{ data: lotesConferencia }, { data: conferenciasPlanejamento }] = demandaIds.length > 0
     ? await Promise.all([
         supabase
@@ -715,6 +718,11 @@ export default async function PlanoDetalhe({
                                 ≈ {Math.ceil(d.falta / d.quantidadeEmbalagem)} frasco(s) de {fmt(d.quantidadeEmbalagem)} {d.unidade ?? ""}
                               </p>
                             ) : null}
+                            {(equivalentes.get(d.insumo_id) ?? []).slice(0, 2).map((eq) => (
+                              <p key={eq.insumo_id} className="text-[11px] font-normal text-info-strong" data-testid="equivalente-com-saldo">
+                                Mesmo tipo com saldo: {eq.especificacao}{eq.fabricante ? ` (${eq.fabricante})` : ""} · {fmt(eq.disponivel)} {eq.unidade ?? ""}
+                              </p>
+                            ))}
                           </div>
                         ) : "—"}
                       </td>
