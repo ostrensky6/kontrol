@@ -146,6 +146,12 @@ jobs:
       - name: Validar leitura de compras pela caixinha (0166)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/leitura_compras_0166.sql
 
+      - name: Validar vínculo de projeto e último Administrador (0151)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/funcoes_base_0151.sql
+
+      - name: Validar correções de banco da auditoria de 08/11 (0167)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 -v kontrol_test_local=1 < supabase/tests/auditoria_banco_0167.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

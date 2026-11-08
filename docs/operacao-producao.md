@@ -158,6 +158,7 @@ Uma linha por migration: o que ela muda e o teste que a valida no CI (job
 | 0146 | Seis funcoes (Laboratorio, Compra, Cadastro, Coordenador, Gestor, Administrador) | `seis_funcoes_0146.sql` |
 | 0147 | Exclusao definitiva pela caixinha do modulo (Editar insumos, Corrigir estoque) e exclusao de lote | `exclusao_por_privilegio_0147.sql` |
 | 0148 | Registro de leituras protegido; auditoria de contagens, conferencias e leituras apagadas | `registro_leituras_0148.sql` |
+| 0167 | Consumo mensal sem leitura desfeita; data do movimento em Brasilia; pedidos internos, leituras, codigos e inventario lidos pela caixinha; auditoria da estimativa manual e dos vinculos | `auditoria_banco_0167.sql` e `funcoes_base_0151.sql` |
 
 As seis funcoes e a exclusao estao explicadas para quem usa em
 `docs/funcoes-e-exclusao.md`.
