@@ -181,6 +181,17 @@ end $$;
 revoke all on function public.__rls0108_probe(text, boolean) from public;
 grant execute on function public.__rls0108_probe(text, boolean) to authenticated, anon;
 
+-- 0160: Coordenador e Gestor só alteram projeto a que estão ligados.
+do $$
+begin
+  if to_regclass('kontrol_private.projetos_vinculos') is not null then
+    insert into kontrol_private.projetos_vinculos (projeto_id, usuario_id)
+    select pr.id, pf.id from public.projetos pr cross join public.perfis pf
+     where pr.nome like 'TS-RLS0108-%' and pf.papel in ('coordenador', 'gestor')
+    on conflict do nothing;
+  end if;
+end $$;
+
 set local role authenticated;
 select set_config('request.jwt.claim.sub', md5('kontrol-rls-0108-tecnico_true')::uuid::text, true);
 select public.__rls0108_probe('tecnico_true', true);

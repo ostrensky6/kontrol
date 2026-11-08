@@ -126,7 +126,7 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
   it("substitui as quatro funções por Administrador, Gestor, Laboratório, Compra, Cadastro e Coordenador", async () => {
     const { PAPEIS } = await import("./permissions");
     expect(PAPEIS.map((papel) => papel.label).sort()).toEqual(
-      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório"].sort(),
+      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório", "Supervisor"].sort(),
     );
     expect(PAPEIS.map((papel) => papel.value)).not.toContain("tecnico");
   });
@@ -142,7 +142,10 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
     expect(nivelPapel("tecnico")).toBe(nivelPapel("laboratorio"));
     expect(nivelPapel("cadastro")).toBeLessThan(nivelPapel("coordenador"));
     expect(nivelPapel("coordenador")).toBeLessThan(nivelPapel("gestor"));
-    expect(nivelPapel("gestor")).toBeLessThan(nivelPapel("admin"));
+    expect(nivelPapel("gestor")).toBeLessThan(nivelPapel("supervisor"));
+    expect(nivelPapel("supervisor")).toBeLessThan(nivelPapel("admin"));
+    expect(papelAlcanca("supervisor", "gestor")).toBe(true);
+    expect(papelAlcanca("supervisor", "admin")).toBe(false);
     expect(nivelPapel("inventado")).toBe(-1);
     expect(papelAlcanca("compra", "coordenador")).toBe(false);
     expect(papelAlcanca("compra", "laboratorio")).toBe(true);

@@ -482,7 +482,12 @@ const baseStore = (): Store => {
   ],
   scan_eventos: [],
   cadastros_triagem: [],
-  perfis: [{ id: "user-e2e", nome: "Admin E2E", email: "admin@example.com", papel: "admin" }],
+  perfis: [
+    { id: "user-e2e", nome: "Admin E2E", email: "admin@example.com", papel: "admin" },
+    // 0160: coordenador para a lista "Quem atua neste projeto".
+    { id: "00000000-0000-4000-8000-0000000000c1", nome: "Coordenação E2E", email: "coord.e2e@example.com", papel: "coordenador", suspenso: false },
+  ],
+  projetos_vinculos: [],
   permissoes_categorias: MOCK_PERMISSOES_CATEGORIAS,
   notificacoes: [
     {
@@ -2076,6 +2081,26 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
             .map((tecnico) => ({ id: tecnico.id, valor_mes: pode ? tecnico.valor_mes : null })),
           error: null,
         };
+      }
+      if (fn === "vinculos_projeto") {
+        const projetoId = Number(args.p_projeto_id);
+        const vinculos = store.projetos_vinculos ?? [];
+        return {
+          data: (store.perfis ?? [])
+            .filter((p) => p.papel === "coordenador" || p.papel === "gestor")
+            .map((p) => ({
+              usuario_id: p.id, nome: p.nome ?? null, email: p.email ?? null, papel: p.papel,
+              vinculado: vinculos.some((v) => Number(v.projeto_id) === projetoId && v.usuario_id === p.id),
+              coordenador_cadastrado: false,
+            })),
+          error: null,
+        };
+      }
+      if (fn === "configurar_vinculo_projeto") {
+        const projetoId = Number(args.p_projeto_id);
+        const resto = (store.projetos_vinculos ?? []).filter((v) => !(Number(v.projeto_id) === projetoId && v.usuario_id === args.p_usuario_id));
+        store.projetos_vinculos = args.p_vinculado ? [...resto, { projeto_id: projetoId, usuario_id: args.p_usuario_id }] : resto;
+        return { data: { projeto_id: projetoId, usuario_id: args.p_usuario_id, vinculado: args.p_vinculado, alterado: true }, error: null };
       }
       if (fn === "validar_alternativa_insumo") {
         const linha = (store.insumo_analise ?? []).find((row) => Number(row.id) === Number(args.p_insumo_analise_id));

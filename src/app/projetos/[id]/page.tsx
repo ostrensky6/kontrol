@@ -11,6 +11,8 @@ import { formatCurrency as moeda, formatDate as fmtData } from "@/lib/formatters
 import { rotuloStatusOrcamento } from "@/lib/orcamento/rotulos-status";
 import { STATUS_PROJETO } from "../_lib/status";
 import { responsavelDoProjeto } from "../_lib/responsavel";
+import { temPapel } from "@/lib/auth/roles";
+import { VinculosProjeto, type VinculoPessoa } from "@/components/projetos/VinculosProjeto";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +85,12 @@ export default async function ProjetoHubPage({
     .single();
 
   if (!projeto) notFound();
+
+  // 0160: só o Admin vê e altera quem atua no projeto.
+  const ehAdmin = await temPapel("admin");
+  const vinculos = ehAdmin
+    ? (((await supabase.rpc("vinculos_projeto" as never, { p_projeto_id: id } as never)).data ?? []) as VinculoPessoa[])
+    : null;
 
   const [
     { data: cliente },
@@ -380,6 +388,8 @@ export default async function ProjetoHubPage({
             )}
           </div>
         </section>
+
+        {vinculos && <VinculosProjeto projetoId={id} pessoas={vinculos} />}
 
         {/* Orçamentos (demandas_propostas) */}
         {(demandas ?? []).length > 0 && (

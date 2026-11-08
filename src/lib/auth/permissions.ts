@@ -11,7 +11,9 @@ export const PAPEIS = [
   { value: "cadastro", label: "Cadastro", nivel: 0 },
   { value: "coordenador", label: "Coordenador", nivel: 1 },
   { value: "gestor", label: "Gestor", nivel: 2 },
-  { value: "admin", label: "Administrador", nivel: 3 },
+  // 0160: Supervisor acima de Coordenador e Gestor, abaixo do Administrador.
+  { value: "supervisor", label: "Supervisor", nivel: 3 },
+  { value: "admin", label: "Administrador", nivel: 4 },
 ] as const;
 
 export type PapelUsuario = (typeof PAPEIS)[number]["value"];
@@ -253,6 +255,15 @@ const COORDENADOR: PermissaoUsuario[] = [
   "planejamento.editar",
 ];
 
+const GESTOR: PermissaoUsuario[] = [
+  ...COORDENADOR,
+  "orcamento.parametros.editar",
+  "orcamentos.fundos",
+  "orcamentos.modelos",
+  "auditoria.visualizar",
+  "configuracoes.ver",
+];
+
 /**
  * Marcação inicial de cada papel. Reproduz o que cada papel fazia antes da
  * migration 0124 (quando só o papel valia); desde então a caixinha manda e o
@@ -264,14 +275,9 @@ const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
   compra: COMPRA,
   cadastro: CADASTRO,
   coordenador: COORDENADOR,
-  gestor: [
-    ...COORDENADOR,
-    "orcamento.parametros.editar",
-    "orcamentos.fundos",
-    "orcamentos.modelos",
-    "auditoria.visualizar",
-    "configuracoes.ver",
-  ],
+  gestor: GESTOR,
+  // 0160: nasce com as caixinhas do Gestor; o Admin ajusta em Privilégios.
+  supervisor: GESTOR,
   admin: PERMISSOES.map((permissao) => permissao.key),
 };
 
