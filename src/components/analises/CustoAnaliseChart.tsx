@@ -13,6 +13,7 @@ import {
 } from "recharts";
 import type { CurvaCustoAmostrasPonto } from "@/lib/costing/engine";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
+import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
 import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/formatters";
 
 type TooltipPayload = {
@@ -152,6 +153,16 @@ export function CustoAnaliseChart({
           </div>
         )}
       </div>
+      <TabelaDoGrafico
+        titulo="Custo por número de amostras"
+        colunas={[
+          { rotulo: "Amostras", valor: (l) => formatNumber(l.amostras) },
+          { rotulo: "Custo por amostra no ciclo", valor: (l) => formatCurrency(l.custoUnitarioCiclo) },
+          { rotulo: "Custo médio por amostra", valor: (l) => formatCurrency(l.custoUnitarioMedio) },
+        ]}
+        linhas={amostrarPontos(data)}
+        chave={(l) => String(l.amostras)}
+      />
     </div>
   );
 }

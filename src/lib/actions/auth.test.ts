@@ -118,10 +118,24 @@ describe("troca da senha provisória", () => {
   });
 
   it("reenviar a mesma senha depois da falha conclui o perfil", async () => {
+    // a tentativa anterior trocou a senha e gravou a marca em user_metadata
+    getUser.mockResolvedValue({
+      data: { user: { id: "u1", app_metadata: { senha_provisoria: true }, user_metadata: { senha_provisoria: false } } },
+    });
     updateUser.mockResolvedValue({ error: { code: "same_password", message: "same" } });
     await expect(definirSenhaDefinitiva({ ok: false }, formSenha())).rejects.toThrow("NEXT_REDIRECT:/");
     expect(updateUserById).toHaveBeenCalledOnce();
     expect(perfilUpdate).toHaveBeenCalledOnce();
+  });
+
+  it("reenviar a própria senha provisória como nova não pula a troca", async () => {
+    updateUser.mockResolvedValue({ error: { code: "same_password", message: "same" } });
+    await expect(definirSenhaDefinitiva({ ok: false }, formSenha())).resolves.toEqual({
+      ok: false,
+      message: "Escolha uma senha diferente da senha provisória.",
+    });
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(perfilUpdate).not.toHaveBeenCalled();
   });
 
   it("outro erro do Auth para antes de mexer no perfil", async () => {

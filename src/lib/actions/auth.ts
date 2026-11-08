@@ -94,9 +94,20 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
       password: senha,
       data: { senha_provisoria: false },
     });
-    // "same_password": a senha já foi trocada numa tentativa anterior que parou
-    // depois (perfil não atualizado). Reenviar a mesma senha conclui o resto.
-    if (error && error.code !== "same_password") return { ok: false, message: error.message };
+    // "same_password" só conclui o resto quando uma tentativa anterior já trocou
+    // a senha (o mesmo updateUser grava senha_provisoria: false em user_metadata)
+    // e parou antes do perfil. Sem essa marca, "igual" é a própria senha
+    // provisória sendo reenviada, e aceitar pularia a troca obrigatória.
+    if (error) {
+      const jaTrocou = error.code === "same_password" && user.user_metadata?.senha_provisoria === false;
+      if (!jaTrocou) {
+        return {
+          ok: false,
+          message:
+            error.code === "same_password" ? "Escolha uma senha diferente da senha provisória." : error.message,
+        };
+      }
+    }
 
     const admin = createAdminClient();
     const { error: metadataError } = await admin.auth.admin.updateUserById(user.id, {

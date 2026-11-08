@@ -281,11 +281,22 @@ export function LeituraEstoquePanel({
               type="button"
               role="radio"
               aria-checked={modo === valor}
+              tabIndex={modo === valor ? 0 : -1}
               onClick={() => {
                 setModo(valor);
                 setErro(null);
                 if (etapa.tipo !== "identificado") voltarParaLeitura();
               }}
+              onKeyDown={(evento) => {
+                if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(evento.key)) return;
+                evento.preventDefault();
+                const proximo = valor === "entrada" ? "saida" : "entrada";
+                // seta muda a escolha e o foco juntos, como num grupo de rádio comum
+                const outro = evento.currentTarget.parentElement?.querySelector<HTMLButtonElement>(`[data-modo="${proximo}"]`);
+                outro?.click();
+                outro?.focus();
+              }}
+              data-modo={valor}
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium ${
                 modo === valor ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted"
               }`}

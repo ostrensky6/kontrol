@@ -158,7 +158,23 @@ Uma linha por migration: o que ela muda e o teste que a valida no CI (job
 | 0146 | Seis funcoes (Laboratorio, Compra, Cadastro, Coordenador, Gestor, Administrador) | `seis_funcoes_0146.sql` |
 | 0147 | Exclusao definitiva pela caixinha do modulo (Editar insumos, Corrigir estoque) e exclusao de lote | `exclusao_por_privilegio_0147.sql` |
 | 0148 | Registro de leituras protegido; auditoria de contagens, conferencias e leituras apagadas | `registro_leituras_0148.sql` |
-| 0167 | Consumo mensal sem leitura desfeita; data do movimento em Brasilia; pedidos internos, leituras, codigos e inventario lidos pela caixinha; auditoria da estimativa manual e dos vinculos | `auditoria_banco_0167.sql` e `funcoes_base_0151.sql` |
+| 0151 | Base do catalogo de funcoes (aceita Supervisor, vinculos de projeto); nao muda o acesso de ninguem | `funcoes_base_0151.sql` |
+| 0152 | Revisoes manuais de consumo, sem efeito no estoque | `consumo_manual_insumos_0152.sql` |
+| 0157 | Consumo mensal calculado das saidas e consumo de referencia | `consumo_mensal_automatico_0157.sql` |
+| 0158 | Avisos de manutencao e calibracao de equipamentos | `equipamentos_avisos_0158.sql` |
+| 0159 | Validacao de reagentes alternativos da analise | `alternativas_validadas_0159.sql` |
+| 0160 | Supervisor como funcao; Coordenador e Gestor so nos projetos ligados (vinculos semeados) | `supervisor_vinculos_0160.sql` |
+| 0161 | Equipamento de parceiro cobrado por amostra | `equipamento_parceiro_0161.sql` |
+| 0162 | Incidentes: registrar, avisar afetados e orientar | `incidentes_0162.sql` |
+| 0163 | Falta e disputa de reservas entre planos | `disputa_reservas_0163.sql` |
+| 0164 | Memoria de calculo da proposta emitida congelada | `ciclo_proposta_0164.sql` |
+| 0165 | Proposta aprovada nao cria planejamento sozinha; Coordenador confirma | `plano_da_proposta_0122.sql` |
+| 0166 | Leitura de compras (pedidos, itens, recebimentos) pela caixinha | `leitura_compras_0166.sql` |
+| 0167 | Consumo mensal sem leitura desfeita; data do movimento em Brasilia; pedidos internos, leituras, codigos e inventario lidos pela caixinha; auditoria da estimativa manual e dos vinculos | `auditoria_banco_0167.sql` |
+
+Os numeros 0149, 0150 e 0153 a 0156 nao existem: foram reservados no pacote de
+evolucao e nao viraram migration. Nao e falta. `npm run db:migration -- --situacao`
+avisa se algum arquivo que existe no repositorio ficou sem registro no meio da fila.
 
 As seis funcoes e a exclusao estao explicadas para quem usa em
 `docs/funcoes-e-exclusao.md`.

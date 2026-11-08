@@ -96,7 +96,7 @@ export default async function PrazosCompraPage() {
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
         {amostras.length} {amostras.length === 1 ? "item recebido medido" : "itens recebidos medidos"}. Use o prazo conservador para insumo crítico.
-        O prazo do fornecedor de cada insumo fica em <Link href="/cadastros/insumos" className="text-primary hover:underline">Cadastros → Insumos</Link>.
+        O prazo do fornecedor de cada insumo fica em <Link href="/cadastros/insumos" className="text-primary underline underline-offset-2">Cadastros → Insumos</Link>.
       </p>
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os pedidos agora. Recarregue a página.</p>}
       <Tabela titulo="Por caminho de compra" coluna="Caminho" linhas={porCaminho} />
