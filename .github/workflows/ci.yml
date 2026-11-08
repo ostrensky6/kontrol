@@ -146,7 +146,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # supabase-js (usado no preparo e nos testes) exige WebSocket nativo: Node 22+.
+          node-version: 22
           cache: npm
 
       - name: Install
