@@ -105,17 +105,35 @@ function montarInsumoComCusto(
   };
 }
 
+export type ParceiroEquip = { custo: number; nome: string; estimado: boolean };
+
+/** 0161: equipamento de parceiro com custo por amostra informado. */
+export function parceirosDosEquipamentos(equipamentos: readonly Record<string, unknown>[]) {
+  const mapa = new Map<number, ParceiroEquip>();
+  for (const e of equipamentos) {
+    const custo = Number(e.custo_parceiro_por_amostra);
+    if (e.custo_parceiro_por_amostra == null || !Number.isFinite(custo) || custo <= 0) continue;
+    mapa.set(Number(e.id), { custo, nome: String(e.nome ?? "Equipamento de parceiro"), estimado: e.custo_parceiro_estimado === true });
+  }
+  return mapa;
+}
+
 export function montarEquipamentosAlocados(
   linhas: EquipamentoAnaliseRow[],
   codigo: string,
   custoDiaPorEquip: Map<number, number>,
+  parceiroPorEquip: Map<number, ParceiroEquip> = new Map(),
 ): EquipAlloc[] {
   return linhas
     .filter((ea) => ea.codigo_analise === codigo)
-    .map((ea) => ({
-      peso: Number(ea.peso_alocacao),
-      custoDia: custoDiaPorEquip.get(ea.equipamento_id) ?? 0,
-    }))
+    .map((ea) => {
+      const parceiro = parceiroPorEquip.get(ea.equipamento_id);
+      return {
+        peso: Number(ea.peso_alocacao),
+        custoDia: custoDiaPorEquip.get(ea.equipamento_id) ?? 0,
+        ...(parceiro ? { custoPorAmostra: parceiro.custo, nome: parceiro.nome, estimado: parceiro.estimado } : {}),
+      };
+    })
     .filter((ea) => Number.isFinite(ea.peso) && ea.peso > 0);
 }
 
@@ -200,6 +218,7 @@ export async function calcularTodas(
   for (const e of equipamentos ?? []) {
     custoDiaPorEquip.set(e.id, equipCustoDia(e, params.dias_uteis_ano));
   }
+  const parceiros = parceirosDosEquipamentos((equipamentos ?? []) as unknown as Record<string, unknown>[]);
 
   const breakdowns: Breakdown[] = (analises ?? []).map((a) => {
     const codigo = a.codigo;
@@ -208,6 +227,7 @@ export async function calcularTodas(
       (equipAnalise ?? []) as EquipamentoAnaliseRow[],
       codigo,
       custoDiaPorEquip,
+      parceiros,
     );
     const insumosA = ((insumoAnalise ?? []) as InsumoAnaliseRow[])
       .filter((i) => i.codigo_analise === codigo)
@@ -278,6 +298,7 @@ export async function carregarSimuladorCusteio(
   for (const e of equipamentos ?? []) {
     custoDiaPorEquip.set(e.id, equipCustoDia(e, params.dias_uteis_ano));
   }
+  const parceiros = parceirosDosEquipamentos((equipamentos ?? []) as unknown as Record<string, unknown>[]);
 
   return {
     params,
@@ -312,6 +333,7 @@ export async function carregarSimuladorCusteio(
             (equipAnalise ?? []) as EquipamentoAnaliseRow[],
             b.codigo,
             custoDiaPorEquip,
+            parceiros,
           ),
           insumos: linhas,
           grupos,

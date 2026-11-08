@@ -366,3 +366,25 @@ describe("alternativa invalidada (0159)", () => {
     expect(sel).toHaveLength(1);
   });
 });
+
+describe("equipamento de parceiro (0161)", () => {
+  it("soma R$ por amostra × peso ao custo de equipamento e lista o estimado", async () => {
+    const { calcularAnalise, equipamentoParceiroPorAmostra } = await import("./engine");
+    const equip = [
+      { peso: 1, custoDia: 0, custoPorAmostra: 35, nome: "Sequenciador parceiro", estimado: true },
+      { peso: 0.5, custoDia: 0, custoPorAmostra: 10, nome: "Leitora", estimado: false },
+    ];
+    expect(equipamentoParceiroPorAmostra(equip)).toBe(40);
+    const r = calcularAnalise({
+      codigo: "X",
+      etapas: [{ nome_etapa: "E", nome_atividade: "A", execucoes_por_dia: 1, amostras_por_execucao: 10 } as never],
+      equip,
+      insumos: [],
+      valorHoraPessoal: 0,
+      custoHoraOverhead: 0,
+      params: {} as never,
+    });
+    expect(r.equipamento).toBe(40);
+    expect(r.equipamentosEstimados).toEqual(["Sequenciador parceiro"]);
+  });
+});
