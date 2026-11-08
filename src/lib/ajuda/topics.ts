@@ -290,6 +290,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Mantenha o plano realista — superestimar reserva trava estoque desnecessariamente.",
           "Libere reservas que não serão usadas para devolver saldo ao estoque.",
           "Com falta de insumo, 'Gerar pedido interno' abre o pedido de compra dos itens em falta.",
+          "Na coluna de falta aparece 'Mesmo tipo com saldo' quando outra marca ou apresentação do mesmo tipo técnico tem estoque. Trocar o insumo da análise é decisão sua; o aviso só mostra que existe a alternativa.",
         ],
       },
       {
@@ -334,6 +335,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Em 'Materiais e serviços', use 'Adicionar item' para incluir cada material/serviço (especificação, modelo, volume, quantidade e orçamento prévio).",
           "Cada item tem 'Editar' (abre um formulário preenchido) e 'Remover'.",
+          "Antes da compra, o item mostra 'Já há no estoque, mesmo tipo' quando outra marca ou apresentação do mesmo tipo técnico tem saldo. Vale conferir antes de comprar.",
           "Itens ficam livres para alteração em rascunho/ajuste; coordenador ou superior também pode alterá-los nas demais etapas, exceto quando o pedido está cancelado ou concluído.",
           "No topo do pedido, 'Editar' altera os dados gerais e 'Excluir' apaga o pedido inteiro (apenas coordenador+).",
         ],
