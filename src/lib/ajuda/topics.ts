@@ -666,7 +666,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Cadastro: mantém cadastros, insumos e projetos.",
           "Coordenador: valida, aprova e faz orçamentos.",
           "Gestor: tudo do coordenador mais parâmetros econômicos, fundos, modelos e Auditoria.",
+          "Supervisor: acima de Coordenador e Gestor; começa com as permissões do Gestor e não precisa estar ligado aos projetos.",
           "Administrador: controle total, incluindo usuários, privilégios e backups.",
+        ],
+      },
+      {
+        titulo: "Quem atua em cada projeto",
+        itens: [
+          "Coordenador e Gestor só alteram um projeto e só validam pedidos internos dele se estiverem ligados ao projeto ou forem o coordenador cadastrado.",
+          "Na página do projeto, em 'Quem atua neste projeto', o Administrador liga ou desliga cada pessoa.",
+          "Quem cria um projeto já fica ligado a ele. Ver os projetos continua igual para todos.",
         ],
       },
       {
