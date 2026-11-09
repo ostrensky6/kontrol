@@ -3124,6 +3124,10 @@ export type Database = {
           enviado_validacao_em: string | null
           excecao_pagamento: string | null
           excecao_pagamento_em: string | null
+          validacao_justificativa: string | null
+          validacao_projeto_id: number | null
+          validacao_registrada_em: string | null
+          validacao_valor: number | null
           excecao_pagamento_por: string | null
           fechado_em: string | null
           fonte_recurso: string | null
@@ -3184,6 +3188,10 @@ export type Database = {
           enviado_validacao_em?: string | null
           excecao_pagamento?: string | null
           excecao_pagamento_em?: string | null
+          validacao_justificativa?: string | null
+          validacao_projeto_id?: number | null
+          validacao_registrada_em?: string | null
+          validacao_valor?: number | null
           excecao_pagamento_por?: string | null
           fechado_em?: string | null
           fonte_recurso?: string | null
@@ -3244,6 +3252,10 @@ export type Database = {
           enviado_validacao_em?: string | null
           excecao_pagamento?: string | null
           excecao_pagamento_em?: string | null
+          validacao_justificativa?: string | null
+          validacao_projeto_id?: number | null
+          validacao_registrada_em?: string | null
+          validacao_valor?: number | null
           excecao_pagamento_por?: string | null
           fechado_em?: string | null
           fonte_recurso?: string | null
@@ -5279,6 +5291,14 @@ export type Database = {
       pendencia_pagamento_pedido_interno: {
         Args: { p_pedido_id: number }
         Returns: string
+      }
+      reenvio_mantem_aprovacoes: {
+        Args: { p_pedido_id: number }
+        Returns: Json
+      }
+      reenviar_pedido_interno: {
+        Args: { p_observacao?: string | null; p_pedido_id: number }
+        Returns: Json
       }
       reabrir_revisao_custos_projeto: {
         Args: { p_motivo?: string | null; p_orcamento_projeto_id: number }

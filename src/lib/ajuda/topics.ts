@@ -348,6 +348,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Fluxo de aprovação",
         itens: [
           "Envie para validação quando o pedido estiver completo; pendências aparecem destacadas.",
+          "Pedido devolvido para ajuste: corrija e use 'Reenviar'. Se valor, justificativa e projeto continuarem iguais aos da validação, as aprovações continuam valendo e o pedido volta direto para onde parou (a coordenação do laboratório, se foi ela que devolveu). Se algum dos três mudou, passa de novo pelo coordenador. O pedido avisa antes, por escrito, o que vai acontecer.",
           "O quadro 'Quem aprova' mostra, por escrito, quem valida e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
           "Só o coordenador do projeto valida; sem projeto, a Supervisão. Na ausência, o Administrador valida como substituto e fica registrado.",
           "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
@@ -371,7 +372,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência", "controlado", "clorofórmio", "acetona", "funpar"],
+    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência", "devolução", "reenviar", "ajuste", "controlado", "clorofórmio", "acetona", "funpar"],
   },
   {
     id: "compras",

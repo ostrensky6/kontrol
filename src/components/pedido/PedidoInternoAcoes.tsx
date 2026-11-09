@@ -144,7 +144,7 @@ export function PedidoInternoAcoes({
         <Botao
           pedidoId={pedidoId}
           action={enviarParaValidacao}
-          label="Enviar para validação"
+          label={status === "rascunho" ? "Enviar para validação" : "Reenviar"}
           disabled={!podeEnviarValidacao || Boolean(motivoSemEnvio)}
           disabledReason={
             motivoSemEnvio ??
