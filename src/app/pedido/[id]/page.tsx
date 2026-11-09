@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
+import { rotuloNatureza, rotuloObjetivo, separarSinonimos } from "@/lib/pedido/natureza";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import {
   adicionarAnexoPedidoInterno,
@@ -52,6 +53,10 @@ type PedidoInternoItem = {
   orcamento_previo: number | null;
   fornecedor_sugerido: string | null;
   observacao: string | null;
+  caracteristicas?: string | null;
+  exigencia_tecnica?: string | null;
+  exclusividade?: string | null;
+  outros_fornecedores?: string | null;
   insumo_id: number | null;
   quantidade_recebida: number | null;
   divergencia_recebimento: string | null;
@@ -85,6 +90,7 @@ type InsumoPedidoRaw = {
   custo_unitario?: number | null;
   quantidade_embalagem?: number | null;
   custo_total_embalagem?: number | null;
+  sinonimos?: string | null;
   tipo_insumos?: { nome: string | null } | { nome: string | null }[] | null;
   fornecedores?: { nome: string | null } | { nome: string | null }[] | null;
 };
@@ -278,6 +284,7 @@ function montarCatalogoItens(
     modelos: [...(modelos.get(insumo.id) ?? [])],
     volumes: [...(volumes.get(insumo.id) ?? [])],
     fornecedores: [...(fornecedores.get(insumo.id) ?? [])],
+    sinonimos: separarSinonimos(insumo.sinonimos),
   }));
 }
 
@@ -360,12 +367,12 @@ export default async function PedidoInternoDetalhe({
   ] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
-      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
+      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
       .eq("pedido_interno_id", pedidoId)
       .order("id"),
     supabase
       .from("insumos")
-      .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, custo_total_embalagem, tipo_insumos(nome), fornecedores!insumos_fornecedor_id_fkey(nome)")
+      .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, custo_total_embalagem, sinonimos, tipo_insumos(nome), fornecedores!insumos_fornecedor_id_fkey(nome)")
       .eq("ativo", true)
       .order("especificacao"),
     supabase
@@ -491,7 +498,8 @@ export default async function PedidoInternoDetalhe({
   const pendencias = [
     { label: "Projeto vinculado", ok: Boolean(pedido.projeto_id) },
     { label: "Justificativa preenchida", ok: Boolean(pedido.justificativa) },
-    { label: "Fonte de recurso provável", ok: Boolean(pedido.fonte_recurso) },
+    { label: "Tipo de material ou despesa", ok: Boolean(pedido.natureza) },
+    { label: "Objetivo", ok: Boolean(pedido.objetivo) },
     { label: "Urgência definida", ok: Boolean(pedido.urgencia) },
     { label: "Ao menos um item", ok: linhas.length > 0 },
     {
@@ -525,7 +533,9 @@ export default async function PedidoInternoDetalhe({
               {pedido.urgencia ? ` · Urgência: ${URGENCIA_LABEL[pedido.urgencia] ?? pedido.urgencia}` : ""}
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Tipo: {String(pedido.tipo_demanda ?? "laboratorio").replaceAll("_", "/")} · Coordenador: {coordenadorProjeto}
+              {pedido.natureza ? `${rotuloNatureza(pedido.natureza)} · ` : ""}
+              {pedido.objetivo ? `Objetivo: ${rotuloObjetivo(pedido.objetivo)} · ` : ""}
+              Uso: {String(pedido.tipo_demanda ?? "laboratorio").replaceAll("_", "/")} · Coordenador: {coordenadorProjeto}
               {pedido.aprovador_coordenador_diferente ? " · aprovado por substituto" : ""}
               {pedido.modalidade_compra ? ` · Modalidade: ${modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra}` : ""}
             </p>
@@ -543,6 +553,8 @@ export default async function PedidoInternoDetalhe({
               dataNecessidade={pedido.data_necessidade}
               urgencia={pedido.urgencia}
               tipoDemanda={pedido.tipo_demanda}
+              natureza={pedido.natureza}
+              objetivo={pedido.objetivo}
               fonteRecurso={pedido.fonte_recurso}
               justificativa={pedido.justificativa}
               projetos={projetos ?? []}
@@ -647,6 +659,15 @@ export default async function PedidoInternoDetalhe({
                         {itemTipoLabel(item.tipo)}
                         {item.insumos?.especificacao ? ` · vinculado: ${item.insumos.especificacao}` : ""}
                       </p>
+                      {item.caracteristicas ? (
+                        <p className="text-xs"><span className="font-medium">Indispensável:</span> {item.caracteristicas}</p>
+                      ) : null}
+                      {item.exigencia_tecnica ? (
+                        <p className="text-xs"><span className="font-medium">Exigido por protocolo:</span> {item.exigencia_tecnica}</p>
+                      ) : null}
+                      {item.exclusividade ? (
+                        <p className="text-xs"><span className="font-medium">Exclusividade:</span> {item.exclusividade}</p>
+                      ) : null}
                       {item.insumo_id != null && (equivalentes.get(item.insumo_id) ?? []).slice(0, 2).map((eq) => (
                         <p key={eq.insumo_id} className="text-xs text-info-strong" data-testid="equivalente-com-saldo">
                           Já há no estoque, mesmo tipo: {eq.especificacao}{eq.fabricante ? ` (${eq.fabricante})` : ""} · {fmt(eq.disponivel)} {eq.unidade ?? ""}
@@ -662,7 +683,10 @@ export default async function PedidoInternoDetalhe({
                         : `${fmt(item.quantidade)} ${item.unidade ?? item.insumos?.unidade ?? ""}`}
                     </td>
                     <td className="px-4 py-2.5 text-right tabular-nums">{brl(item.orcamento_previo)}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">{item.fornecedor_sugerido ?? "—"}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {item.fornecedor_sugerido ?? "—"}
+                      {item.outros_fornecedores ? <span className="block text-xs">Outros: {item.outros_fornecedores}</span> : null}
+                    </td>
                     <td className="px-4 py-2.5">
                       <ItemRecebimentoCell
                         item={{

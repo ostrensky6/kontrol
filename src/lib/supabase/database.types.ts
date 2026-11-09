@@ -805,6 +805,7 @@ export type Database = {
       }
       equipamento_unidades: {
         Row: {
+          patrimonio_de: string | null
           ativo: boolean
           codigo_patrimonio: string | null
           criado_em: string
@@ -823,6 +824,7 @@ export type Database = {
           vida_util_anos: number | null
         }
         Insert: {
+          patrimonio_de?: string | null
           ativo?: boolean
           codigo_patrimonio?: string | null
           criado_em?: string
@@ -841,6 +843,7 @@ export type Database = {
           vida_util_anos?: number | null
         }
         Update: {
+          patrimonio_de?: string | null
           ativo?: boolean
           codigo_patrimonio?: string | null
           criado_em?: string
@@ -1306,6 +1309,7 @@ export type Database = {
       }
       insumos: {
         Row: {
+          sinonimos: string | null
           ativo: boolean
           categoria_compra: string | null
           codigo_fabricante: string | null
@@ -1337,6 +1341,7 @@ export type Database = {
           validade_dias: number | null
         }
         Insert: {
+          sinonimos?: string | null
           ativo?: boolean
           categoria_compra?: string | null
           codigo_fabricante?: string | null
@@ -1368,6 +1373,7 @@ export type Database = {
           validade_dias?: number | null
         }
         Update: {
+          sinonimos?: string | null
           ativo?: boolean
           categoria_compra?: string | null
           codigo_fabricante?: string | null
@@ -3054,6 +3060,8 @@ export type Database = {
       }
       pedidos_internos: {
         Row: {
+          natureza: string | null
+          objetivo: string | null
           analisado_em: string | null
           aprovacao_final_em: string | null
           aprovado_coordenador_em: string | null
@@ -3101,6 +3109,8 @@ export type Database = {
           validado_em: string | null
         }
         Insert: {
+          natureza?: string | null
+          objetivo?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
           aprovado_coordenador_em?: string | null
@@ -3148,6 +3158,8 @@ export type Database = {
           validado_em?: string | null
         }
         Update: {
+          natureza?: string | null
+          objetivo?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
           aprovado_coordenador_em?: string | null
@@ -3501,6 +3513,10 @@ export type Database = {
       }
       pedidos_internos_itens: {
         Row: {
+          caracteristicas: string | null
+          exigencia_tecnica: string | null
+          exclusividade: string | null
+          outros_fornecedores: string | null
           criado_em: string
           divergencia_recebimento: string | null
           especificacao: string
@@ -3523,6 +3539,10 @@ export type Database = {
           quantidade_em: string | null
         }
         Insert: {
+          caracteristicas?: string | null
+          exigencia_tecnica?: string | null
+          exclusividade?: string | null
+          outros_fornecedores?: string | null
           criado_em?: string
           divergencia_recebimento?: string | null
           especificacao: string
@@ -3545,6 +3565,10 @@ export type Database = {
           quantidade_em?: string | null
         }
         Update: {
+          caracteristicas?: string | null
+          exigencia_tecnica?: string | null
+          exclusividade?: string | null
+          outros_fornecedores?: string | null
           criado_em?: string
           divergencia_recebimento?: string | null
           especificacao?: string

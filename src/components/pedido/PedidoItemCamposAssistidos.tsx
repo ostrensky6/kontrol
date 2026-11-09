@@ -21,6 +21,8 @@ export type PedidoItemCatalogo = {
   modelos?: string[];
   volumes?: string[];
   fornecedores?: string[];
+  /** Nomes equivalentes (0168), para achar o item pelo nome usado no laboratório. */
+  sinonimos?: string[];
   /** Estoque na hora de pedir (disponível, reservado, a caminho, locais). */
   estoque?: EstoqueParaPedido | null;
 };
@@ -36,6 +38,10 @@ export type PedidoItemDefaults = {
   orcamentoPrevio?: number | string | null;
   fornecedorSugerido?: string | null;
   observacao?: string | null;
+  caracteristicas?: string | null;
+  exigenciaTecnica?: string | null;
+  exclusividade?: string | null;
+  outrosFornecedores?: string | null;
 };
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm";
@@ -333,16 +339,78 @@ export function PedidoItemCamposAssistidos({
         <label htmlFor={ids.observacao} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Observação</label>
         <input id={ids.observacao} name="observacao" defaultValue={defaults.observacao ?? ""} className={inputCls} />
       </div>
+      <details
+        className={`${layout === "page" ? "md:col-span-12" : "sm:col-span-2"} rounded-md border border-border px-3 py-2`}
+        open={Boolean(defaults.caracteristicas || defaults.exigenciaTecnica || defaults.exclusividade || defaults.outrosFornecedores)}
+      >
+        <summary className="cursor-pointer text-sm font-medium">Exigências do item e outros fornecedores (opcional)</summary>
+        <div className="mt-2 grid gap-3 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <label htmlFor={`${idPrefix}-caracteristicas`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Características indispensáveis</label>
+            <textarea
+              id={`${idPrefix}-caracteristicas`}
+              name="caracteristicas"
+              rows={2}
+              maxLength={2000}
+              defaultValue={defaults.caracteristicas ?? ""}
+              placeholder="Ex.: baixa retenção (low binding), livre de DNA e RNA, estéril, rack com 96"
+              className={inputCls}
+            />
+          </div>
+          <div>
+            <label htmlFor={`${idPrefix}-exigencia`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Marca ou especificação exigida por protocolo</label>
+            <textarea
+              id={`${idPrefix}-exigencia`}
+              name="exigencia_tecnica"
+              rows={2}
+              maxLength={2000}
+              defaultValue={defaults.exigenciaTecnica ?? ""}
+              aria-describedby={`${idPrefix}-exigencia-ajuda`}
+              placeholder="Qual protocolo exige e por quê"
+              className={inputCls}
+            />
+            <p id={`${idPrefix}-exigencia-ajuda`} className="mt-1 text-xs text-muted-foreground">Exigência técnica não prova exclusividade.</p>
+          </div>
+          <div>
+            <label htmlFor={`${idPrefix}-exclusividade`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fornecedor ou produto exclusivo</label>
+            <textarea
+              id={`${idPrefix}-exclusividade`}
+              name="exclusividade"
+              rows={2}
+              maxLength={2000}
+              defaultValue={defaults.exclusividade ?? ""}
+              aria-describedby={`${idPrefix}-exclusividade-ajuda`}
+              placeholder="Só se houver exclusividade de fato"
+              className={inputCls}
+            />
+            <p id={`${idPrefix}-exclusividade-ajuda`} className="mt-1 text-xs text-muted-foreground">Anexe a comprovação (carta ou declaração) no pedido.</p>
+          </div>
+          <div className="sm:col-span-2">
+            <label htmlFor={`${idPrefix}-outros-fornecedores`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Outros fornecedores</label>
+            <input
+              id={`${idPrefix}-outros-fornecedores`}
+              name="outros_fornecedores"
+              maxLength={1000}
+              defaultValue={defaults.outrosFornecedores ?? ""}
+              placeholder="Se souber, separe por ponto e vírgula"
+              className={inputCls}
+            />
+          </div>
+        </div>
+      </details>
     </>
   );
 }
 
 function rotuloInsumo(insumo: PedidoItemCatalogo) {
-  return uniq([
+  // Sinônimos entram no rótulo para a busca da lista achar "low binding" em
+  // "baixa retenção" (a lista do navegador procura dentro do texto).
+  const base = uniq([
     insumo.especificacao ?? insumo.nomeItem ?? `Insumo #${insumo.id}`,
     insumo.tipoInsumo,
     insumo.categoriaCompra,
   ]).join(" | ");
+  return insumo.sinonimos?.length ? `${base} | também: ${insumo.sinonimos.join(", ")}` : base;
 }
 
 /**

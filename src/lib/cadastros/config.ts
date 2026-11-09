@@ -279,6 +279,15 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { name: "especificacao", label: "Item específico / SKU", tipo: "text", obrigatorio: true, colSpan: 2, rotulosAntigos: ["Especificação", "Insumo", "Item", "Produto", "Reagente", "Descrição", "Descrição do item"], ajuda: "Nome exato do item comprado (marca e apresentação). É ele que aparece na compra, no estoque e nos **lotes**." },
       { name: "fabricante", label: "Marca / fabricante", tipo: "text", placeholder: "Qiagen, Illumina, KASVI…" },
       { name: "codigo_fabricante", label: "Código do fabricante", tipo: "text", placeholder: "Catálogo / part number" },
+      {
+        name: "sinonimos",
+        label: "Sinônimos (nomes equivalentes)",
+        tipo: "text",
+        colSpan: 2,
+        placeholder: "low binding; baixa retenção",
+        ajuda: "Outros nomes pelos quais a equipe procura este item, separados por ponto e vírgula. Ajudam a achar o item no pedido e evitam cadastro duplicado.",
+        exportar: false,
+      },
       // Sem uso demonstrado (auditoria 26/09 §3): fora do formulário; o valor gravado é preservado.
       { name: "codigo_interno", label: "Código interno", tipo: "text", oculto: true, exportar: false },
 

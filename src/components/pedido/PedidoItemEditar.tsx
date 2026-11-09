@@ -26,6 +26,10 @@ export type PedidoItemEdit = {
   orcamento_previo: number | null;
   fornecedor_sugerido: string | null;
   observacao: string | null;
+  caracteristicas?: string | null;
+  exigencia_tecnica?: string | null;
+  exclusividade?: string | null;
+  outros_fornecedores?: string | null;
   insumo_id: number | null;
 };
 
@@ -72,6 +76,10 @@ export function PedidoItemEditar({
               orcamentoPrevio: item.orcamento_previo,
               fornecedorSugerido: item.fornecedor_sugerido,
               observacao: item.observacao,
+              caracteristicas: item.caracteristicas,
+              exigenciaTecnica: item.exigencia_tecnica,
+              exclusividade: item.exclusividade,
+              outrosFornecedores: item.outros_fornecedores,
             }}
           />
           <DialogFooter className="sm:col-span-2">
