@@ -49,6 +49,7 @@ export async function cadastrarUnidadeEquipamento(_prev: EstadoAcao, form: FormD
     equipamento_id: equipamentoId,
     codigo_patrimonio: patrimonio,
     numero_serie: serie,
+    patrimonio_de: opcional(form, "patrimonio_de", 120),
     fabricante: opcional(form, "fabricante", 120),
     modelo: opcional(form, "modelo", 120),
     observacoes: opcional(form, "observacoes", 1000),

@@ -12,6 +12,7 @@ import {
   PEDIDO_INTERNO_AGUARDANDO_CHEGADA,
   type PedidoInternoStatus,
 } from "@/lib/pedido/status";
+import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
@@ -158,6 +159,20 @@ async function podeAprovarComoCoordenadorProjeto(pedidoId: number) {
   };
 }
 
+/**
+ * Exigências do item (0168): características indispensáveis, marca exigida por
+ * protocolo (com justificativa), exclusividade e outros fornecedores. Exigência
+ * técnica e exclusividade ficam em campos separados de propósito.
+ */
+function camposExigenciaItem(formData: FormData) {
+  return {
+    caracteristicas: texto(formData, "caracteristicas")?.slice(0, 2000) ?? null,
+    exigencia_tecnica: texto(formData, "exigencia_tecnica")?.slice(0, 2000) ?? null,
+    exclusividade: texto(formData, "exclusividade")?.slice(0, 2000) ?? null,
+    outros_fornecedores: texto(formData, "outros_fornecedores")?.slice(0, 1000) ?? null,
+  };
+}
+
 const STATUS_ITENS_LIVRES = ["rascunho", "ajuste_solicitante", "ajuste_compras"];
 const STATUS_ITENS_VALIDACAO = ["em_validacao", "validado"];
 
@@ -217,6 +232,8 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   const urgencia = texto(formData, "urgencia") ?? "normal";
   const fonte_recurso = texto(formData, "fonte_recurso");
   const tipo_demanda = texto(formData, "tipo_demanda") ?? "laboratorio";
+  const natureza = naturezaValida(texto(formData, "natureza"));
+  const objetivo = objetivoValido(texto(formData, "objetivo"));
   const supabase = await createClientUntyped();
   let coordenador_projeto_nome: string | null = null;
   let coordenador_projeto_email: string | null = null;
@@ -231,6 +248,8 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     titulo,
     projeto_id,
     tipo_demanda,
+    natureza,
+    objetivo,
     coordenador_projeto_nome,
     coordenador_projeto_email,
     data_necessidade,
@@ -399,6 +418,8 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
     titulo,
     projeto_id,
     tipo_demanda: texto(formData, "tipo_demanda") ?? "laboratorio",
+    natureza: naturezaValida(texto(formData, "natureza")),
+    objetivo: objetivoValido(texto(formData, "objetivo")),
     coordenador_projeto_nome,
     coordenador_projeto_email,
     data_necessidade: texto(formData, "data_necessidade"),
@@ -492,6 +513,7 @@ export async function adicionarItemPedidoInterno(_prev: FormState, formData: For
     orcamento_previo: numero(formData, "orcamento_previo"),
     fornecedor_sugerido: texto(formData, "fornecedor_sugerido"),
     observacao: texto(formData, "observacao"),
+    ...camposExigenciaItem(formData),
   });
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível adicionar o item.") };
   revalidatePath(`/pedido/${pedido_interno_id}`);
@@ -526,6 +548,7 @@ export async function editarItemPedidoInterno(formData: FormData) {
       orcamento_previo: numero(formData, "orcamento_previo"),
       fornecedor_sugerido: texto(formData, "fornecedor_sugerido"),
       observacao: texto(formData, "observacao"),
+      ...camposExigenciaItem(formData),
     })
     .eq("id", itemId)
     .eq("pedido_interno_id", pedido_interno_id);
@@ -562,7 +585,7 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   const [{ data: pedido }, { data: itens }] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("projeto_id, justificativa, fonte_recurso, urgencia")
+      .select("projeto_id, justificativa, urgencia, natureza, objetivo")
       .eq("id", pedidoId)
       .single(),
     supabase
@@ -572,7 +595,9 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   ]);
   if (!pedido?.projeto_id) return { ok: false, message: "Vincule o pedido a um projeto antes de enviar." };
   if (!pedido.justificativa) return { ok: false, message: "Informe a justificativa antes de enviar." };
-  if (!pedido.fonte_recurso) return { ok: false, message: "Informe a fonte de recurso provável antes de enviar." };
+  // Fonte e rubrica são do administrativo (decisão de 09/11): não se exigem do solicitante.
+  if (!pedido.natureza) return { ok: false, message: "Escolha o tipo de material ou despesa (Editar, no topo do pedido) antes de enviar." };
+  if (!pedido.objetivo) return { ok: false, message: "Escolha o objetivo do pedido (Editar, no topo do pedido) antes de enviar." };
   if (!pedido.urgencia) return { ok: false, message: "Informe a urgência antes de enviar." };
   if (!itens || itens.length === 0) {
     return { ok: false, message: "Inclua ao menos um material, serviço ou equipamento antes de enviar." };

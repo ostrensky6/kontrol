@@ -45,6 +45,9 @@ function SeletorTipo({ padrao = "calibracao" }: { padrao?: TipoManutencao }) {
   );
 }
 
+/** Titulares de patrimônio usados hoje (Antonio, 09/11); o campo aceita outro nome. */
+const TITULARES_PATRIMONIO = ["ATGC", "Antonio", "Biratã", "Márcio"];
+
 export function NovaUnidadeForm({ equipamentos }: { equipamentos: { id: number; nome: string }[] }) {
   return (
     <Formulario acao={cadastrarUnidadeEquipamento} titulo="Cadastrar unidade física" botao="Cadastrar unidade">
@@ -57,6 +60,13 @@ export function NovaUnidadeForm({ equipamentos }: { equipamentos: { id: number; 
       </label>
       <label className={labelClass}>Patrimônio<Input name="codigo_patrimonio" maxLength={80} className="mt-1" /></label>
       <label className={labelClass}>Número de série<Input name="numero_serie" maxLength={80} className="mt-1" /></label>
+      <label className={labelClass}>
+        Patrimônio de
+        <Input name="patrimonio_de" list="titulares-patrimonio" maxLength={120} placeholder="Quem é o titular do patrimônio" className="mt-1" />
+        <datalist id="titulares-patrimonio">
+          {TITULARES_PATRIMONIO.map((t) => <option key={t} value={t} />)}
+        </datalist>
+      </label>
       <label className={labelClass}>Fabricante<Input name="fabricante" maxLength={120} className="mt-1" /></label>
       <label className={labelClass}>Modelo<Input name="modelo" maxLength={120} className="mt-1" /></label>
     </Formulario>

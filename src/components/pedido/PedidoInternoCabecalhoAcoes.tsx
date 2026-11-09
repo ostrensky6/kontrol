@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { HelpTip } from "@/components/common/HelpTip";
 import { atualizarPedidoInterno, excluirPedidoInterno } from "@/lib/actions/pedidos-internos";
+import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO } from "@/lib/pedido/natureza";
 import { FormComMensagem } from "./FormComMensagem";
 
 type Opcao = {
@@ -36,6 +37,8 @@ export function PedidoInternoCabecalhoAcoes({
   dataNecessidade,
   urgencia,
   tipoDemanda,
+  natureza = null,
+  objetivo = null,
   fonteRecurso,
   justificativa,
   projetos,
@@ -49,6 +52,8 @@ export function PedidoInternoCabecalhoAcoes({
   dataNecessidade: string | null;
   urgencia: string | null;
   tipoDemanda: string | null;
+  natureza?: string | null;
+  objetivo?: string | null;
   fonteRecurso: string | null;
   justificativa: string | null;
   projetos: Opcao[];
@@ -104,7 +109,7 @@ export function PedidoInternoCabecalhoAcoes({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground">Tipo</label>
+                <label className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
                 <select name="tipo_demanda" defaultValue={tipoDemanda ?? "laboratorio"} className={inputCls}>
                   <option value="laboratorio">Laboratório</option>
                   <option value="campo">Campo</option>
@@ -114,9 +119,29 @@ export function PedidoInternoCabecalhoAcoes({
                 </select>
               </div>
             </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor={`editar-pedido-natureza-${pedidoId}`} className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa</label>
+                <select id={`editar-pedido-natureza-${pedidoId}`} name="natureza" defaultValue={natureza ?? ""} className={inputCls}>
+                  <option value="">Escolha…</option>
+                  {NATUREZAS_PEDIDO.map((n) => (
+                    <option key={n.valor} value={n.valor}>{n.rotulo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label htmlFor={`editar-pedido-objetivo-${pedidoId}`} className="block text-xs font-medium text-muted-foreground">Objetivo</label>
+                <select id={`editar-pedido-objetivo-${pedidoId}`} name="objetivo" defaultValue={objetivo ?? ""} className={inputCls}>
+                  <option value="">Escolha…</option>
+                  {OBJETIVOS_PEDIDO.map((o) => (
+                    <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">Fonte provável</label>
-              <input name="fonte_recurso" defaultValue={fonteRecurso ?? ""} className={inputCls} />
+              <label htmlFor={`editar-pedido-fonte-${pedidoId}`} className="block text-xs font-medium text-muted-foreground">Fonte sugerida (opcional; o administrativo define)</label>
+              <input id={`editar-pedido-fonte-${pedidoId}`} name="fonte_recurso" defaultValue={fonteRecurso ?? ""} className={inputCls} />
             </div>
             <div>
               <label className="block text-xs font-medium text-muted-foreground">Justificativa</label>

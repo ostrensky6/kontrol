@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { criarPedidoInterno } from "@/lib/actions/pedidos-internos";
+import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO } from "@/lib/pedido/natureza";
 import { FormComMensagem } from "./FormComMensagem";
 
 type ProjetoOption = {
@@ -74,8 +75,26 @@ export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
                 ))}
               </select>
             </div>
+            <div className="md:col-span-6">
+              <label htmlFor="novo-pedido-natureza" className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa</label>
+              <select id="novo-pedido-natureza" name="natureza" required defaultValue="" className={inputCls}>
+                <option value="" disabled>Escolha…</option>
+                {NATUREZAS_PEDIDO.map((n) => (
+                  <option key={n.valor} value={n.valor}>{n.rotulo}</option>
+                ))}
+              </select>
+            </div>
+            <div className="md:col-span-6">
+              <label htmlFor="novo-pedido-objetivo" className="block text-xs font-medium text-muted-foreground">Objetivo</label>
+              <select id="novo-pedido-objetivo" name="objetivo" required defaultValue="" className={inputCls}>
+                <option value="" disabled>Escolha…</option>
+                {OBJETIVOS_PEDIDO.map((o) => (
+                  <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+                ))}
+              </select>
+            </div>
             <div className="md:col-span-4">
-              <label htmlFor="novo-pedido-tipo" className="block text-xs font-medium text-muted-foreground">Tipo</label>
+              <label htmlFor="novo-pedido-tipo" className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
               <select id="novo-pedido-tipo" name="tipo_demanda" defaultValue="laboratorio" className={inputCls}>
                 <option value="laboratorio">Laboratório</option>
                 <option value="campo">Campo</option>
@@ -101,23 +120,24 @@ export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
 
           <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2">
             <div className="md:col-span-2">
-              <h3 className="text-sm font-semibold">Justificativa e recurso</h3>
+              <h3 className="text-sm font-semibold">Justificativa</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Esses dados destravam o envio para validação e reduzem retrabalho administrativo.
+                Explique para que serve e por que é necessário. Fonte e rubrica são definidas pelo administrativo.
               </p>
             </div>
-            <div>
-              <label htmlFor="novo-pedido-fonte" className="block text-xs font-medium text-muted-foreground">Fonte provável</label>
-              <input id="novo-pedido-fonte" name="fonte_recurso" placeholder="Projeto, convênio, recurso interno..." className={inputCls} />
-            </div>
-            <div>
-              <label htmlFor="novo-pedido-justificativa" className="block text-xs font-medium text-muted-foreground">Justificativa</label>
-              <input
+            <div className="md:col-span-2">
+              <label htmlFor="novo-pedido-justificativa" className="block text-xs font-medium text-muted-foreground">Justificativa técnica</label>
+              <textarea
                 id="novo-pedido-justificativa"
                 name="justificativa"
-                placeholder="Experimentos, análises ou problema que originou a compra"
+                rows={3}
+                placeholder="Experimentos, análises ou problema que originou a compra. Em projeto, ligue aos objetivos dele."
                 className={inputCls}
               />
+            </div>
+            <div className="md:col-span-2">
+              <label htmlFor="novo-pedido-fonte" className="block text-xs font-medium text-muted-foreground">Fonte sugerida (opcional)</label>
+              <input id="novo-pedido-fonte" name="fonte_recurso" placeholder="Se souber: projeto, convênio, recurso interno..." className={inputCls} />
             </div>
           </section>
 

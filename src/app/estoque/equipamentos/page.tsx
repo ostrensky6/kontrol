@@ -33,6 +33,7 @@ type UnidadeEquipamento = {
   id: number;
   equipamento_id: number;
   codigo_patrimonio: string | null;
+  patrimonio_de?: string | null;
   numero_serie: string | null;
   fabricante: string | null;
   modelo: string | null;
@@ -143,7 +144,7 @@ export default async function EquipamentosPage({
 
   const query = supabase
     .from("equipamento_unidades")
-    .select("id, equipamento_id, codigo_patrimonio, numero_serie, fabricante, modelo, status_operacional, ativo, observacoes, equipamentos(nome), locais(nome)")
+    .select("id, equipamento_id, codigo_patrimonio, patrimonio_de, numero_serie, fabricante, modelo, status_operacional, ativo, observacoes, equipamentos(nome), locais(nome)")
     .order("id", { ascending: true });
 
   const [{ data }, avisosResult, catalogoResult, antecedenciaResult, podeEditar] = await Promise.all([
@@ -467,7 +468,8 @@ export default async function EquipamentosPage({
                         {equipamento?.nome ?? `Equipamento #${unidade.equipamento_id}`}
                       </h3>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        Patrimônio {unidade.codigo_patrimonio ?? "não informado"} · Série {unidade.numero_serie ?? "não informada"}
+                        Patrimônio {unidade.codigo_patrimonio ?? "não informado"}
+                        {unidade.patrimonio_de ? ` (de ${unidade.patrimonio_de})` : ""} · Série {unidade.numero_serie ?? "não informada"}
                       </p>
                     </div>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>

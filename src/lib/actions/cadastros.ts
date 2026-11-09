@@ -719,11 +719,16 @@ export async function salvarRegistro(
       codigosBarras && codigosBarras.codigos.length > 0
         ? await gravarCodigosBarras(supabase, createdId, codigosBarras.codigos, false)
         : null;
+    // Sinônimos (0168) não estão na lista fechada da RPC de criação: gravam logo depois.
+    const sinonimos = typeof payload.sinonimos === "string" ? payload.sinonimos.trim() : "";
+    const erroSinonimos = sinonimos
+      ? (await supabase.from("insumos").update({ sinonimos: sinonimos.slice(0, 1000) }).eq("id", createdId)).error
+      : null;
 
     revalidarDependentes(slug);
     return {
       ok: true,
-      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}`,
+      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}${erroSinonimos ? " Os sinônimos não foram gravados; edite o insumo para incluí-los." : ""}`,
       createdId,
     };
   }
