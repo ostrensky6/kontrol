@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { criarPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO } from "@/lib/pedido/natureza";
+import { dataEmBrasilia, ehUrgente, explicarCicloHoje } from "@/lib/pedido/ciclo";
 import { FormComMensagem } from "./FormComMensagem";
 
 type ProjetoOption = {
@@ -32,6 +33,8 @@ const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 t
 
 export function NovoPedidoDialog({ projetos, areas = [] }: { projetos: ProjetoOption[]; areas?: AreaOption[] }) {
   const [natureza, setNatureza] = useState("");
+  const [urgencia, setUrgencia] = useState("normal");
+  const urgente = ehUrgente(urgencia);
   const exigeLaboratorio = natureza === "material_consumo_lab";
   return (
     <Dialog>
@@ -156,13 +159,39 @@ export function NovoPedidoDialog({ projetos, areas = [] }: { projetos: ProjetoOp
             </div>
             <div className="md:col-span-4">
               <label htmlFor="novo-pedido-urgencia" className="block text-xs font-medium text-muted-foreground">Urgência</label>
-              <select id="novo-pedido-urgencia" name="urgencia" defaultValue="normal" className={inputCls}>
+              <select
+                id="novo-pedido-urgencia"
+                name="urgencia"
+                value={urgencia}
+                onChange={(e) => setUrgencia(e.target.value)}
+                className={inputCls}
+              >
                 <option value="baixa">Baixa</option>
                 <option value="normal">Normal</option>
-                <option value="alta">Alta</option>
-                <option value="critica">Crítica</option>
+                <option value="alta">Alta (fura o ciclo)</option>
+                <option value="critica">Crítica (fura o ciclo)</option>
               </select>
             </div>
+            <p className="text-xs text-muted-foreground md:col-span-12" data-testid="ciclo-pedido">
+              {explicarCicloHoje(dataEmBrasilia(new Date()), urgente)}
+            </p>
+            {urgente && (
+              <div className="md:col-span-12">
+                <label htmlFor="novo-pedido-urgencia-justificativa" className="block text-xs font-medium text-muted-foreground">
+                  Por que é urgente? (obrigatório)
+                </label>
+                <textarea
+                  id="novo-pedido-urgencia-justificativa"
+                  name="urgencia_justificativa"
+                  required
+                  minLength={15}
+                  maxLength={1000}
+                  rows={2}
+                  placeholder="Ex.: amostras chegam dia 15 e o reagente acabou"
+                  className={`${inputCls} h-auto py-2`}
+                />
+              </div>
+            )}
           </section>
 
           <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2">

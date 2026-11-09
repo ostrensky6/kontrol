@@ -31,6 +31,8 @@ export type PedidoInternoRow = {
   solicitante: string;
   necessidade: string;
   urgencia: string;
+  /** 0172: mês do ciclo de pagamento ("—" antes da aprovação da coordenação) */
+  ciclo?: string;
   itens: number;
   itensDetalhe: PedidoItemView[];
   total: string;
@@ -124,6 +126,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
     { accessorKey: "solicitante", header: "Solicitante" },
     { accessorKey: "necessidade", header: "Necessidade" },
     { accessorKey: "urgencia", header: "Urgência" },
+    { accessorKey: "ciclo", header: "Ciclo", cell: ({ row }) => row.original.ciclo ?? "—" },
     {
       accessorKey: "itens",
       header: "Itens",

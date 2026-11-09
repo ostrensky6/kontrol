@@ -326,6 +326,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Criando e consultando",
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
+          "Ciclo de pagamento: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. O ciclo aparece no pedido e na lista.",
+          "Urgência Alta ou Crítica fura o ciclo do dia 10 e exige justificativa por escrito (por que não pode esperar o próximo ciclo).",
           "Pedido sem projeto é validado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
           "Na lista, o botão 'Itens (N)' abre um resumo rápido do que está sendo solicitado, sem precisar abrir o pedido.",
           "A coluna 'Nº' mostra o número sequencial do pedido; clique para abrir o detalhe completo.",
@@ -359,7 +361,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor"],
+    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência"],
   },
   {
     id: "compras",

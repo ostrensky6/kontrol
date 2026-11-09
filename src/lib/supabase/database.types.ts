@@ -3100,6 +3100,7 @@ export type Database = {
           aprovado_coordenador_em: string | null
           aprovador_coordenador: string | null
           aprovador_coordenador_diferente: boolean
+          ciclo_pagamento: string | null
           atualizado_em: string
           comprador_responsavel: string | null
           concluido_em: string | null
@@ -3145,6 +3146,7 @@ export type Database = {
           tipo_demanda: string
           titulo: string
           urgencia: string
+          urgencia_justificativa: string | null
           validado_em: string | null
         }
         Insert: {
@@ -3158,6 +3160,7 @@ export type Database = {
           aprovado_coordenador_em?: string | null
           aprovador_coordenador?: string | null
           aprovador_coordenador_diferente?: boolean
+          ciclo_pagamento?: string | null
           atualizado_em?: string
           comprador_responsavel?: string | null
           concluido_em?: string | null
@@ -3203,6 +3206,7 @@ export type Database = {
           tipo_demanda?: string
           titulo: string
           urgencia?: string
+          urgencia_justificativa?: string | null
           validado_em?: string | null
         }
         Update: {
@@ -3216,6 +3220,7 @@ export type Database = {
           aprovado_coordenador_em?: string | null
           aprovador_coordenador?: string | null
           aprovador_coordenador_diferente?: boolean
+          ciclo_pagamento?: string | null
           atualizado_em?: string
           comprador_responsavel?: string | null
           concluido_em?: string | null
@@ -3261,6 +3266,7 @@ export type Database = {
           tipo_demanda?: string
           titulo?: string
           urgencia?: string
+          urgencia_justificativa?: string | null
           validado_em?: string | null
         }
         Relationships: [
@@ -4947,6 +4953,10 @@ export type Database = {
       }
       escolher_orcamento_pedido_interno: {
         Args: { p_cotacao_id: number; p_justificativa?: string }
+        Returns: Json
+      }
+      ciclo_pagamento_para: {
+        Args: { p_momento?: string; p_urgente?: boolean }
         Returns: Json
       }
       concluir_planejamento: {

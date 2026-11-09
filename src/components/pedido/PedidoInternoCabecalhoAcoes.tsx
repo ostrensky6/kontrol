@@ -36,6 +36,7 @@ export function PedidoInternoCabecalhoAcoes({
   projetoId,
   dataNecessidade,
   urgencia,
+  urgenciaJustificativa = null,
   tipoDemanda,
   natureza = null,
   objetivo = null,
@@ -53,6 +54,8 @@ export function PedidoInternoCabecalhoAcoes({
   projetoId: number | null;
   dataNecessidade: string | null;
   urgencia: string | null;
+  /** 0172: por que é urgente (obrigatória para alta ou crítica) */
+  urgenciaJustificativa?: string | null;
   tipoDemanda: string | null;
   natureza?: string | null;
   objetivo?: string | null;
@@ -109,9 +112,21 @@ export function PedidoInternoCabecalhoAcoes({
                 <select name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
                   <option value="baixa">Baixa</option>
                   <option value="normal">Normal</option>
-                  <option value="alta">Alta</option>
-                  <option value="critica">Crítica</option>
+                  <option value="alta">Alta (fura o ciclo)</option>
+                  <option value="critica">Crítica (fura o ciclo)</option>
                 </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-medium text-muted-foreground">
+                  Por que é urgente? (obrigatório para Alta ou Crítica)
+                  <textarea
+                    name="urgencia_justificativa"
+                    defaultValue={urgenciaJustificativa ?? ""}
+                    maxLength={1000}
+                    rows={2}
+                    className={inputCls}
+                  />
+                </label>
               </div>
               <div>
                 <label className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
