@@ -40,6 +40,7 @@ import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { statusInfo } from "@/components/app/status";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
+import { STATUS_DE_AJUSTE, lerSituacaoReenvio, textoReenvio } from "@/lib/pedido/reenvio";
 import { listarEventos } from "@/lib/actions/eventos";
 import {
   PEDIDO_INTERNO_ETAPA_RECEBIDA,
@@ -212,8 +213,8 @@ function rotuloEtapa(valor: string | null | undefined) {
 function proximaAcaoDetalhe(status: string) {
   const map: Record<string, { acao: string; responsavel: string }> = {
     rascunho: { acao: "Enviar para validação", responsavel: "Solicitante" },
-    ajuste_solicitante: { acao: "Corrigir pedido", responsavel: "Solicitante" },
-    ajuste_compras: { acao: "Corrigir dados administrativos", responsavel: "Compras/Admin." },
+    ajuste_solicitante: { acao: "Corrigir e reenviar", responsavel: "Solicitante" },
+    ajuste_compras: { acao: "Corrigir e reenviar", responsavel: "Solicitante" },
     em_validacao: { acao: "Validar especificações", responsavel: "Coordenador do projeto" },
     validado: { acao: "Formalizar em compras", responsavel: "Coordenador/Compras" },
     formalizado: { acao: "Registrar análise administrativa", responsavel: "Administrativo" },
@@ -444,6 +445,10 @@ export default async function PedidoInternoDetalhe({
   const comOrcamentos = ETAPAS_COM_ORCAMENTOS.includes(pedido.status);
   const orcamentos = comOrcamentos ? await lerOrcamentos(supabase, pedidoId) : null;
   const resumoOrcamentos = orcamentos ? resumirOrcamentos(orcamentos) : null;
+  // D5 (0175): o que acontece ao reenviar depois do ajuste
+  const avisoReenvio = STATUS_DE_AJUSTE.includes(String(pedido.status))
+    ? textoReenvio(await lerSituacaoReenvio(supabase, pedidoId))
+    : null;
   const projetoRow = pedido.projetos as {
     nome: string | null;
     coordenador?: string | null;
@@ -865,6 +870,12 @@ export default async function PedidoInternoDetalhe({
                       </div>
                     ))}
                   </div>
+                  {avisoReenvio && (
+                    <p className="mt-2 text-xs text-muted-foreground" data-testid="aviso-reenvio">
+                      <span aria-hidden="true">↺ </span>
+                      {avisoReenvio}
+                    </p>
+                  )}
                 </div>
                 <div className="flex justify-start border-t border-border/70 pt-3 xl:justify-end xl:border-t-0 xl:pt-0">
                   <PedidoInternoAcoes

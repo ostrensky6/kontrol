@@ -1,5 +1,6 @@
 "use server";
 
+import { STATUS_DE_AJUSTE } from "@/lib/pedido/reenvio";
 import { mensagemDoBanco } from "@/lib/erros";
 import { createHash, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
@@ -603,7 +604,7 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   const [{ data: pedido }, { data: itens }] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("projeto_id, justificativa, urgencia, urgencia_justificativa, natureza, objetivo")
+      .select("status, projeto_id, justificativa, urgencia, urgencia_justificativa, natureza, objetivo")
       .eq("id", pedidoId)
       .single(),
     supabase
@@ -630,6 +631,25 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   // O banco também trava (0169); a mensagem daqui é a mesma, antes da tentativa.
   const trava = travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
   if (trava) return { ok: false, message: trava };
+  // D5 (0175): devolvido e reenviado sem mudar valor, justificativa e projeto
+  // mantém as aprovações; o banco decide e registra.
+  if (STATUS_DE_AJUSTE.includes(String(pedido.status))) {
+    const { data, error } = await supabase.rpc("reenviar_pedido_interno" as never, {
+      p_pedido_id: pedidoId,
+      p_observacao: texto(formData, "observacao") ?? null,
+    } as never);
+    if (error) return { ok: false, message: mensagemDoBanco(error) };
+    enviarAvisosDoPedidoAgora(pedidoId);
+    revalidatePath("/pedido");
+    revalidatePath(`/pedido/${pedidoId}`);
+    const r = (data ?? {}) as { aprovacoes_mantidas?: boolean; aguarda_laboratorio?: boolean };
+    return {
+      ok: true,
+      message: r.aprovacoes_mantidas
+        ? `Reenviado com as aprovações mantidas. ${r.aguarda_laboratorio ? "Volta para a coordenação do laboratório." : "Volta para o administrativo formalizar."}`
+        : "Reenviado para a validação do coordenador.",
+    };
+  }
   return mudarStatus({
     pedidoId,
     para: "em_validacao",

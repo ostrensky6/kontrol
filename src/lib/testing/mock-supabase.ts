@@ -2129,6 +2129,51 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         }
         return { data: { pedido_id: pedido.id, decisao: args.p_decisao }, error: null };
       }
+      // 0175 (D5): reenvio depois do ajuste mantém as aprovações se nada mudou
+      if (fn === "reenvio_mantem_aprovacoes" || fn === "reenviar_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const valorAtual = Math.round(
+          ((store.pedidos_internos_itens ?? []) as Row[])
+            .filter((row) => Number(row.pedido_interno_id) === Number(pedido.id))
+            .reduce((acc, row) => acc + Number(row.quantidade ?? 0) * Number(row.orcamento_previo ?? 0), 0) * 100,
+        ) / 100;
+        const semFoto = !pedido.validacao_registrada_em;
+        const mudou: string[] = [];
+        if (!semFoto) {
+          if (valorAtual !== Number(pedido.validacao_valor)) mudou.push("valor");
+          if (String(pedido.justificativa ?? "").trim() !== String(pedido.validacao_justificativa ?? "").trim()) mudou.push("justificativa");
+          if (Number(pedido.projeto_id ?? 0) !== Number(pedido.validacao_projeto_id ?? 0)) mudou.push("projeto");
+        }
+        const mantem = !semFoto && mudou.length === 0;
+        const aguardaLaboratorio = mantem && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em;
+        if (fn === "reenvio_mantem_aprovacoes") {
+          return {
+            data: {
+              mantem,
+              mudou,
+              motivo: semFoto ? "sem_validacao" : mantem ? "igual" : "mudou",
+              valor_atual: valorAtual,
+              valor_validado: semFoto ? null : Number(pedido.validacao_valor),
+              aguarda_laboratorio: aguardaLaboratorio,
+            },
+            error: null,
+          };
+        }
+        if (!["ajuste_solicitante", "ajuste_compras"].includes(String(pedido.status))) {
+          return { data: null, error: { message: "Só pedido devolvido para ajuste é reenviado.", code: "22023" } };
+        }
+        const origem = pedido.status;
+        pedido.status = mantem ? "validado" : "em_validacao";
+        if (!mantem) {
+          pedido.validacao_registrada_em = null;
+          pedido.validacao_valor = null;
+        }
+        return {
+          data: { status_origem: origem, status_destino: pedido.status, aprovacoes_mantidas: mantem, aguarda_laboratorio: aguardaLaboratorio },
+          error: null,
+        };
+      }
       // 0170 (D6): pagamento só depois da entrega (mesma regra do banco)
       if (fn === "pendencia_pagamento_pedido_interno") {
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
