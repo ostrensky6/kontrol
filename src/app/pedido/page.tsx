@@ -1,3 +1,4 @@
+import { rotuloCiclo } from "@/lib/pedido/ciclo";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { PedidosInternosTable, type PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
@@ -33,6 +34,7 @@ type PedidoInternoListRow = {
   solicitante: string | null;
   data_necessidade: string | null;
   urgencia: string | null;
+  ciclo_pagamento?: string | null;
   tipo_demanda?: string | null;
   modalidade_compra?: string | null;
   natureza?: string | null;
@@ -109,7 +111,7 @@ export default async function PedidoPage() {
   const [pedidosFull, projetosFull, podeExcluir, areas] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
+      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
       .order("criado_em", { ascending: false }),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
@@ -158,6 +160,7 @@ export default async function PedidoPage() {
       solicitante: pedido.solicitante ?? "—",
       necessidade: formatDate(pedido.data_necessidade),
       urgencia: URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia ?? "Normal",
+      ciclo: rotuloCiclo(pedido.ciclo_pagamento) ?? "—",
       itens: itens.length,
       itensDetalhe: itens,
       total: brl(total),

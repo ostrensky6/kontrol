@@ -17,6 +17,7 @@ import {
   resumirOrcamentos,
 } from "@/lib/pedido/orcamentos";
 import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
+import { dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, prazoDoCiclo, rotuloCiclo, rotuloPrazo } from "@/lib/pedido/ciclo";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
 import {
   adicionarAnexoPedidoInterno,
@@ -543,6 +544,9 @@ export default async function PedidoInternoDetalhe({
     { label: "Tipo de material ou despesa", ok: Boolean(pedido.natureza) },
     { label: "Objetivo", ok: Boolean(pedido.objetivo) },
     { label: "Urgência definida", ok: Boolean(pedido.urgencia) },
+    ...(ehUrgente(pedido.urgencia)
+      ? [{ label: "Urgência justificada (fura o ciclo do dia 10)", ok: !faltaJustificativaUrgencia(pedido.urgencia, pedido.urgencia_justificativa) }]
+      : []),
     { label: "Ao menos um item", ok: linhas.length > 0 },
     {
       label: "Itens com especificação, quantidade e unidade",
@@ -593,6 +597,18 @@ export default async function PedidoInternoDetalhe({
             {pedido.justificativa && (
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{pedido.justificativa}</p>
             )}
+            {ehUrgente(pedido.urgencia) && pedido.urgencia_justificativa && (
+              <p className="mt-1 max-w-3xl text-sm text-warning-strong">
+                <span aria-hidden="true">! </span>Urgente: {pedido.urgencia_justificativa}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
+              {pedido.ciclo_pagamento
+                ? `Ciclo de pagamento: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.`
+                : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado"].includes(pedido.status)
+                  ? explicarCicloHoje(dataEmBrasilia(new Date()), ehUrgente(pedido.urgencia))
+                  : null}
+            </p>
           </div>
           <div className="flex flex-col items-start gap-2 sm:items-end">
             <span className="text-xs text-muted-foreground">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
@@ -603,6 +619,7 @@ export default async function PedidoInternoDetalhe({
               projetoId={pedido.projeto_id}
               dataNecessidade={pedido.data_necessidade}
               urgencia={pedido.urgencia}
+              urgenciaJustificativa={pedido.urgencia_justificativa ?? null}
               tipoDemanda={pedido.tipo_demanda}
               natureza={pedido.natureza}
               objetivo={pedido.objetivo}

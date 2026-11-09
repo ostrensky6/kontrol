@@ -15,6 +15,7 @@ import {
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
+import { faltaJustificativaUrgencia } from "@/lib/pedido/ciclo";
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 
@@ -233,6 +234,10 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   const data_necessidade = texto(formData, "data_necessidade");
   const justificativa = texto(formData, "justificativa");
   const urgencia = texto(formData, "urgencia") ?? "normal";
+  // 0172 (D1): urgência fura o ciclo do dia 10 e precisa de justificativa
+  const urgencia_justificativa = texto(formData, "urgencia_justificativa");
+  const faltaUrgencia = faltaJustificativaUrgencia(urgencia, urgencia_justificativa);
+  if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
   const fonte_recurso = texto(formData, "fonte_recurso");
   const tipo_demanda = texto(formData, "tipo_demanda") ?? "laboratorio";
   const natureza = naturezaValida(texto(formData, "natureza"));
@@ -261,6 +266,7 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     data_necessidade,
     justificativa,
     urgencia,
+    urgencia_justificativa,
     fonte_recurso,
     solicitante: u?.email ?? null,
   };
@@ -431,9 +437,12 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
     coordenador_projeto_email,
     data_necessidade: texto(formData, "data_necessidade"),
     urgencia: texto(formData, "urgencia") ?? "normal",
+    urgencia_justificativa: texto(formData, "urgencia_justificativa"),
     fonte_recurso: texto(formData, "fonte_recurso"),
     justificativa: texto(formData, "justificativa"),
   };
+  const faltaUrgencia = faltaJustificativaUrgencia(payload.urgencia, payload.urgencia_justificativa);
+  if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
   let { error } = await supabase
     .from("pedidos_internos")
     .update(payload)
@@ -592,7 +601,7 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   const [{ data: pedido }, { data: itens }] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("projeto_id, justificativa, urgencia, natureza, objetivo")
+      .select("projeto_id, justificativa, urgencia, urgencia_justificativa, natureza, objetivo")
       .eq("id", pedidoId)
       .single(),
     supabase
@@ -608,6 +617,8 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   if (!pedido.natureza) return { ok: false, message: "Escolha o tipo de material ou despesa (Editar, no topo do pedido) antes de enviar." };
   if (!pedido.objetivo) return { ok: false, message: "Escolha o objetivo do pedido (Editar, no topo do pedido) antes de enviar." };
   if (!pedido.urgencia) return { ok: false, message: "Informe a urgência antes de enviar." };
+  const faltaUrgencia = faltaJustificativaUrgencia(pedido.urgencia, pedido.urgencia_justificativa);
+  if (faltaUrgencia) return { ok: false, message: `${faltaUrgencia} Use "Editar", no topo do pedido.` };
   if (!itens || itens.length === 0) {
     return { ok: false, message: "Inclua ao menos um material, serviço ou equipamento antes de enviar." };
   }
