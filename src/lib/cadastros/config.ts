@@ -92,6 +92,8 @@ export type CadastroConfig = {
   colunas: Coluna[];
   colunasXlsx?: Coluna[];
   campos: Campo[];
+  /** linhas fixas criadas pela migration: a tela só edita (sem Novo nem Excluir) */
+  apenasEditar?: boolean;
 };
 
 export const CADASTROS: Record<string, CadastroConfig> = {
@@ -203,6 +205,41 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoesDe: "perfis",
         ajuda: "Aprova na ausência da coordenação (férias, afastamento). O Administrador também pode aprovar como substituto.",
+      },
+      { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },
+    ],
+  },
+
+  responsaveis: {
+    slug: "responsaveis",
+    tabela: "responsaveis_compras",
+    titulo: "Responsáveis do administrativo e do pagamento",
+    singular: "responsável",
+    subtitulo:
+      "Quem **autoriza a compra** (fonte e rubrica, cotações, aprovação final) e quem **paga**. Essas pessoas recebem os avisos e os e-mails de cada passagem do pedido nessas etapas e veem os pedidos em \"Aguardando você\". Sem responsável, os avisos vão para o Administrador.",
+    rotulo: "etapa_nome",
+    apenasEditar: true,
+    colunas: [
+      { key: "etapa_nome", label: "Etapa" },
+      { key: "usuario_nome", label: "Responsável" },
+      { key: "substituto_nome", label: "Substituto" },
+    ],
+    campos: [
+      { name: "etapa_nome", label: "Etapa", tipo: "text", somenteLeitura: true, colSpan: 2, grupo: "Etapa" },
+      {
+        name: "usuario_id",
+        label: "Responsável (usuário)",
+        tipo: "select",
+        opcoesDe: "perfis",
+        grupo: "Quem recebe os avisos",
+        ajuda: "Recebe o aviso e o e-mail de cada pedido que chega a esta etapa.",
+      },
+      {
+        name: "substituto_id",
+        label: "Substituto (usuário)",
+        tipo: "select",
+        opcoesDe: "perfis",
+        ajuda: "Recebe os avisos quando o responsável está suspenso ou não foi indicado.",
       },
       { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },
     ],
@@ -678,6 +715,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
 export const ORDEM_CADASTROS = [
   "projetos",
   "coordenacoes",
+  "responsaveis",
   "clientes",
   "tipo_insumos",
   "insumos",
@@ -709,7 +747,8 @@ export function getCadastrosParaImportacao(): CadastroConfig[] {
   const vistos = new Set<string>(ORDEM_IMPORTACAO);
   return [
     ...ORDEM_IMPORTACAO.map((slug) => CADASTROS[slug]).filter(Boolean),
-    ...Object.values(CADASTROS).filter((cadastro) => !vistos.has(cadastro.slug)),
+    // linhas fixas (apenasEditar) não entram pela planilha
+    ...Object.values(CADASTROS).filter((cadastro) => !vistos.has(cadastro.slug) && !cadastro.apenasEditar),
   ];
 }
 

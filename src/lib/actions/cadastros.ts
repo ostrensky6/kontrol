@@ -153,6 +153,24 @@ const tecnicosSchema = z.object({
 const tecnicosSemSalarioSchema = tecnicosSchema.omit({ valor_mes: true });
 
 const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
+  // 0173: responsáveis do administrativo e do pagamento (linhas fixas; só edição)
+  responsaveis: z
+    .object({
+      usuario_id: z.preprocess(
+        (v) => (v === "" || v == null ? null : v),
+        z.string().uuid("Responsável inválido").nullable(),
+      ),
+      substituto_id: z.preprocess(
+        (v) => (v === "" || v == null ? null : v),
+        z.string().uuid("Substituto inválido").nullable(),
+      ),
+      observacoes: optStr,
+    })
+    .superRefine((d, ctx) => {
+      if (d.substituto_id && d.substituto_id === d.usuario_id) {
+        ctx.addIssue({ code: "custom", path: ["substituto_id"], message: "O substituto precisa ser outra pessoa" });
+      }
+    }),
   // 0169: laboratórios e áreas com a coordenação que aprova
   coordenacoes: z
     .object({
@@ -309,6 +327,7 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
 
 const TABELAS: Record<string, string> = {
   coordenacoes: "coordenacoes_area",
+  responsaveis: "responsaveis_compras",
   clientes: "clientes",
   projetos: "projetos",
   equipamentos: "equipamentos",

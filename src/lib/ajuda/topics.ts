@@ -768,15 +768,26 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Pedido de compra: quem é avisado em cada passagem",
+        itens: [
+          "Enviado para validação: o coordenador do projeto (sem projeto, a Supervisão). Material de consumo de laboratório: depois, a coordenação do laboratório.",
+          "Formalizar, autorizar (fonte e rubrica), pedir os 3 orçamentos, escolher, aprovação final e fechar a compra: o responsável do administrativo. Sem responsável indicado, o Administrador.",
+          "Entrega registrada e pagamento/nota fiscal: o responsável do pagamento. Sem responsável indicado, o Administrador.",
+          "O solicitante é avisado quando o pedido volta para ajuste, é aprovado para compra, está a caminho, é concluído ou cancelado.",
+          "Os responsáveis do administrativo e do pagamento (e os substitutos) são escolhidos pelo Administrador em Cadastros > Responsáveis do administrativo e do pagamento.",
+          "'Aguardando você', na página inicial, mostra só o que cabe a você decidir.",
+        ],
+      },
+      {
         titulo: "E-mails",
         itens: [
-          "Os avisos também saem por e-mail para as mesmas pessoas, com link direto para a tela certa.",
+          "Os avisos também saem por e-mail para as mesmas pessoas, com link direto para a tela certa. Nas passagens do pedido de compra o e-mail sai logo depois da ação; os demais saem no envio diário.",
           "Cada aviso é enviado uma vez só, mesmo que o envio seja repetido.",
           "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem um resumo da semana: insumos abaixo do mínimo ou vencendo, pedidos em validação e equipamentos com calibração ou manutenção vencida.",
         ],
       },
     ],
-    termos: ["notificação", "aviso", "sino", "e-mail", "email", "resumo semanal", "alerta", "lembrete"],
+    termos: ["notificação", "aviso", "sino", "e-mail", "email", "resumo semanal", "alerta", "lembrete", "responsável do pagamento", "administrativo"],
   },
   {
     id: "incidentes",

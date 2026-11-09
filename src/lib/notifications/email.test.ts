@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dispatchPendingNotificationEmails } from "./email";
+import { dispatchEntityNotificationEmails, dispatchPendingNotificationEmails } from "./email";
 
 type Chamada = { tabela: string; valores: Record<string, unknown>; filtros: Record<string, unknown> };
 
 function supabaseFalso(destinatarios: string[], opcoes: { reservaPerdida?: boolean; marcacaoFalha?: boolean } = {}) {
   const updates: Chamada[] = [];
+  const filtrosConsulta: Record<string, unknown> = {};
   const linhas = [
     {
       id: 10,
@@ -30,15 +31,23 @@ function supabaseFalso(destinatarios: string[], opcoes: { reservaPerdida?: boole
   };
   const cliente = {
     from: (tabela: string) => ({
-      select: () => ({
-        is: () => ({
-          neq: () => ({
-            lt: () => ({
-              order: () => ({ limit: async () => ({ data: linhas, error: null }) }),
+      select: () => {
+        const consulta = {
+          is: () => ({
+            neq: () => ({
+              lt: () => ({
+                order: () => ({ limit: async () => ({ data: linhas, error: null }) }),
+              }),
             }),
           }),
-        }),
-      }),
+          // 0173: avisos de um registro (entidade_tipo, entidade_id)
+          eq: (coluna: string, valor: unknown) => {
+            filtrosConsulta[coluna] = valor;
+            return consulta;
+          },
+        };
+        return consulta;
+      },
       update: (valores: Record<string, unknown>) => {
         const chamada: Chamada = { tabela, valores, filtros: {} };
         updates.push(chamada);
@@ -47,7 +56,7 @@ function supabaseFalso(destinatarios: string[], opcoes: { reservaPerdida?: boole
     }),
     rpc: vi.fn(async () => ({ data: destinatarios, error: null })),
   };
-  return { cliente: cliente as typeof cliente & Parameters<typeof dispatchPendingNotificationEmails>[0], updates };
+  return { cliente: cliente as typeof cliente & Parameters<typeof dispatchPendingNotificationEmails>[0], updates, filtrosConsulta };
 }
 
 describe("dispatchPendingNotificationEmails", () => {
@@ -116,5 +125,22 @@ describe("dispatchPendingNotificationEmails", () => {
     expect(String(updates[2].valores.email_erro)).toContain("Enviado, mas não marcado");
     await dispatchPendingNotificationEmails(cliente);
     expect(enviados.map((e) => e.chave)).toEqual(["kontrol-notificacao-10", "kontrol-notificacao-10"]);
+  });
+
+  it("0173: envia na hora os avisos de um pedido, com a mesma reserva", async () => {
+    const { cliente, updates, filtrosConsulta } = supabaseFalso(["nathieli@example.com"]);
+    const resultado = await dispatchEntityNotificationEmails(cliente, "pedido_interno", 3);
+    expect(filtrosConsulta).toEqual({ entidade_tipo: "pedido_interno", entidade_id: 3 });
+    expect(resultado).toMatchObject({ enabled: true, sent: 1, failed: 0 });
+    expect(enviados[0].to).toEqual(["nathieli@example.com"]);
+    expect(updates[0].valores).toEqual({ email_tentativas: 1 });
+  });
+
+  it("0173: sem Resend configurado, não tenta enviar", async () => {
+    delete process.env.RESEND_API_KEY;
+    const { cliente } = supabaseFalso(["nathieli@example.com"]);
+    const resultado = await dispatchEntityNotificationEmails(cliente, "pedido_interno", 3);
+    expect(resultado).toMatchObject({ enabled: false, sent: 0 });
+    expect(enviados).toHaveLength(0);
   });
 });
