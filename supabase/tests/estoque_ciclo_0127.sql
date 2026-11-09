@@ -33,6 +33,11 @@ begin
     update public.perfis set papel = case when v_rotulo = 'tecnico' then 'laboratorio' else v_rotulo end, suspenso = false, permissoes = '{}'::jsonb
     where id = md5('kontrol-0127-' || v_rotulo)::uuid;
   end loop;
+  -- 0169: o pedido só vai para validação com coordenador competente
+  insert into public.projetos (nome, coordenador_id)
+  values ('TS-0127 projeto', md5('kontrol-0127-coordenador')::uuid) returning id into v_ped;
+  perform set_config('t0127.projeto', v_ped::text, true);
+  v_ped := null;
 
   insert into public.insumos (especificacao, unidade, unidade_consumo, quantidade_embalagem, fator_conversao, custo_unitario)
   values ('TS-0127 Tampao 100 mL', 'mL', 'µL', 100, 1000, 5) returning id into v_frasco;
@@ -270,9 +275,10 @@ declare
   v_item_b bigint;
   r jsonb;
 begin
-  insert into public.pedidos_internos (titulo, status, solicitante, tipo_demanda, justificativa)
-  -- 0136 (D2): quem valida não é quem pediu
-  values ('TS-0127 pedido', 'rascunho', 'ts-0127-tecnico@example.invalid', 'laboratorio', 'teste')
+  insert into public.pedidos_internos (titulo, status, solicitante, tipo_demanda, justificativa, projeto_id)
+  -- 0136 (D2): quem valida não é quem pediu; 0169: o coordenador do projeto valida
+  values ('TS-0127 pedido', 'rascunho', 'ts-0127-tecnico@example.invalid', 'laboratorio', 'teste',
+          current_setting('t0127.projeto')::bigint)
   returning id into v_pedido;
   insert into public.pedidos_internos_itens (pedido_interno_id, tipo, especificacao, quantidade, insumo_id)
   values (v_pedido, 'material', 'Tampao A', 2, v_frasco) returning id into v_item_a;

@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Plus } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -25,9 +26,13 @@ type ProjetoOption = {
   coordenador_email?: string | null;
 };
 
+export type AreaOption = { id: number; nome: string; coordenador_nome?: string | null };
+
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm";
 
-export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
+export function NovoPedidoDialog({ projetos, areas = [] }: { projetos: ProjetoOption[]; areas?: AreaOption[] }) {
+  const [natureza, setNatureza] = useState("");
+  const exigeLaboratorio = natureza === "material_consumo_lab";
   return (
     <Dialog>
       <DialogTrigger asChild>
@@ -63,8 +68,14 @@ export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
             </div>
             <div className="md:col-span-6">
               <label htmlFor="novo-pedido-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
-              <select id="novo-pedido-projeto" name="projeto_id" defaultValue="" className={inputCls}>
-                <option value="">—</option>
+              <select
+                id="novo-pedido-projeto"
+                name="projeto_id"
+                defaultValue=""
+                aria-describedby="novo-pedido-projeto-ajuda"
+                className={inputCls}
+              >
+                <option value="">Sem projeto (a Supervisão valida)</option>
                 {projetos.map((projeto) => (
                   <option key={projeto.id} value={projeto.id}>
                     {projeto.nome}
@@ -74,17 +85,27 @@ export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
                   </option>
                 ))}
               </select>
+              <p id="novo-pedido-projeto-ajuda" className="mt-1 text-xs text-muted-foreground">
+                O coordenador do projeto valida o pedido. Sem coordenador cadastrado, o envio trava.
+              </p>
             </div>
-            <div className="md:col-span-6">
+            <div className="md:col-span-4">
               <label htmlFor="novo-pedido-natureza" className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa</label>
-              <select id="novo-pedido-natureza" name="natureza" required defaultValue="" className={inputCls}>
+              <select
+                id="novo-pedido-natureza"
+                name="natureza"
+                required
+                value={natureza}
+                onChange={(e) => setNatureza(e.target.value)}
+                className={inputCls}
+              >
                 <option value="" disabled>Escolha…</option>
                 {NATUREZAS_PEDIDO.map((n) => (
                   <option key={n.valor} value={n.valor}>{n.rotulo}</option>
                 ))}
               </select>
             </div>
-            <div className="md:col-span-6">
+            <div className="md:col-span-4">
               <label htmlFor="novo-pedido-objetivo" className="block text-xs font-medium text-muted-foreground">Objetivo</label>
               <select id="novo-pedido-objetivo" name="objetivo" required defaultValue="" className={inputCls}>
                 <option value="" disabled>Escolha…</option>
@@ -93,6 +114,32 @@ export function NovoPedidoDialog({ projetos }: { projetos: ProjetoOption[] }) {
                 ))}
               </select>
             </div>
+            <div className="md:col-span-4">
+              <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
+                Laboratório ou área{exigeLaboratorio ? " (obrigatório)" : ""}
+              </label>
+              <select
+                id="novo-pedido-area"
+                name="area_id"
+                required={exigeLaboratorio}
+                defaultValue=""
+                aria-describedby="novo-pedido-area-ajuda"
+                className={inputCls}
+              >
+                <option value="">{exigeLaboratorio ? "Escolha…" : "—"}</option>
+                {areas.map((area) => (
+                  <option key={area.id} value={area.id}>
+                    {area.nome}
+                    {area.coordenador_nome ? ` · ${area.coordenador_nome}` : " · sem coordenação"}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {exigeLaboratorio && (
+              <p id="novo-pedido-area-ajuda" className="text-xs text-muted-foreground md:col-span-12">
+                Material de consumo de laboratório passa também pela coordenação do laboratório, depois do coordenador do projeto.
+              </p>
+            )}
             <div className="md:col-span-4">
               <label htmlFor="novo-pedido-tipo" className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
               <select id="novo-pedido-tipo" name="tipo_demanda" defaultValue="laboratorio" className={inputCls}>

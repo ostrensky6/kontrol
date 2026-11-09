@@ -13,6 +13,7 @@ import {
   type PedidoInternoStatus,
 } from "@/lib/pedido/status";
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
+import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
@@ -233,6 +234,8 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   const fonte_recurso = texto(formData, "fonte_recurso");
   const tipo_demanda = texto(formData, "tipo_demanda") ?? "laboratorio";
   const natureza = naturezaValida(texto(formData, "natureza"));
+  // 0169: laboratório ou área (a coordenação dele aprova material de consumo de laboratório)
+  const area_id = numero(formData, "area_id");
   const objetivo = objetivoValido(texto(formData, "objetivo"));
   const supabase = await createClientUntyped();
   let coordenador_projeto_nome: string | null = null;
@@ -250,6 +253,7 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     tipo_demanda,
     natureza,
     objetivo,
+    area_id,
     coordenador_projeto_nome,
     coordenador_projeto_email,
     data_necessidade,
@@ -419,6 +423,7 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
     projeto_id,
     tipo_demanda: texto(formData, "tipo_demanda") ?? "laboratorio",
     natureza: naturezaValida(texto(formData, "natureza")),
+    area_id: numero(formData, "area_id"),
     objetivo: objetivoValido(texto(formData, "objetivo")),
     coordenador_projeto_nome,
     coordenador_projeto_email,
@@ -593,7 +598,9 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
       .select("id, especificacao, quantidade, unidade")
       .eq("pedido_interno_id", pedidoId),
   ]);
-  if (!pedido?.projeto_id) return { ok: false, message: "Vincule o pedido a um projeto antes de enviar." };
+  if (!pedido) return { ok: false, message: "Pedido não encontrado." };
+  // Sem projeto, o pedido vai para a Supervisão (decisão de 09/11); o projeto
+  // deixou de ser obrigatório, mas quem valida precisa existir (0169).
   if (!pedido.justificativa) return { ok: false, message: "Informe a justificativa antes de enviar." };
   // Fonte e rubrica são do administrativo (decisão de 09/11): não se exigem do solicitante.
   if (!pedido.natureza) return { ok: false, message: "Escolha o tipo de material ou despesa (Editar, no topo do pedido) antes de enviar." };
@@ -605,6 +612,9 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   if (itens.some((item) => !item.especificacao || !(Number(item.quantidade) > 0) || !item.unidade)) {
     return { ok: false, message: "Todos os itens precisam de especificação, quantidade e unidade." };
   }
+  // O banco também trava (0169); a mensagem daqui é a mesma, antes da tentativa.
+  const trava = travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
+  if (trava) return { ok: false, message: trava };
   return mudarStatus({
     pedidoId,
     para: "em_validacao",
@@ -619,6 +629,18 @@ export async function validarInformacoes(_prev: FormState, formData: FormData): 
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const permissao = await podeAprovarComoCoordenadorProjeto(pedidoId);
   if (!permissao.ok) return permissao;
+  // 0169: só o coordenador competente valida; o Administrador, como substituto.
+  const supabase = await createClientUntyped();
+  const aprovadores = await lerAprovadores(supabase as never, pedidoId);
+  const ehAdmin = permissao.usuario.papel === "admin";
+  if (aprovadores && !usuarioDecide(aprovadores.coordenador?.ids, permissao.usuario.id, ehAdmin)) {
+    return {
+      ok: false,
+      message: aprovadores.coordenador
+        ? `Este pedido é validado por ${aprovadores.coordenador.nome ?? "quem coordena"} (${aprovadores.coordenador.rotulo}). Na ausência, o Administrador valida como substituto.`
+        : aprovadores.falta_coordenador ?? "Este pedido não tem coordenador indicado.",
+    };
+  }
   return mudarStatus({
     pedidoId,
     para: "validado",
@@ -630,9 +652,31 @@ export async function validarInformacoes(_prev: FormState, formData: FormData): 
       aprovador_coordenador: permissao.usuario.nome ?? permissao.usuario.email,
       coordenador_projeto_nome: permissao.coordenadorNome,
       coordenador_projeto_email: permissao.coordenadorEmail,
-      aprovador_coordenador_diferente: permissao.diferenteDoCoordenador,
+      aprovador_coordenador_diferente:
+        permissao.diferenteDoCoordenador || Boolean(ehAdmin && aprovadores?.coordenador && !aprovadores.coordenador.ids.includes(permissao.usuario.id)),
     },
   });
+}
+
+/** 0169: a coordenação do laboratório aprova ou devolve material de consumo de laboratório. */
+export async function decidirCoordenacaoLaboratorio(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const decisao = texto(formData, "decisao") === "devolvido" ? "devolvido" : "aprovado";
+  const observacao = texto(formData, "observacao");
+  if (decisao === "devolvido" && !observacao) return { ok: false, message: "Escreva o motivo da devolução." };
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("decidir_coordenacao_laboratorio", {
+    p_pedido_id: pedidoId,
+    p_decisao: decisao,
+    p_observacao: observacao ?? null,
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  return {
+    ok: true,
+    message: decisao === "aprovado" ? "Aprovação do laboratório registrada." : "Pedido devolvido ao solicitante.",
+  };
 }
 
 export async function devolverParaSolicitante(_prev: FormState, formData: FormData): Promise<FormState> {

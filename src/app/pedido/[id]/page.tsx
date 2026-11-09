@@ -5,6 +5,10 @@ import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
 import { rotuloNatureza, rotuloObjetivo, separarSinonimos } from "@/lib/pedido/natureza";
 import { pode } from "@/lib/auth/permissao-efetiva";
+import { usuarioAtual } from "@/lib/auth/roles";
+import { aguardaLaboratorio, etapasAprovacao, lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
+import { lerAreasPedido } from "@/lib/pedido/areas";
+import { QuemAprova } from "@/components/pedido/QuemAprova";
 import {
   adicionarAnexoPedidoInterno,
   adicionarItemPedidoInterno,
@@ -31,6 +35,7 @@ import {
   PEDIDO_INTERNO_FLUXO,
   PEDIDO_INTERNO_STATUS,
   pedidoInternoNumero,
+  pedidoInternoSituacao,
   pedidoInternoStatus,
   podeMarcarRecebida,
   type PedidoInternoStatus,
@@ -364,6 +369,9 @@ export default async function PedidoInternoDetalhe({
     podeGerir,
     podeCancelar,
     podeRegistrarRecebimento,
+    aprovadores,
+    areas,
+    usuario,
   ] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
@@ -402,10 +410,20 @@ export default async function PedidoInternoDetalhe({
     pode("pedido.aprovar"),
     pode("compras.cancelar"),
     pode("recebimento.registrar"),
+    lerAprovadores(supabase, pedidoId),
+    lerAreasPedido(supabase),
+    usuarioAtual(),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
-  const statusMeta = pedidoInternoStatus(pedidoStatus);
+  // 0169: validado de material de laboratório ainda espera o laboratório
+  const statusMeta = pedidoInternoSituacao(pedido);
+  const esperaLaboratorio = aguardaLaboratorio(pedido);
+  const ehAdmin = usuario?.papel === "admin";
+  const podeValidar = usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, ehAdmin);
+  const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, ehAdmin);
+  const etapasQuemAprova = etapasAprovacao(aprovadores, pedido);
+  const travaEnvio = travaDoEnvio(aprovadores);
   const projetoRow = pedido.projetos as {
     nome: string | null;
     coordenador?: string | null;
@@ -496,7 +514,11 @@ export default async function PedidoInternoDetalhe({
       ? "ativo"
       : "futuro";
   const pendencias = [
-    { label: "Projeto vinculado", ok: Boolean(pedido.projeto_id) },
+    // 0169: sem projeto vale (a Supervisão valida); sem quem valide, não segue
+    { label: "Quem valida indicado", ok: !aprovadores?.falta_coordenador },
+    ...(pedido.natureza === "material_consumo_lab"
+      ? [{ label: "Laboratório com coordenação", ok: !aprovadores?.falta_laboratorio }]
+      : []),
     { label: "Justificativa preenchida", ok: Boolean(pedido.justificativa) },
     { label: "Tipo de material ou despesa", ok: Boolean(pedido.natureza) },
     { label: "Objetivo", ok: Boolean(pedido.objetivo) },
@@ -512,7 +534,16 @@ export default async function PedidoInternoDetalhe({
   const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
   const itensRecebidos = itensFisicos.filter((item) => item.recebido_em).length;
-  const proxima = proximaAcaoDetalhe(pedido.status);
+  const proxima = esperaLaboratorio
+    ? {
+        acao: "Aprovar pela coordenação do laboratório",
+        responsavel: aprovadores?.laboratorio?.nome
+          ? `${aprovadores.laboratorio.nome} (${aprovadores.laboratorio.area})`
+          : "Coordenação do laboratório",
+      }
+    : pedido.status === "em_validacao" && aprovadores?.coordenador?.nome
+      ? { acao: "Validar especificações", responsavel: `${aprovadores.coordenador.nome} (${aprovadores.coordenador.rotulo})` }
+      : proximaAcaoDetalhe(pedido.status);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -555,6 +586,8 @@ export default async function PedidoInternoDetalhe({
               tipoDemanda={pedido.tipo_demanda}
               natureza={pedido.natureza}
               objetivo={pedido.objetivo}
+              areaId={pedido.area_id ?? null}
+              areas={areas}
               fonteRecurso={pedido.fonte_recurso}
               justificativa={pedido.justificativa}
               projetos={projetos ?? []}
@@ -795,6 +828,7 @@ export default async function PedidoInternoDetalhe({
                     podeCancelar={podeCancelar}
                     temCompraFormal={Boolean(compraFormal)}
                     podeEnviarValidacao={rascunhoCompleto}
+                    motivoSemEnvio={travaEnvio ?? undefined}
                   />
                 </div>
               </div>
@@ -834,6 +868,14 @@ export default async function PedidoInternoDetalhe({
                   status={pedido.status}
                   podeGerir={podeGerir}
                   podeEnviarValidacao={rascunhoCompleto}
+                  temCompraFormal={Boolean(compraFormal)}
+                  motivoSemValidacao={
+                    podeValidar
+                      ? undefined
+                      : `Quem valida: ${aprovadores?.coordenador?.nome ?? "coordenador do projeto"}. Na ausência, o Administrador.`
+                  }
+                  aguardandoLaboratorio={esperaLaboratorio}
+                  podeDecidirLaboratorio={podeDecidirLaboratorio}
                 />
               )}
               {editavel && (
@@ -841,10 +883,11 @@ export default async function PedidoInternoDetalhe({
                   O pedido ainda está em rascunho. A ação de envio fica no fechamento da lista de itens.
                 </p>
               )}
-              {!podeGerir && !["rascunho", "ajuste_solicitante", "ajuste_compras"].includes(pedido.status) && (
+              {!podeGerir && !podeDecidirLaboratorio && !["rascunho", "ajuste_solicitante", "ajuste_compras"].includes(pedido.status) && (
                 <p className="text-sm text-muted-foreground/80">Esta etapa exige a permissão “Aprovar pedidos internos”.</p>
               )}
             </div>
+            {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
             {pedido.status === "formalizado" && podeGerir && (
               <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />

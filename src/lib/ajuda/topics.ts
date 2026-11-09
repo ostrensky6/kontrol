@@ -325,7 +325,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Criando e consultando",
         itens: [
-          "Clique em 'Novo pedido' e preencha título, projeto, urgência, fonte provável e justificativa.",
+          "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
+          "Pedido sem projeto é validado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
           "Na lista, o botão 'Itens (N)' abre um resumo rápido do que está sendo solicitado, sem precisar abrir o pedido.",
           "A coluna 'Nº' mostra o número sequencial do pedido; clique para abrir o detalhe completo.",
         ],
@@ -345,7 +346,10 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Fluxo de aprovação",
         itens: [
           "Envie para validação quando o pedido estiver completo; pendências aparecem destacadas.",
-          "Após validado, formalize em Compras para gerar o pedido formal.",
+          "O quadro 'Quem aprova' mostra, por escrito, quem valida e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
+          "Só o coordenador do projeto valida; sem projeto, a Supervisão. Na ausência, o Administrador valida como substituto e fica registrado.",
+          "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
+          "Após validado (e aprovado pelo laboratório, quando for o caso), formalize em Compras para gerar o pedido formal.",
           "Acompanhe documentos, comunicações, aprovações e a linha do tempo dentro do pedido.",
         ],
       },
@@ -723,6 +727,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Coordenador e Gestor só alteram um projeto e só validam pedidos internos dele se estiverem ligados ao projeto ou forem o coordenador cadastrado.",
           "Na página do projeto, em 'Quem atua neste projeto', o Administrador liga ou desliga cada pessoa.",
+          "Em Cadastros > Laboratórios e áreas, o Administrador indica a coordenação de cada laboratório e o substituto.",
           "Quem cria um projeto já fica ligado a ele. Ver os projetos continua igual para todos.",
         ],
       },

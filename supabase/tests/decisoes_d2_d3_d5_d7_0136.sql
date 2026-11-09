@@ -109,8 +109,16 @@ exception when insufficient_privilege then
   if sqlerrm not like '%próprio pedido%' then raise; end if;
 end $$;
 
--- outra pessoa valida
+-- 0169: outra pessoa com a permissão não valida; quem valida é o coordenador do projeto
 select pg_temp.como('outro');
+do $$
+begin
+  perform public.transicionar_pedido_interno(current_setting('t0136.pedido_pedinte')::bigint, 'validado', 'Validação', 'aprovado', null);
+  raise exception '0169: quem não coordena o projeto validou o pedido';
+exception when insufficient_privilege then
+  if sqlerrm not like '%validado por%' then raise; end if;
+end $$;
+select pg_temp.como('coord');
 select public.transicionar_pedido_interno(current_setting('t0136.pedido_pedinte')::bigint, 'validado', 'Validação', 'aprovado', null);
 
 -- o coordenador do projeto valida o próprio pedido

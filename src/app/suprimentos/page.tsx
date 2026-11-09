@@ -328,7 +328,12 @@ export default async function SuprimentosPage() {
   ]);
 
   const planejamentos = (planejamentosRaw ?? []) as unknown as PlanejamentoRow[];
-  const pedidos = (pedidosRaw ?? []) as unknown as PedidoInternoRow[];
+  // Relações vazias podem chegar ausentes (leitura parcial ou mock): viram listas vazias.
+  const pedidos = ((pedidosRaw ?? []) as unknown as PedidoInternoRow[]).map((pedido) => ({
+    ...pedido,
+    pedidos_internos_itens: pedido.pedidos_internos_itens ?? [],
+    pedidos_internos_anexos: pedido.pedidos_internos_anexos ?? [],
+  }));
   const compras = (comprasRaw ?? []) as unknown as CompraRow[];
   const recebimentos = (recebimentosRaw ?? []) as unknown as Array<{
     id: number;

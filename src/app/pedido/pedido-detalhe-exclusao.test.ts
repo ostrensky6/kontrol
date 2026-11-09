@@ -8,8 +8,10 @@ const contexto = vi.hoisted(() => ({
 }));
 vi.mock("@/lib/auth/permissao-efetiva", () => ({ pode: contexto.pode }));
 vi.mock("@/lib/actions/eventos", () => ({ listarEventos: async () => [] }));
+vi.mock("@/lib/auth/roles", () => ({ usuarioAtual: async () => ({ id: "u-1", papel: "admin", email: "a@x" }) }));
 vi.mock("@/lib/supabase/server", () => ({
   createClientUntyped: async () => ({
+    rpc: async () => ({ data: null, error: null }),
     from: () => {
       const query = {
         select: () => query, eq: () => query, order: () => query,

@@ -45,6 +45,11 @@ begin
      where id = v_uid;
   end loop;
 
+  -- 0169: o pedido do teste tem projeto com coordenador competente
+  insert into public.projetos (nome, coordenador_id)
+  values ('TS-0128 projeto', md5('kontrol-0128-coordenador')::uuid) returning id into v_rotulo;
+  perform set_config('ts.projeto', v_rotulo, true);
+
   -- CAD2-2: mudanca de perfil fica na auditoria
   if not exists (
     select 1 from public.auditoria
@@ -131,8 +136,8 @@ do $$
 declare
   v_pedido bigint;
 begin
-  insert into public.pedidos_internos (titulo, solicitante, fonte_recurso)
-  values ('TS-0128 pedido', 'ts-0128-tecnico@example.invalid', 'Projeto X')
+  insert into public.pedidos_internos (titulo, solicitante, fonte_recurso, projeto_id)
+  values ('TS-0128 pedido', 'ts-0128-tecnico@example.invalid', 'Projeto X', current_setting('ts.projeto')::bigint)
   returning id into v_pedido;
   perform set_config('ts.pedido', v_pedido::text, true);
 
@@ -210,9 +215,9 @@ begin
   if not exists (
     select 1 from public.v_minhas_notificacoes
     where entidade_tipo = 'pedido_interno' and entidade_id = v_pedido
-      and permissao_destino = 'pedido.aprovar' and status = 'nao_lida'
+      and usuario_destino = md5('kontrol-0128-coordenador')::uuid and status = 'nao_lida'
   ) then
-    raise exception '0128: aviso de pedido em validacao nao chegou ao aprovador';
+    raise exception '0128: aviso de pedido em validacao nao chegou ao coordenador do projeto';
   end if;
   if not exists (
     select 1 from jsonb_array_elements(v_aguardando) e
