@@ -14,6 +14,7 @@ import {
 } from "@/lib/pedido/status";
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
+import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
 import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
@@ -860,8 +861,12 @@ export async function encaminharInstituicao(_prev: FormState, formData: FormData
 
 export async function marcarAguardandoPagamentoNf(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  // D6 (0170): pagamento só depois da entrega. O banco também trava.
+  const pendencia = await lerPendenciaPagamento((await createClientUntyped()) as never, pedidoId);
+  if (pendencia) return { ok: false, message: pendencia };
   return mudarStatus({
-    pedidoId: Number(formData.get("pedido_interno_id")),
+    pedidoId,
     para: "aguardando_pagamento_nf",
     permitidoDe: ["compra_fechada", "encaminhado_instituicao"],
     observacao: texto(formData, "observacao") ?? "Aguardando pagamento, emissão de nota ou comprovante.",
@@ -891,6 +896,39 @@ export async function concluirCompra(_prev: FormState, formData: FormData): Prom
     etapa: "Compra concluída",
     decisao: "aprovado",
   });
+}
+
+/** D6 (0170): serviço prestado ou entrega confirmada, com quem e quando. */
+export async function confirmarEntregaPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("confirmar_entrega_pedido_interno", {
+    p_pedido_id: pedidoId,
+    p_observacao: texto(formData, "observacao"),
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Entrega confirmada. O pedido já pode seguir para pagamento." };
+}
+
+/** D6 (0170): pagar antes da entrega só com acordo específico registrado. */
+export async function registrarExcecaoPagamento(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const justificativa = texto(formData, "observacao");
+  if (!justificativa || justificativa.length < 15) {
+    return { ok: false, message: "Descreva o acordo que permite pagar antes da entrega (com quem, o quê e por quê)." };
+  }
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("registrar_excecao_pagamento", {
+    p_pedido_id: pedidoId,
+    p_justificativa: justificativa,
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Exceção registrada. O pagamento pode seguir antes da entrega." };
 }
 
 /**

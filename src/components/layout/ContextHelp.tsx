@@ -87,7 +87,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       checks: [
         "Faltas de estoque viram pedido interno, que segue para aprovação e compra.",
         "Receba os itens pelo próprio pedido de compra.",
-        "Ao registrar a chegada, o lote já fica disponível no estoque; compra de pedido interno só é aprovada depois de “Aprovado para compra”.",
+        "Ao registrar a chegada, o lote já fica disponível no estoque; compra de pedido interno é aprovada junto com o pedido, em “Aprovado para compra”.",
       ],
     },
   },

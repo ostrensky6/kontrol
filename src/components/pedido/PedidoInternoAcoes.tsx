@@ -7,6 +7,7 @@ import {
   aprovarCompraFinal,
   cancelarPedidoInterno,
   concluirCompra,
+  confirmarEntregaPedidoInterno,
   decidirCoordenacaoLaboratorio,
   devolverParaCompras,
   devolverParaSolicitante,
@@ -17,6 +18,7 @@ import {
   formalizarPedidoInterno,
   marcarAguardandoPagamentoNf,
   marcarOrcamentosRecebidos,
+  registrarExcecaoPagamento,
   registrarLevantamentoOrcamentos,
   validarInformacoes,
 } from "@/lib/actions/pedidos-internos";
@@ -100,6 +102,8 @@ export function PedidoInternoAcoes({
   motivoSemValidacao,
   aguardandoLaboratorio = false,
   podeDecidirLaboratorio = false,
+  pendenciaPagamento = null,
+  podeConfirmarEntrega = false,
 }: {
   pedidoId: number;
   status: string;
@@ -117,6 +121,10 @@ export function PedidoInternoAcoes({
   /** 0169: material de consumo de laboratório ainda sem a coordenação do laboratório */
   aguardandoLaboratorio?: boolean;
   podeDecidirLaboratorio?: boolean;
+  /** 0170 (D6): o que falta para o pedido seguir ao pagamento; null quando pode */
+  pendenciaPagamento?: string | null;
+  /** 0170: serviço prestado ou entrega a confirmar (quem recebe ou aprova) */
+  podeConfirmarEntrega?: boolean;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -240,8 +248,35 @@ export function PedidoInternoAcoes({
         </>
       )}
 
+      {["aprovado_para_compra", "compra_fechada", "encaminhado_instituicao"].includes(status) && podeConfirmarEntrega && (
+        <Botao pedidoId={pedidoId} action={confirmarEntregaPedidoInterno} label="Confirmar entrega (serviço prestado)" variant="outline">
+          <input
+            name="observacao"
+            aria-label="Observação da entrega (opcional)"
+            placeholder="Observação (opcional)"
+            className="h-8 w-52 rounded-md border border-input bg-card px-2 text-xs"
+          />
+        </Botao>
+      )}
+
       {["compra_fechada", "encaminhado_instituicao"].includes(status) && podeGerir && (
-        <Botao pedidoId={pedidoId} action={marcarAguardandoPagamentoNf} label="Aguardar pagamento/NF" />
+        <Botao
+          pedidoId={pedidoId}
+          action={marcarAguardandoPagamentoNf}
+          label="Aguardar pagamento/NF"
+          disabled={Boolean(pendenciaPagamento)}
+          disabledReason={pendenciaPagamento ?? undefined}
+        />
+      )}
+
+      {["aprovado_para_compra", "compra_fechada", "encaminhado_instituicao"].includes(status) && podeGerir && pendenciaPagamento && (
+        <Botao
+          pedidoId={pedidoId}
+          action={registrarExcecaoPagamento}
+          label="Registrar exceção (pagar antes)"
+          variant="outline"
+          comentarioPlaceholder="Acordo: com quem, o quê e por quê"
+        />
       )}
 
       {status === "aguardando_pagamento_nf" && podeGerir && (

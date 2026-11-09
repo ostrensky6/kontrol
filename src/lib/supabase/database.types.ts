@@ -3111,7 +3111,13 @@ export type Database = {
           data_necessidade: string | null
           data_retorno_instituicao: string | null
           encaminhado_em: string | null
+          entrega_confirmada_em: string | null
+          entrega_confirmada_por: string | null
+          entrega_observacao: string | null
           enviado_validacao_em: string | null
+          excecao_pagamento: string | null
+          excecao_pagamento_em: string | null
+          excecao_pagamento_por: string | null
           fechado_em: string | null
           fonte_recurso: string | null
           formalizado_em: string | null
@@ -3163,7 +3169,13 @@ export type Database = {
           data_necessidade?: string | null
           data_retorno_instituicao?: string | null
           encaminhado_em?: string | null
+          entrega_confirmada_em?: string | null
+          entrega_confirmada_por?: string | null
+          entrega_observacao?: string | null
           enviado_validacao_em?: string | null
+          excecao_pagamento?: string | null
+          excecao_pagamento_em?: string | null
+          excecao_pagamento_por?: string | null
           fechado_em?: string | null
           fonte_recurso?: string | null
           formalizado_em?: string | null
@@ -3215,7 +3227,13 @@ export type Database = {
           data_necessidade?: string | null
           data_retorno_instituicao?: string | null
           encaminhado_em?: string | null
+          entrega_confirmada_em?: string | null
+          entrega_confirmada_por?: string | null
+          entrega_observacao?: string | null
           enviado_validacao_em?: string | null
+          excecao_pagamento?: string | null
+          excecao_pagamento_em?: string | null
+          excecao_pagamento_por?: string | null
           fechado_em?: string | null
           fonte_recurso?: string | null
           formalizado_em?: string | null
@@ -4847,6 +4865,10 @@ export type Database = {
         Args: { p_planejamento_id: number }
         Returns: undefined
       }
+      confirmar_entrega_pedido_interno: {
+        Args: { p_observacao?: string; p_pedido_id: number }
+        Returns: Json
+      }
       concluir_planejamento: {
         Args: { p_planejamento_id: number }
         Returns: undefined
@@ -5083,6 +5105,10 @@ export type Database = {
           valor_catalogo_em: string | null
         }[]
       }
+      pendencia_pagamento_pedido_interno: {
+        Args: { p_pedido_id: number }
+        Returns: string
+      }
       reabrir_revisao_custos_projeto: {
         Args: { p_motivo?: string | null; p_orcamento_projeto_id: number }
         Returns: Json
@@ -5163,6 +5189,10 @@ export type Database = {
           p_validade?: string
         }
         Returns: number
+      }
+      registrar_excecao_pagamento: {
+        Args: { p_justificativa: string; p_pedido_id: number }
+        Returns: Json
       }
       registrar_etapa_pedido_interno: {
         Args: {

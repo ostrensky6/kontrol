@@ -336,8 +336,12 @@ begin
   end;
   perform public.transicionar_pedido_interno(v_pedido, 'aprovado_para_compra', 'aprovacao_final', 'aprovado', null);
 
+  -- 0170 (D7): a compra ligada é aprovada junto com o pedido (caminho único)
+  if (select status from public.pedidos_compra where id = v_compra) <> 'aprovado' then
+    raise exception '0127/0170: compra ligada deveria ser aprovada junto com o pedido';
+  end if;
+
   -- compra aprovada, recebe parte do item A e encerra com pendência
-  perform public.transicionar_pedido_compra(v_compra, 'aprovado', 'ok', null);
   perform public.receber_item_pedido_compra(v_compra,
     (select id from public.pedidos_compra_itens where pedido_interno_item_id = v_item_a),
     gen_random_uuid(), 1, current_date + 300, 'TS-0127-PI', null);
