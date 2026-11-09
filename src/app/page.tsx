@@ -294,7 +294,7 @@ export default async function Home() {
   const indicadores: Array<{ href: string; label: string; value: React.ReactNode; detail: string; tone: Tone }> = [];
   if (verSuprimentos) {
     indicadores.push({
-      href: verCompras ? "/suprimentos#compras" : "/estoque/controle",
+      href: verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras",
       label: "Comprar agora",
       value: comprarAgora.length,
       detail: "insumos com compra sugerida pela previsão",
@@ -459,7 +459,7 @@ export default async function Home() {
         {verSuprimentos && (
           <ListaProblemas
             titulo="Prioridade de compra"
-            href={verCompras ? "/suprimentos#compras" : "/estoque/controle"}
+            href={verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras"}
             vazio="Nenhum insumo com compra sugerida pela previsão."
             itens={comprarAgora.slice(0, 5)}
           />

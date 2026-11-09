@@ -1,7 +1,5 @@
-import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { LeituraEstoquePanel, type ModoLeitura } from "@/components/estoque/LeituraEstoquePanel";
 
@@ -30,8 +28,7 @@ export default async function LeituraEstoquePage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Estoque", href: "/estoque" }, { label: "Entrada e saída por leitura" }]} />
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Entrada e saída por leitura</h1>
             <HelpTip title="Leitura de código de barras">
@@ -51,17 +48,6 @@ export default async function LeituraEstoquePage({
               <HelpExample>Leu a caixa de ponteiras: “Abrir 1 embalagem do lote LEIT-…” e confirmar.</HelpExample>
             </HelpTip>
           </div>
-          <nav aria-label="Atalhos" className="flex flex-wrap gap-2 text-xs">
-            <Link href="/estoque/controle" className="rounded-md border border-input px-3 py-1.5 hover:bg-muted">
-              Controle de Estoque
-            </Link>
-            <Link href="/estoque/inventario" className="rounded-md border border-input px-3 py-1.5 hover:bg-muted">
-              Inventário
-            </Link>
-            <Link href="/scanner/triagem" className="rounded-md border border-input px-3 py-1.5 hover:bg-muted">
-              Códigos não reconhecidos
-            </Link>
-          </nav>
         </div>
 
         <div className="mt-6">

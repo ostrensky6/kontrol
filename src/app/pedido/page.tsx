@@ -1,7 +1,10 @@
 import { cicloLiberaEm, dataEmBrasilia, rotuloCiclo, rotuloData } from "@/lib/pedido/ciclo";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import { PedidosInternosTable, type PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
+import Link from "next/link";
+import type { PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
+import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
+import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
 import { NovoPedidoDialog } from "@/components/pedido/NovoPedidoDialog";
 import { PEDIDO_INTERNO_AGUARDANDO_LABORATORIO, pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
@@ -101,13 +104,14 @@ function pendenciasPedido(row: PedidoInternoListRow) {
   return pendencias.length ? pendencias.join(", ") : "—";
 }
 
-function recebimentoPendente(valor: string) {
-  if (valor === "—") return false;
-  const [recebidos, total] = valor.split("/").map((parte) => Number(parte));
-  return Number.isFinite(recebidos) && Number.isFinite(total) && total > 0 && recebidos < total;
-}
-
-export default async function PedidoPage() {
+export default async function PedidoPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[] }>;
+}) {
+  const query = await searchParams;
+  const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
+  const abrirNovo = query.novo === "1";
   const supabase = await createClientUntyped();
   const [pedidosFull, projetosFull, podeExcluir, areas] = await Promise.all([
     supabase
@@ -155,7 +159,7 @@ export default async function PedidoPage() {
     const proxima = status === PEDIDO_INTERNO_AGUARDANDO_LABORATORIO
       ? { acao: "Aprovar pelo laboratório", responsavel: "Coordenação do laboratório" }
       : cicloTravadoAte
-        ? { acao: `Aguardar o ciclo (abre ${rotuloData(cicloTravadoAte)})`, responsavel: "Coordenador/Compras" }
+        ? { acao: "Aguardar o ciclo abrir", responsavel: `Compras/Admin., a partir de ${rotuloData(cicloTravadoAte)}` }
         : proximaAcao(pedido.status);
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
@@ -174,6 +178,7 @@ export default async function PedidoPage() {
       total: brl(total),
       status: pedido.status,
       statusLabel: status.label,
+      etapa: etapaDoPedido(pedido),
       proximaAcao: proxima.acao,
       responsavelAtual: proxima.responsavel,
       documentos: docsCotacao ? "ok" : "pendente",
@@ -185,70 +190,37 @@ export default async function PedidoPage() {
     };
   });
 
-  const abertos = rows.filter((row) => !["cancelado", "compra_concluida"].includes(row.status));
-  const aguardandoCoordenador = rows.filter((row) => row.status === "em_validacao");
-  const cotacao = rows.filter((row) => ["aprovado_compra", "orcamentos", "orcamentos_recebidos"].includes(row.status));
-  const recebimento = rows.filter((row) => recebimentoPendente(row.recebimento));
-  const pendentes = rows.filter((row) => row.pendencias !== "—");
-
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight">Pedido</h1>
-            <HelpTip title="Pedido interno">
-              <p>
-                Solicitação de materiais, serviços ou equipamentos feita pela equipe do GATGF. Passa
-                pela <b>validação do coordenador</b>, pela análise administrativa e pela cotação antes
-                de virar compra formal.
-              </p>
-              <p>Abra um pedido para ver em que etapa ele está e qual é a próxima ação.</p>
-            </HelpTip>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold tracking-tight">Pedidos</h1>
+              <HelpTip title="Pedidos">
+                <p>
+                  Todo pedido do laboratório ou do campo passa pelas mesmas seis etapas: solicitação,
+                  aprovação, administrativo, cotação, compra e entrega, e pagamento.
+                </p>
+                <p>
+                  Clique numa etapa para ver só os pedidos dela. A coluna <b>Próximo passo</b> diz o que
+                  falta e com quem está. Abra o pedido para ver o histórico e agir.
+                </p>
+              </HelpTip>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">O que foi pedido e em que etapa cada pedido está.</p>
+            <nav aria-label="Compras e prazos" className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
+              <Link href="/compras" className="font-medium text-primary hover:underline">Compras formais</Link>
+              <Link href="/suprimentos/prazos" className="font-medium text-primary hover:underline">Prazos de compra</Link>
+            </nav>
           </div>
-          <div className="flex items-center gap-2">
-            <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} />
-          </div>
+          <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} abrirAoCarregar={abrirNovo} />
         </div>
-
-        <section className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <Kpi label="Abertos" value={abertos.length} detail="em qualquer etapa ativa" tone={abertos.length ? "info" : "neutral"} />
-          <Kpi label="Aguardando coordenador" value={aguardandoCoordenador.length} detail="validação técnica" tone={aguardandoCoordenador.length ? "warning" : "neutral"} />
-          <Kpi label="Em cotação" value={cotacao.length} detail="cotações" tone={cotacao.length ? "info" : "neutral"} />
-          <Kpi label="Com pendências" value={pendentes.length} detail="faltam dados/documentos" tone={pendentes.length ? "warning" : "neutral"} />
-          <Kpi label="Aguardando recebimento" value={recebimento.length} detail="itens ainda não recebidos" tone={recebimento.length ? "success" : "neutral"} />
-        </section>
 
         <div className="mt-6">
-          <PedidosInternosTable rows={rows} podeExcluir={podeExcluir} />
+          <PedidosPorEtapa key={filtroEtapa} rows={rows} podeExcluir={podeExcluir} filtroInicial={filtroEtapa} />
         </div>
       </main>
-    </div>
-  );
-}
-
-function Kpi({
-  label,
-  value,
-  detail,
-  tone,
-}: {
-  label: string;
-  value: number;
-  detail: string;
-  tone: "neutral" | "info" | "warning" | "success";
-}) {
-  const toneClass = {
-    neutral: "text-foreground",
-    info: "text-info-strong",
-    warning: "text-warning-strong",
-    success: "text-leaf-700 dark:text-leaf-300",
-  }[tone];
-  return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="text-xs font-medium text-muted-foreground">{label}</p>
-      <p className={`mt-2 text-2xl font-semibold tabular-nums ${toneClass}`}>{value}</p>
-      <p className="mt-1 text-xs text-muted-foreground">{detail}</p>
     </div>
   );
 }

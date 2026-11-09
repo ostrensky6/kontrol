@@ -31,13 +31,22 @@ export type AreaOption = { id: number; nome: string; coordenador_nome?: string |
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm";
 
-export function NovoPedidoDialog({ projetos, areas = [] }: { projetos: ProjetoOption[]; areas?: AreaOption[] }) {
+export function NovoPedidoDialog({
+  projetos,
+  areas = [],
+  abrirAoCarregar = false,
+}: {
+  projetos: ProjetoOption[];
+  areas?: AreaOption[];
+  /** abre o formulário ao chegar pelo botão "Novo pedido" da visão geral (/pedido?novo=1) */
+  abrirAoCarregar?: boolean;
+}) {
   const [natureza, setNatureza] = useState("");
   const [urgencia, setUrgencia] = useState("normal");
   const urgente = ehUrgente(urgencia);
   const exigeLaboratorio = natureza === "material_consumo_lab";
   return (
-    <Dialog>
+    <Dialog defaultOpen={abrirAoCarregar}>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />

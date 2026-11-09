@@ -85,7 +85,7 @@ export default async function PrazosCompraPage() {
 
   return (
     <main id="conteudo-principal" className="mx-auto max-w-5xl px-4 py-6">
-      <Breadcrumbs items={[{ label: "Suprimentos", href: "/suprimentos" }, { label: "Prazos de compra" }]} />
+      <Breadcrumbs items={[{ label: "Pedidos", href: "/pedido" }, { label: "Prazos de compra" }]} />
       <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
         Prazos de compra
         <HelpTip title="Como o prazo é medido">

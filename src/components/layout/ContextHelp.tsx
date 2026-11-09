@@ -80,6 +80,30 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path === "/suprimentos",
+    content: {
+      title: "Suprimentos",
+      description: "O que temos em estoque e o que precisa de atenção. Cada assunto tem um lugar só na barra de cima.",
+      checks: [
+        "A tabela Estoque disponível mostra, por insumo, o que dá para usar, o reservado, o que está a caminho e a validade mais próxima.",
+        "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia.",
+        "Entradas, baixas e lotes ficam em Estoque; o andamento de cada pedido, em Pedidos.",
+      ],
+    },
+  },
+  {
+    match: (path) => path === "/pedido",
+    content: {
+      title: "Pedidos",
+      description: "O que foi pedido e em que etapa cada pedido está, da solicitação ao pagamento.",
+      checks: [
+        "Clique numa etapa para ver só os pedidos dela; Em andamento, Concluídos, Cancelados e Todos trocam o conjunto.",
+        "A barra de cada linha mostra as etapas cumpridas (verde) e a atual (amarelo).",
+        "Próximo passo diz o que falta e com quem está. Abra o pedido para agir.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/compras") || path.startsWith("/recebimento") || path.startsWith("/pedido"),
     content: {
       title: "Compras",

@@ -18,7 +18,10 @@ const ACESSO_POR_ROTA: Array<[prefixo: string, chave: PermissaoUsuario, area: st
   ["/planejamento", "planejamento.ver", "Planejamento"],
   ["/pedido", "pedido.ver", "Pedidos internos"],
   ["/compras", "compras.ver", "Compras"],
-  ["/suprimentos", "compras.ver", "Suprimentos"],
+  // a visão geral mostra o estoque (leitura aberta do estoque, decisão de 08/11);
+  // prazos de compra continuam de quem vê compras
+  ["/suprimentos", "estoque.ver", "Suprimentos"],
+  ["/suprimentos/prazos", "compras.ver", "Prazos de compra"],
   ["/recebimento", "recebimento.ver", "Recebimento"],
   ["/orcamento/fundos", "orcamentos.fundos", "Fundos e taxas"],
   ["/orcamento/modelos", "orcamentos.modelos", "Modelos e catálogos"],

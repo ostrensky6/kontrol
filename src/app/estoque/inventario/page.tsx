@@ -2,7 +2,6 @@ import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { criarCicloInventario, fecharCicloInventario } from "@/lib/actions/inventario";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { formatDate, formatNumber } from "@/lib/formatters";
@@ -182,8 +181,7 @@ export default async function InventarioPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Estoque", href: "/estoque" }, { label: "Inventário" }]} />
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-4">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Inventário cíclico</h1>

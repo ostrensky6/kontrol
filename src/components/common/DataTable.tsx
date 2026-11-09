@@ -66,6 +66,8 @@ type DataTableProps<TData> = {
   /** torna o título do cartão do celular um link */
   getMobileHref?: (row: TData) => string | null | undefined;
   pageSize?: number;
+  /** colunas que existem para busca e filtros, mas não aparecem na tabela */
+  colunasOcultas?: string[];
 };
 
 const DENSITY_STORAGE_KEY = "kontrol:datatable:density";
@@ -110,6 +112,7 @@ export function DataTable<TData>({
   getMobileActions,
   getMobileHref,
   pageSize = 25,
+  colunasOcultas,
 }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -166,7 +169,10 @@ export function DataTable<TData>({
     getFilteredRowModel: getFilteredRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    initialState: { pagination: { pageSize } },
+    initialState: {
+      pagination: { pageSize },
+      columnVisibility: Object.fromEntries((colunasOcultas ?? []).map((id) => [id, false])),
+    },
   });
 
   // Busca e filtros sobrevivem ao recarregar a página (guardados na aba).
