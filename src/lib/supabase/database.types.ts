@@ -1345,6 +1345,7 @@ export type Database = {
           codigo_fabricante: string | null
           codigo_interno: string | null
           condicao_armazenamento: string | null
+          controlado: boolean
           custo_total_embalagem: number | null
           custo_unitario: number | null
           data_aquisicao: string | null
@@ -1357,6 +1358,7 @@ export type Database = {
           fornecedor_alt_id: number | null
           fornecedor_id: number | null
           id: number
+          laboratorio_id: number | null
           lead_time_dias: number | null
           nome_item: string | null
           ponto_reposicao: number
@@ -1377,6 +1379,7 @@ export type Database = {
           codigo_fabricante?: string | null
           codigo_interno?: string | null
           condicao_armazenamento?: string | null
+          controlado?: boolean
           custo_total_embalagem?: number | null
           custo_unitario?: number | null
           data_aquisicao?: string | null
@@ -1389,6 +1392,7 @@ export type Database = {
           fornecedor_alt_id?: number | null
           fornecedor_id?: number | null
           id?: never
+          laboratorio_id?: number | null
           lead_time_dias?: number | null
           nome_item?: string | null
           ponto_reposicao?: number
@@ -1409,6 +1413,7 @@ export type Database = {
           codigo_fabricante?: string | null
           codigo_interno?: string | null
           condicao_armazenamento?: string | null
+          controlado?: boolean
           custo_total_embalagem?: number | null
           custo_unitario?: number | null
           data_aquisicao?: string | null
@@ -1421,6 +1426,7 @@ export type Database = {
           fornecedor_alt_id?: number | null
           fornecedor_id?: number | null
           id?: never
+          laboratorio_id?: number | null
           lead_time_dias?: number | null
           nome_item?: string | null
           ponto_reposicao?: number
@@ -4088,6 +4094,54 @@ export type Database = {
             referencedColumns: ["planejamento_id"]
           },
         ]
+      }
+      previsao_equipamentos: {
+        Row: {
+          atualizado_em: string
+          criado_em: string
+          id: number
+          justificativa: string | null
+          laboratorio_id: number | null
+          nome: string
+          observacoes: string | null
+          patrimonio_de: string | null
+          pedido_interno_id: number | null
+          prioridade: number
+          quantidade: number
+          situacao: string
+          valor_estimado: number | null
+        }
+        Insert: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: never
+          justificativa?: string | null
+          laboratorio_id?: number | null
+          nome: string
+          observacoes?: string | null
+          patrimonio_de?: string | null
+          pedido_interno_id?: number | null
+          prioridade?: number
+          quantidade?: number
+          situacao?: string
+          valor_estimado?: number | null
+        }
+        Update: {
+          atualizado_em?: string
+          criado_em?: string
+          id?: never
+          justificativa?: string | null
+          laboratorio_id?: number | null
+          nome?: string
+          observacoes?: string | null
+          patrimonio_de?: string | null
+          pedido_interno_id?: number | null
+          prioridade?: number
+          quantidade?: number
+          situacao?: string
+          valor_estimado?: number | null
+        }
+        Relationships: []
       }
       projetos: {
         Row: {

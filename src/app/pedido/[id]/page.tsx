@@ -39,6 +39,7 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { statusInfo } from "@/components/app/status";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
 import { listarEventos } from "@/lib/actions/eventos";
 import {
   PEDIDO_INTERNO_ETAPA_RECEBIDA,
@@ -78,7 +79,7 @@ type PedidoInternoItem = {
   recebido_em: string | null;
   recebido_por: string | null;
   lote_id: number | null;
-  insumos: { especificacao: string | null; unidade: string | null } | null;
+  insumos: { especificacao: string | null; unidade: string | null; controlado?: boolean | null } | null;
   pedidos_internos_item_recebimentos?: PedidoInternoItemRecebimento[] | null;
 };
 
@@ -386,7 +387,7 @@ export default async function PedidoInternoDetalhe({
   ] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
-      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
+      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade, controlado), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
       .eq("pedido_interno_id", pedidoId)
       .order("id"),
     supabase
@@ -465,6 +466,9 @@ export default async function PedidoInternoDetalhe({
     outra: "Outra",
   };
   const linhas = ((itens ?? []) as unknown as PedidoInternoItem[]) ?? [];
+  // D9 (0174): controlado só pela FUNPAR (o banco também trava)
+  const controlados = itensControlados(linhas);
+  const avisoControlado = avisoControlados(controlados);
   const podeConfirmar =
     (podeRegistrarRecebimento || podeGerir) && podeConfirmarEntrega(pedido, linhas);
   // Antes da compra, aponta outra marca do mesmo tipo técnico que já tem saldo (item 8).
@@ -600,6 +604,11 @@ export default async function PedidoInternoDetalhe({
             {ehUrgente(pedido.urgencia) && pedido.urgencia_justificativa && (
               <p className="mt-1 max-w-3xl text-sm text-warning-strong">
                 <span aria-hidden="true">! </span>Urgente: {pedido.urgencia_justificativa}
+              </p>
+            )}
+            {avisoControlado && (
+              <p className="mt-1 max-w-3xl text-sm text-warning-strong" data-testid="controlado-funpar">
+                <span aria-hidden="true">! </span>{avisoControlado}
               </p>
             )}
             <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
@@ -917,6 +926,7 @@ export default async function PedidoInternoDetalhe({
                   podeConfirmarEntrega={podeConfirmar}
                   motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
                   motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
+                  controlado={controlados.length > 0}
                 />
               )}
               {pendenciaPagamento && (
@@ -975,7 +985,15 @@ export default async function PedidoInternoDetalhe({
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
-                  <input name="fonte_recurso" required defaultValue={pedido.fonte_recurso ?? ""} className={`${inputCls} mt-1 w-full`} />
+                  <input
+                    name="fonte_recurso"
+                    required
+                    defaultValue={pedido.fonte_recurso ?? (controlados.length > 0 ? "FUNPAR" : "")}
+                    className={`${inputCls} mt-1 w-full`}
+                  />
+                  {controlados.length > 0 && (
+                    <p className="mt-1 text-xs text-warning-strong">Produto controlado: a fonte tem que ser a FUNPAR.</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-muted-foreground">Rubrica</label>

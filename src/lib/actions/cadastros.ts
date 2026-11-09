@@ -153,6 +153,28 @@ const tecnicosSchema = z.object({
 const tecnicosSemSalarioSchema = tecnicosSchema.omit({ valor_mes: true });
 
 const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
+  // 0174: previsão de equipamentos (aba EQ da planilha)
+  previsao_equipamentos: z.object({
+    nome: reqStr,
+    laboratorio_id: optNum({ min: 0 }),
+    prioridade: z.preprocess(
+      (v) => (v === "" || v == null ? 2 : Number(v)),
+      z.number().int().min(1, "Prioridade de 1 a 3").max(3, "Prioridade de 1 a 3"),
+    ),
+    quantidade: z.preprocess(
+      (v) => (v === "" || v == null ? 1 : Number(v)),
+      z.number().int("Quantidade inteira").min(1, "Quantidade maior que zero"),
+    ),
+    valor_estimado: optNum({ min: 0 }),
+    justificativa: optStr,
+    patrimonio_de: optStr,
+    situacao: z.preprocess(
+      (v) => (v === "" || v == null ? "previsto" : v),
+      z.enum(["previsto", "pedido", "comprado", "descartado"]),
+    ),
+    pedido_interno_id: optNum({ min: 1 }),
+    observacoes: optStr,
+  }),
   // 0173: responsáveis do administrativo e do pagamento (linhas fixas; só edição)
   responsaveis: z
     .object({
@@ -271,6 +293,14 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
       condicao_armazenamento: optStr,
       validade_apos_abertura_dias: optNum({ min: 0 }),
       sds_url: optStr,
+      // 0168: sinônimos (antes eram descartados aqui e não gravavam)
+      sinonimos: optStr,
+      // 0174: produto controlado (só pela FUNPAR) e laboratório dono
+      controlado: z.preprocess(
+        (v) => (v === undefined || v === null || v === "" ? undefined : ["on", "true", "sim", "1"].includes(String(v).trim().toLowerCase()) || v === true),
+        z.boolean().optional(),
+      ),
+      laboratorio_id: optNum({ min: 0 }),
     })
     .transform((d) => ({
       ...d,
@@ -328,6 +358,7 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
 const TABELAS: Record<string, string> = {
   coordenacoes: "coordenacoes_area",
   responsaveis: "responsaveis_compras",
+  previsao_equipamentos: "previsao_equipamentos",
   clientes: "clientes",
   projetos: "projetos",
   equipamentos: "equipamentos",
@@ -625,6 +656,15 @@ function payloadEdicao(
   return payload;
 }
 
+/** Campos do insumo fora da lista fechada da RPC de criação (gravados logo depois). */
+function camposExtrasInsumo(dados: Record<string, unknown>): Record<string, unknown> | null {
+  const extras: Record<string, unknown> = {};
+  if (typeof dados.sinonimos === "string" && dados.sinonimos.trim()) extras.sinonimos = dados.sinonimos.trim().slice(0, 1000);
+  if (dados.controlado === true) extras.controlado = true;
+  if (typeof dados.laboratorio_id === "number" && dados.laboratorio_id > 0) extras.laboratorio_id = dados.laboratorio_id;
+  return Object.keys(extras).length > 0 ? extras : null;
+}
+
 function semIndefinidos(dados: Record<string, unknown>) {
   return Object.fromEntries(Object.entries(dados).filter(([, valor]) => valor !== undefined));
 }
@@ -667,7 +707,10 @@ export async function salvarRegistro(
   if (!SCHEMAS[slug] || !tabela) return { ok: false, message: "Cadastro inválido." };
 
   // checkbox ausente não vem no FormData
-  const { schema, obj } = schemaEObjeto(slug, aplicarPadroesCadastro(slug, formToObject(formData)), {
+  const objFormulario = aplicarPadroesCadastro(slug, formToObject(formData));
+  // checkbox desmarcado não vem no formulário (na planilha, coluna ausente não muda nada)
+  if (slug === "insumos" && !("controlado" in objFormulario)) objFormulario.controlado = "false";
+  const { schema, obj } = schemaEObjeto(slug, objFormulario, {
     podeVerSalario: slug === "tecnicos" ? await podeVerSalario() : false,
     contexto: "formulario",
   });
@@ -759,16 +802,17 @@ export async function salvarRegistro(
       codigosBarras && codigosBarras.codigos.length > 0
         ? await gravarCodigosBarras(supabase, createdId, codigosBarras.codigos, false)
         : null;
-    // Sinônimos (0168) não estão na lista fechada da RPC de criação: gravam logo depois.
-    const sinonimos = typeof payload.sinonimos === "string" ? payload.sinonimos.trim() : "";
-    const erroSinonimos = sinonimos
-      ? (await supabase.from("insumos").update({ sinonimos: sinonimos.slice(0, 1000) }).eq("id", createdId)).error
+    // Sinônimos (0168), controlado e laboratório (0174) não estão na lista
+    // fechada da RPC de criação: gravam logo depois.
+    const extras = camposExtrasInsumo(payload);
+    const erroSinonimos = extras
+      ? (await supabase.from("insumos").update(extras).eq("id", createdId)).error
       : null;
 
     revalidarDependentes(slug);
     return {
       ok: true,
-      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}${erroSinonimos ? " Os sinônimos não foram gravados; edite o insumo para incluí-los." : ""}`,
+      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}${erroSinonimos ? " Sinônimos, controlado ou laboratório não foram gravados; edite o insumo para incluí-los." : ""}`,
       createdId,
     };
   }
@@ -1113,7 +1157,14 @@ async function importarCadastro(
       }
       if (naturalKey) naturaisImportados.add(naturalKey);
       const novoId = Number((data as { insumo_id?: number } | null)?.insumo_id);
-      if (Number.isSafeInteger(novoId) && novoId > 0) await vincularCodigosDaLinha(novoId, linha);
+      if (Number.isSafeInteger(novoId) && novoId > 0) {
+        await vincularCodigosDaLinha(novoId, linha);
+        const extras = camposExtrasInsumo(parsed.data);
+        if (extras) {
+          const { error: erroExtras } = await supabase.from("insumos").update(extras).eq("id", novoId);
+          if (erroExtras) resumo.avisos.push(`Linha ${linha.excelRow}: sinônimos, controlado ou laboratório não gravados (${mensagemRecusa(erroExtras)}).`);
+        }
+      }
       if ((data as { repetido?: boolean } | null)?.repetido) {
         resumo.inalterados += 1;
         resumo.avisos.push(

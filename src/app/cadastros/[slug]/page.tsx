@@ -32,7 +32,7 @@ import { lerTudo } from "@/lib/supabase/ler-tudo";
 export const dynamic = "force-dynamic";
 
 /** Tabelas com coluna `ativo`: inativos só aparecem no seletor como valor atual. */
-const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "insumos"]);
+const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "insumos", "coordenacoes_area"]);
 
 /** Permissão que libera criar, editar e excluir em cada cadastro (mesma do RLS, 0108/0124). */
 const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {
@@ -42,6 +42,16 @@ const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {
   coordenacoes: "usuarios.gerenciar",
   // 0173: quem recebe os avisos do administrativo e do pagamento, idem
   responsaveis: "usuarios.gerenciar",
+  // 0174: previsão de equipamentos (mesma permissão do RLS)
+  previsao_equipamentos: "pedido.aprovar",
+};
+
+const PRIORIDADES: Record<string, string> = { "1": "1 · Alta", "2": "2 · Média", "3": "3 · Baixa" };
+const SITUACOES_PREVISAO: Record<string, string> = {
+  previsto: "Previsto",
+  pedido: "Pedido aberto",
+  comprado: "Comprado",
+  descartado: "Descartado",
 };
 
 const ETAPAS_RESPONSAVEIS: Record<string, string> = {
@@ -308,6 +318,22 @@ export default async function CadastroPage({
       ...r,
       coordenador_nome: r.coordenador_id != null ? nomePorId.get(String(r.coordenador_id)) ?? "—" : "Sem coordenador: o pedido trava",
       substituto_nome: r.substituto_id != null ? nomePorId.get(String(r.substituto_id)) ?? "—" : "—",
+    }));
+  }
+
+  // laboratório dono (insumos) e previsão de equipamentos (0174)
+  if (slug === "insumos" || slug === "previsao_equipamentos") {
+    const laboratorios = opcoesPorFonte["coordenacoes_area"] ?? [];
+    const nomePorId = new Map(laboratorios.map((o) => [o.value, o.label]));
+    linhas = linhas.map((r) => ({
+      ...r,
+      laboratorio_nome: r.laboratorio_id != null ? nomePorId.get(String(r.laboratorio_id)) ?? "—" : "—",
+      ...(slug === "previsao_equipamentos"
+        ? {
+            prioridade_nome: PRIORIDADES[String(r.prioridade)] ?? String(r.prioridade ?? "—"),
+            situacao_nome: SITUACOES_PREVISAO[String(r.situacao)] ?? String(r.situacao ?? "—"),
+          }
+        : {}),
     }));
   }
 

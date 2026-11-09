@@ -106,6 +106,7 @@ export function PedidoInternoAcoes({
   podeConfirmarEntrega = false,
   motivoSemCotacoesRecebidas = null,
   motivoSemAprovacaoFinal = null,
+  controlado = false,
 }: {
   pedidoId: number;
   status: string;
@@ -130,6 +131,8 @@ export function PedidoInternoAcoes({
   /** 0171 (D2): o que falta nos 3 orçamentos; null quando pode seguir */
   motivoSemCotacoesRecebidas?: string | null;
   motivoSemAprovacaoFinal?: string | null;
+  /** 0174 (D9): pedido com produto controlado: só pela FUNPAR, sem compra direta */
+  controlado?: boolean;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -241,7 +244,13 @@ export function PedidoInternoAcoes({
 
       {status === "aprovado_para_compra" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={fecharComFornecedor} label="Fechar com fornecedor" />
+          <Botao
+            pedidoId={pedidoId}
+            action={fecharComFornecedor}
+            label="Fechar com fornecedor"
+            disabled={controlado}
+            disabledReason={controlado ? "Produto controlado: não pode ser compra direta. Encaminhe à FUNPAR." : undefined}
+          />
           <Botao pedidoId={pedidoId} action={encaminharInstituicao} label="Encaminhar à instituição" variant="outline">
             <div className="grid w-72 gap-2">
               <select name="modalidade_compra" defaultValue="fundacao" className="h-8 rounded-md border border-input bg-card px-2 text-xs">
@@ -252,6 +261,7 @@ export function PedidoInternoAcoes({
               <input
                 name="instituicao_destino"
                 required
+                defaultValue={controlado ? "FUNPAR" : undefined}
                 placeholder="Instituição de destino"
                 className="h-8 rounded-md border border-input bg-card px-2 text-xs"
               />
