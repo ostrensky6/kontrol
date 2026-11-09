@@ -13,7 +13,7 @@ vi.mock("@/lib/supabase/server", () => ({
     from: () => {
       const query = {
         select: () => query, eq: () => query, order: () => query,
-        not: () => query, limit: () => query, neq: () => query, gt: () => query,
+        not: () => query, limit: () => query, neq: () => query, gt: () => query, range: () => query,
         single: async () => ({ data: contexto.pedido }),
         then: (resolve: (value: unknown) => unknown) => resolve({ data: [] }),
       };

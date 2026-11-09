@@ -336,6 +336,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Em 'Materiais e serviços', use 'Adicionar item' para incluir cada material/serviço (especificação, modelo, volume, quantidade e orçamento prévio).",
           "Cada item tem 'Editar' (abre um formulário preenchido) e 'Remover'.",
           "Antes da compra, o item mostra 'Já há no estoque, mesmo tipo' quando outra marca ou apresentação do mesmo tipo técnico tem saldo. Vale conferir antes de comprar.",
+          "Ao escolher um insumo existente, o pedido mostra o disponível, o reservado para planos, o que já está pedido e a caminho (com atraso, se houver) e onde o insumo está guardado. Confira antes de pedir de novo.",
           "Itens ficam livres para alteração em rascunho/ajuste; coordenador ou superior também pode alterá-los nas demais etapas, exceto quando o pedido está cancelado ou concluído.",
           "No topo do pedido, 'Editar' altera os dados gerais e 'Excluir' apaga o pedido inteiro (apenas coordenador+).",
         ],
@@ -366,6 +367,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Conduzir o ciclo de compra: solicitação → aprovação → envio → recebimento.",
           "Centralizar pedidos formais, inclusive os gerados por reposição automática.",
           "Registrar a entrada de itens, que já ficam disponíveis no Estoque.",
+          "No Painel de insumos, o quadro 'A caminho' lista as compras feitas e não recebidas: quanto foi pedido, recebido e falta receber, a previsão (informada na compra ou estimada pelo prazo) e os atrasos.",
         ],
       },
       {
