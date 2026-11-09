@@ -104,6 +104,8 @@ export function PedidoInternoAcoes({
   podeDecidirLaboratorio = false,
   pendenciaPagamento = null,
   podeConfirmarEntrega = false,
+  motivoSemCotacoesRecebidas = null,
+  motivoSemAprovacaoFinal = null,
 }: {
   pedidoId: number;
   status: string;
@@ -125,6 +127,9 @@ export function PedidoInternoAcoes({
   pendenciaPagamento?: string | null;
   /** 0170: serviço prestado ou entrega a confirmar (quem recebe ou aprova) */
   podeConfirmarEntrega?: boolean;
+  /** 0171 (D2): o que falta nos 3 orçamentos; null quando pode seguir */
+  motivoSemCotacoesRecebidas?: string | null;
+  motivoSemAprovacaoFinal?: string | null;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -210,12 +215,24 @@ export function PedidoInternoAcoes({
 
       {status === "orcamentos" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={marcarOrcamentosRecebidos} label="Marcar cotações recebidas" />
+          <Botao
+            pedidoId={pedidoId}
+            action={marcarOrcamentosRecebidos}
+            label="Marcar cotações recebidas"
+            disabled={Boolean(motivoSemCotacoesRecebidas)}
+            disabledReason={motivoSemCotacoesRecebidas ?? undefined}
+          />
         </>
       )}
 
       {status === "orcamentos_recebidos" && podeGerir && (
-        <Botao pedidoId={pedidoId} action={enviarAprovacaoFinal} label="Enviar para aprovação final" />
+        <Botao
+          pedidoId={pedidoId}
+          action={enviarAprovacaoFinal}
+          label="Enviar para aprovação final"
+          disabled={Boolean(motivoSemAprovacaoFinal)}
+          disabledReason={motivoSemAprovacaoFinal ?? undefined}
+        />
       )}
 
       {status === "aguardando_aprovacao_final" && podeGerir && (

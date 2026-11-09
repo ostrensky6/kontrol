@@ -327,7 +327,12 @@ begin
     '{"fonte_recurso": "Projeto X", "rubrica": "Material", "conformidade_admin": "ok"}');
   perform public.transicionar_pedido_interno(v_pedido, 'aprovado_compra', 'analise', 'aprovado', null);
   perform public.transicionar_pedido_interno(v_pedido, 'orcamentos', 'cotacao', 'registrado', null);
+  -- 0171 (D2): três orçamentos de fornecedores diferentes e um escolhido
+  insert into public.pedidos_internos_cotacoes (pedido_interno_id, fornecedor_nome, valor_total)
+  values (v_pedido, 'TS-0127 Loja A', 30), (v_pedido, 'TS-0127 Loja B', 32), (v_pedido, 'TS-0127 Loja C', 35);
   perform public.transicionar_pedido_interno(v_pedido, 'orcamentos_recebidos', 'cotacao', 'registrado', null);
+  perform public.escolher_orcamento_pedido_interno(
+    (select id from public.pedidos_internos_cotacoes where pedido_interno_id = v_pedido and fornecedor_nome = 'TS-0127 Loja A'), null);
   perform public.transicionar_pedido_interno(v_pedido, 'aguardando_aprovacao_final', 'cotacao', 'registrado', null);
   begin
     perform public.transicionar_pedido_compra(v_compra, 'aprovado', 'ok', null);

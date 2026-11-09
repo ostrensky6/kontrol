@@ -350,6 +350,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Só o coordenador do projeto valida; sem projeto, a Supervisão. Na ausência, o Administrador valida como substituto e fica registrado.",
           "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
           "Após validado (e aprovado pelo laboratório, quando for o caso), formalize em Compras para gerar o pedido formal.",
+          "Toda compra tem 3 orçamentos de fornecedores diferentes (inclusive FUNPAR e Petrobras). Registre cada um no quadro 'Orçamentos' do pedido, com valor, prazo e o documento anexado. 'Marcar cotações recebidas' só libera com os 3.",
+          "Antes da aprovação final, escolha um orçamento. Se não for o de menor valor, escreva a justificativa (prazo, qualidade, exclusividade). Quem escolheu, quando e por quê ficam registrados, e o fornecedor escolhido vai para a compra.",
           "Caminho único: a compra formal ligada ao pedido é aprovada junto com ele, quando o pedido chega a 'Aprovado para compra'. Não há segunda aprovação em Compras.",
           "Pagamento só depois da entrega: materiais e equipamentos precisam ter a chegada registrada; serviço precisa de 'Confirmar entrega (serviço prestado)'. Diária é paga antes da viagem.",
           "Pagar antes da entrega só com acordo específico: 'Registrar exceção (pagar antes)' pede o acordo por escrito (com quem, o quê e por quê) e fica registrado com quem e quando.",
@@ -357,7 +359,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção"],
+    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor"],
   },
   {
     id: "compras",
