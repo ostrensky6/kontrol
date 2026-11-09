@@ -360,8 +360,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Acompanhe documentos, comunicações, aprovações e a linha do tempo dentro do pedido.",
         ],
       },
+      {
+        titulo: "Produtos controlados (clorofórmio, acetona)",
+        itens: [
+          "A ATGC não tem licença para comprar produto controlado. A compra só sai pela FUNPAR, em projeto com recurso na fundação.",
+          "O pedido mostra a faixa 'Produto controlado' quando algum item é controlado: o insumo marcado em Cadastros > Insumos ou, sem insumo escolhido, um item com clorofórmio ou acetona no nome.",
+          "Pedido com controlado precisa de projeto. Na autorização administrativa a fonte do recurso tem que ser a FUNPAR (o campo já vem preenchido).",
+          "Não pode ser compra direta: 'Fechar com fornecedor' fica bloqueado. Use 'Encaminhar à instituição', com destino FUNPAR.",
+          "Compra avulsa (em Compras, sem pedido) com item controlado não é aprovada. Faça pelo Pedido e cancele a compra avulsa.",
+        ],
+      },
     ],
-    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência"],
+    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência", "controlado", "clorofórmio", "acetona", "funpar"],
   },
   {
     id: "compras",
@@ -627,6 +637,22 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Laboratório dono, almoxarifados e controlados",
+        itens: [
+          "O estoque é um só. Na ficha do insumo, 'Laboratório dono' diz de qual laboratório ele é, e 'Local' diz onde está guardado (laboratório, Almoxarifado geral ou Almoxarifado do LGA).",
+          "Marque 'Produto controlado (só pela FUNPAR)' nos insumos que exigem licença, como clorofórmio e acetona. O pedido de compra com esse insumo só segue pela FUNPAR.",
+          "Os locais ficam em Cadastros > Locais, com o tipo Laboratório ou Almoxarifado.",
+        ],
+      },
+      {
+        titulo: "Previsão de equipamentos",
+        itens: [
+          "Em Cadastros > Previsão de equipamentos, liste o que o laboratório pretende comprar, com prioridade (1 alta, 2 média, 3 baixa), quantidade, valor estimado, justificativa e 'Patrimônio de' (de quem o equipamento será).",
+          "Quem aprova pedidos (pedido.aprovar) cadastra e edita; todos veem.",
+          "Ao ligar a previsão a um pedido interno, ela passa a 'Pedido'. Pedido concluído vira 'Comprado'; pedido cancelado volta a 'Previsto'.",
+        ],
+      },
+      {
         titulo: "Técnicos e salário",
         itens: [
           "Salário e custo-hora de cada técnico só aparecem para quem tem a permissão 'Ver salário dos técnicos'.",
@@ -643,7 +669,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["cadastro", "projeto", "cliente", "fornecedor", "equipamento", "técnico", "local", "overhead", "salário", "remuneração", "lote", "planilha", "excel", "importar"],
+    termos: ["cadastro", "projeto", "cliente", "fornecedor", "equipamento", "técnico", "local", "overhead", "salário", "remuneração", "lote", "planilha", "excel", "importar", "almoxarifado", "laboratório dono", "controlado", "previsão de equipamentos", "patrimônio"],
   },
 
   // ───────────────────────────── Governança ────────────────────────────

@@ -33,7 +33,7 @@ export type Campo = {
    */
   opcoes?: { value: string; label: string; inativo?: boolean }[];
   /** preenche as opções dinamicamente no servidor (ex.: lista de fornecedores) */
-  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais" | "perfis";
+  opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais" | "perfis" | "coordenacoes_area";
   /**
    * fora do formulário (sem uso demonstrado), mas mantido na planilha de
    * exportação/importação; a edição pelo formulário não altera o valor gravado.
@@ -245,6 +245,72 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     ],
   },
 
+  previsao_equipamentos: {
+    slug: "previsao_equipamentos",
+    tabela: "previsao_equipamentos",
+    titulo: "Previsão de equipamentos",
+    singular: "equipamento previsto",
+    subtitulo:
+      "Equipamentos que a equipe vai precisar (aba EQ da planilha), com **prioridade de 1 a 3**. Quando a compra começar, abra um pedido de equipamento e informe o número aqui: a situação acompanha o pedido (concluído vira comprado; cancelado volta a previsto).",
+    rotulo: "nome",
+    colunas: [
+      { key: "prioridade_nome", label: "Prioridade", largura: "sm" },
+      { key: "nome", label: "Equipamento", largura: "lg" },
+      { key: "laboratorio_nome", label: "Laboratório", largura: "sm" },
+      { key: "quantidade", label: "Qtd", tipo: "number", alinhar: "right", largura: "xs" },
+      { key: "valor_estimado", label: "Valor estimado", tipo: "currency", alinhar: "right", largura: "sm" },
+      { key: "situacao_nome", label: "Situação", largura: "sm" },
+      { key: "pedido_interno_id", label: "Pedido nº", tipo: "number", alinhar: "right", largura: "xs" },
+    ],
+    campos: [
+      { name: "nome", label: "Equipamento", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação", placeholder: "Termociclador, freezer −80 °C…" },
+      {
+        name: "prioridade",
+        label: "Prioridade",
+        tipo: "select",
+        obrigatorio: true,
+        valorPadrao: "2",
+        opcoes: [
+          { value: "1", label: "1 · Alta" },
+          { value: "2", label: "2 · Média" },
+          { value: "3", label: "3 · Baixa" },
+        ],
+      },
+      { name: "laboratorio_id", label: "Laboratório", tipo: "select", opcoesDe: "coordenacoes_area" },
+      { name: "quantidade", label: "Quantidade", tipo: "number", min: 1, step: "1", valorPadrao: 1, grupo: "Compra" },
+      { name: "valor_estimado", label: "Valor estimado (R$)", tipo: "currency", min: 0 },
+      {
+        name: "patrimonio_de",
+        label: "Patrimônio de",
+        tipo: "text",
+        placeholder: "Biratã, Antonio, Márcio ou ATGC",
+        ajuda: "Em nome de quem o equipamento vai entrar no patrimônio.",
+      },
+      {
+        name: "situacao",
+        label: "Situação",
+        tipo: "select",
+        valorPadrao: "previsto",
+        opcoes: [
+          { value: "previsto", label: "Previsto" },
+          { value: "pedido", label: "Pedido aberto" },
+          { value: "comprado", label: "Comprado" },
+          { value: "descartado", label: "Descartado" },
+        ],
+      },
+      {
+        name: "pedido_interno_id",
+        label: "Nº do pedido interno",
+        tipo: "number",
+        min: 1,
+        step: "1",
+        ajuda: "Número do pedido de equipamento aberto em Pedido (fluxo único da compra). Ao informar, a situação passa a Pedido aberto.",
+      },
+      { name: "justificativa", label: "Justificativa", tipo: "textarea", colSpan: 2, grupo: "Justificativa" },
+      { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2 },
+    ],
+  },
+
   equipamentos: {
     slug: "equipamentos",
     tabela: "equipamentos",
@@ -326,6 +392,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "custo_unitario", label: "Custo un.", tipo: "currency", alinhar: "right", largura: "sm", calculada: true },
       { key: "validade_lotes", label: "Validade", tipo: "date", largura: "sm", calculada: true },
       { key: "ponto_reposicao", label: "Repos.", tipo: "number", alinhar: "right", largura: "xs" },
+      { key: "laboratorio_nome", label: "Laboratório", largura: "sm", calculada: true },
       { key: "ativo", label: "Ativo", tipo: "checkbox", largura: "xs" },
     ],
     colunasXlsx: [
@@ -426,6 +493,12 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         ajuda: "**Crítico** ganha destaque nas sugestões de compra. Ao aceitar um lote crítico, é preciso informar responsável e critério de aceite.",
       },
       {
+        name: "controlado",
+        label: "Produto controlado (só pela FUNPAR)",
+        tipo: "checkbox",
+        ajuda: "A ATGC não tem licença para produtos controlados (clorofórmio, acetona...). Marcado, o pedido precisa de projeto, a fonte tem que ser a FUNPAR e a compra é encaminhada à FUNPAR, nunca direta.",
+      },
+      {
         name: "quantidade_minima_compra",
         label: "Quantidade mínima de compra",
         tipo: "number",
@@ -461,6 +534,14 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         placeholder: "−20 °C, 2–8 °C, temperatura ambiente…",
         grupo: "Armazenamento",
         oculto: true,
+      },
+      {
+        name: "laboratorio_id",
+        label: "Laboratório dono",
+        tipo: "select",
+        opcoesDe: "coordenacoes_area",
+        grupo: "Armazenamento",
+        ajuda: "A que laboratório o insumo pertence (o estoque é um só). Onde cada lote está guardado fica no próprio lote (laboratório, almoxarifado geral ou almoxarifado do LGA).",
       },
       {
         name: "validade_apos_abertura_dias",
@@ -645,6 +726,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoes: [
           { value: "predio", label: "Prédio" },
+          { value: "laboratorio", label: "Laboratório" },
+          { value: "almoxarifado", label: "Almoxarifado" },
           { value: "sala", label: "Sala" },
           { value: "freezer", label: "Freezer" },
           { value: "geladeira", label: "Geladeira" },
@@ -720,6 +803,7 @@ export const ORDEM_CADASTROS = [
   "tipo_insumos",
   "insumos",
   "equipamentos",
+  "previsao_equipamentos",
   "fornecedores",
   "tecnicos",
   "locais",

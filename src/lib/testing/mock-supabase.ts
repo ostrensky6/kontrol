@@ -493,6 +493,10 @@ const baseStore = (): Store => {
     { id: 1, nome: "Genética", ativo: true, coordenador_id: "00000000-0000-4000-8000-0000000000c1", substituto_id: null, observacoes: null },
     { id: 2, nome: "LQA", ativo: true, coordenador_id: null, substituto_id: null, observacoes: "Coordenação a definir." },
   ],
+  // 0174: previsão de equipamentos (aba EQ)
+  previsao_equipamentos: [
+    { id: 1, nome: "Termociclador em tempo real", laboratorio_id: 1, prioridade: 1, quantidade: 1, valor_estimado: 180000, justificativa: "qPCR da Genética", patrimonio_de: "ATGC", situacao: "previsto", pedido_interno_id: null, observacoes: null, criado_em: "2026-11-09T12:00:00Z", atualizado_em: "2026-11-09T12:00:00Z" },
+  ],
   // 0173: linhas fixas; a tela só edita
   responsaveis_compras: [
     { id: 1, etapa: "administrativo", usuario_id: null, substituto_id: null, observacoes: "Autorização administrativa (fonte e rubrica).", atualizado_em: "2026-11-09T12:00:00Z" },

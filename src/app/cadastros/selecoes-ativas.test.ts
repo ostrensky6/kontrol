@@ -26,7 +26,7 @@ describe("selecoes novas respeitam o ciclo de vida dos insumos", () => {
 
   it("marca insumos inativos e mantem disponivel apenas o valor atual", () => {
     expect(cadastroSource).toContain(
-      'const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "insumos"]);',
+      'const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "insumos", "coordenacoes_area"]);',
     );
     expect(cadastroSource).toContain(
       "...(comAtivo && r.ativo === false ? { inativo: true } : {}),",
