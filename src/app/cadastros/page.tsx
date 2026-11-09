@@ -8,6 +8,8 @@ import {
   ResultadoImportacaoCadastros,
 } from "@/components/cadastros/CadastrosWorkbookPanel";
 import { PainelInsumos } from "@/components/cadastros/PainelInsumos";
+import { ACaminhoInsumos } from "@/components/cadastros/ACaminhoInsumos";
+import { lerACaminho } from "@/lib/suprimentos/a-caminho";
 import { HelpTip } from "@/components/common/HelpTip";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
@@ -111,8 +113,9 @@ export default async function CadastrosIndex() {
   const hoje = hojeIso();
   const supabase = await createClientUntyped();
   // a importação grava em vários cadastros; cada linha ainda passa pelo RLS da tabela
-  const [painel, ...permissoes] = await Promise.all([
+  const [painel, aCaminho, ...permissoes] = await Promise.all([
     carregarPainel(supabase, hoje),
+    pode("compras.ver").then((ok) => (ok ? lerACaminho(supabase, hoje) : null)),
     pode("cadastros.editar"),
     pode("insumos.editar"),
     pode("projetos.editar"),
@@ -183,6 +186,8 @@ export default async function CadastrosIndex() {
           hojeIso={hoje}
           erro={painel.erro}
         />
+
+        <ACaminhoInsumos itens={aCaminho?.itens ?? []} erro={aCaminho?.erro} semAcesso={!aCaminho} />
 
         <section id="todos-os-cadastros" aria-labelledby="todos-os-cadastros-titulo" className="mt-10 scroll-mt-20 border-t border-border pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">

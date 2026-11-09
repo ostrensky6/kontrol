@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
+import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import {
   adicionarAnexoPedidoInterno,
@@ -432,11 +433,15 @@ export default async function PedidoInternoDetalhe({
     .select("insumo_id")
     .neq("modelo_quantidade", "EMBALAGEM_FECHADA")
     .gt("quantidade_atual", 0);
+  // Estoque na hora de pedir: só enquanto ainda se mexe nos itens antes da compra.
+  // Leitura incompleta não vira "sem saldo": o quadro simplesmente não aparece.
+  const leituraEstoque = antesDaCompra ? await lerEstoqueParaPedido(supabase) : null;
+  const estoqueParaPedido = leituraEstoque && !leituraEstoque.erro ? leituraEstoque.estoque : null;
   const catalogoItens = montarCatalogoItens(
     insumoRows,
     historicoRows,
     new Set(((lotesLegado ?? []) as { insumo_id: number }[]).map((lote) => lote.insumo_id)),
-  );
+  ).map((item) => (estoqueParaPedido ? { ...item, estoque: estoqueParaPedido.get(item.id) ?? null } : item));
   const fornecedoresPedido = montarFornecedoresPedido(((fornecedores ?? []) as unknown as FornecedorRaw[]) ?? [], insumoRows, historicoRows);
   const aprovacaoRows = ((aprovacoes ?? []) as unknown as PedidoInternoAprovacao[]) ?? [];
   const anexoRowsBase = ((anexos ?? []) as unknown as PedidoInternoAnexo[]) ?? [];

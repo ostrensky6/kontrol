@@ -2,6 +2,9 @@
 
 import { useMemo, useState } from "react";
 
+import type { EstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
+import { formatNumber } from "@/lib/formatters";
+
 export type PedidoItemCatalogo = {
   id: number;
   especificacao: string | null;
@@ -18,6 +21,8 @@ export type PedidoItemCatalogo = {
   modelos?: string[];
   volumes?: string[];
   fornecedores?: string[];
+  /** Estoque na hora de pedir (disponível, reservado, a caminho, locais). */
+  estoque?: EstoqueParaPedido | null;
 };
 
 export type PedidoItemDefaults = {
@@ -237,6 +242,7 @@ export function PedidoItemCamposAssistidos({
             ))}
           </select>
         )}
+        {selecionado ? <EstoqueDoInsumo estoque={selecionado.estoque} /> : null}
       </div>
       <div className={span.especificacao}>
         <label htmlFor={ids.especificacao} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Especificação</label>
@@ -337,4 +343,40 @@ function rotuloInsumo(insumo: PedidoItemCatalogo) {
     insumo.tipoInsumo,
     insumo.categoriaCompra,
   ]).join(" | ");
+}
+
+/**
+ * Antes de pedir: quanto há, quanto está reservado para planos, quanto já está
+ * a caminho e onde fica guardado. Evita pedido duplicado.
+ */
+export function EstoqueDoInsumo({ estoque }: { estoque?: EstoqueParaPedido | null }) {
+  if (estoque === undefined) return null;
+  const unidade = estoque?.unidade ? ` ${estoque.unidade}` : "";
+  const qtd = (valor: number) => `${formatNumber(valor)}${unidade}`;
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="estoque-do-insumo"
+      className="mt-2 rounded-md border border-border bg-muted/40 px-2 py-1.5 text-xs"
+    >
+      {!estoque || estoque.disponivel == null ? (
+        <p>Sem saldo registrado no estoque para este insumo.</p>
+      ) : (
+        <p>
+          <b>Disponível:</b> {qtd(estoque.disponivel)}
+          {estoque.reservado > 0 ? <> · <b>Reservado:</b> {qtd(estoque.reservado)}</> : null}
+        </p>
+      )}
+      {estoque && estoque.aCaminho > 0 ? (
+        <p className={estoque.aCaminhoAtrasado > 0 ? "font-medium text-danger-strong" : "text-info-strong"}>
+          <b>Já pedido, a caminho:</b> {qtd(estoque.aCaminho)}
+          {estoque.aCaminhoAtrasado > 0 ? ` (${qtd(estoque.aCaminhoAtrasado)} atrasado)` : ""}. Confira antes de pedir de novo.
+        </p>
+      ) : null}
+      {estoque && estoque.locais.length > 0 ? (
+        <p className="text-muted-foreground"><b>Onde está:</b> {estoque.locais.join(", ")}</p>
+      ) : null}
+    </div>
+  );
 }
