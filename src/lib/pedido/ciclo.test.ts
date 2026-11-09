@@ -1,12 +1,15 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  cicloLiberaEm,
   cicloPara,
   dataEmBrasilia,
   explicarCicloHoje,
   faltaJustificativaUrgencia,
+  motivoCicloTravado,
   prazoDoCiclo,
   rotuloCiclo,
+  rotuloData,
   rotuloPrazo,
 } from "./ciclo";
 
@@ -44,5 +47,31 @@ describe("ciclo do dia 10 (0172)", () => {
     expect(faltaJustificativaUrgencia("critica", "curto")).not.toBeNull();
     expect(faltaJustificativaUrgencia("alta", "Amostras chegam dia 15 e o reagente acabou")).toBeNull();
     expect(faltaJustificativaUrgencia("normal", null)).toBeNull();
+  });
+});
+
+describe("trava do ciclo seguinte (0176)", () => {
+  const justificativa = "Coleta marcada para a semana que vem.";
+
+  it("pedido do ciclo seguinte só libera no dia 1 do mês do ciclo", () => {
+    expect(cicloLiberaEm("2026-12-01", "normal", null, "2026-11-20")).toBe("2026-12-01");
+    expect(cicloLiberaEm("2026-12-01", "normal", null, "2026-11-30")).toBe("2026-12-01");
+    expect(cicloLiberaEm("2026-12-01", "normal", null, "2026-12-01")).toBeNull();
+    expect(cicloLiberaEm("2026-11-01", "normal", null, "2026-11-20")).toBeNull();
+    expect(cicloLiberaEm(null, "normal", null, "2026-11-20")).toBeNull();
+  });
+
+  it("urgência justificada fura a trava; sem justificativa, não", () => {
+    expect(cicloLiberaEm("2026-12-01", "alta", justificativa, "2026-11-20")).toBeNull();
+    expect(cicloLiberaEm("2026-12-01", "critica", justificativa, "2026-11-20")).toBeNull();
+    expect(cicloLiberaEm("2026-12-01", "alta", "curta", "2026-11-20")).toBe("2026-12-01");
+  });
+
+  it("explica com o mesmo texto do banco", () => {
+    expect(rotuloData("2026-12-01")).toBe("01/12/2026");
+    expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-11-20")).toBe(
+      "Este pedido entrou no ciclo de pagamento de dezembro/2026 porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de 01/12/2026. Só pedido urgente, com justificativa, fura o ciclo.",
+    );
+    expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-12-01")).toBeNull();
   });
 });

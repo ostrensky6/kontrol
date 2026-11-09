@@ -13,6 +13,11 @@ begin;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 
+-- 0176: a trava do ciclo seguinte depende do dia de hoje e não é o assunto deste
+-- teste; aqui todo ciclo já está aberto (desfeito no ROLLBACK final).
+create or replace function kontrol_private.hoje_brasilia() returns date
+  language sql stable set search_path = '' as $$ select date '2999-12-01' $$;
+
 create function pg_temp.como(p_rotulo text) returns void language plpgsql as $$
 begin
   perform set_config('request.jwt.claim.sub', md5('kontrol-0169-' || p_rotulo)::uuid::text, true);

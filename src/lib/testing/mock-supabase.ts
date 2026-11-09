@@ -300,6 +300,42 @@ const baseStore = (): Store => {
   demanda_analises: [],
   demanda_grupos_amostras: [],
   projetos: [{ id: 1, nome: "Projeto E2E" }],
+  // 0176: pedido validado depois do prazo do dia 10, no ciclo seguinte (travado)
+  pedidos_internos: [
+    {
+      id: 501,
+      titulo: "Reagente do ciclo seguinte E2E",
+      status: "validado",
+      solicitante: "e2e@example.com",
+      projeto_id: 1,
+      natureza: "material_consumo_geral",
+      objetivo: "projeto",
+      tipo_demanda: "laboratorio",
+      justificativa: "Reposição para as coletas do próximo mês.",
+      urgencia: "normal",
+      urgencia_justificativa: null,
+      ciclo_pagamento: "2099-12-01",
+      data_necessidade: null,
+      modalidade_compra: null,
+      area_id: null,
+      aprovacao_area_em: null,
+      pedido_compra_id: null,
+      criado_em: "2026-11-12T13:00:00.000Z",
+      atualizado_em: "2026-11-12T14:00:00.000Z",
+    },
+  ],
+  pedidos_internos_itens: [
+    {
+      id: 5011,
+      pedido_interno_id: 501,
+      tipo: "material",
+      especificacao: "Etanol absoluto 1 L",
+      quantidade: 2,
+      unidade: "un",
+      orcamento_previo: 80,
+      recebido_em: null,
+    },
+  ],
   clientes: [{ id: 1, nome: "Cliente Cadastrado", ativo: true }],
   // Documento da proposta (0135)
   empresas_emissoras: [

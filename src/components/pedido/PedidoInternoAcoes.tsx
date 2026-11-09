@@ -107,6 +107,7 @@ export function PedidoInternoAcoes({
   motivoSemCotacoesRecebidas = null,
   motivoSemAprovacaoFinal = null,
   controlado = false,
+  motivoCicloTravado = null,
 }: {
   pedidoId: number;
   status: string;
@@ -133,6 +134,8 @@ export function PedidoInternoAcoes({
   motivoSemAprovacaoFinal?: string | null;
   /** 0174 (D9): pedido com produto controlado: só pela FUNPAR, sem compra direta */
   controlado?: boolean;
+  /** 0176: pedido do ciclo seguinte; o texto diz quando a formalização abre */
+  motivoCicloTravado?: string | null;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -194,8 +197,12 @@ export function PedidoInternoAcoes({
           pedidoId={pedidoId}
           action={formalizarPedidoInterno}
           label={temCompraFormal ? "Retomar compra formal" : "Formalizar em compras"}
-          disabled={aguardandoLaboratorio}
-          disabledReason="Material de consumo de laboratório só segue para compras depois da aprovação da coordenação do laboratório."
+          disabled={aguardandoLaboratorio || Boolean(motivoCicloTravado)}
+          disabledReason={
+            aguardandoLaboratorio
+              ? "Material de consumo de laboratório só segue para compras depois da aprovação da coordenação do laboratório."
+              : (motivoCicloTravado ?? undefined)
+          }
         />
       )}
 
