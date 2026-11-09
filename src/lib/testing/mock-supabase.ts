@@ -2151,6 +2151,46 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         pedido.excecao_pagamento_em = new Date().toISOString();
         return { data: { pedido_id: pedido.id, excecao_pagamento_em: pedido.excecao_pagamento_em }, error: null };
       }
+      // 0171 (D2): 3 orçamentos e escolha do vencedor
+      if (fn === "escolher_orcamento_pedido_interno") {
+        const cotacoes = (store.pedidos_internos_cotacoes ?? []) as Row[];
+        const cotacao = cotacoes.find((row) => Number(row.id) === Number(args.p_cotacao_id));
+        if (!cotacao) return { data: null, error: { message: "Orçamento não encontrado.", code: "P0002" } };
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(cotacao.pedido_interno_id));
+        if (!pedido || pedido.status !== "orcamentos_recebidos") {
+          return { data: null, error: { message: 'O orçamento é escolhido com o pedido em "Cotações recebidas".', code: "22023" } };
+        }
+        const doPedido = cotacoes.filter((row) => Number(row.pedido_interno_id) === Number(pedido.id));
+        const menor = Math.min(...doPedido.map((row) => Number(row.valor_total)));
+        const justificativa = String(args.p_justificativa ?? "").trim() || null;
+        if (Number(cotacao.valor_total) > menor && (justificativa?.length ?? 0) < 15) {
+          return { data: null, error: { message: "Este não é o orçamento mais barato. Escreva por que ele foi escolhido (prazo, qualidade, exclusividade...).", code: "22023" } };
+        }
+        for (const row of doPedido) {
+          const escolhida = row === cotacao;
+          row.escolhida = escolhida;
+          row.escolhida_por = escolhida ? "admin@example.com" : null;
+          row.escolhida_em = escolhida ? new Date().toISOString() : null;
+          row.justificativa_escolha = escolhida ? justificativa : null;
+        }
+        return { data: { pedido_id: pedido.id, cotacao_id: cotacao.id }, error: null };
+      }
+      if (fn === "resumo_orcamentos_pedido_interno") {
+        const doPedido = ((store.pedidos_internos_cotacoes ?? []) as Row[]).filter(
+          (row) => Number(row.pedido_interno_id) === Number(args.p_pedido_id),
+        );
+        const escolhida = doPedido.find((row) => row.escolhida);
+        return {
+          data: {
+            exigidos: 3,
+            registrados: doPedido.length,
+            fornecedores: new Set(doPedido.map((row) => String(row.fornecedor_nome).trim().toLowerCase())).size,
+            menor_valor: doPedido.length ? Math.min(...doPedido.map((row) => Number(row.valor_total))) : null,
+            escolhida_id: escolhida?.id ?? null,
+          },
+          error: null,
+        };
+      }
       if (fn === "vinculos_projeto") {
         const projetoId = Number(args.p_projeto_id);
         const vinculos = store.projetos_vinculos ?? [];

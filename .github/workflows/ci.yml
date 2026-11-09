@@ -158,6 +158,8 @@ jobs:
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/aprovacao_competencia_0169.sql
       - name: Validar caminho único e entrega antes do pagamento (0170)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/caminho_unico_pagamento_0170.sql
+      - name: Validar três orçamentos (0171)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/tres_orcamentos_0171.sql
 
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,

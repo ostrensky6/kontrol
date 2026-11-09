@@ -9,6 +9,14 @@ import { usuarioAtual } from "@/lib/auth/roles";
 import { aguardaLaboratorio, etapasAprovacao, lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerAreasPedido } from "@/lib/pedido/areas";
 import { ETAPAS_ANTES_DO_PAGAMENTO, lerPendenciaPagamento, podeConfirmarEntrega } from "@/lib/pedido/pagamento";
+import {
+  ETAPAS_COM_ORCAMENTOS,
+  lerOrcamentos,
+  motivoSemAprovacaoFinal,
+  motivoSemCotacoesRecebidas,
+  resumirOrcamentos,
+} from "@/lib/pedido/orcamentos";
+import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
 import {
   adicionarAnexoPedidoInterno,
@@ -111,6 +119,7 @@ type PedidoItemHistorico = {
 };
 
 type FornecedorRaw = {
+  id?: number;
   nome: string | null;
 };
 
@@ -390,7 +399,7 @@ export default async function PedidoInternoDetalhe({
       .not("insumo_id", "is", null)
       .order("id", { ascending: false })
       .limit(500),
-    supabase.from("fornecedores").select("nome").eq("ativo", true).order("nome"),
+    supabase.from("fornecedores").select("id, nome").eq("ativo", true).order("nome"),
     supabase.from("projetos").select("id, nome, coordenador").order("nome"),
     supabase
       .from("pedidos_internos_aprovacoes")
@@ -429,6 +438,10 @@ export default async function PedidoInternoDetalhe({
   const pendenciaPagamento = ETAPAS_ANTES_DO_PAGAMENTO.includes(pedido.status)
     ? await lerPendenciaPagamento(supabase, pedidoId)
     : null;
+  // D2 (0171): três orçamentos de fornecedores diferentes e um escolhido
+  const comOrcamentos = ETAPAS_COM_ORCAMENTOS.includes(pedido.status);
+  const orcamentos = comOrcamentos ? await lerOrcamentos(supabase, pedidoId) : null;
+  const resumoOrcamentos = orcamentos ? resumirOrcamentos(orcamentos) : null;
   const projetoRow = pedido.projetos as {
     nome: string | null;
     coordenador?: string | null;
@@ -885,6 +898,8 @@ export default async function PedidoInternoDetalhe({
                   podeDecidirLaboratorio={podeDecidirLaboratorio}
                   pendenciaPagamento={pendenciaPagamento}
                   podeConfirmarEntrega={podeConfirmar}
+                  motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
+                  motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
                 />
               )}
               {pendenciaPagamento && (
@@ -918,6 +933,20 @@ export default async function PedidoInternoDetalhe({
               )}
             </div>
             {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
+            {comOrcamentos && (
+              <PedidoOrcamentos
+                pedidoId={pedidoId}
+                status={pedido.status}
+                orcamentos={orcamentos}
+                podeGerir={podeGerir}
+                fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
+                  .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
+                  .map((f) => ({ id: f.id, nome: f.nome }))}
+                anexos={anexoRowsBase
+                  .filter((a) => ["orcamento_previo", "proposta", "print", "email"].includes(a.tipo))
+                  .map((a) => ({ id: a.id, titulo: a.titulo }))}
+              />
+            )}
             {pedido.status === "formalizado" && podeGerir && (
               <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />

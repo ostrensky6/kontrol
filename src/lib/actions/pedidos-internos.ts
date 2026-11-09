@@ -15,6 +15,7 @@ import {
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
+import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 
 const SEM_PERMISSAO: FormState = {
@@ -784,6 +785,10 @@ export async function marcarOrcamentosRecebidos(_prev: FormState, formData: Form
   if (!anexos || anexos.length === 0) {
     return { ok: false, message: "Anexe ao menos uma cotação (arquivo, print ou e-mail) antes de marcar como recebida." };
   }
+  // D2 (0171): toda compra tem 3 orçamentos de fornecedores diferentes; o banco garante.
+  const orcamentos = await lerOrcamentos(await createClientUntyped(), pedidoId);
+  const falta = orcamentos ? motivoSemCotacoesRecebidas(resumirOrcamentos(orcamentos)) : null;
+  if (falta) return { ok: false, message: falta };
   return mudarStatus({
     pedidoId,
     para: "orcamentos_recebidos",
@@ -796,8 +801,12 @@ export async function marcarOrcamentosRecebidos(_prev: FormState, formData: Form
 
 export async function enviarAprovacaoFinal(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const orcamentos = await lerOrcamentos(await createClientUntyped(), pedidoId);
+  const falta = orcamentos ? motivoSemAprovacaoFinal(resumirOrcamentos(orcamentos)) : null;
+  if (falta) return { ok: false, message: falta };
   return mudarStatus({
-    pedidoId: Number(formData.get("pedido_interno_id")),
+    pedidoId,
     para: "aguardando_aprovacao_final",
     permitidoDe: ["orcamentos_recebidos"],
     observacao: texto(formData, "observacao") ?? "Pedido enviado para aprovação final.",
@@ -1212,4 +1221,73 @@ export async function cancelarPedidoInterno(_prev: FormState, formData: FormData
   revalidatePath(`/pedido/${pedidoId}`);
   revalidatePath("/compras");
   return { ok: true, message: "Pedido cancelado com sincronização operacional." };
+}
+
+/** D2 (0171): registra um orçamento no pedido (fornecedor, valor, prazo, documento). */
+export async function registrarOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const fornecedorId = numero(formData, "fornecedor_id");
+  let fornecedorNome = texto(formData, "fornecedor_nome");
+  const valor = numero(formData, "valor_total");
+  const prazo = numero(formData, "prazo_entrega_dias");
+  const supabase = await createClientUntyped();
+  if (fornecedorId && !fornecedorNome) {
+    const { data } = await supabase.from("fornecedores").select("nome").eq("id", fornecedorId).maybeSingle();
+    fornecedorNome = (data as { nome?: string } | null)?.nome?.trim() || null;
+  }
+  if (!fornecedorNome) return { ok: false, message: "Escolha o fornecedor cadastrado ou escreva o nome do fornecedor." };
+  if (!(valor && valor > 0)) return { ok: false, message: "Informe o valor total do orçamento (maior que zero)." };
+  if (prazo != null && (prazo < 0 || !Number.isInteger(prazo))) {
+    return { ok: false, message: "Prazo de entrega em dias inteiros (0 ou mais)." };
+  }
+  const { error } = await supabase.from("pedidos_internos_cotacoes").insert({
+    pedido_interno_id: pedidoId,
+    fornecedor_id: fornecedorId,
+    fornecedor_nome: fornecedorNome,
+    valor_total: valor,
+    prazo_entrega_dias: prazo,
+    validade: texto(formData, "validade"),
+    condicoes: texto(formData, "condicoes"),
+    anexo_id: numero(formData, "anexo_id"),
+  });
+  if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      return { ok: false, message: "Já há um orçamento deste fornecedor no pedido. Os 3 orçamentos são de fornecedores diferentes." };
+    }
+    return { ok: false, message: mensagemDoBanco(error) };
+  }
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: `Orçamento de ${fornecedorNome} registrado.` };
+}
+
+/** Remove um orçamento lançado por engano (fica na auditoria). O escolhido não sai. */
+export async function removerOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const orcamentoId = Number(formData.get("orcamento_id"));
+  const supabase = await createClientUntyped();
+  const { error } = await supabase
+    .from("pedidos_internos_cotacoes")
+    .delete()
+    .eq("id", orcamentoId)
+    .eq("pedido_interno_id", pedidoId);
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Orçamento removido." };
+}
+
+/** Escolhe o orçamento vencedor; fora do menor valor, com justificativa. */
+export async function escolherOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const orcamentoId = Number(formData.get("orcamento_id"));
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("escolher_orcamento_pedido_interno", {
+    p_cotacao_id: orcamentoId,
+    p_justificativa: texto(formData, "justificativa"),
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: "Orçamento escolhido e registrado nas aprovações." };
 }

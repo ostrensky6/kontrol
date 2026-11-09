@@ -3460,6 +3460,82 @@ export type Database = {
           },
         ]
       }
+      pedidos_internos_cotacoes: {
+        Row: {
+          anexo_id: number | null
+          condicoes: string | null
+          escolhida: boolean
+          escolhida_em: string | null
+          escolhida_por: string | null
+          fornecedor_id: number | null
+          fornecedor_nome: string
+          id: number
+          justificativa_escolha: string | null
+          pedido_interno_id: number
+          prazo_entrega_dias: number | null
+          registrada_em: string
+          registrada_por: string | null
+          validade: string | null
+          valor_total: number
+        }
+        Insert: {
+          anexo_id?: number | null
+          condicoes?: string | null
+          escolhida?: boolean
+          escolhida_em?: string | null
+          escolhida_por?: string | null
+          fornecedor_id?: number | null
+          fornecedor_nome: string
+          id?: never
+          justificativa_escolha?: string | null
+          pedido_interno_id: number
+          prazo_entrega_dias?: number | null
+          registrada_em?: string
+          registrada_por?: string | null
+          validade?: string | null
+          valor_total: number
+        }
+        Update: {
+          anexo_id?: number | null
+          condicoes?: string | null
+          escolhida?: boolean
+          escolhida_em?: string | null
+          escolhida_por?: string | null
+          fornecedor_id?: number | null
+          fornecedor_nome?: string
+          id?: never
+          justificativa_escolha?: string | null
+          pedido_interno_id?: number
+          prazo_entrega_dias?: number | null
+          registrada_em?: string
+          registrada_por?: string | null
+          validade?: string | null
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_internos_cotacoes_anexo_id_fkey"
+            columns: ["anexo_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_internos_anexos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_internos_cotacoes_fornecedor_id_fkey"
+            columns: ["fornecedor_id"]
+            isOneToOne: false
+            referencedRelation: "fornecedores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pedidos_internos_cotacoes_pedido_interno_id_fkey"
+            columns: ["pedido_interno_id"]
+            isOneToOne: false
+            referencedRelation: "pedidos_internos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedidos_internos_item_recebimentos: {
         Row: {
           codigo_lote: string | null
@@ -4869,6 +4945,10 @@ export type Database = {
         Args: { p_observacao?: string; p_pedido_id: number }
         Returns: Json
       }
+      escolher_orcamento_pedido_interno: {
+        Args: { p_cotacao_id: number; p_justificativa?: string }
+        Returns: Json
+      }
       concluir_planejamento: {
         Args: { p_planejamento_id: number }
         Returns: undefined
@@ -5192,6 +5272,10 @@ export type Database = {
       }
       registrar_excecao_pagamento: {
         Args: { p_justificativa: string; p_pedido_id: number }
+        Returns: Json
+      }
+      resumo_orcamentos_pedido_interno: {
+        Args: { p_pedido_id: number }
         Returns: Json
       }
       registrar_etapa_pedido_interno: {
