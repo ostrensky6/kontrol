@@ -3,7 +3,8 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { PedidosInternosTable, type PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
 import { NovoPedidoDialog } from "@/components/pedido/NovoPedidoDialog";
-import { pedidoInternoNumero, pedidoInternoStatus } from "@/lib/pedido/status";
+import { PEDIDO_INTERNO_AGUARDANDO_LABORATORIO, pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
+import { lerAreasPedido } from "@/lib/pedido/areas";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { statusInfo } from "@/components/app/status";
 import { HelpTip } from "@/components/common/HelpTip";
@@ -34,6 +35,8 @@ type PedidoInternoListRow = {
   urgencia: string | null;
   tipo_demanda?: string | null;
   modalidade_compra?: string | null;
+  natureza?: string | null;
+  aprovacao_area_em?: string | null;
   pedido_compra_id: number | null;
   criado_em: string;
   coordenador_projeto_nome?: string | null;
@@ -68,7 +71,7 @@ function proximaAcao(status: string) {
     rascunho: { acao: "Enviar para validação", responsavel: "Solicitante" },
     ajuste_solicitante: { acao: "Corrigir pedido", responsavel: "Solicitante" },
     ajuste_compras: { acao: "Corrigir dados administrativos", responsavel: "Compras/Admin." },
-    em_validacao: { acao: "Aprovar coordenador", responsavel: "Coordenador do projeto" },
+    em_validacao: { acao: "Aprovar coordenador", responsavel: "Coordenador do projeto (sem projeto: Supervisão)" },
     validado: { acao: "Formalizar compra", responsavel: "Coordenador/Compras" },
     formalizado: { acao: "Análise administrativa", responsavel: "Administrativo" },
     analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
@@ -88,10 +91,9 @@ function proximaAcao(status: string) {
 
 function pendenciasPedido(row: PedidoInternoListRow) {
   const pendencias: string[] = [];
-  const docsCotacao = row.pedidos_internos_anexos.some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
+  const docsCotacao = (row.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
   if (!docsCotacao && ["orcamentos", "aprovado_compra"].includes(row.status)) pendencias.push("cotação");
-  if (!row.projetos) pendencias.push("projeto");
-  if (!row.pedidos_internos_itens.length) pendencias.push("itens");
+  if (!(row.pedidos_internos_itens ?? []).length) pendencias.push("itens");
   if (row.status === "aprovado_para_compra" && !row.modalidade_compra) pendencias.push("modalidade");
   return pendencias.length ? pendencias.join(", ") : "—";
 }
@@ -104,13 +106,14 @@ function recebimentoPendente(valor: string) {
 
 export default async function PedidoPage() {
   const supabase = await createClientUntyped();
-  const [pedidosFull, projetosFull, podeExcluir] = await Promise.all([
+  const [pedidosFull, projetosFull, podeExcluir, areas] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("id, titulo, status, solicitante, data_necessidade, urgencia, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
+      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
       .order("criado_em", { ascending: false }),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
+    lerAreasPedido(supabase),
   ]);
   const { data: pedidos } = pedidosFull.error
     ? await supabase
@@ -128,7 +131,7 @@ export default async function PedidoPage() {
       (acc, item) => acc + Number(item.quantidade ?? 0) * Number(item.orcamento_previo ?? 0),
       0,
     );
-    const status = pedidoInternoStatus(pedido.status);
+    const status = pedidoInternoSituacao(pedido);
     const projetoRow = asOne(pedido.projetos);
     const compraRow = asOne(pedido.pedidos_compra);
     const projeto = projetoRow?.nome ?? "—";
@@ -139,9 +142,11 @@ export default async function PedidoPage() {
       projetoRow?.coordenador ??
       projetoRow?.coordenador_email ??
       "—";
-    const docsCotacao = pedido.pedidos_internos_anexos.some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
-    const recebidos = pedido.pedidos_internos_itens.filter((item) => item.recebido_em).length;
-    const proxima = proximaAcao(pedido.status);
+    const docsCotacao = (pedido.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
+    const recebidos = (pedido.pedidos_internos_itens ?? []).filter((item) => item.recebido_em).length;
+    const proxima = status === PEDIDO_INTERNO_AGUARDANDO_LABORATORIO
+      ? { acao: "Aprovar pelo laboratório", responsavel: "Coordenação do laboratório" }
+      : proximaAcao(pedido.status);
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
       id: pedido.id,
@@ -191,7 +196,7 @@ export default async function PedidoPage() {
             </HelpTip>
           </div>
           <div className="flex items-center gap-2">
-            <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} />
+            <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} />
           </div>
         </div>
 

@@ -488,6 +488,11 @@ const baseStore = (): Store => {
     { id: "00000000-0000-4000-8000-0000000000c1", nome: "Coordenação E2E", email: "coord.e2e@example.com", papel: "coordenador", suspenso: false },
   ],
   projetos_vinculos: [],
+  // 0169: laboratórios e áreas com a coordenação que aprova
+  coordenacoes_area: [
+    { id: 1, nome: "Genética", ativo: true, coordenador_id: "00000000-0000-4000-8000-0000000000c1", substituto_id: null, observacoes: null },
+    { id: 2, nome: "LQA", ativo: true, coordenador_id: null, substituto_id: null, observacoes: "Coordenação a definir." },
+  ],
   permissoes_categorias: MOCK_PERMISSOES_CATEGORIAS,
   notificacoes: [
     {
@@ -2094,6 +2099,27 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           error: null,
         };
       }
+      // 0169: quem aprova cada etapa (mesma forma do JSON do banco)
+      if (fn === "aprovadores_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: null };
+        return { data: mockAprovadoresPedido(pedido), error: null };
+      }
+      if (fn === "decidir_coordenacao_laboratorio") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        if (pedido.status !== "validado" || pedido.natureza !== "material_consumo_lab" || pedido.aprovacao_area_em) {
+          return { data: null, error: { message: "Este pedido não está aguardando a coordenação do laboratório.", code: "22023" } };
+        }
+        if (args.p_decisao === "devolvido") {
+          if (!String(args.p_observacao ?? "").trim()) return { data: null, error: { message: "Escreva o motivo da devolução.", code: "22023" } };
+          pedido.status = "ajuste_solicitante";
+        } else {
+          pedido.aprovacao_area_em = new Date().toISOString();
+          pedido.aprovacao_area_por = "admin@example.com";
+        }
+        return { data: { pedido_id: pedido.id, decisao: args.p_decisao }, error: null };
+      }
       if (fn === "vinculos_projeto") {
         const projetoId = Number(args.p_projeto_id);
         const vinculos = store.projetos_vinculos ?? [];
@@ -2563,6 +2589,58 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
   };
 }
 
+
+function mockAprovadoresPedido(pedido: Row) {
+  const perfis = (store.perfis ?? []) as Row[];
+  const nomeDe = (id: unknown) => {
+    const p = perfis.find((row) => row.id === id && !row.suspenso);
+    return p ? String(p.nome ?? p.email) : null;
+  };
+  let coordenador: Row | null = null;
+  let faltaCoordenador: string | null = null;
+  if (pedido.projeto_id != null) {
+    const projeto = (store.projetos ?? []).find((row) => Number(row.id) === Number(pedido.projeto_id));
+    const nome = nomeDe(projeto?.coordenador_id);
+    if (nome) {
+      coordenador = { motivo: "coordenador_projeto", rotulo: `Coordenador do projeto ${projeto?.nome}`, nome, email: null, ids: [projeto?.coordenador_id] };
+    } else {
+      faltaCoordenador = `O projeto "${projeto?.nome ?? pedido.projeto_id}" não tem coordenador cadastrado como usuário ativo. O pedido não segue sem a indicação do coordenador: peça ao Administrador para indicar o coordenador em Cadastros > Projetos.`;
+    }
+  } else {
+    const sup = perfis.filter((row) => row.papel === "supervisor" && !row.suspenso);
+    if (sup.length) {
+      coordenador = { motivo: "supervisao", rotulo: "Supervisão (pedido sem projeto)", nome: sup.map((row) => row.nome).join(", "), email: null, ids: sup.map((row) => row.id) };
+    } else {
+      faltaCoordenador = "Pedido sem projeto é validado pela Supervisão, mas não há usuário ativo com a função Supervisor. O pedido não segue: escolha o projeto ou peça ao Administrador para cadastrar a Supervisora.";
+    }
+  }
+  const exigido = pedido.natureza === "material_consumo_lab";
+  let laboratorio: Row | null = null;
+  let faltaLaboratorio: string | null = null;
+  if (exigido) {
+    const area = (store.coordenacoes_area ?? []).find((row) => Number(row.id) === Number(pedido.area_id));
+    if (!area) {
+      faltaLaboratorio = "Material de consumo de laboratório precisa indicar o laboratório (Editar, no topo do pedido). A coordenação do laboratório aprova depois do coordenador.";
+    } else if (!nomeDe(area.coordenador_id) && !nomeDe(area.substituto_id)) {
+      faltaLaboratorio = `O laboratório ${area.nome} não tem coordenação cadastrada. O pedido não segue: peça ao Administrador para indicar o coordenador em Cadastros > Laboratórios e áreas.`;
+    } else {
+      laboratorio = {
+        area_id: area.id,
+        area: area.nome,
+        nome: nomeDe(area.coordenador_id) ?? nomeDe(area.substituto_id),
+        substituto_nome: nomeDe(area.coordenador_id) ? nomeDe(area.substituto_id) : null,
+        ids: [area.coordenador_id, area.substituto_id].filter((id) => nomeDe(id)),
+      };
+    }
+  }
+  return {
+    coordenador,
+    falta_coordenador: faltaCoordenador,
+    laboratorio_exigido: exigido,
+    laboratorio,
+    falta_laboratorio: faltaLaboratorio,
+  };
+}
 
 function mockConsumoMensal(insumoId: number) {
   const agora = new Date();

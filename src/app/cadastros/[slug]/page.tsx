@@ -38,6 +38,8 @@ const FONTES_COM_ATIVO = new Set(["fornecedores", "clientes", "tipo_insumos", "i
 const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {
   insumos: "insumos.editar",
   projetos: "projetos.editar",
+  // 0169: quem aprova o quê é decisão do Administrador
+  coordenacoes: "usuarios.gerenciar",
 };
 
 type Row = Record<string, unknown>;
@@ -288,6 +290,17 @@ export default async function CadastroPage({
     linhas = linhas.map((r) => ({
       ...r,
       cliente_nome: r.cliente_id != null ? nomePorId.get(String(r.cliente_id)) ?? "—" : "—",
+    }));
+  }
+
+  // laboratórios e áreas: nome de quem coordena e de quem substitui
+  if (slug === "coordenacoes") {
+    const usuarios = opcoesPorFonte["perfis"] ?? [];
+    const nomePorId = new Map(usuarios.map((o) => [o.value, o.label]));
+    linhas = linhas.map((r) => ({
+      ...r,
+      coordenador_nome: r.coordenador_id != null ? nomePorId.get(String(r.coordenador_id)) ?? "—" : "Sem coordenador: o pedido trava",
+      substituto_nome: r.substituto_id != null ? nomePorId.get(String(r.substituto_id)) ?? "—" : "—",
     }));
   }
 

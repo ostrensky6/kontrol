@@ -226,6 +226,36 @@ export type Database = {
         }
         Relationships: []
       }
+      coordenacoes_area: {
+        Row: {
+          ativo: boolean
+          coordenador_id: string | null
+          criado_em: string
+          id: number
+          nome: string
+          observacoes: string | null
+          substituto_id: string | null
+        }
+        Insert: {
+          ativo?: boolean
+          coordenador_id?: string | null
+          criado_em?: string
+          id?: never
+          nome: string
+          observacoes?: string | null
+          substituto_id?: string | null
+        }
+        Update: {
+          ativo?: boolean
+          coordenador_id?: string | null
+          criado_em?: string
+          id?: never
+          nome?: string
+          observacoes?: string | null
+          substituto_id?: string | null
+        }
+        Relationships: []
+      }
       demanda_analises: {
         Row: {
           codigo_analise: string
@@ -3062,6 +3092,9 @@ export type Database = {
         Row: {
           natureza: string | null
           objetivo: string | null
+          area_id: number | null
+          aprovacao_area_por: string | null
+          aprovacao_area_em: string | null
           analisado_em: string | null
           aprovacao_final_em: string | null
           aprovado_coordenador_em: string | null
@@ -3111,6 +3144,9 @@ export type Database = {
         Insert: {
           natureza?: string | null
           objetivo?: string | null
+          area_id?: number | null
+          aprovacao_area_por?: string | null
+          aprovacao_area_em?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
           aprovado_coordenador_em?: string | null
@@ -3160,6 +3196,9 @@ export type Database = {
         Update: {
           natureza?: string | null
           objetivo?: string | null
+          area_id?: number | null
+          aprovacao_area_por?: string | null
+          aprovacao_area_em?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
           aprovado_coordenador_em?: string | null
@@ -4762,6 +4801,10 @@ export type Database = {
         Returns: undefined
       }
       aguardando_voce: { Args: never; Returns: Json }
+      aprovadores_pedido_interno: {
+        Args: { p_pedido_id: number }
+        Returns: Json
+      }
       aplicar_ajuste_inventario_contagem: {
         Args: { p_contagem_id: number }
         Returns: Json
@@ -4899,6 +4942,10 @@ export type Database = {
       }
       current_papel: { Args: never; Returns: string }
       dar_baixa_plano: { Args: { p_planejamento_id: number }; Returns: Json }
+      decidir_coordenacao_laboratorio: {
+        Args: { p_decisao: string; p_observacao?: string | null; p_pedido_id: number }
+        Returns: Json
+      }
       gerar_planejamento_da_proposta: { Args: { p_versao_id: number }; Returns: Json }
       duplicar_orcamento_final_transacional: {
         Args: {

@@ -7,6 +7,7 @@ import {
   aprovarCompraFinal,
   cancelarPedidoInterno,
   concluirCompra,
+  decidirCoordenacaoLaboratorio,
   devolverParaCompras,
   devolverParaSolicitante,
   encaminharInstituicao,
@@ -95,6 +96,10 @@ export function PedidoInternoAcoes({
   podeCancelar = false,
   temCompraFormal = false,
   podeEnviarValidacao = true,
+  motivoSemEnvio,
+  motivoSemValidacao,
+  aguardandoLaboratorio = false,
+  podeDecidirLaboratorio = false,
 }: {
   pedidoId: number;
   status: string;
@@ -105,6 +110,13 @@ export function PedidoInternoAcoes({
   /** pedido devolvido depois de formalizado: retoma a compra que já existe */
   temCompraFormal?: boolean;
   podeEnviarValidacao?: boolean;
+  /** 0169: o envio trava sem quem valide (texto do banco) */
+  motivoSemEnvio?: string;
+  /** 0169: o usuário tem a permissão, mas não é quem valida este pedido */
+  motivoSemValidacao?: string;
+  /** 0169: material de consumo de laboratório ainda sem a coordenação do laboratório */
+  aguardandoLaboratorio?: boolean;
+  podeDecidirLaboratorio?: boolean;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -117,14 +129,23 @@ export function PedidoInternoAcoes({
           pedidoId={pedidoId}
           action={enviarParaValidacao}
           label="Enviar para validação"
-          disabled={!podeEnviarValidacao}
-          disabledReason="Complete identificação, justificativa, fonte de recurso e ao menos um item antes de enviar."
+          disabled={!podeEnviarValidacao || Boolean(motivoSemEnvio)}
+          disabledReason={
+            motivoSemEnvio ??
+            "Complete tipo de material, objetivo, justificativa e ao menos um item antes de enviar."
+          }
         />
       )}
 
       {status === "em_validacao" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={validarInformacoes} label="Validar informações" />
+          <Botao
+            pedidoId={pedidoId}
+            action={validarInformacoes}
+            label="Validar informações"
+            disabled={Boolean(motivoSemValidacao)}
+            disabledReason={motivoSemValidacao}
+          />
           <Botao
             pedidoId={pedidoId}
             action={devolverParaSolicitante}
@@ -135,11 +156,30 @@ export function PedidoInternoAcoes({
         </>
       )}
 
+      {status === "validado" && aguardandoLaboratorio && podeDecidirLaboratorio && (
+        <>
+          <Botao pedidoId={pedidoId} action={decidirCoordenacaoLaboratorio} label="Aprovar pelo laboratório">
+            <input type="hidden" name="decisao" value="aprovado" />
+          </Botao>
+          <Botao
+            pedidoId={pedidoId}
+            action={decidirCoordenacaoLaboratorio}
+            label="Devolver ao solicitante"
+            variant="outline"
+            comentarioPlaceholder="Motivo obrigatório"
+          >
+            <input type="hidden" name="decisao" value="devolvido" />
+          </Botao>
+        </>
+      )}
+
       {status === "validado" && podeGerir && (
         <Botao
           pedidoId={pedidoId}
           action={formalizarPedidoInterno}
           label={temCompraFormal ? "Retomar compra formal" : "Formalizar em compras"}
+          disabled={aguardandoLaboratorio}
+          disabledReason="Material de consumo de laboratório só segue para compras depois da aprovação da coordenação do laboratório."
         />
       )}
 

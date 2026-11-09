@@ -39,6 +39,8 @@ export function PedidoInternoCabecalhoAcoes({
   tipoDemanda,
   natureza = null,
   objetivo = null,
+  areaId = null,
+  areas = [],
   fonteRecurso,
   justificativa,
   projetos,
@@ -54,6 +56,9 @@ export function PedidoInternoCabecalhoAcoes({
   tipoDemanda: string | null;
   natureza?: string | null;
   objetivo?: string | null;
+  /** 0169: laboratório ou área (obrigatório para material de consumo de laboratório) */
+  areaId?: number | null;
+  areas?: { id: number; nome: string; coordenador_nome?: string | null }[];
   fonteRecurso: string | null;
   justificativa: string | null;
   projetos: Opcao[];
@@ -86,7 +91,7 @@ export function PedidoInternoCabecalhoAcoes({
               <div>
                 <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
                 <select name="projeto_id" defaultValue={projetoId ?? ""} className={inputCls}>
-                  <option value="">—</option>
+                  <option value="">Sem projeto (a Supervisão valida)</option>
                   {projetos.map((projeto) => (
                     <option key={projeto.id} value={projeto.id}>
                       {projeto.nome}
@@ -135,6 +140,20 @@ export function PedidoInternoCabecalhoAcoes({
                   <option value="">Escolha…</option>
                   {OBJETIVOS_PEDIDO.map((o) => (
                     <option key={o.valor} value={o.valor}>{o.rotulo}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="sm:col-span-2">
+                <label htmlFor={`editar-pedido-area-${pedidoId}`} className="block text-xs font-medium text-muted-foreground">
+                  Laboratório ou área (obrigatório para material de consumo de laboratório)
+                </label>
+                <select id={`editar-pedido-area-${pedidoId}`} name="area_id" defaultValue={areaId ?? ""} className={inputCls}>
+                  <option value="">—</option>
+                  {areas.map((area) => (
+                    <option key={area.id} value={area.id}>
+                      {area.nome}
+                      {area.coordenador_nome ? ` · ${area.coordenador_nome}` : " · sem coordenação"}
+                    </option>
                   ))}
                 </select>
               </div>

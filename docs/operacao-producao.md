@@ -177,6 +177,7 @@ Uma linha por migration: o que ela muda e o teste que a valida no CI (job
 | 0166 | Leitura de compras (pedidos, itens, recebimentos) pela caixinha | `leitura_compras_0166.sql` |
 | 0167 | Consumo mensal sem leitura desfeita; data do movimento em Brasilia; pedidos internos, leituras, codigos e inventario lidos pela caixinha; auditoria da estimativa manual e dos vinculos | `auditoria_banco_0167.sql` |
 | 0168 | Solicitacao de compra completa (natureza, objetivo, caracteristicas, exigencia tecnica, exclusividade, outros fornecedores) e sinonimos do insumo; so acrescenta colunas | `solicitacao_0168.sql` |
+| 0169 | Aprovacao por competencia: coordenador do projeto (Supervisao sem projeto, Admin substituto), coordenacao do laboratorio para material de consumo de laboratorio, envio trava sem coordenador; cria `coordenacoes_area` e semeia Genetica, LAPOA, LHM, LQA e Campo | `aprovacao_competencia_0169.sql` |
 
 Os numeros 0149, 0150 e 0153 a 0156 nao existem: foram reservados no pacote de
 evolucao e nao viraram migration. Nao e falta. `npm run db:migration -- --situacao`

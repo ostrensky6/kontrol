@@ -172,6 +172,42 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     ],
   },
 
+  coordenacoes: {
+    slug: "coordenacoes",
+    tabela: "coordenacoes_area",
+    titulo: "Laboratórios e áreas",
+    singular: "laboratório ou área",
+    subtitulo:
+      "Quem coordena cada laboratório ou área. A coordenação **aprova o material de consumo de laboratório** depois do coordenador do projeto; sem coordenação indicada, o pedido não segue.",
+    rotulo: "nome",
+    colunas: [
+      { key: "nome", label: "Laboratório ou área" },
+      { key: "coordenador_nome", label: "Coordenação" },
+      { key: "substituto_nome", label: "Substituto" },
+      { key: "ativo", label: "Ativo", tipo: "checkbox" },
+    ],
+    campos: [
+      { name: "nome", label: "Laboratório ou área", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação" },
+      { name: "ativo", label: "Ativo", tipo: "checkbox", padraoLigado: true },
+      {
+        name: "coordenador_id",
+        label: "Coordenação (usuário)",
+        tipo: "select",
+        opcoesDe: "perfis",
+        grupo: "Quem aprova",
+        ajuda: "Recebe o aviso e aprova os pedidos de material de consumo de laboratório deste laboratório.",
+      },
+      {
+        name: "substituto_id",
+        label: "Substituto (usuário)",
+        tipo: "select",
+        opcoesDe: "perfis",
+        ajuda: "Aprova na ausência da coordenação (férias, afastamento). O Administrador também pode aprovar como substituto.",
+      },
+      { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },
+    ],
+  },
+
   equipamentos: {
     slug: "equipamentos",
     tabela: "equipamentos",
@@ -641,6 +677,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
 
 export const ORDEM_CADASTROS = [
   "projetos",
+  "coordenacoes",
   "clientes",
   "tipo_insumos",
   "insumos",

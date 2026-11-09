@@ -153,6 +153,26 @@ const tecnicosSchema = z.object({
 const tecnicosSemSalarioSchema = tecnicosSchema.omit({ valor_mes: true });
 
 const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
+  // 0169: laboratórios e áreas com a coordenação que aprova
+  coordenacoes: z
+    .object({
+      nome: reqStr,
+      ativo: z.preprocess((v) => v === "on" || v === "true" || v === true, z.boolean()),
+      coordenador_id: z.preprocess(
+        (v) => (v === "" || v == null ? null : v),
+        z.string().uuid("Coordenação inválida").nullable(),
+      ),
+      substituto_id: z.preprocess(
+        (v) => (v === "" || v == null ? null : v),
+        z.string().uuid("Substituto inválido").nullable(),
+      ),
+      observacoes: optStr,
+    })
+    .superRefine((d, ctx) => {
+      if (d.substituto_id && d.substituto_id === d.coordenador_id) {
+        ctx.addIssue({ code: "custom", path: ["substituto_id"], message: "O substituto precisa ser outra pessoa" });
+      }
+    }),
   clientes: z.object({
     nome: reqStr,
     cnpj: optStr,
@@ -288,6 +308,7 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
 };
 
 const TABELAS: Record<string, string> = {
+  coordenacoes: "coordenacoes_area",
   clientes: "clientes",
   projetos: "projetos",
   equipamentos: "equipamentos",

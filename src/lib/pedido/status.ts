@@ -89,6 +89,28 @@ export const PEDIDO_INTERNO_STATUS = {
 export type PedidoInternoStatus = keyof typeof PEDIDO_INTERNO_STATUS;
 
 /**
+ * 0169: material de consumo de laboratório validado pelo coordenador ainda
+ * espera a coordenação do laboratório. O status no banco continua "validado";
+ * a tela mostra a situação real, por escrito.
+ */
+export const PEDIDO_INTERNO_AGUARDANDO_LABORATORIO = {
+  label: "Aguardando coordenação do laboratório",
+  etapa: "Aprovação da coordenação do laboratório",
+  className: "bg-warning-soft text-warning-strong",
+} as const;
+
+export function pedidoInternoSituacao(pedido: {
+  status: string | null | undefined;
+  natureza?: string | null;
+  aprovacao_area_em?: string | null;
+}) {
+  if (pedido.status === "validado" && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em) {
+    return PEDIDO_INTERNO_AGUARDANDO_LABORATORIO;
+  }
+  return pedidoInternoStatus(pedido.status);
+}
+
+/**
  * Etapa 11 — "Compra recebida". É uma marca paralela (coluna `recebido_em`),
  * não um status do fluxo: pode ser registrada a qualquer momento após a
  * aprovação da compra, sem interferir no andamento de pagamento/NF.

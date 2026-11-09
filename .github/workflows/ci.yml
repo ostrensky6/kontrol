@@ -154,6 +154,8 @@ jobs:
 
       - name: Validar campos da solicitação e sinônimos (0168)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/solicitacao_0168.sql
+      - name: Validar aprovação por competência (0169)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/aprovacao_competencia_0169.sql
 
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
