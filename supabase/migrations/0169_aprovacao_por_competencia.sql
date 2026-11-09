@@ -361,8 +361,9 @@ begin
   -- Validação: só o coordenador competente, ou o Administrador como substituto.
   if old.status = 'em_validacao' and new.status = 'validado' and v_uid is not null then
     v_ap := kontrol_private.aprovadores_pedido(new.projeto_id, new.natureza, new.area_id);
+    -- sem coordenador indicado, ninguém além do Administrador tem competência
     if v_ap ->> 'falta_coordenador' is not null and coalesce(public.current_papel(), '') <> 'admin' then
-      raise exception '%', v_ap ->> 'falta_coordenador' using errcode = '22023';
+      raise exception '%', v_ap ->> 'falta_coordenador' using errcode = '42501';
     end if;
     if coalesce(public.current_papel(), '') <> 'admin'
        and not coalesce((v_ap -> 'coordenador' -> 'ids') ? v_uid::text, false) then
