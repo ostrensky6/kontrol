@@ -123,9 +123,44 @@ describe("hrefAtivoNaBarra", () => {
     expect(orcamentos.children.some((c) => c.href === "/orcamento")).toBe(false);
   });
 
+  it("Suprimentos: uma barra só, sem link repetido, com as ferramentas do estoque fora dela", () => {
+    const suprimentos = APP_MODULES.find((m) => m.id === "suprimentos")!;
+    const visiveis = suprimentos.children.filter((c) => c.showInTopNav !== false);
+    expect(visiveis.map((c) => c.label)).toEqual([
+      "Visão geral",
+      "Estoque",
+      "Planejamento",
+      "Pedidos",
+      "Recebimento",
+      "Equipamentos",
+      "Notificações",
+    ]);
+    // cada rota marca exatamente o item da tarefa
+    expect(hrefAtivoNaBarra(visiveis, "/suprimentos")).toBe("/suprimentos");
+    expect(hrefAtivoNaBarra(visiveis, "/suprimentos/prazos")).toBe("/pedido");
+    expect(hrefAtivoNaBarra(visiveis, "/compras/12")).toBe("/pedido");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/controle")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/inventario")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/etiquetas")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/scanner/triagem")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/equipamentos/3")).toBe("/estoque/equipamentos");
+    expect(hrefAtivoNaBarra(visiveis, "/planejamento/disputas")).toBe("/planejamento");
+  });
+
   it("Operação mostra Análises, Insumos por análise e Custeio na barra", () => {
     const operacao = APP_MODULES.find((m) => m.id === "operacao")!;
     const visiveis = operacao.children.filter((c) => c.showInTopNav !== false).map((c) => c.href);
     expect(visiveis).toEqual(["/analises", "/insumos", "/custeio"]);
+  });
+});
+
+describe("menu lateral", () => {
+  it("sem acesso à visão geral de Suprimentos, o menu abre o primeiro item permitido", async () => {
+    const { getSidebarGroups } = await import("./modules");
+    const perfil = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true } } };
+    const grupo = getSidebarGroups(perfil).find((g) => g.title === "Suprimentos");
+    expect(grupo?.href).toBe("/pedido");
+    const comEstoque = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true, "estoque.ver": true } } };
+    expect(getSidebarGroups(comEstoque).find((g) => g.title === "Suprimentos")?.href).toBe("/suprimentos");
   });
 });

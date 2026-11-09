@@ -20,6 +20,8 @@ import { excluirPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { FormComMensagem } from "./FormComMensagem";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { PedidoItensQuickView, type PedidoItemView } from "./PedidoItensQuickView";
+import { EtapaProgresso } from "./EtapaProgresso";
+import { posicaoEtapa, type EtapaPedidoId } from "@/lib/pedido/etapas";
 
 export type PedidoInternoRow = {
   id: number;
@@ -38,6 +40,8 @@ export type PedidoInternoRow = {
   total: string;
   status: string;
   statusLabel: string;
+  /** etapa do fluxo (solicitação → pagamento), para a barra de etapas */
+  etapa: EtapaPedidoId;
   proximaAcao: string;
   responsavelAtual: string;
   documentos: string;
@@ -101,6 +105,8 @@ function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
   );
 }
 
+const URGENTE = new Set(["Alta", "Crítica"]);
+
 function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown>[] {
   const cols: ColumnDef<PedidoInternoRow, unknown>[] = [
     {
@@ -113,20 +119,58 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       ),
     },
     {
-      accessorKey: "titulo",
+      // a busca também encontra projeto, solicitante e coordenador
+      id: "titulo",
+      accessorFn: (row) => `${row.titulo} ${row.projeto} ${row.solicitante} ${row.coordenador}`,
       header: "Pedido",
       cell: ({ row }) => (
-        <Link href={`/pedido/${row.original.id}`} className="font-medium text-primary hover:underline">
-          {row.original.titulo}
-        </Link>
+        <div className="min-w-52">
+          <Link href={`/pedido/${row.original.id}`} className="font-medium text-primary hover:underline">
+            {row.original.titulo}
+          </Link>
+          <p className="text-xs text-muted-foreground">
+            {[row.original.projeto !== "—" ? row.original.projeto : "Sem projeto", row.original.solicitante !== "—" ? row.original.solicitante : null]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </div>
       ),
     },
-    { accessorKey: "projeto", header: "Projeto" },
-    { accessorKey: "coordenador", header: "Coordenador" },
-    { accessorKey: "solicitante", header: "Solicitante" },
-    { accessorKey: "necessidade", header: "Necessidade" },
-    { accessorKey: "urgencia", header: "Urgência" },
-    { accessorKey: "ciclo", header: "Ciclo", cell: ({ row }) => row.original.ciclo ?? "—" },
+    {
+      id: "etapa",
+      accessorFn: (row) => `${row.statusLabel} ${row.ciclo ?? ""}`,
+      header: "Etapa",
+      // ordena pela posição no fluxo, não pelo nome do status
+      sortingFn: (a, b) => posicaoEtapa(a.original.etapa) - posicaoEtapa(b.original.etapa),
+      cell: ({ row }) => (
+        <div className="min-w-44 space-y-1">
+          <EtapaProgresso etapa={row.original.etapa} />
+          <StatusBadge status={row.original.status} label={row.original.statusLabel} />
+          {row.original.ciclo && row.original.ciclo !== "—" && (
+            <p className="text-xs text-muted-foreground">Ciclo {row.original.ciclo}</p>
+          )}
+          {row.original.recebimento !== "—" && row.original.etapa !== "solicitacao" && (
+            <p className="text-xs text-muted-foreground">Chegou {row.original.recebimento.replace("/", " de ")} itens</p>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "proximaAcao",
+      accessorFn: (row) => `${row.proximaAcao} ${row.responsavelAtual}`,
+      header: "Próximo passo",
+      cell: ({ row }) => (
+        <div className="min-w-44">
+          <p className="font-medium text-foreground">{row.original.proximaAcao}</p>
+          {row.original.responsavelAtual !== "—" && (
+            <p className="text-xs text-muted-foreground">com {row.original.responsavelAtual}</p>
+          )}
+          {row.original.pendencias !== "—" && (
+            <p className="text-xs text-warning-strong">Falta: {row.original.pendencias}</p>
+          )}
+        </div>
+      ),
+    },
     {
       accessorKey: "itens",
       header: "Itens",
@@ -139,21 +183,25 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
         />
       ),
     },
-    { accessorKey: "total", header: "Prévio", meta: { align: "right" } },
-    { accessorKey: "documentos", header: "Docs", meta: { align: "center" } },
-    { accessorKey: "modalidade", header: "Modalidade" },
-    { accessorKey: "compraFormal", header: "Compra" },
-    { accessorKey: "recebimento", header: "Recebimento" },
+    { accessorKey: "total", header: "Valor prévio", meta: { align: "right" } },
     {
-      accessorKey: "statusLabel",
-      header: "Status",
-      meta: { align: "center" },
-      cell: ({ row }) => <StatusBadge status={row.original.status} />,
-      filterFn: "equalsString",
+      id: "necessidade",
+      accessorFn: (row) => `${row.necessidade} ${row.urgencia}`,
+      header: "Precisa até",
+      cell: ({ row }) => (
+        <div className="whitespace-nowrap">
+          <p className="tabular-nums">{row.original.necessidade}</p>
+          {URGENTE.has(row.original.urgencia) && (
+            <span className="inline-flex rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
+              Urgência {row.original.urgencia.toLowerCase()}
+            </span>
+          )}
+        </div>
+      ),
     },
-    { accessorKey: "proximaAcao", header: "Próxima ação" },
-    { accessorKey: "responsavelAtual", header: "Responsável" },
-    { accessorKey: "pendencias", header: "Pendências" },
+    // só para os filtros (não aparecem como coluna)
+    { accessorKey: "projeto", header: "Projeto" },
+    { accessorKey: "modalidade", header: "Modalidade" },
   ];
   if (podeExcluir) {
     cols.push({
@@ -180,17 +228,10 @@ export function PedidosInternosTable({
     <DataTable
       data={rows}
       columns={buildColumns(podeExcluir)}
-      searchPlaceholder="Buscar pedido, projeto, solicitante ou status..."
+      searchPlaceholder="Buscar pedido, projeto ou solicitante..."
       emptyText={emptyText}
+      colunasOcultas={["projeto", "modalidade"]}
       filters={[
-        {
-          columnId: "statusLabel",
-          label: "Status",
-          options: [...new Set(rows.map((row) => row.statusLabel))].map((value) => ({
-            value,
-            label: value,
-          })),
-        },
         {
           columnId: "projeto",
           label: "Projeto",
@@ -213,10 +254,19 @@ export function PedidosInternosTable({
           <span className="font-mono text-xs text-muted-foreground/80">{row.numero}</span> · {row.titulo}
         </Link>
       )}
-      getMobileDescription={(row) => `${row.projeto} · ${row.coordenador} · ${row.proximaAcao}`}
+      getMobileDescription={(row) => (
+        <span className="block space-y-1">
+          <EtapaProgresso etapa={row.etapa} />
+          <span className="block font-medium text-foreground">{row.statusLabel}</span>
+          <span className="block">
+            {row.proximaAcao}
+            {row.responsavelAtual !== "—" ? ` · com ${row.responsavelAtual}` : ""}
+          </span>
+          <span className="block text-xs">{row.projeto !== "—" ? row.projeto : "Sem projeto"}</span>
+        </span>
+      )}
       getMobileMeta={(row) => (
         <div className="flex flex-col items-end gap-1.5">
-          <StatusBadge status={row.status} />
           <PedidoItensQuickView numero={row.numero} titulo={row.titulo} itens={row.itensDetalhe} />
           {podeExcluirPedido(row, podeExcluir) && <ExcluirPedido row={row} />}
         </div>

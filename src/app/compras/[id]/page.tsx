@@ -175,7 +175,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Compras", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
+        <Breadcrumbs items={[{ label: "Compras formais", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">Compra #{pedido.id}</h1>

@@ -21,6 +21,8 @@ export type AppModuleId =
 export type ModuleChild = NavLink & {
   minRole?: Role;
   showInTopNav?: boolean;
+  /** outras rotas em que este item fica marcado na barra (ex.: /compras em Pedidos) */
+  ativoTambem?: string[];
 };
 
 export type AppModule = {
@@ -113,7 +115,7 @@ export const APP_MODULES: AppModule[] = [
     id: "suprimentos",
     label: "Suprimentos",
     href: "/suprimentos",
-    desc: "estoque, compras e recebimento",
+    desc: "estoque, pedidos e recebimento",
     icon: "PackageSearch",
     accent: "blue",
     activePaths: [
@@ -127,64 +129,62 @@ export const APP_MODULES: AppModule[] = [
       "/etiquetas",
       "/scanner",
     ],
+    // Uma barra só, um link por tarefa. As ferramentas do estoque (leitura,
+    // inventário, etiquetas, triagem) ficam na barra própria do Estoque; as
+    // compras formais e os prazos ficam dentro de Pedidos. Os itens ocultos
+    // continuam na busca (Ctrl+K).
     children: [
+      {
+        href: "/suprimentos",
+        label: "Visão geral",
+        desc: "o que temos em estoque e o que precisa de atenção",
+        icon: "LayoutGrid",
+      },
       {
         href: "/estoque",
         label: "Estoque",
-        desc: "saldos, lotes, validade e rastreio",
+        desc: "saldos, lotes, entradas, baixas e validade",
         icon: "Boxes",
         shortcut: "E",
-      },
-      {
-        href: "/estoque/controle",
-        label: "Controle de Estoque",
-        desc: "saldos, validades, alertas e reposição",
-        icon: "SlidersHorizontal",
-        shortcut: "C",
+        ativoTambem: ["/etiquetas", "/scanner"],
       },
       {
         href: "/planejamento",
         label: "Planejamento",
-        desc: "necessidades, reservas e consumo previsto",
+        desc: "reservas de insumo para as análises previstas",
         icon: "CalendarClock",
         shortcut: "P",
       },
       {
-        href: "/planejamento/disputas",
-        label: "Disputas de reserva",
-        desc: "pedir e decidir reserva de outro plano quando falta insumo",
-        icon: "ClipboardCheck",
-        showInTopNav: false,
-      },
-      {
         href: "/pedido",
-        label: "Pedidos internos",
-        desc: "pedidos do laboratório para compra",
+        label: "Pedidos",
+        desc: "cada pedido e a etapa em que está, da solicitação ao pagamento",
         icon: "ClipboardList",
-      },
-      {
-        href: "/compras",
-        label: "Compras",
-        desc: "solicitações, pedidos e recebimento",
-        icon: "ShoppingCart",
+        ativoTambem: ["/compras", "/suprimentos/prazos"],
       },
       {
         href: "/recebimento",
         label: "Recebimento",
-        desc: "itens de pedidos por estágio até a chegada",
+        desc: "registrar a chegada do que foi comprado",
         icon: "PackageCheck",
+      },
+      {
+        href: "/estoque/equipamentos",
+        label: "Equipamentos",
+        desc: "unidades físicas, calibrações e manutenções",
+        icon: "Wrench",
       },
       {
         href: "/notificacoes",
         label: "Notificações",
-        desc: "alertas operacionais de estoque e suprimentos",
+        desc: "avisos para você",
         icon: "Bell",
       },
       {
-        href: "/estoque/equipamentos",
-        label: "Controle de Equipamentos",
-        desc: "unidades físicas, calibrações e manutenções",
-        icon: "Wrench",
+        href: "/estoque/controle",
+        label: "Controle de Estoque",
+        desc: "painel do estoque por insumo, por lote e em gráficos",
+        icon: "SlidersHorizontal",
         showInTopNav: false,
       },
       {
@@ -192,12 +192,14 @@ export const APP_MODULES: AppModule[] = [
         label: "Entrada e saída por leitura",
         desc: "código de barras do fabricante: entrada e abertura de embalagem",
         icon: "ScanLine",
+        showInTopNav: false,
       },
       {
         href: "/estoque/inventario",
         label: "Inventário",
         desc: "contagem por insumo ou por lote, com ajuste de divergências",
         icon: "ClipboardCheck",
+        showInTopNav: false,
       },
       {
         href: "/etiquetas",
@@ -211,6 +213,27 @@ export const APP_MODULES: AppModule[] = [
         label: "Códigos não reconhecidos",
         desc: "triagem de códigos lidos que ainda não têm cadastro",
         icon: "ScanLine",
+        showInTopNav: false,
+      },
+      {
+        href: "/planejamento/disputas",
+        label: "Disputas de reserva",
+        desc: "pedir e decidir reserva de outro plano quando falta insumo",
+        icon: "ClipboardCheck",
+        showInTopNav: false,
+      },
+      {
+        href: "/compras",
+        label: "Compras formais",
+        desc: "registro das compras com fornecedor, ligadas aos pedidos",
+        icon: "ShoppingCart",
+        showInTopNav: false,
+      },
+      {
+        href: "/suprimentos/prazos",
+        label: "Prazos de compra",
+        desc: "quanto tempo as compras levaram, do pedido à chegada",
+        icon: "CalendarClock",
         showInTopNav: false,
       },
     ],
@@ -384,13 +407,15 @@ export function getModuleForProfile(moduleId: AppModuleId, perfil: NavigationPro
  * atual. Evita duas abas ativas quando um href é prefixo de outro
  * (ex.: /estoque e /estoque/controle).
  */
-export function hrefAtivoNaBarra(items: Pick<ModuleChild, "href">[], pathname: string) {
-  let melhor: string | null = null;
-  for (const { href } of items) {
-    const casa = pathname === href || pathname.startsWith(href + "/");
-    if (casa && (melhor === null || href.length > melhor.length)) melhor = href;
+export function hrefAtivoNaBarra(items: Pick<ModuleChild, "href" | "ativoTambem">[], pathname: string) {
+  let melhor: { href: string; tamanho: number } | null = null;
+  for (const { href, ativoTambem } of items) {
+    for (const caminho of [href, ...(ativoTambem ?? [])]) {
+      const casa = pathname === caminho || pathname.startsWith(caminho + "/");
+      if (casa && (melhor === null || caminho.length > melhor.tamanho)) melhor = { href, tamanho: caminho.length };
+    }
   }
-  return melhor;
+  return melhor?.href ?? null;
 }
 
 export function moduleIsActive(module: Pick<AppModule, "activePaths">, pathname: string) {
@@ -400,7 +425,8 @@ export function moduleIsActive(module: Pick<AppModule, "activePaths">, pathname:
 export function getSidebarGroups(perfil: NavigationProfile): NavGroup[] {
   return getModulesForProfile(perfil).map((module) => ({
     title: module.label,
-    href: module.href,
+    // sem acesso à página inicial do módulo, o menu abre o primeiro item que a pessoa vê
+    href: permiteAcesso(perfil, module.href) ? module.href : (module.children[0]?.href ?? module.href),
     desc: module.desc,
     accent: module.accent,
     icon: module.icon,

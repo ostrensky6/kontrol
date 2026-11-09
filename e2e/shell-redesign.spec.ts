@@ -29,7 +29,7 @@ test("shell modular preserva sidebar, top-nav, collapse e temas nas telas princi
 
     await page.goto("/pedido");
     await expect(page.getByRole("navigation", { name: "Navegação de Suprimentos" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Pedido" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Pedidos" })).toBeVisible();
   }
 });
 

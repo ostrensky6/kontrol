@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
@@ -140,10 +139,7 @@ export default async function EstoqueControlePage() {
       <main className="app-page-container">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Suprimentos · Estoque e equipamentos
-            </p>
-            <div className="mt-1 flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight text-foreground">Controle de Estoque</h1>
               <HelpTip title="Controle de estoque">
                 <p>
@@ -156,12 +152,6 @@ export default async function EstoqueControlePage() {
                 </p>
               </HelpTip>
             </div>
-            <nav aria-label="Ferramentas de estoque" className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-xs">
-              <Link href="/estoque/leitura" className="font-medium text-primary hover:underline">Entrada e saída por leitura</Link>
-              <Link href="/estoque/inventario" className="font-medium text-primary hover:underline">Inventário (contagem)</Link>
-              <Link href="/etiquetas?tipo=lotes" className="font-medium text-primary hover:underline">Etiquetas QR</Link>
-              <Link href="/scanner/triagem" className="font-medium text-primary hover:underline">Códigos não reconhecidos</Link>
-            </nav>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {podeCriarPedido && <GerarPedidoReposicaoButton />}

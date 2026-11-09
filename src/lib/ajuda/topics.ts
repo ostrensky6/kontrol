@@ -177,6 +177,37 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
 
   // ──────────────────────────── Suprimentos ────────────────────────────
   {
+    id: "suprimentos",
+    titulo: "Suprimentos: visão geral",
+    grupo: "Suprimentos",
+    href: "/suprimentos",
+    resumo: "O que temos em estoque e o que precisa de atenção.",
+    intro:
+      "A visão geral de Suprimentos responde duas perguntas: o que temos disponível e o que precisa de atenção agora. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento, Equipamentos e Notificações.",
+    secoes: [
+      {
+        titulo: "Onde fica cada coisa",
+        itens: [
+          "Visão geral: a tabela 'Estoque disponível' e os quatro avisos (repor, validade, pedidos em andamento e a receber).",
+          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário, etiquetas e códigos não reconhecidos.",
+          "Planejamento: reservas de insumo para as análises previstas.",
+          "Pedidos: cada pedido e a etapa em que está. Compras formais e prazos de compra ficam no topo dessa página.",
+          "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção. Notificações: avisos para você.",
+        ],
+      },
+      {
+        titulo: "Estoque disponível",
+        itens: [
+          "Uma linha por insumo ativo: disponível (em mãos menos o reservado), reservado, a caminho, mínimo, validade mais próxima e situação.",
+          "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia. As regras são as mesmas do Controle de Estoque.",
+          "Clicar em 'Repor' ou 'Validade' nos avisos já abre a tabela filtrada.",
+          "Para dar entrada, baixa ou ver os lotes, use o Estoque.",
+        ],
+      },
+    ],
+    termos: ["visão geral", "disponível", "a caminho", "mínimo", "repor", "onde fica", "navegação", "menu"],
+  },
+  {
     id: "estoque",
     titulo: "Estoque",
     grupo: "Suprimentos",
@@ -230,7 +261,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Equipamentos: calibração e manutenção",
         itens: [
-          "Em Estoque → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
+          "Em Suprimentos → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
           "Na ficha da unidade, 'Definir frequência e aviso' diz de quantos em quantos dias a calibração ou manutenção é feita e com quantos dias de antecedência avisar.",
           "Depois de cada serviço, use 'Registrar manutenção ou calibração'. Se o certificado traz a próxima data, informe-a; senão o Kontrol soma a frequência.",
           "Os avisos aparecem no topo da página quando o vencimento se aproxima e ficam lá até alguém agendar o serviço ou clicar em 'Encaminhar' e dizer o que foi decidido.",
@@ -252,7 +283,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Conferir saldo e estoque físico",
         itens: [
           "Saldo registrado zero significa que o sistema mostra zero naquele registro. Saldo não conferido ou indisponível significa que ainda não dá para afirmar a quantidade. Nenhum dos dois substitui a contagem do estoque físico.",
-          "Para conferir o material no local, vá a Suprimentos → Inventário. Registre a contagem do item ou lote e compare com o saldo do sistema, conforme seu acesso.",
+          "Para conferir o material no local, vá a Suprimentos → Estoque → Inventário. Registre a contagem do item ou lote e compare com o saldo do sistema, conforme seu acesso.",
         ],
       },
     ],
@@ -307,7 +338,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   },
   {
     id: "pedido",
-    titulo: "Pedido",
+    titulo: "Pedidos",
     grupo: "Suprimentos",
     href: "/pedido",
     resumo: "Pedidos internos de compra, antes da compra formal.",
@@ -319,7 +350,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Registrar a necessidade de materiais e serviços antes da compra formal.",
           "Organizar a fila de pedidos com numeração sequencial única (Nº 0001, 0002…), que nunca se repete.",
-          "Conduzir cada pedido por etapas: rascunho, validação, formalização e encaminhamento.",
+          "Conduzir cada pedido pelas seis etapas: solicitação, aprovação, administrativo, cotação, compra e entrega, e pagamento.",
+          "Na lista, os cartões das etapas mostram quantos pedidos há em cada uma; clique num cartão para ver só os pedidos dela. 'Em andamento', 'Concluídos', 'Cancelados' e 'Todos' trocam o conjunto.",
+          "Cada linha mostra a barra das etapas (verde = cumprida, amarelo = atual), o status por escrito e o próximo passo, com quem está.",
         ],
       },
       {
@@ -413,7 +446,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Prazos de compra (ATGC, Funpar e outros caminhos)",
         itens: [
-          "Em Suprimentos → Ferramentas → 'Prazos de compra', veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
+          "Em Suprimentos → Pedidos → 'Prazos de compra', veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
           "O prazo aparece por caminho (Funpar, compra direta ATGC, universidade...), por categoria e por insumo, com o número de compras medidas e a confiança.",
           "Curto: metade das compras chegou até ali. Intermediário: 3 de cada 4. Conservador: 9 de cada 10. Para insumo crítico, planeje pelo conservador.",
           "Pedido aberto, atrasado ou cancelado não entra na conta. Informe a instituição ou a modalidade no pedido para o caminho sair certo.",
