@@ -197,8 +197,10 @@ export function PedidoAcoes({
           <Link href={`/pedido/${pedidoInternoPendente.id}`} className="font-medium text-primary hover:underline">
             pedido interno #{pedidoInternoPendente.id}
           </Link>
-          , que está em “{pedidoInternoPendente.rotulo}”. Ela só pode ser {status === "solicitado" ? "aprovada" : "enviada"}{" "}
-          depois que o pedido chegar a “Aprovado para compra”.
+          , que está em “{pedidoInternoPendente.rotulo}”.{" "}
+          {status === "solicitado"
+            ? "A aprovação é feita no pedido: quando ele chegar a “Aprovado para compra”, esta compra é aprovada junto (caminho único)."
+            : "Ela só pode ser enviada depois que o pedido chegar a “Aprovado para compra”."}
         </p>
       )}
       {status === "solicitado" && podeAprovar && !seguraPeloPedido && (

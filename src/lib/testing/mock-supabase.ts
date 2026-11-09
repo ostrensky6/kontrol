@@ -2120,6 +2120,37 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         }
         return { data: { pedido_id: pedido.id, decisao: args.p_decisao }, error: null };
       }
+      // 0170 (D6): pagamento só depois da entrega (mesma regra do banco)
+      if (fn === "pendencia_pagamento_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: "Pedido interno não encontrado.", error: null };
+        return { data: mockPendenciaPagamento(pedido), error: null };
+      }
+      if (fn === "confirmar_entrega_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        if (!["aprovado_para_compra", "compra_fechada", "encaminhado_instituicao"].includes(String(pedido.status))) {
+          return { data: null, error: { message: "A entrega só é confirmada depois da compra aprovada e antes do pagamento.", code: "22023" } };
+        }
+        if (pedido.entrega_confirmada_em) return { data: null, error: { message: "A entrega deste pedido já foi confirmada.", code: "22023" } };
+        pedido.entrega_confirmada_em = new Date().toISOString();
+        pedido.entrega_confirmada_por = "admin@example.com";
+        pedido.entrega_observacao = String(args.p_observacao ?? "").trim() || null;
+        return { data: { pedido_id: pedido.id, entrega_confirmada_em: pedido.entrega_confirmada_em }, error: null };
+      }
+      if (fn === "registrar_excecao_pagamento") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const texto = String(args.p_justificativa ?? "").trim();
+        if (texto.length < 15) {
+          return { data: null, error: { message: "Descreva o acordo que permite pagar antes da entrega: com quem, o quê e por quê.", code: "22023" } };
+        }
+        if (pedido.excecao_pagamento_em) return { data: null, error: { message: "A exceção de pagamento deste pedido já foi registrada.", code: "22023" } };
+        pedido.excecao_pagamento = texto;
+        pedido.excecao_pagamento_por = "admin@example.com";
+        pedido.excecao_pagamento_em = new Date().toISOString();
+        return { data: { pedido_id: pedido.id, excecao_pagamento_em: pedido.excecao_pagamento_em }, error: null };
+      }
       if (fn === "vinculos_projeto") {
         const projetoId = Number(args.p_projeto_id);
         const vinculos = store.projetos_vinculos ?? [];
@@ -2589,6 +2620,22 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
   };
 }
 
+
+function mockPendenciaPagamento(pedido: Row): string | null {
+  if (pedido.natureza === "diaria" || pedido.excecao_pagamento_em) return null;
+  const itens = ((store.pedidos_internos_itens ?? []) as Row[]).filter(
+    (item) => Number(item.pedido_interno_id) === Number(pedido.id),
+  );
+  const fisicos = itens.filter((item) => item.tipo === "material" || item.tipo === "equipamento");
+  const temServico = itens.some((item) => item.tipo !== "material" && item.tipo !== "equipamento");
+  if (fisicos.some((item) => !item.recebido_em)) {
+    return "Pagamento só depois do recebimento: registre a chegada de todos os materiais e equipamentos do pedido.";
+  }
+  if ((temServico || fisicos.length === 0) && !pedido.entrega_confirmada_em) {
+    return 'Pagamento só depois que o serviço for prestado ou a entrega for confirmada: use "Confirmar entrega" no pedido.';
+  }
+  return null;
+}
 
 function mockAprovadoresPedido(pedido: Row) {
   const perfis = (store.perfis ?? []) as Row[];

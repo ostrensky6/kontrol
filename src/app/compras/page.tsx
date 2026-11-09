@@ -71,8 +71,8 @@ export default async function ComprasPage() {
           <HelpTip title="Compras">
             <p>
               Cada compra segue os status abaixo. Quem registra a chegada cadastra o lote e ele já fica
-              <b>disponível no estoque</b>. Compra que nasceu de pedido interno só é aprovada depois que o
-              pedido chega a “Aprovado para compra”.
+              <b>disponível no estoque</b>. Compra que nasceu de pedido interno é aprovada junto com o
+              pedido, quando ele chega a “Aprovado para compra”.
             </p>
             <HelpLegend
               items={[

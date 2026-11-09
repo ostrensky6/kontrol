@@ -8,6 +8,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { aguardaLaboratorio, etapasAprovacao, lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerAreasPedido } from "@/lib/pedido/areas";
+import { ETAPAS_ANTES_DO_PAGAMENTO, lerPendenciaPagamento, podeConfirmarEntrega } from "@/lib/pedido/pagamento";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
 import {
   adicionarAnexoPedidoInterno,
@@ -211,8 +212,8 @@ function proximaAcaoDetalhe(status: string) {
     orcamentos_recebidos: { acao: "Enviar para aprovação final", responsavel: "Coordenador" },
     aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
     aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
-    compra_fechada: { acao: "Aguardar pagamento/NF", responsavel: "Compras/Admin." },
-    encaminhado_instituicao: { acao: "Acompanhar instituição", responsavel: "Administrativo" },
+    compra_fechada: { acao: "Receber (ou confirmar o serviço) e então liberar o pagamento", responsavel: "Recebimento e Compras/Admin." },
+    encaminhado_instituicao: { acao: "Acompanhar instituição e receber", responsavel: "Administrativo e Recebimento" },
     aguardando_pagamento_nf: { acao: "Anexar documento fiscal", responsavel: "Compras/Admin." },
     compra_concluida: { acao: "Processo concluído", responsavel: "—" },
     cancelado: { acao: "Processo encerrado", responsavel: "—" },
@@ -424,6 +425,10 @@ export default async function PedidoInternoDetalhe({
   const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, ehAdmin);
   const etapasQuemAprova = etapasAprovacao(aprovadores, pedido);
   const travaEnvio = travaDoEnvio(aprovadores);
+  // D6 (0170): pagamento só depois da entrega
+  const pendenciaPagamento = ETAPAS_ANTES_DO_PAGAMENTO.includes(pedido.status)
+    ? await lerPendenciaPagamento(supabase, pedidoId)
+    : null;
   const projetoRow = pedido.projetos as {
     nome: string | null;
     coordenador?: string | null;
@@ -446,6 +451,8 @@ export default async function PedidoInternoDetalhe({
     outra: "Outra",
   };
   const linhas = ((itens ?? []) as unknown as PedidoInternoItem[]) ?? [];
+  const podeConfirmar =
+    (podeRegistrarRecebimento || podeGerir) && podeConfirmarEntrega(pedido, linhas);
   // Antes da compra, aponta outra marca do mesmo tipo técnico que já tem saldo (item 8).
   const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras"].includes(String(pedido.status));
   const { equivalentes } = antesDaCompra
@@ -876,7 +883,30 @@ export default async function PedidoInternoDetalhe({
                   }
                   aguardandoLaboratorio={esperaLaboratorio}
                   podeDecidirLaboratorio={podeDecidirLaboratorio}
+                  pendenciaPagamento={pendenciaPagamento}
+                  podeConfirmarEntrega={podeConfirmar}
                 />
+              )}
+              {pendenciaPagamento && (
+                <p className="mt-2 text-xs text-warning-strong" data-testid="pendencia-pagamento">
+                  <span aria-hidden="true">⏳ </span>
+                  {pendenciaPagamento}
+                </p>
+              )}
+              {pedido.entrega_confirmada_em && (
+                <p className="mt-2 text-xs text-muted-foreground" data-testid="entrega-confirmada">
+                  <span aria-hidden="true">✓ </span>
+                  Entrega confirmada em {formatDateTime(pedido.entrega_confirmada_em)} por {pedido.entrega_confirmada_por ?? "—"}
+                  {pedido.entrega_observacao ? `: ${pedido.entrega_observacao}` : "."}
+                </p>
+              )}
+              {pedido.excecao_pagamento && (
+                <p className="mt-2 text-xs text-warning-strong" data-testid="excecao-pagamento">
+                  <span aria-hidden="true">! </span>
+                  Exceção registrada por {pedido.excecao_pagamento_por ?? "—"}
+                  {pedido.excecao_pagamento_em ? ` em ${formatDateTime(pedido.excecao_pagamento_em)}` : ""}: pagamento antes da entrega.
+                  Acordo: {pedido.excecao_pagamento}
+                </p>
               )}
               {editavel && (
                 <p className="text-sm text-muted-foreground">
