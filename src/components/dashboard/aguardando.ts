@@ -1,10 +1,14 @@
 /**
  * "Aguardando você" (PER2-10): o banco devolve, pelas permissões do usuário,
- * quantos itens esperam a ação dele (public.aguardando_voce, 0128). Aqui só
- * se traduz cada chave em texto e links.
+ * quantos itens esperam a ação dele (public.aguardando_voce, 0128; por
+ * competência desde a 0173). Aqui só se traduz cada chave em texto e links.
  */
 export type PendenciaChave =
   | "pedidos_validacao"
+  | "pedidos_laboratorio"
+  | "pedidos_administrativo"
+  | "pedidos_compras"
+  | "pedidos_pagamento"
   | "compras_aprovar"
   | "compras_receber"
   | "propostas_emitir"
@@ -29,6 +33,30 @@ const CATALOGO: Record<
     titulo: "Pedidos internos para validar",
     acao: "validar ou devolver ao solicitante",
     lista: "/pedido?status=em_validacao",
+    item: (id) => `/pedido/${id}`,
+  },
+  pedidos_laboratorio: {
+    titulo: "Pedidos para a coordenação do laboratório",
+    acao: "aprovar ou devolver o material de laboratório",
+    lista: "/pedido",
+    item: (id) => `/pedido/${id}`,
+  },
+  pedidos_administrativo: {
+    titulo: "Pedidos para formalizar e autorizar",
+    acao: "formalizar, definir fonte e rubrica e autorizar",
+    lista: "/pedido",
+    item: (id) => `/pedido/${id}`,
+  },
+  pedidos_compras: {
+    titulo: "Pedidos em compra",
+    acao: "registrar os 3 orçamentos, escolher, aprovar e fechar a compra",
+    lista: "/pedido",
+    item: (id) => `/pedido/${id}`,
+  },
+  pedidos_pagamento: {
+    titulo: "Pedidos para pagar",
+    acao: "pagar e anexar a nota fiscal (a entrega já foi registrada)",
+    lista: "/pedido",
     item: (id) => `/pedido/${id}`,
   },
   compras_aprovar: {

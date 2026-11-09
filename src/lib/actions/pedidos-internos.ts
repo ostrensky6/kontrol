@@ -8,6 +8,7 @@ import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { registrarEvento } from "./eventos";
+import { enviarAvisosDoPedidoAgora } from "@/lib/notifications/envio-imediato";
 import {
   PEDIDO_INTERNO_AGUARDANDO_CHEGADA,
   type PedidoInternoStatus,
@@ -222,6 +223,7 @@ async function mudarStatus({
     p_dados: dados as never,
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Etapa atualizada." };
@@ -684,6 +686,7 @@ export async function decidirCoordenacaoLaboratorio(_prev: FormState, formData: 
     p_observacao: observacao ?? null,
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return {
@@ -714,6 +717,7 @@ export async function formalizarPedidoInterno(_prev: FormState, formData: FormDa
     p_pedido_id: pedidoId,
   } as never);
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   revalidatePath("/compras");
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
@@ -927,6 +931,7 @@ export async function confirmarEntregaPedidoInterno(_prev: FormState, formData: 
     p_observacao: texto(formData, "observacao"),
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Entrega confirmada. O pedido já pode seguir para pagamento." };
@@ -946,6 +951,7 @@ export async function registrarExcecaoPagamento(_prev: FormState, formData: Form
     p_justificativa: justificativa,
   });
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Exceção registrada. O pagamento pode seguir antes da entrega." };
@@ -1018,6 +1024,7 @@ export async function receberItemPedidoInterno(_prev: FormState, formData: FormD
     p_responsavel: responsavel ?? undefined,
   } as never);
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
 
   const { data: itemAtualizado } = await supabase
     .from("pedidos_internos_itens")
@@ -1227,6 +1234,7 @@ export async function cancelarPedidoInterno(_prev: FormState, formData: FormData
     p_observacao: comentario.observacao,
   } as never);
   if (error) return { ok: false, message: mensagemDoBanco(error) };
+  enviarAvisosDoPedidoAgora(pedidoId);
   await registrarEvento("pedido_interno", pedidoId, atual?.status ?? null, "cancelado", comentario.observacao);
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);

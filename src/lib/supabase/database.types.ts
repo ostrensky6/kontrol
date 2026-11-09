@@ -4288,6 +4288,33 @@ export type Database = {
           },
         ]
       }
+      responsaveis_compras: {
+        Row: {
+          atualizado_em: string
+          etapa: string
+          id: number
+          observacoes: string | null
+          substituto_id: string | null
+          usuario_id: string | null
+        }
+        Insert: {
+          atualizado_em?: string
+          etapa: string
+          id?: never
+          observacoes?: string | null
+          substituto_id?: string | null
+          usuario_id?: string | null
+        }
+        Update: {
+          atualizado_em?: string
+          etapa?: string
+          id?: never
+          observacoes?: string | null
+          substituto_id?: string | null
+          usuario_id?: string | null
+        }
+        Relationships: []
+      }
       scan_eventos: {
         Row: {
           acao: string

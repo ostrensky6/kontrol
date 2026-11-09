@@ -3,4 +3,4 @@
  * O teste schema.test.ts falha se um PR traz migration nova sem atualizar
  * este número, então a publicação sempre diz com qual banco foi feita.
  */
-export const MIGRATION_ESPERADA = "0172";
+export const MIGRATION_ESPERADA = "0173";

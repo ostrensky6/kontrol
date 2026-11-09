@@ -50,6 +50,8 @@ type EmailDispatchResult = {
   skippedReason?: string;
 };
 
+const COLUNAS_AVISO = "id,tipo,titulo,corpo,entidade_tipo,entidade_id,criado_em,email_tentativas";
+
 /** Depois disso o aviso deixa de ser tentado por e-mail (continua no app). */
 const MAX_TENTATIVAS = 5;
 
@@ -145,11 +147,10 @@ export async function dispatchPendingNotificationEmails(
   if (!process.env.RESEND_API_KEY) {
     return { enabled: false, sent: 0, failed: 0, skippedReason: "RESEND_API_KEY ausente" };
   }
-  const fallback = recipientsFromEnv();
 
   const { data, error } = await supabase
     .from("notificacoes")
-    .select("id,tipo,titulo,corpo,entidade_tipo,entidade_id,criado_em,email_tentativas")
+    .select(COLUNAS_AVISO)
     .is("email_enviado_em", null)
     .neq("status", "arquivada")
     .lt("email_tentativas", MAX_TENTATIVAS)
@@ -157,11 +158,64 @@ export async function dispatchPendingNotificationEmails(
     .limit(20);
 
   if (error) throw new Error(error.message);
+  return enviarAvisos(supabase, data ?? []);
+}
 
+/** Consulta dos avisos de um registro (pedido interno, compra…) ainda sem e-mail. */
+type ConsultaAvisosDoRegistro = {
+  from: (table: string) => {
+    select: (columns: string) => {
+      eq: (column: string, value: string | number) => {
+        eq: (column: string, value: string | number) => {
+          is: (column: string, value: null) => {
+            neq: (column: string, value: string) => {
+              lt: (column: string, value: number) => {
+                order: (column: string, options: { ascending: boolean }) => {
+                  limit: (count: number) => Resultado<NotificationEmailRow[]>;
+                };
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+};
+
+/**
+ * 0173: envia na hora os e-mails dos avisos que uma ação acabou de gerar
+ * (passagem de etapa do pedido), sem esperar o envio diário. Usa a mesma
+ * reserva por tentativa: se o envio diário pegar o mesmo aviso, só um manda.
+ */
+export async function dispatchEntityNotificationEmails(
+  supabase: SupabaseLike,
+  entidadeTipo: string,
+  entidadeId: number,
+): Promise<EmailDispatchResult> {
+  if (!process.env.RESEND_API_KEY) {
+    return { enabled: false, sent: 0, failed: 0, skippedReason: "RESEND_API_KEY ausente" };
+  }
+  const consulta = supabase as unknown as ConsultaAvisosDoRegistro;
+  const { data, error } = await consulta
+    .from("notificacoes")
+    .select(COLUNAS_AVISO)
+    .eq("entidade_tipo", entidadeTipo)
+    .eq("entidade_id", entidadeId)
+    .is("email_enviado_em", null)
+    .neq("status", "arquivada")
+    .lt("email_tentativas", MAX_TENTATIVAS)
+    .order("criado_em", { ascending: true })
+    .limit(10);
+  if (error) throw new Error(error.message);
+  return enviarAvisos(supabase, data ?? []);
+}
+
+async function enviarAvisos(supabase: SupabaseLike, linhas: NotificationEmailRow[]): Promise<EmailDispatchResult> {
+  const fallback = recipientsFromEnv();
   let sent = 0;
   let failed = 0;
   let skipped = 0;
-  for (const row of data ?? []) {
+  for (const row of linhas) {
     const tentativas = Number(row.email_tentativas ?? 0);
     // Reserva a tentativa antes de enviar: só passa se ninguém mexeu no aviso
     // desde a leitura. Dois envios ao mesmo tempo não mandam o mesmo e-mail.

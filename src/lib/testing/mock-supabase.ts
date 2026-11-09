@@ -493,6 +493,11 @@ const baseStore = (): Store => {
     { id: 1, nome: "Genética", ativo: true, coordenador_id: "00000000-0000-4000-8000-0000000000c1", substituto_id: null, observacoes: null },
     { id: 2, nome: "LQA", ativo: true, coordenador_id: null, substituto_id: null, observacoes: "Coordenação a definir." },
   ],
+  // 0173: linhas fixas; a tela só edita
+  responsaveis_compras: [
+    { id: 1, etapa: "administrativo", usuario_id: null, substituto_id: null, observacoes: "Autorização administrativa (fonte e rubrica).", atualizado_em: "2026-11-09T12:00:00Z" },
+    { id: 2, etapa: "pagamento", usuario_id: null, substituto_id: null, observacoes: "Pagamento e nota fiscal.", atualizado_em: "2026-11-09T12:00:00Z" },
+  ],
   permissoes_categorias: MOCK_PERMISSOES_CATEGORIAS,
   notificacoes: [
     {

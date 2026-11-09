@@ -188,6 +188,7 @@ export function CrudShell({
   podeCorrigirEstoque = false,
   novoComCodigo,
   abrirNovo,
+  apenasEditar = false,
 }: {
   slug: string;
   singular: string;
@@ -208,6 +209,8 @@ export function CrudShell({
   novoComCodigo?: string;
   /** abre o formulário de novo registro ao entrar (link "Cadastrar insumo" do painel) */
   abrirNovo?: boolean;
+  /** linhas fixas (ex.: responsáveis do administrativo e do pagamento): só editar */
+  apenasEditar?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   const [codigosNovo, setCodigosNovo] = useState<string[]>([]);
@@ -337,11 +340,12 @@ export function CrudShell({
           id={ctx.row.original.id as number}
           rotulo={String(ctx.row.original[rotulo] ?? "")}
           ativo={typeof ctx.row.original.ativo === "boolean" ? ctx.row.original.ativo : undefined}
+          semExcluir={apenasEditar}
         />
       ),
     });
     return dataCols;
-  }, [campos, colunas, slug, rotulo, editar, exibir, somenteLeitura]);
+  }, [campos, colunas, slug, rotulo, editar, exibir, somenteLeitura, apenasEditar]);
 
   // O React Compiler não memoiza componentes que usam useReactTable (a API
   // retorna funções não-memoizáveis); o TanStack faz a própria memoização e os
@@ -505,7 +509,7 @@ export function CrudShell({
           </DownloadButton>
           {somenteLeitura ? (
             <Badge variant="muted">Somente consulta</Badge>
-          ) : (
+          ) : apenasEditar ? null : (
             <Button onClick={novo}>
               <Plus />
               Novo {singular}
@@ -690,6 +694,7 @@ function RowActions({
   id,
   rotulo,
   ativo,
+  semExcluir = false,
 }: {
   onEdit: () => void;
   onRetorno: (estado: FormState) => void;
@@ -697,6 +702,7 @@ function RowActions({
   id: number;
   rotulo: string;
   ativo?: boolean;
+  semExcluir?: boolean;
 }) {
   const [confirmar, setConfirmar] = useState(false);
   const [alterandoAtivo, setAlterandoAtivo] = useState(false);
@@ -733,9 +739,11 @@ function RowActions({
               {ativo ? "Inativar" : "Reativar"}
             </DropdownMenuItem>
           )}
-          <DropdownMenuItem variant="destructive" onSelect={() => setConfirmar(true)}>
-            Excluir
-          </DropdownMenuItem>
+          {!semExcluir && (
+            <DropdownMenuItem variant="destructive" onSelect={() => setConfirmar(true)}>
+              Excluir
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
       {confirmar && (

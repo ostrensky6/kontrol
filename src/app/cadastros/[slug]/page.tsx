@@ -40,6 +40,13 @@ const PERMISSAO_EDITAR: Record<string, PermissaoUsuario> = {
   projetos: "projetos.editar",
   // 0169: quem aprova o quê é decisão do Administrador
   coordenacoes: "usuarios.gerenciar",
+  // 0173: quem recebe os avisos do administrativo e do pagamento, idem
+  responsaveis: "usuarios.gerenciar",
+};
+
+const ETAPAS_RESPONSAVEIS: Record<string, string> = {
+  administrativo: "Administrativo: autorização, cotações e aprovação final",
+  pagamento: "Pagamento e nota fiscal",
 };
 
 type Row = Record<string, unknown>;
@@ -304,6 +311,18 @@ export default async function CadastroPage({
     }));
   }
 
+  // responsáveis do administrativo e do pagamento (0173)
+  if (slug === "responsaveis") {
+    const usuarios = opcoesPorFonte["perfis"] ?? [];
+    const nomePorId = new Map(usuarios.map((o) => [o.value, o.label]));
+    linhas = linhas.map((r) => ({
+      ...r,
+      etapa_nome: ETAPAS_RESPONSAVEIS[String(r.etapa)] ?? String(r.etapa ?? "—"),
+      usuario_nome: r.usuario_id != null ? nomePorId.get(String(r.usuario_id)) ?? "—" : "Sem responsável: avisos vão ao Administrador",
+      substituto_nome: r.substituto_id != null ? nomePorId.get(String(r.substituto_id)) ?? "—" : "—",
+    }));
+  }
+
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
@@ -341,7 +360,8 @@ export default async function CadastroPage({
                 ? chaveCodigoBarras(query.codigo).slice(0, CODIGO_BARRAS_MAX) || undefined
                 : undefined
             }
-            abrirNovo={query.novo === "1"}
+            abrirNovo={!cfg.apenasEditar && query.novo === "1"}
+            apenasEditar={cfg.apenasEditar}
           />
         </div>
       </main>

@@ -215,7 +215,9 @@ describe("CAD-5: percentual e ordem da importação", () => {
     antes("fornecedores", "insumos");
     antes("tipo_insumos", "insumos");
     antes("clientes", "projetos");
-    expect(new Set(ordem).size).toBe(Object.keys(CADASTROS).length);
+    // linhas fixas (responsáveis, 0173) só se editam na tela
+    expect(ordem).not.toContain("responsaveis");
+    expect(new Set(ordem).size).toBe(Object.values(CADASTROS).filter((cfg) => !cfg.apenasEditar).length);
   });
 
   it("aceita o cabeçalho antigo de colunas renomeadas", () => {
