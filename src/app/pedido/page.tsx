@@ -1,4 +1,4 @@
-import { rotuloCiclo } from "@/lib/pedido/ciclo";
+import { cicloLiberaEm, dataEmBrasilia, rotuloCiclo, rotuloData } from "@/lib/pedido/ciclo";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { PedidosInternosTable, type PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
@@ -34,6 +34,7 @@ type PedidoInternoListRow = {
   solicitante: string | null;
   data_necessidade: string | null;
   urgencia: string | null;
+  urgencia_justificativa?: string | null;
   ciclo_pagamento?: string | null;
   tipo_demanda?: string | null;
   modalidade_compra?: string | null;
@@ -111,7 +112,7 @@ export default async function PedidoPage() {
   const [pedidosFull, projetosFull, podeExcluir, areas] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
+      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
       .order("criado_em", { ascending: false }),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
@@ -127,6 +128,7 @@ export default async function PedidoPage() {
     ? await supabase.from("projetos").select("id, nome, coordenador").order("nome")
     : projetosFull;
 
+  const hojeBrasilia = dataEmBrasilia(new Date());
   const rows: PedidoInternoRow[] = ((pedidos ?? []) as unknown as PedidoInternoListRow[]).map((pedido) => {
     const itens = ((pedido.pedidos_internos_itens ?? []) as PedidoItemView[]) ?? [];
     const total = itens.reduce(
@@ -146,9 +148,15 @@ export default async function PedidoPage() {
       "—";
     const docsCotacao = (pedido.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
     const recebidos = (pedido.pedidos_internos_itens ?? []).filter((item) => item.recebido_em).length;
+    // 0176: pedido do ciclo seguinte espera o ciclo abrir
+    const cicloTravadoAte = pedido.status === "validado"
+      ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
+      : null;
     const proxima = status === PEDIDO_INTERNO_AGUARDANDO_LABORATORIO
       ? { acao: "Aprovar pelo laboratório", responsavel: "Coordenação do laboratório" }
-      : proximaAcao(pedido.status);
+      : cicloTravadoAte
+        ? { acao: `Aguardar o ciclo (abre ${rotuloData(cicloTravadoAte)})`, responsavel: "Coordenador/Compras" }
+        : proximaAcao(pedido.status);
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
       id: pedido.id,
@@ -160,7 +168,7 @@ export default async function PedidoPage() {
       solicitante: pedido.solicitante ?? "—",
       necessidade: formatDate(pedido.data_necessidade),
       urgencia: URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia ?? "Normal",
-      ciclo: rotuloCiclo(pedido.ciclo_pagamento) ?? "—",
+      ciclo: (rotuloCiclo(pedido.ciclo_pagamento) ?? "—") + (cicloTravadoAte ? ` · abre ${rotuloData(cicloTravadoAte)}` : ""),
       itens: itens.length,
       itensDetalhe: itens,
       total: brl(total),

@@ -327,6 +327,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
           "Ciclo de pagamento: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. O ciclo aparece no pedido e na lista.",
+          "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. A urgência só muda com o pedido em rascunho ou devolvido para ajuste.",
           "Urgência Alta ou Crítica fura o ciclo do dia 10 e exige justificativa por escrito (por que não pode esperar o próximo ciclo).",
           "Pedido sem projeto é validado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
           "Na lista, o botão 'Itens (N)' abre um resumo rápido do que está sendo solicitado, sem precisar abrir o pedido.",
@@ -372,7 +373,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "urgência", "devolução", "reenviar", "ajuste", "controlado", "clorofórmio", "acetona", "funpar"],
+    termos: ["solicitação", "demanda interna", "material", "serviço", "compra", "numeração", "itens", "editar", "excluir", "pagamento", "entrega", "exceção", "orçamentos", "cotações", "fornecedor", "ciclo", "dia 10", "ciclo seguinte", "trava", "urgência", "devolução", "reenviar", "ajuste", "controlado", "clorofórmio", "acetona", "funpar"],
   },
   {
     id: "compras",

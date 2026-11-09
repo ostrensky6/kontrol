@@ -26,6 +26,10 @@ type Opcao = {
   coordenador_email?: string | null;
 };
 
+/** 0176: mudar a urgência de um pedido validado contornaria a trava do ciclo */
+const URGENCIA_EDITAVEL_EM = ["rascunho", "ajuste_solicitante", "ajuste_compras"];
+const URGENCIA_ROTULO: Record<string, string> = { baixa: "Baixa", normal: "Normal", alta: "Alta", critica: "Crítica" };
+
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm";
 
@@ -69,6 +73,7 @@ export function PedidoInternoCabecalhoAcoes({
   podeExcluir: boolean;
 }) {
   const [editando, setEditando] = useState(false);
+  const urgenciaEditavel = URGENCIA_EDITAVEL_EM.includes(status);
   return (
     <div className="flex items-center gap-2">
       {/* Editar */}
@@ -107,27 +112,41 @@ export function PedidoInternoCabecalhoAcoes({
                 <label className="block text-xs font-medium text-muted-foreground">Necessidade</label>
                 <input name="data_necessidade" type="date" defaultValue={dataNecessidade ?? ""} className={inputCls} />
               </div>
-              <div>
-                <label className="block text-xs font-medium text-muted-foreground">Urgência</label>
-                <select name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
-                  <option value="baixa">Baixa</option>
-                  <option value="normal">Normal</option>
-                  <option value="alta">Alta (fura o ciclo)</option>
-                  <option value="critica">Crítica (fura o ciclo)</option>
-                </select>
-              </div>
-              <div className="sm:col-span-2">
-                <label className="block text-xs font-medium text-muted-foreground">
-                  Por que é urgente? (obrigatório para Alta ou Crítica)
-                  <textarea
-                    name="urgencia_justificativa"
-                    defaultValue={urgenciaJustificativa ?? ""}
-                    maxLength={1000}
-                    rows={2}
-                    className={inputCls}
-                  />
-                </label>
-              </div>
+              {urgenciaEditavel ? (
+                <>
+                  <div>
+                    <label className="block text-xs font-medium text-muted-foreground">Urgência</label>
+                    <select name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
+                      <option value="baixa">Baixa</option>
+                      <option value="normal">Normal</option>
+                      <option value="alta">Alta (fura o ciclo)</option>
+                      <option value="critica">Crítica (fura o ciclo)</option>
+                    </select>
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-medium text-muted-foreground">
+                      Por que é urgente? (obrigatório para Alta ou Crítica)
+                      <textarea
+                        name="urgencia_justificativa"
+                        defaultValue={urgenciaJustificativa ?? ""}
+                        maxLength={1000}
+                        rows={2}
+                        className={inputCls}
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : (
+                <div className="sm:col-span-2" data-testid="urgencia-fixa">
+                  {/* 0176: a urgência só muda em rascunho ou devolvido para ajuste */}
+                  <input type="hidden" name="urgencia" value={urgencia ?? "normal"} />
+                  <input type="hidden" name="urgencia_justificativa" value={urgenciaJustificativa ?? ""} />
+                  <p className="text-xs text-muted-foreground">
+                    Urgência: {URGENCIA_ROTULO[urgencia ?? "normal"] ?? urgencia}. Ela só muda com o pedido em rascunho ou
+                    devolvido para ajuste.
+                  </p>
+                </div>
+              )}
               <div>
                 <label className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
                 <select name="tipo_demanda" defaultValue={tipoDemanda ?? "laboratorio"} className={inputCls}>

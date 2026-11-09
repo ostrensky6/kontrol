@@ -82,3 +82,39 @@ export function faltaJustificativaUrgencia(urgencia: string | null | undefined, 
   if (String(justificativa ?? "").trim().length >= JUSTIFICATIVA_URGENCIA_MINIMA) return null;
   return "Pedido urgente fura o ciclo do dia 10 e precisa de justificativa: escreva por que não pode esperar o próximo ciclo.";
 }
+
+/** "01/12/2026" a partir de aaaa-mm-dd. */
+export function rotuloData(data: string): string {
+  const { ano, mes, dia } = partes(data);
+  return `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${ano}`;
+}
+
+/**
+ * 0176 (decisão de 09/11/2026): pedido do ciclo seguinte só segue para compras
+ * quando o ciclo dele abrir (dia 1 do mês do ciclo, em Brasília). Urgência
+ * justificada fura a trava. Devolve o dia em que libera; null quando já pode.
+ * Mesma regra de kontrol_private.ciclo_libera_em.
+ */
+export function cicloLiberaEm(
+  ciclo: string | null | undefined,
+  urgencia: string | null | undefined,
+  justificativa: string | null | undefined,
+  hoje: string,
+): string | null {
+  if (!ciclo) return null;
+  if (ehUrgente(urgencia) && String(justificativa ?? "").trim().length >= JUSTIFICATIVA_URGENCIA_MINIMA) return null;
+  const dia = ciclo.slice(0, 10);
+  return dia > hoje.slice(0, 10) ? dia : null;
+}
+
+/** Mesmo texto do banco quando a formalização trava; null quando pode seguir. */
+export function motivoCicloTravado(
+  ciclo: string | null | undefined,
+  urgencia: string | null | undefined,
+  justificativa: string | null | undefined,
+  hoje: string,
+): string | null {
+  const libera = cicloLiberaEm(ciclo, urgencia, justificativa, hoje);
+  if (!libera) return null;
+  return `Este pedido entrou no ciclo de pagamento de ${rotuloCiclo(libera)} porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de ${rotuloData(libera)}. Só pedido urgente, com justificativa, fura o ciclo.`;
+}

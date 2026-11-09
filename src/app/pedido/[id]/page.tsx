@@ -17,7 +17,7 @@ import {
   resumirOrcamentos,
 } from "@/lib/pedido/orcamentos";
 import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
-import { dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, prazoDoCiclo, rotuloCiclo, rotuloPrazo } from "@/lib/pedido/ciclo";
+import { cicloLiberaEm, dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, motivoCicloTravado, prazoDoCiclo, rotuloCiclo, rotuloData, rotuloPrazo } from "@/lib/pedido/ciclo";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
 import {
   adicionarAnexoPedidoInterno,
@@ -567,6 +567,16 @@ export default async function PedidoInternoDetalhe({
   const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
   const itensRecebidos = itensFisicos.filter((item) => item.recebido_em).length;
+  // 0176: pedido do ciclo seguinte só segue para compras quando o ciclo abrir
+  const hojeBrasilia = dataEmBrasilia(new Date());
+  const cicloTravadoAte =
+    pedido.status === "validado"
+      ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
+      : null;
+  const motivoCiclo =
+    pedido.status === "validado"
+      ? motivoCicloTravado(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
+      : null;
   const proxima = esperaLaboratorio
     ? {
         acao: "Aprovar pela coordenação do laboratório",
@@ -576,7 +586,9 @@ export default async function PedidoInternoDetalhe({
       }
     : pedido.status === "em_validacao" && aprovadores?.coordenador?.nome
       ? { acao: "Validar especificações", responsavel: `${aprovadores.coordenador.nome} (${aprovadores.coordenador.rotulo})` }
-      : proximaAcaoDetalhe(pedido.status);
+      : cicloTravadoAte
+        ? { acao: `Aguardar o ciclo de ${rotuloCiclo(cicloTravadoAte)}`, responsavel: `Compras/Admin., a partir de ${rotuloData(cicloTravadoAte)}` }
+        : proximaAcaoDetalhe(pedido.status);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -618,7 +630,7 @@ export default async function PedidoInternoDetalhe({
             )}
             <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
               {pedido.ciclo_pagamento
-                ? `Ciclo de pagamento: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.`
+                ? `Ciclo de pagamento: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
                 : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado"].includes(pedido.status)
                   ? explicarCicloHoje(dataEmBrasilia(new Date()), ehUrgente(pedido.urgencia))
                   : null}
@@ -933,6 +945,7 @@ export default async function PedidoInternoDetalhe({
                   }
                   aguardandoLaboratorio={esperaLaboratorio}
                   podeDecidirLaboratorio={podeDecidirLaboratorio}
+                  motivoCicloTravado={motivoCiclo}
                   pendenciaPagamento={pendenciaPagamento}
                   podeConfirmarEntrega={podeConfirmar}
                   motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
