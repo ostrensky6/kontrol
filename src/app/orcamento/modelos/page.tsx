@@ -819,13 +819,18 @@ function Badge({ children, tom = "zinc" }: { children: React.ReactNode; tom?: "b
 function PendenciasPessoal({ pendencias }: { pendencias: PendenciaPessoal[] }) {
   return (
     <div className="border-t border-border bg-warning-soft/40 px-3 py-2" aria-labelledby="pendencias-titulo">
-      <h3 id="pendencias-titulo" className="text-sm font-semibold">
-        Valores de pessoal aguardando decisão ({pendencias.length})
-      </h3>
-      <p className="text-xs text-muted-foreground">
-        Informados em revisões concluídas por quem não tem a permissão de pessoal. Aplicar atualiza o catálogo; descartar
-        mantém o valor atual. O orçamento de origem não muda em nenhum caso.
-      </p>
+      <div className="flex items-center gap-1">
+        <h3 id="pendencias-titulo" className="text-sm font-semibold">
+          Valores de pessoal aguardando decisão ({pendencias.length})
+        </h3>
+        <HelpTip title="Valores de pessoal aguardando decisão">
+          <p>
+            Foram informados em revisões concluídas por quem não tem a permissão de pessoal. <b>Aplicar</b> atualiza o
+            catálogo; <b>descartar</b> mantém o valor atual.
+          </p>
+          <p>O orçamento de origem não muda em nenhum caso.</p>
+        </HelpTip>
+      </div>
       <table className="mt-1 w-full text-left text-xs">
         <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
           <tr>

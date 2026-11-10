@@ -74,7 +74,6 @@ export function AuditoriaTable({ rows }: { rows: AuditoriaRow[] }) {
       getMobileTitle={(row) => `${row.tabelaLabel} ${row.registro}`}
       getMobileDescription={(row) => `${row.quando} · ${row.usuario} · ${row.alteracao}`}
       getMobileMeta={(row) => <AcaoBadge acao={row.acao} label={row.acaoLabel} />}
-      pageSize={50}
     />
   );
 }

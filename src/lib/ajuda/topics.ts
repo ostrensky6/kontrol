@@ -444,15 +444,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Compras",
     grupo: "Suprimentos",
     href: "/compras",
-    resumo: "Solicitação, aprovação, envio e recebimento de pedidos.",
+    resumo: "A compra formal de cada pedido: fornecedor, envio e recebimento.",
     intro:
-      "Compras cuida do ciclo formal de aquisição: da solicitação à entrada do material no estoque. Ele recebe pedidos vindos do módulo Pedido ou de reposição automática, organiza a aprovação e o envio ao fornecedor, e registra o recebimento, que põe o material disponível no Estoque.",
+      "A compra formal é o registro da compra feita ao fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra o recebimento, que põe o material no Estoque. Fica em Suprimentos → Pedidos → Compras formais.",
     secoes: [
       {
         titulo: "Para que serve",
         itens: [
-          "Conduzir o ciclo de compra: solicitação → aprovação → envio → recebimento.",
-          "Centralizar pedidos formais, inclusive os gerados por reposição automática.",
+          "Acompanhar a compra depois que o pedido foi aprovado: fornecedor, envio e recebimento.",
+          "Reunir as compras formais, inclusive as geradas por reposição automática.",
           "Registrar a entrada de itens, que já ficam disponíveis no Estoque.",
           "No Painel de insumos, o quadro 'A caminho' lista as compras feitas e não recebidas: quanto foi pedido, recebido e falta receber, a previsão (informada na compra ou estimada pelo prazo) e os atrasos.",
         ],
@@ -460,8 +460,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Revise as solicitações e os rascunhos automáticos de reposição.",
-          "Aprove e envie o pedido ao fornecedor.",
+          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Pedidos → Compras formais.",
+          "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
         ],
@@ -469,8 +469,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Boas práticas",
         itens: [
+          "A compra ligada a um pedido é aprovada junto com ele, sem segunda aprovação aqui. Compra criada direto em Compras ainda passa pela aprovação administrativa.",
           "Aproveite os rascunhos automáticos para não esquecer reposições críticas.",
-          "Receba sempre pelo pedido — assim o rastreio do lote fica completo.",
+          "Receba sempre pela compra ou pelo pedido, assim o rastreio do lote fica completo.",
           "Cheque divergências de quantidade no recebimento antes de fechar o pedido.",
         ],
       },

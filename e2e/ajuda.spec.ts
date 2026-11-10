@@ -54,7 +54,7 @@ test("ajuda: link direto abre o tópico, com índice e regras em destaque", asyn
   await expect(praticas).toHaveAttribute("aria-expanded", "false");
   await praticas.click();
   await expect(praticas).toHaveAttribute("aria-expanded", "true");
-  await expect(page.getByRole("region", { name: "Boas práticas" }).getByText(/Receba sempre pelo pedido/)).toBeVisible();
+  await expect(page.getByRole("region", { name: "Boas práticas" }).getByText(/Receba sempre pela compra ou pelo pedido/)).toBeVisible();
 });
 
 test("ajuda da tela leva ao tópico certo da Central", async ({ page }) => {
