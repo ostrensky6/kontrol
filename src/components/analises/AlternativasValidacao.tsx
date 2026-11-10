@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { validarAlternativaInsumo } from "@/lib/actions/alternativas";
 import { ESTADO_INICIAL } from "@/lib/erros";
+import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
@@ -96,12 +97,20 @@ export function AlternativasValidacao({
   }
   return (
     <div className="mt-4 space-y-3" data-testid="alternativas-validacao">
-      <p className="text-sm font-semibold">Alternativas (grupos de escolha)</p>
-      <p className="text-xs text-muted-foreground">
-        O orçamento usa a alternativa mais cara entre as que servem. Marque “Não serve” para tirar uma
-        alternativa do cálculo; o grupo sempre fica com pelo menos uma. Laboratório, Coordenador, Supervisor e
-        Administrador podem registrar; cada decisão fica no histórico.
-      </p>
+      <div className="flex items-center gap-1">
+        <p className="text-sm font-semibold">Alternativas (grupos de escolha)</p>
+        <HelpTip title="Alternativas (grupos de escolha)">
+          <p>
+            O orçamento usa a alternativa mais cara entre as que servem. Marque “Não serve” para tirar uma
+            alternativa do cálculo; o grupo sempre fica com pelo menos uma.
+          </p>
+          <p>
+            Laboratório, Coordenador, Supervisor e Administrador podem registrar; cada decisão fica no
+            histórico.
+          </p>
+        </HelpTip>
+      </div>
+      <p className="text-xs text-muted-foreground">O orçamento usa a mais cara entre as que servem.</p>
       {[...grupos].map(([grupo, opcoes]) => (
         <div key={grupo} className="rounded-md border border-border p-2">
           <p className="text-xs font-semibold">Grupo {grupo}</p>

@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import { alterarVinculoProjeto } from "@/lib/actions/vinculos-projeto";
 import { ESTADO_INICIAL } from "@/lib/erros";
+import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { LABEL_PAPEL, isPapelUsuario } from "@/lib/auth/permissions";
@@ -47,11 +48,16 @@ function Linha({ projetoId, pessoa }: { projetoId: number; pessoa: VinculoPessoa
 export function VinculosProjeto({ projetoId, pessoas }: { projetoId: number; pessoas: VinculoPessoa[] }) {
   return (
     <section className="mt-8" aria-labelledby="vinculos-projeto-titulo">
-      <h2 id="vinculos-projeto-titulo" className="mb-1 text-lg font-semibold tracking-tight">Quem atua neste projeto</h2>
-      <p className="mb-2 text-xs text-muted-foreground">
-        Coordenador e Gestor só alteram o projeto e validam pedidos internos dele se estiverem ligados aqui ou se forem o
-        coordenador cadastrado. As outras funções seguem pelas permissões. Só o Administrador vê e altera esta lista.
-      </p>
+      <div className="mb-2 flex items-center gap-1">
+        <h2 id="vinculos-projeto-titulo" className="text-lg font-semibold tracking-tight">Quem atua neste projeto</h2>
+        <HelpTip title="Quem atua neste projeto">
+          <p>
+            Coordenador e Gestor só alteram o projeto e validam pedidos internos dele se estiverem ligados aqui ou se
+            forem o coordenador cadastrado. As outras funções seguem pelas permissões.
+          </p>
+          <p>Só o Administrador vê e altera esta lista.</p>
+        </HelpTip>
+      </div>
       <div className="rounded-lg border border-border bg-card shadow-sm">
         {pessoas.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum Coordenador ou Gestor cadastrado.</p>

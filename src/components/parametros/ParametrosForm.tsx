@@ -12,6 +12,9 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { formatCurrency as brl, APP_LOCALE } from "@/lib/formatters";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
 
+/** id da nota única que explica os campos só de consulta (aria-describedby de cada um) */
+const NOTA_VERSIONADOS_ID = "parametros-versionados-nota";
+
 export type Param = {
   chave: string;
   valor: number;
@@ -101,7 +104,7 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
     const descricaoId = `valor_${p.chave}-desc`;
     const erroId = `valor_${p.chave}-erro`;
     const descritoPor =
-      [p.descricao || versionado ? descricaoId : null, state.errors?.[p.chave] ? erroId : null]
+      [versionado ? NOTA_VERSIONADOS_ID : p.descricao ? descricaoId : null, state.errors?.[p.chave] ? erroId : null]
         .filter(Boolean)
         .join(" ") || undefined;
 
@@ -110,6 +113,7 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
         <label htmlFor={`valor_${p.chave}`} className={lbl}>
           {rotuloParametro(p.chave)}
           {p.unidade ? <span className="ml-1 text-muted-foreground/80">({p.unidade})</span> : null}
+          {versionado ? <span className="ml-1 font-normal text-muted-foreground/80">· só consulta</span> : null}
         </label>
         <input
           id={`valor_${p.chave}`}
@@ -127,9 +131,10 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
           aria-describedby={descritoPor}
           className={inp}
         />
-        {(p.descricao || versionado) && (
+        {/* versionado: a explicação aparece uma vez só, no topo (NOTA_VERSIONADOS_ID) */}
+        {p.descricao && !versionado && (
           <p id={descricaoId} className="mt-1 text-[11px] text-muted-foreground/80">
-            {versionado ? "Com versão: altere em Orçamento → Parâmetros econômicos." : p.descricao}
+            {p.descricao}
           </p>
         )}
         {state.errors?.[p.chave] && (
@@ -158,8 +163,8 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
             Alterar em Parâmetros econômicos
           </Link>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Só consulta aqui: a outra tela guarda a versão anterior a cada mudança.
+        <p id={NOTA_VERSIONADOS_ID} className="mt-1 text-xs text-muted-foreground">
+          Campos marcados com &quot;só consulta&quot; mudam em Orçamento → Parâmetros econômicos, que guarda a versão anterior.
         </p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
           {fatores.map((p) => campo(p))}
