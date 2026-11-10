@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { hrefAjuda, topicoParaRota } from "@/lib/ajuda/secao";
 import {
   Dialog,
   DialogContent,
@@ -268,12 +269,12 @@ export function ContextHelp() {
           ))}
         </ul>
         <Link
-          href="/ajuda"
+          href={hrefAjuda(topicoParaRota(pathname))}
           onClick={() => setOpen(false)}
           className="inline-flex items-center gap-1.5 rounded-md border border-brand-200 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50 dark:border-brand-900/50 dark:text-brand-300 dark:hover:bg-brand-950/30"
         >
           <LifeBuoy className="h-4 w-4" />
-          Abrir Central de Ajuda
+          Ver tudo sobre esta tela na Ajuda
         </Link>
       </DialogContent>
     </Dialog>

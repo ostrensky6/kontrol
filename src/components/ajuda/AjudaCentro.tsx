@@ -2,15 +2,184 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, ArrowUpRight, Search } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowUpRight,
+  BookOpen,
+  ChevronDown,
+  CircleCheck,
+  ListOrdered,
+  Search,
+  Target,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 
-import { AJUDA_GRUPOS, AJUDA_TOPICOS, topicoCasa } from "@/lib/ajuda/topics";
+import { gravarFiltroNaUrl } from "@/components/common/FiltroChips";
+import { ancoraDaSecao, tipoDaSecao, type TipoSecaoAjuda } from "@/lib/ajuda/secao";
+import { AJUDA_GRUPOS, AJUDA_TOPICOS, topicoCasa, type AjudaTopico } from "@/lib/ajuda/topics";
+import { cn } from "@/lib/utils";
 
-export function AjudaCentro() {
+const ICONE_SECAO: Record<TipoSecaoAjuda, LucideIcon> = {
+  passos: ListOrdered,
+  praticas: CircleCheck,
+  atencao: TriangleAlert,
+  serve: Target,
+  info: BookOpen,
+};
+
+/** Seção que já abre sozinha: para que serve, passo a passo e cuidados. O resto abre com um clique. */
+function abertaDeInicio(topico: AjudaTopico) {
+  return new Set(
+    topico.secoes.flatMap((secao, index) => {
+      const tipo = tipoDaSecao(secao.titulo);
+      return topico.secoes.length <= 3 || tipo === "serve" || tipo === "passos" || tipo === "atencao" ? [index] : [];
+    }),
+  );
+}
+
+/** Uma seção do tópico em cartão que abre e fecha: passos numerados, cuidados em destaque, o resto em lista. */
+function SecaoAjuda({
+  id,
+  titulo,
+  itens,
+  aberta,
+  aoAlternar,
+}: {
+  id: string;
+  titulo: string;
+  itens: string[];
+  aberta: boolean;
+  aoAlternar: () => void;
+}) {
+  const tipo = tipoDaSecao(titulo);
+  const Icone = ICONE_SECAO[tipo];
+  const tituloId = `${id}-titulo`;
+  const corpoId = `${id}-corpo`;
+  return (
+    <section
+      id={id}
+      aria-labelledby={tituloId}
+      className={cn(
+        "scroll-mt-20 rounded-lg border",
+        tipo === "atencao" ? "border-warning-strong/30 bg-warning-soft/40" : "border-border bg-background/60",
+      )}
+    >
+      <h3 id={tituloId} className="text-sm font-semibold text-foreground">
+        <button
+          type="button"
+          aria-expanded={aberta}
+          aria-controls={corpoId}
+          onClick={aoAlternar}
+          className="flex min-h-11 w-full items-center gap-2 rounded-lg px-4 py-2 text-left outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <Icone
+            aria-hidden
+            className={cn("h-4 w-4 shrink-0", tipo === "atencao" ? "text-warning-strong" : "text-brand-600 dark:text-brand-300")}
+          />
+          <span className="flex-1">{titulo}</span>
+          <span aria-hidden className="text-xs font-normal tabular-nums text-muted-foreground">
+            {itens.length}
+          </span>
+          <ChevronDown aria-hidden className={cn("h-4 w-4 shrink-0 text-muted-foreground transition-transform", aberta && "rotate-180")} />
+        </button>
+      </h3>
+      <div id={corpoId} hidden={!aberta} className="px-4 pb-4">
+        {tipo === "passos" ? (
+          <ol className="space-y-2.5">
+            {itens.map((item, index) => (
+              <li key={index} className="flex gap-3 text-sm leading-6 text-foreground">
+                <span
+                  aria-hidden
+                  className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-600 text-[11px] font-semibold text-white"
+                >
+                  {index + 1}
+                </span>
+                <span>{item}</span>
+              </li>
+            ))}
+          </ol>
+        ) : (
+          <ul className="space-y-2">
+            {itens.map((item, index) => (
+              <li key={index} className="flex gap-2.5 text-sm leading-6 text-foreground">
+                {tipo === "praticas" ? (
+                  <CircleCheck aria-hidden className="mt-1 h-4 w-4 shrink-0 text-success-strong" />
+                ) : (
+                  <span aria-hidden className="mt-2.5 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
+                )}
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/** Índice "Nesta página" e as seções do tópico. Com busca ativa, tudo abre para o termo aparecer. */
+function SecoesDoTopico({ topico, tudoAberto }: { topico: AjudaTopico; tudoAberto: boolean }) {
+  const [abertas, setAbertas] = useState<Set<number>>(() => abertaDeInicio(topico));
+  const todas = tudoAberto || abertas.size === topico.secoes.length;
+
+  function alternar(index: number) {
+    setAbertas((atual) => {
+      const proximo = new Set(atual);
+      if (proximo.has(index)) proximo.delete(index);
+      else proximo.add(index);
+      return proximo;
+    });
+  }
+
+  return (
+    <>
+      {topico.secoes.length > 2 && (
+        <nav aria-label="Nesta página" className="mt-4 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-medium text-muted-foreground">Nesta página:</span>
+          {topico.secoes.map((secao, index) => (
+            <a
+              key={secao.titulo}
+              href={`#${ancoraDaSecao(topico.id, index)}`}
+              onClick={() => setAbertas((atual) => new Set(atual).add(index))}
+              className="inline-flex min-h-11 items-center rounded-full border border-border bg-card px-3 text-xs font-medium text-foreground hover:border-primary/50 hover:bg-primary/5 lg:min-h-8"
+            >
+              {secao.titulo}
+            </a>
+          ))}
+          {!tudoAberto && (
+            <button
+              type="button"
+              onClick={() => setAbertas(todas ? new Set() : new Set(topico.secoes.map((_, index) => index)))}
+              className="ml-auto inline-flex min-h-11 items-center px-1 text-xs font-medium text-primary hover:underline lg:min-h-8"
+            >
+              {todas ? "Fechar tudo" : "Abrir tudo"}
+            </button>
+          )}
+        </nav>
+      )}
+
+      <div className="mt-5 max-w-3xl space-y-3">
+        {topico.secoes.map((secao, index) => (
+          <SecaoAjuda
+            key={secao.titulo}
+            id={ancoraDaSecao(topico.id, index)}
+            titulo={secao.titulo}
+            itens={secao.itens}
+            aberta={tudoAberto || abertas.has(index)}
+            aoAlternar={() => alternar(index)}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+export function AjudaCentro({ topicoInicial }: { topicoInicial?: string }) {
   const [busca, setBusca] = useState("");
-  const [selecionadoId, setSelecionadoId] = useState<string>(AJUDA_TOPICOS[0].id);
-  // Em telas pequenas, alterna entre a lista e o conteúdo.
-  const [mostrarDetalheMobile, setMostrarDetalheMobile] = useState(false);
+  const [selecionadoId, setSelecionadoId] = useState<string>(topicoInicial ?? AJUDA_TOPICOS[0].id);
+  // Em telas pequenas, alterna entre a lista e o conteúdo. Quem chega por link direto já vê o tópico.
+  const [mostrarDetalheMobile, setMostrarDetalheMobile] = useState(Boolean(topicoInicial));
   // Para onde o foco vai depois de escolher um tópico ou voltar à lista.
   const focoAlvo = useRef<"titulo" | "lista" | null>(null);
   const [pedidoFoco, setPedidoFoco] = useState(0);
@@ -37,6 +206,7 @@ export function AjudaCentro() {
 
   function escolher(id: string) {
     setSelecionadoId(id);
+    gravarFiltroNaUrl("topico", id, "");
     setMostrarDetalheMobile(true);
     focoAlvo.current = "titulo";
     setPedidoFoco((n) => n + 1);
@@ -154,25 +324,11 @@ export function AjudaCentro() {
               )}
             </div>
 
-            <p className="mt-5 max-w-3xl text-sm leading-7 text-foreground">
+            <p className="mt-5 max-w-3xl rounded-lg bg-muted/50 px-4 py-3 text-sm leading-6 text-foreground">
               {selecionado.intro}
             </p>
 
-            <div className="mt-6 space-y-6">
-              {selecionado.secoes.map((secao) => (
-                <div key={secao.titulo}>
-                  <h3 className="text-sm font-semibold text-foreground">{secao.titulo}</h3>
-                  <ul className="mt-2 space-y-2">
-                    {secao.itens.map((item, index) => (
-                      <li key={index} className="flex gap-2.5 text-sm leading-6 text-foreground">
-                        <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-400" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
+            <SecoesDoTopico key={selecionado.id} topico={selecionado} tudoAberto={busca.trim() !== ""} />
           </article>
         ) : (
           <p className="rounded-2xl border border-dashed border-input px-4 py-16 text-center text-sm text-muted-foreground/80">

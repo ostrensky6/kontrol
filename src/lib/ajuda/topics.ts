@@ -349,18 +349,31 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Pedidos",
     grupo: "Suprimentos",
     href: "/pedido",
-    resumo: "Pedidos internos de compra, antes da compra formal.",
+    resumo: "Do pedido ao pagamento, num acompanhamento só.",
     intro:
-      "O módulo Pedido é a porta de entrada dos pedidos internos de compra do laboratório. É onde a equipe registra o que precisa (materiais ou serviços), antes de virar uma compra formal. Cada pedido tem numeração própria, passa por validação e segue um fluxo de etapas até ser encaminhado para a compra de fato.",
+      "Pedidos é onde a equipe registra o que precisa comprar (materiais, serviços ou equipamentos) e acompanha cada pedido até o pagamento. Cada pedido tem número próprio e passa por seis etapas. A tela sempre mostra com quem ele está, o que falta e o motivo de qualquer bloqueio.",
     secoes: [
       {
         titulo: "Para que serve",
         itens: [
-          "Registrar a necessidade de materiais e serviços antes da compra formal.",
+          "Registrar a necessidade de materiais, serviços e equipamentos e acompanhar até o pagamento.",
           "Organizar a fila de pedidos com numeração sequencial única (Nº 0001, 0002…), que nunca se repete.",
           "Conduzir cada pedido pelas seis etapas: solicitação, aprovação, administrativo, cotação, compra e entrega, e pagamento.",
           "Na lista, os cartões das etapas mostram quantos pedidos há em cada uma; clique num cartão para ver só os pedidos dela. 'Em andamento', 'Concluídos', 'Cancelados' e 'Todos' trocam o conjunto.",
           "Cada linha mostra a barra das etapas (verde = cumprida, amarelo = atual), o status por escrito e o próximo passo, com quem está.",
+        ],
+      },
+      {
+        titulo: "Regras e exceções em resumo",
+        itens: [
+          "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês. Dia 10 no sábado ou no domingo vale até a segunda. Depois do prazo, o pedido fica para o ciclo seguinte e só segue no dia 1. Feriado ainda não entra na conta.",
+          "Urgência Alta ou Crítica fura o ciclo, com justificativa por escrito.",
+          "Quem aprova: o coordenador do projeto. Sem projeto, a Supervisão. Na ausência, o Administrador, com registro. Material de consumo de laboratório passa também pela coordenação do laboratório.",
+          "Todo pedido precisa de 3 orçamentos de fornecedores diferentes. Não há dispensa por tipo de despesa.",
+          "Pedido devolvido e reenviado: a aprovação continua valendo só se itens, valor, justificativa e projeto não mudaram.",
+          "Pagamento: produto depois da entrega, serviço depois da prestação, diária antes da viagem. Outra exceção só com acordo registrado no pedido.",
+          "Produto controlado (clorofórmio, acetona) só pela FUNPAR, em projeto com recurso na fundação.",
+          "\"A caminho\" conta só o que foi comprado ou autorizado. Pedido que ainda espera aprovação aparece à parte e não garante entrega.",
         ],
       },
       {
