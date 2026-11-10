@@ -60,7 +60,7 @@ async function carregarPainel(supabase: SupabaseClient, hoje: string) {
     lerTudo<PrevisaoPainelDb>((de, ate) =>
       supabase
         .from("v_previsao_suprimentos")
-        .select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_compra_atrasada, compra_atrasada_desde, consumo_medio_diario, dias_cobertura, lead_time_dias")
+        .select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente, qtd_compra_atrasada, compra_atrasada_desde, consumo_medio_diario, dias_cobertura, lead_time_dias")
         .order("insumo_id")
         .range(de, ate),
     ),

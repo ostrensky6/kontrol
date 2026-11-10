@@ -61,6 +61,19 @@ describe("estoque disponível da visão geral", () => {
     expect(linha.validadeEstado).toBe("vencendo");
   });
 
+  it("a caminho é só o comprado ou autorizado; o que espera aprovação fica à parte", () => {
+    const [linha, semPrevisao] = montarEstoqueDisponivel({
+      ...base,
+      saldo: [saldo(1, "Acetona", 5), saldo(2, "Brometo", 5)],
+      previsao: [{ insumo_id: 1, qtd_pedida_aberta: 10, qtd_pedida_pendente: 4 }],
+    });
+    expect(linha.aCaminho).toBe(6);
+    expect(linha.aguardandoAprovacao).toBe(4);
+    // sem leitura da previsão: informação ausente, não zero
+    expect(semPrevisao.aCaminho).toBeNull();
+    expect(semPrevisao.aguardandoAprovacao).toBeNull();
+  });
+
   it("insumo sem sinal está em dia", () => {
     const [linha] = montarEstoqueDisponivel({ ...base, saldo: [saldo(1, "Acetona", 50)] });
     expect(linha.sinais).toEqual([]);

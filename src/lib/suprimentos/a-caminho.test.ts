@@ -59,7 +59,7 @@ describe("montarACaminho", () => {
       caminho: "Compra direta",
       pendenteEstoque: 1500,
     });
-    expect(resumirACaminho(lista)).toEqual({ itens: 2, compras: 2, atrasados: 1, semPrevisaoInformada: 1 });
+    expect(resumirACaminho(lista)).toEqual({ itens: 2, compras: 2, atrasados: 1, semPrevisaoInformada: 1, aguardandoAprovacao: 0 });
   });
 
   it("sem previsão vai para o fim e não inventa data", () => {
@@ -78,5 +78,20 @@ describe("montarACaminho", () => {
   it("conta dias corridos entre datas", () => {
     expect(diasEntre("2026-11-01", "2026-11-09")).toBe(8);
     expect(diasEntre("2026-11-09", "2026-11-01")).toBe(-8);
+  });
+
+  it("compra só solicitada fica à parte: pedido em aprovação não é compra a caminho", () => {
+    const lista = montarACaminho({
+      ...base,
+      prazos: [
+        { pedido_id: 10, item_id: 100, insumo_id: 1, status: "enviado", qtd_restante: 6, prevista: "2026-11-01" },
+        { pedido_id: 11, item_id: 101, insumo_id: 2, status: "solicitado", qtd_restante: 1500, prevista: "2026-11-01" },
+      ],
+    });
+    expect(lista.map((i) => [i.compraId, i.aguardaAprovacao])).toEqual(
+      expect.arrayContaining([[10, false], [11, true]]),
+    );
+    // o resumo conta só o que foi aprovado; o resto aparece como "aguardando aprovação"
+    expect(resumirACaminho(lista)).toMatchObject({ itens: 1, compras: 1, atrasados: 1, aguardandoAprovacao: 1 });
   });
 });

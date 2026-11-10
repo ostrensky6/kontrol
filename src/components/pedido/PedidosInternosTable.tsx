@@ -33,7 +33,7 @@ export type PedidoInternoRow = {
   solicitante: string;
   necessidade: string;
   urgencia: string;
-  /** 0172: mês do ciclo de pagamento ("—" antes da aprovação da coordenação) */
+  /** 0172: mês do ciclo de compras ("—" antes da aprovação da coordenação) */
   ciclo?: string;
   itens: number;
   itensDetalhe: PedidoItemView[];

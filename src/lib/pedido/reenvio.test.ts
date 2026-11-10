@@ -18,7 +18,16 @@ describe("reenvio depois do ajuste (0175, D5)", () => {
     const texto = textoReenvio(
       situacaoReenvio({ mantem: false, mudou: ["valor", "projeto"], motivo: "mudou", valor_atual: "450", valor_validado: 300 }),
     );
-    expect(texto).toMatch(/^Mudou o valor \(R\$\s?300,00 na validação, R\$\s?450,00 agora\) e o projeto: ao reenviar, o pedido passa de novo pelo coordenador\.$/);
+    expect(texto).toMatch(/^Mudaram o valor \(R\$\s?300,00 na validação, R\$\s?450,00 agora\) e o projeto: ao reenviar, o pedido passa de novo pelo coordenador\.$/);
+  });
+
+  it("objeto diferente (item, quantidade ou especificação) volta ao coordenador mesmo com o valor igual", () => {
+    const texto = textoReenvio(
+      situacaoReenvio({ mantem: false, mudou: ["itens"], motivo: "mudou", valor_atual: 300, valor_validado: 300 }),
+    );
+    expect(texto).toBe(
+      "Mudaram os itens (item, quantidade ou especificação): ao reenviar, o pedido passa de novo pelo coordenador.",
+    );
   });
 
   it("retorno ilegível não vira texto", () => {

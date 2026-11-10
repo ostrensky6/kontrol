@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  datasDoCiclo,
   cicloLiberaEm,
   cicloPara,
   dataEmBrasilia,
@@ -36,7 +37,7 @@ describe("ciclo do dia 10 (0172)", () => {
 
   it("explica o ciclo para quem pede", () => {
     expect(explicarCicloHoje("2026-11-09", false)).toBe(
-      "Aprovado pela coordenação até ter. 10/11, entra no ciclo de pagamento de novembro/2026. Depois disso, passa ao ciclo seguinte.",
+      "Aprovado pela coordenação até ter. 10/11, entra no ciclo de compras de novembro/2026. Depois disso, passa ao ciclo seguinte.",
     );
     expect(explicarCicloHoje("2026-11-12", false)).toContain("já passou: o pedido entra no ciclo de dezembro/2026");
     expect(explicarCicloHoje("2026-11-12", true)).toContain("fura o ciclo do dia 10 e entra no ciclo de novembro/2026");
@@ -70,8 +71,23 @@ describe("trava do ciclo seguinte (0176)", () => {
   it("explica com o mesmo texto do banco", () => {
     expect(rotuloData("2026-12-01")).toBe("01/12/2026");
     expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-11-20")).toBe(
-      "Este pedido entrou no ciclo de pagamento de dezembro/2026 porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de 01/12/2026. Só pedido urgente, com justificativa, fura o ciclo.",
+      "Este pedido entrou no ciclo de compras de dezembro/2026 porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de 01/12/2026. Só pedido urgente, com justificativa, fura o ciclo.",
     );
     expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-12-01")).toBeNull();
+  });
+
+  it("guarda as duas datas do ciclo: a solicitação e a aprovação da coordenação que o define", () => {
+    const aprovacoes = [
+      { status_origem: "em_validacao", status_destino: "validado", criado_em: "2026-11-09T15:00:00Z" },
+      { status_origem: "ajuste_solicitante", status_destino: "em_validacao", criado_em: "2026-11-08T12:00:00Z" },
+      { status_origem: "em_validacao", status_destino: "ajuste_solicitante", criado_em: "2026-11-06T12:00:00Z" },
+      { status_origem: "rascunho", status_destino: "em_validacao", criado_em: "2026-11-05T12:00:00Z" },
+    ];
+    // sem laboratório: vale a validação do coordenador; a solicitação é o primeiro envio
+    expect(datasDoCiclo(aprovacoes)).toEqual({ solicitadoEm: "2026-11-05T12:00:00Z", aprovadoEm: "2026-11-09T15:00:00Z" });
+    // material de laboratório: vale a aprovação do laboratório, que vem depois
+    expect(datasDoCiclo(aprovacoes, "2026-11-11T13:00:00+00:00").aprovadoEm).toBe("2026-11-11T13:00:00+00:00");
+    // ainda sem aprovação do coordenador: nada define o ciclo
+    expect(datasDoCiclo(aprovacoes.slice(1))).toEqual({ solicitadoEm: "2026-11-05T12:00:00Z", aprovadoEm: null });
   });
 });

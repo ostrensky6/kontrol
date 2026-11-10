@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * 0172: o pedido explica em que ciclo de pagamento entra (dia 10) e a urgência
+ * 0172: o pedido explica em que ciclo de compras entra (dia 10) e a urgência
  * pede justificativa, que aparece no pedido.
  */
-test("pedido urgente pede justificativa e mostra o ciclo de pagamento", async ({ page }) => {
+test("pedido urgente pede justificativa e mostra o ciclo de compras", async ({ page }) => {
   const titulo = `Reagente urgente ${Date.now()}`;
   await page.goto("/pedido");
   await page.getByRole("button", { name: "Novo pedido" }).click();

@@ -6,11 +6,13 @@ import {
   type SinalInsumo,
   type TomSinal,
 } from "@/lib/estoque/situacao-insumo";
+import { separarPedidoAberto } from "@/lib/suprimentos/pedido-aberto";
 
 /**
  * "Estoque disponível" da visão geral de Suprimentos: uma linha por insumo
- * ativo, com o que há para usar, o que está reservado, o que está a caminho e
- * a validade mais próxima. A situação usa as mesmas regras do Controle de
+ * ativo, com o que há para usar, o que está reservado, o que está a caminho
+ * (comprado ou autorizado, ainda não recebido; o que só espera aprovação fica
+ * à parte e nada disso é somado ao disponível) e a validade mais próxima. A situação usa as mesmas regras do Controle de
  * Estoque (situacaoDoInsumo): o mesmo insumo nunca aparece com rótulos
  * diferentes em telas diferentes.
  */
@@ -34,6 +36,8 @@ export type PrevisaoDisponivelDb = {
   insumo_id: number | null;
   qtd_sugerida_compra?: Numerico;
   qtd_pedida_aberta?: Numerico;
+  /** parte do pedido aberto que ainda espera aprovação (0132) */
+  qtd_pedida_pendente?: Numerico;
 };
 
 export type AlertaDisponivelDb = { insumo_id: number | null; tipo: string | null };
@@ -54,7 +58,10 @@ export type LinhaEstoqueDisponivel = {
   emMaos: number;
   reservado: number;
   disponivel: number;
-  aCaminho: number;
+  /** comprado ou autorizado e ainda não recebido; null = sem leitura da previsão */
+  aCaminho: number | null;
+  /** pedido que ainda espera aprovação (não garante entrega); null = sem leitura */
+  aguardandoAprovacao: number | null;
   minimo: number;
   /** quanto a previsão sugere pedir; 0 quando não precisa */
   sugerido: number;
@@ -118,6 +125,7 @@ export function montarEstoqueDisponivel({
       const disponivel = num(s.disponivel);
       const situacao = situacaoDoInsumo({ disponivel, qtd_sugerida_compra: sugerido }, alertasPorInsumo.get(insumoId) ?? []);
       const validade = validadePorInsumo.get(insumoId) ?? null;
+      const pedido = separarPedidoAberto(prev?.qtd_pedida_aberta, prev?.qtd_pedida_pendente);
       return {
         insumoId,
         especificacao: s.especificacao?.trim() || `Insumo #${insumoId}`,
@@ -126,7 +134,8 @@ export function montarEstoqueDisponivel({
         emMaos: num(s.em_maos),
         reservado: num(s.reservado),
         disponivel,
-        aCaminho: num(prev?.qtd_pedida_aberta),
+        aCaminho: pedido.aCaminho,
+        aguardandoAprovacao: pedido.aguardandoAprovacao,
         minimo: num(s.ponto_reposicao),
         sugerido: sugerido > 0 ? sugerido : 0,
         validade,

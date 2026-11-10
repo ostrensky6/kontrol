@@ -6,6 +6,10 @@ import { lerTudo } from "@/lib/supabase/ler-tudo";
 /**
  * "A caminho": itens de compra feitos e ainda não recebidos por inteiro.
  *
+ * Fato e expectativa ficam separados: compra aprovada, enviada ou em trânsito
+ * está a caminho; compra só solicitada (aguardaAprovacao) ainda não foi
+ * autorizada e não garante entrega.
+ *
  * A fonte é a mesma do "pedido aberto" do Estoque e do painel
  * (v_compras_prazo): só entra a quantidade que falta receber. O que já chegou
  * está no estoque e não aparece aqui, para não contar duas vezes.
@@ -65,6 +69,8 @@ export type ItemACaminho = {
   fornecedor: string | null;
   caminho: string | null;
   situacao: string;
+  /** compra ainda sem aprovação: pedido feito, não compra a caminho */
+  aguardaAprovacao: boolean;
   solicitado: string;
   recebido: string;
   pendente: string;
@@ -165,6 +171,7 @@ export function montarACaminho({
       fornecedor: primeira(compra?.fornecedores)?.nome ?? null,
       caminho,
       situacao: SITUACAO_COMPRA_A_CAMINHO[prazo.status ?? ""] ?? (prazo.status ?? "—"),
+      aguardaAprovacao: prazo.status === "solicitado",
       solicitado: item ? rotuloQuantidadeItem(formato, unidade, solicitado) : "—",
       recebido: item ? rotuloQuantidadeItem(formato, unidade, recebido) : "—",
       pendente: item ? rotuloQuantidadeItem(formato, unidade, pendenteItem) : "—",
@@ -188,14 +195,24 @@ export function montarACaminho({
   });
 }
 
-export type ResumoACaminho = { itens: number; compras: number; atrasados: number; semPrevisaoInformada: number };
+export type ResumoACaminho = {
+  /** itens de compra aprovada, enviada ou em trânsito */
+  itens: number;
+  compras: number;
+  atrasados: number;
+  semPrevisaoInformada: number;
+  /** itens de compra ainda sem aprovação (não contam como a caminho) */
+  aguardandoAprovacao: number;
+};
 
 export function resumirACaminho(lista: ItemACaminho[]): ResumoACaminho {
+  const confirmados = lista.filter((i) => !i.aguardaAprovacao);
   return {
-    itens: lista.length,
-    compras: new Set(lista.map((i) => i.compraId)).size,
-    atrasados: lista.filter((i) => i.diasAtraso != null).length,
-    semPrevisaoInformada: lista.filter((i) => !i.previsaoInformada).length,
+    itens: confirmados.length,
+    compras: new Set(confirmados.map((i) => i.compraId)).size,
+    atrasados: confirmados.filter((i) => i.diasAtraso != null).length,
+    semPrevisaoInformada: confirmados.filter((i) => !i.previsaoInformada).length,
+    aguardandoAprovacao: lista.length - confirmados.length,
   };
 }
 
