@@ -76,14 +76,16 @@ beforeEach(() => {
   });
 });
 
-const render = async (query: { consumo_insumo?: string | string[]; consumo_antes?: string } = {}) =>
+const render = async (query: { ver?: string; consumo_insumo?: string | string[]; consumo_antes?: string } = {}) =>
   renderToStaticMarkup(await EstoquePage({ searchParams: Promise.resolve(query) }));
 
 describe("consumidor de estimativa manual no saldo", () => {
   it("oferece só insumos do saldo e não consulta por linha, por ID invisível ou por parâmetro ambíguo", async () => {
-    const html = await render();
+    // o consumo mensal é uma visão própria da página (?ver=consumo)
+    const html = await render({ ver: "consumo" });
     expect(html).toContain("Insumo sintético 12");
     expect(html).toContain("Insumo sintético 13");
+    expect(await render()).not.toContain("Selecione um insumo do saldo");
     expect(await render({ consumo_insumo: "999" })).toContain("Insumo indisponível nesta lista");
     expect(await render({ consumo_insumo: ["12", "13"] })).toContain("Insumo indisponível nesta lista");
     expect(await render({ consumo_insumo: "12", consumo_antes: "inválida" })).toContain("Página de histórico inválida");
@@ -96,6 +98,9 @@ describe("consumidor de estimativa manual no saldo", () => {
     expect(html).toContain("Nenhuma estimativa manual registrada");
     expect(html).toContain("Sua função não permite registrar estimativa");
     expect(html).not.toContain("Registrar estimativa manual");
+    // a visão do consumo não desenha a tabela de saldo; o saldo segue igual na visão dele
+    expect(io.saldo).not.toHaveBeenCalled();
+    await render();
     expect(io.saldo.mock.calls[0][0].rows[0]).toMatchObject({
       disponivel: 10, reservado: 4, consumoMedioDiario: 2.5, diasCobertura: 4, pontoSugerido: 18,
       situacoes: ["repor"], saidasDiarias: { estado: "provisoria", taxa: 2.5, janelaDias: 31, unidadeReferencia: "mL" },

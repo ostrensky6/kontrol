@@ -368,9 +368,6 @@ export function SaldoTable({
             </HelpExample>
           </div>
         </HelpTip>
-        <a href="#consumo-manual" className="ml-auto inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4">
-          Ver consumo mensal
-        </a>
       </div>
       <DataTable
         data={rows}
@@ -416,7 +413,7 @@ export function LotesTable({
       data={rows}
       columns={lotesColumns(permissoes)}
       searchPlaceholder="Buscar reagente ou lote..."
-      emptyText="Nenhum lote em estoque. Use + Entrada na tabela acima para receber."
+      emptyText="Nenhum lote em estoque. Use + Entrada em Saldo por insumo para receber."
       filters={[
         {
           columnId: "statusLabel",

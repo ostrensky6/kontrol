@@ -4,6 +4,9 @@ test("estoque: consumo mensal calculado do insumo escolhido", async ({ page }) =
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
   await page.goto("/estoque");
+  // o consumo mensal é uma das visões da página do Estoque
+  await page.getByRole("navigation", { name: "O que mostrar do estoque" }).getByRole("link", { name: "Consumo mensal" }).click();
+  await expect(page).toHaveURL(/ver=consumo/);
   const secao = page.getByRole("region", { name: "Consumo mensal" }).first();
   await secao.getByLabel("Insumo").selectOption({ label: "Mix PCR · #1" });
   await secao.getByRole("button", { name: "Ver consumo" }).click();

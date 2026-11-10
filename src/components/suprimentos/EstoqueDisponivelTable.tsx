@@ -4,9 +4,10 @@ import { useMemo, useState } from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable, numericSort } from "@/components/common/DataTable";
-import { FiltroChips, gravarFiltroNaUrl } from "@/components/common/FiltroChips";
+import { FiltroCartoes, gravarFiltroNaUrl } from "@/components/common/FiltroChips";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import {
+  FILTRO_ESTOQUE_PADRAO,
   FILTROS_ESTOQUE_DISPONIVEL,
   linhaAtendeFiltro,
   type FiltroEstoqueDisponivel,
@@ -21,6 +22,7 @@ const TOM_SITUACAO: Record<LinhaEstoqueDisponivel["tom"], string> = {
 };
 
 const TOM_FILTRO: Partial<Record<FiltroEstoqueDisponivel, "red" | "amber">> = {
+  atencao: "amber",
   reposicao: "amber",
   sem_disponivel: "red",
   vencido_vencendo: "amber",
@@ -130,6 +132,7 @@ export function EstoqueDisponivelTable({
       FILTROS_ESTOQUE_DISPONIVEL.map((f) => ({
         valor: f.valor,
         rotulo: f.rotulo,
+        descricao: f.descricao,
         contagem: linhas.filter((linha) => linhaAtendeFiltro(linha, f.valor)).length,
         tom: TOM_FILTRO[f.valor] ?? ("neutro" as const),
       })),
@@ -139,19 +142,30 @@ export function EstoqueDisponivelTable({
 
   function mudar(valor: FiltroEstoqueDisponivel) {
     setFiltro(valor);
-    gravarFiltroNaUrl("situacao", valor, "todos");
+    gravarFiltroNaUrl("situacao", valor, FILTRO_ESTOQUE_PADRAO);
   }
 
   return (
     <div className="space-y-3">
-      <FiltroChips opcoes={opcoes} valor={filtro} aoMudar={mudar} rotulo="Filtrar por situação" />
+      <FiltroCartoes opcoes={opcoes} valor={filtro} aoMudar={mudar} rotulo="Filtrar por situação" />
       <DataTable
         data={visiveis}
         columns={colunas}
         searchPlaceholder="Buscar insumo..."
-        emptyTitle={filtro === "todos" ? "Nenhum insumo ativo" : "Nenhum insumo nesta situação"}
-        emptyText={filtro === "todos" ? "Cadastre insumos em Cadastros para acompanhar o estoque." : "Escolha outra situação acima."}
-        pageSize={50}
+        emptyTitle={
+          linhas.length === 0
+            ? "Nenhum insumo ativo"
+            : filtro === "atencao"
+              ? "Nenhum insumo precisa de atenção"
+              : "Nenhum insumo nesta situação"
+        }
+        emptyText={
+          linhas.length === 0
+            ? "Cadastre insumos em Cadastros para acompanhar o estoque."
+            : filtro === "atencao"
+              ? "Estoque em dia. Para ver a lista inteira, escolha Todos."
+              : "Escolha outra situação acima."
+        }
         getMobileTitle={(linha) => linha.especificacao}
         getMobileDescription={(linha) =>
           `Disponível ${formatNumber(linha.disponivel)} ${linha.unidade}` +
