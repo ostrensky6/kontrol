@@ -24,6 +24,7 @@ const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Suprimentos (visão geral)", url: "/suprimentos" },
   { nome: "Estoque", url: "/estoque" },
   { nome: "Pedidos", url: "/pedido" },
+  { nome: "Pedido (aguardando aprovação)", url: "/pedido/502" },
   { nome: "Compras", url: "/compras" },
   { nome: "Análises", url: "/analises" },
   { nome: "Projetos", url: "/projetos" },

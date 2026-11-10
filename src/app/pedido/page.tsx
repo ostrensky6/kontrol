@@ -5,9 +5,12 @@ import Link from "next/link";
 import type { PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
 import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
 import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
+import { proximoPasso } from "@/lib/pedido/proximo-passo";
+import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
+import { PENDENCIAS_DE_PEDIDOS, montarPendencias, pendenciasDe } from "@/components/dashboard/aguardando";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
 import { NovoPedidoDialog } from "@/components/pedido/NovoPedidoDialog";
-import { PEDIDO_INTERNO_AGUARDANDO_LABORATORIO, pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
+import { pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
 import { lerAreasPedido } from "@/lib/pedido/areas";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { statusInfo } from "@/components/app/status";
@@ -72,29 +75,6 @@ const LABEL_MODALIDADE: Record<string, string> = {
   outra: "Outra",
 };
 
-function proximaAcao(status: string) {
-  const map: Record<string, { acao: string; responsavel: string }> = {
-    rascunho: { acao: "Enviar para validação", responsavel: "Solicitante" },
-    ajuste_solicitante: { acao: "Corrigir pedido", responsavel: "Solicitante" },
-    ajuste_compras: { acao: "Corrigir dados administrativos", responsavel: "Compras/Admin." },
-    em_validacao: { acao: "Aprovar coordenador", responsavel: "Coordenador do projeto (sem projeto: Supervisão)" },
-    validado: { acao: "Formalizar compra", responsavel: "Coordenador/Compras" },
-    formalizado: { acao: "Análise administrativa", responsavel: "Administrativo" },
-    analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
-    aprovado_compra: { acao: "Registrar cotações", responsavel: "Compras/Admin." },
-    orcamentos: { acao: "Anexar cotações", responsavel: "Compras/Admin." },
-    orcamentos_recebidos: { acao: "Enviar aprovação final", responsavel: "Coordenador" },
-    aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
-    aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
-    compra_fechada: { acao: "Aguardar pagamento/NF", responsavel: "Compras/Admin." },
-    encaminhado_instituicao: { acao: "Acompanhar instituição", responsavel: "Administrativo" },
-    aguardando_pagamento_nf: { acao: "Anexar NF/comprovante", responsavel: "Compras/Admin." },
-    compra_concluida: { acao: "Concluído", responsavel: "—" },
-    cancelado: { acao: "Encerrado", responsavel: "—" },
-  };
-  return map[status] ?? { acao: "Revisar", responsavel: "Operação" };
-}
-
 function pendenciasPedido(row: PedidoInternoListRow) {
   const pendencias: string[] = [];
   const docsCotacao = (row.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
@@ -113,7 +93,7 @@ export default async function PedidoPage({
   const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
   const abrirNovo = query.novo === "1";
   const supabase = await createClientUntyped();
-  const [pedidosFull, projetosFull, podeExcluir, areas] = await Promise.all([
+  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando] = await Promise.all([
     supabase
       .from("pedidos_internos")
       .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
@@ -121,7 +101,10 @@ export default async function PedidoPage({
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
     lerAreasPedido(supabase),
+    // o banco diz, pela competência de cada um, o que espera este usuário (0173)
+    supabase.rpc("aguardando_voce"),
   ]);
+  const pendencias = pendenciasDe(montarPendencias(aguardando.data), PENDENCIAS_DE_PEDIDOS);
   const { data: pedidos } = pedidosFull.error
     ? await supabase
         .from("pedidos_internos")
@@ -156,11 +139,12 @@ export default async function PedidoPage({
     const cicloTravadoAte = pedido.status === "validado"
       ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
-    const proxima = status === PEDIDO_INTERNO_AGUARDANDO_LABORATORIO
-      ? { acao: "Aprovar pelo laboratório", responsavel: "Coordenação do laboratório" }
-      : cicloTravadoAte
-        ? { acao: "Aguardar o ciclo abrir", responsavel: `Compras/Admin., a partir de ${rotuloData(cicloTravadoAte)}` }
-        : proximaAcao(pedido.status);
+    // mesmo texto da página do pedido; o nome do coordenador só vale com projeto
+    const proxima = proximoPasso(pedido, {
+      coordenador: projetoRow ? coordenador : null,
+      semProjeto: !projetoRow,
+      cicloAbreEm: cicloTravadoAte,
+    });
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
       id: pedido.id,
@@ -203,8 +187,12 @@ export default async function PedidoPage({
                   aprovação, administrativo, cotação, compra e entrega, e pagamento.
                 </p>
                 <p>
+                  <b>Aguardando você</b> mostra os pedidos que dependem de você, como os que o coordenador
+                  precisa aprovar. Clique no nome para abrir o pedido: o botão de aprovar fica no topo dele.
+                </p>
+                <p>
                   Clique numa etapa para ver só os pedidos dela. A coluna <b>Próximo passo</b> diz o que
-                  falta e com quem está. Abra o pedido para ver o histórico e agir.
+                  falta e com quem está.
                 </p>
               </HelpTip>
             </div>
@@ -217,7 +205,16 @@ export default async function PedidoPage({
           <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} abrirAoCarregar={abrirNovo} />
         </div>
 
-        <div className="mt-6">
+        <div className="mt-5">
+          <AguardandoVoce
+            pendencias={pendencias}
+            destaque
+            vazio="Nenhum pedido esperando a sua ação agora. Quando um pedido depender de você, ele aparece aqui."
+            ajuda="Pedidos que dependem de você: aprovar como coordenador ou pelo laboratório, autorizar, cotar, fechar a compra ou pagar."
+          />
+        </div>
+
+        <div className="mt-5">
           <PedidosPorEtapa key={filtroEtapa} rows={rows} podeExcluir={podeExcluir} filtroInicial={filtroEtapa} />
         </div>
       </main>
