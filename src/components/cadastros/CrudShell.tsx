@@ -26,6 +26,14 @@ import {
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
+import {
+  CHAVE_LINHAS_POR_PAGINA,
+  LINHAS_POR_PAGINA_PADRAO,
+  TODAS_AS_LINHAS,
+  linhasGuardadas,
+  mostraRodapeDePaginas,
+  opcoesDeLinhas,
+} from "@/lib/tabela-linhas";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Lock, MoreHorizontal, Plus, Search } from "lucide-react";
 import { contemBusca } from "@/lib/busca";
 import type { Campo, Coluna } from "@/lib/cadastros/config";
@@ -369,7 +377,7 @@ export function CrudShell({
           .filter((campo) => !colunas.some((coluna) => coluna.key === campo.name))
           .map((campo) => [campo.name, false]),
       ),
-      pagination: { pageSize: 25 },
+      pagination: { pageSize: LINHAS_POR_PAGINA_PADRAO },
     },
   });
 
@@ -446,6 +454,27 @@ export function CrudShell({
       })
       .filter((filtro) => filtro.opcoes.length > 0);
   }, [campos, colunas, rows]);
+
+  // Linhas por página: a escolha da pessoa vale em todas as tabelas deste navegador.
+  const setPageSize = table.setPageSize;
+  useEffect(() => {
+    try {
+      const guardadas = linhasGuardadas(window.localStorage.getItem(CHAVE_LINHAS_POR_PAGINA));
+      if (guardadas) setPageSize(guardadas);
+    } catch {
+      // Preferência opcional.
+    }
+  }, [setPageSize]);
+
+  function mudarLinhasPorPagina(linhas: number) {
+    table.setPageSize(linhas);
+    try {
+      // "Todos" vale só para esta visita: não vira o padrão das outras tabelas
+      if (linhasGuardadas(String(linhas))) window.localStorage.setItem(CHAVE_LINHAS_POR_PAGINA, String(linhas));
+    } catch {
+      // Preferência opcional.
+    }
+  }
 
   const totalFiltrado = table.getFilteredRowModel().rows.length;
   const temFiltro = globalFilter !== "" || columnFilters.length > 0;
@@ -624,22 +653,22 @@ export function CrudShell({
       </div>
 
       {/* Paginação (só quando passa de uma página) */}
-      {pageCount > 1 && (
+      {mostraRodapeDePaginas(totalFiltrado) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Linhas por página</span>
             <Select
               value={pageSize}
-              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              onChange={(e) => mudarLinhasPorPagina(Number(e.target.value))}
               className="h-8 w-auto px-2 py-1.5 text-xs"
               aria-label="Linhas por página"
             >
-              {[25, 50, 100].map((n) => (
+              {opcoesDeLinhas(LINHAS_POR_PAGINA_PADRAO).map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-              <option value={100000}>Todos</option>
+              <option value={TODAS_AS_LINHAS}>Todos</option>
             </Select>
           </div>
           <div className="flex items-center gap-3">

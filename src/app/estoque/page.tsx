@@ -11,6 +11,15 @@ import {
   type LoteDbBaixa,
 } from "@/lib/estoque/baixa";
 import { rotuloDoSaldo, situacoesDoSaldo } from "@/lib/estoque/situacao-insumo";
+import {
+  ALERTAS_ESTOQUE,
+  VISOES_ESTOQUE,
+  alertaEstoqueValido,
+  hrefAlertaEstoque,
+  hrefVisaoEstoque,
+  visaoDoEstoque,
+} from "@/lib/estoque/visao-estoque";
+import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from "@/lib/formatters";
 import { DownloadButton } from "@/components/common/DownloadButton";
@@ -69,15 +78,6 @@ type CustoEstoque = {
   situacao: string;
 };
 
-const ALERTA_META: Record<string, { label: string; cls: string }> = {
-  reposicao: { label: "Repor", cls: "bg-warning-soft text-warning-strong" },
-  reposicao_pendente: { label: "Reposição aguardando aprovação", cls: "bg-warning-soft text-warning-strong" },
-  vencimento: { label: "Vence em breve", cls: "bg-warning-soft text-warning-strong" },
-  vencido: { label: "Vencido", cls: "bg-danger-soft text-danger-strong" },
-  sem_validade: { label: "Sem validade", cls: "bg-danger-soft text-danger-strong" },
-  compra_atrasada: { label: "Compra atrasada", cls: "bg-danger-soft text-danger-strong" },
-};
-
 function leituraSaidasDiarias(
   prev: Tables<"v_previsao_suprimentos"> | undefined,
   falha: "falha" | "parcial" | null,
@@ -133,7 +133,13 @@ function DadosRevisaoConsumo({ registro }: { registro: RevisaoConsumoManual }) {
 export default async function EstoquePage({
   searchParams,
 }: {
-  searchParams: Promise<{ entrada?: string | string[]; consumo_insumo?: string | string[]; consumo_antes?: string | string[] }>;
+  searchParams: Promise<{
+    ver?: string | string[];
+    alerta?: string | string[];
+    entrada?: string | string[];
+    consumo_insumo?: string | string[];
+    consumo_antes?: string | string[];
+  }>;
 }) {
   const query = await searchParams;
   const entrada = Array.isArray(query.entrada) ? query.entrada[0] : query.entrada;
@@ -201,6 +207,19 @@ export default async function EstoquePage({
     sem_validade: al.filter((a) => a.tipo === "sem_validade"),
     compra_atrasada: al.filter((a) => a.tipo === "compra_atrasada"),
   };
+  // Um alerta escolhido (?alerta=) abre a visão certa já filtrada; alerta sem itens não filtra nada.
+  const alertaPedido = alertaEstoqueValido(query.alerta);
+  const alertaAtivo = alertaPedido && porTipo[alertaPedido].length > 0 ? alertaPedido : null;
+  const visao = visaoDoEstoque({ ...query, alerta: alertaAtivo ?? undefined });
+  const metaAlertaAtivo = ALERTAS_ESTOQUE.find((a) => a.tipo === alertaAtivo) ?? null;
+  const insumosDoAlerta = new Set((alertaAtivo ? porTipo[alertaAtivo] : []).map((a) => Number(a.insumo_id)));
+  const lotesDoAlerta = new Set(
+    (alertaAtivo ? porTipo[alertaAtivo] : []).filter((a) => a.lote_id != null).map((a) => Number(a.lote_id)),
+  );
+  // alerta de lote sem o número do lote (não deveria acontecer): vale o insumo inteiro
+  const insumosDoAlertaSemLote = new Set(
+    (alertaAtivo ? porTipo[alertaAtivo] : []).filter((a) => a.lote_id == null).map((a) => Number(a.insumo_id)),
+  );
   const insumosAguardandoAprovacao = new Set(porTipo.reposicao_pendente.map((a) => Number(a.insumo_id)));
   const previsaoMap = new Map((previsao ?? []).map((p) => [p.insumo_id, p]));
   // Só há sinal explícito de parcialidade quando a resposta traz linhas e erro.
@@ -268,7 +287,19 @@ export default async function EstoquePage({
     ])
     : [null, null, null];
   const hoje = hojeIso();
-  const loteRows: LoteRow[] = lotes.map((l) => {
+  const lotesVisiveis =
+    metaAlertaAtivo?.visao === "lotes"
+      ? lotes.filter((l) => lotesDoAlerta.has(Number(l.id)) || insumosDoAlertaSemLote.has(Number(l.insumo_id)))
+      : lotes;
+  const saldoVisivel =
+    metaAlertaAtivo?.visao === "saldo" ? saldoRows.filter((s) => insumosDoAlerta.has(Number(s.insumoId))) : saldoRows;
+  const contagemDaVisao: Record<string, number | null> = {
+    saldo: saldoRows.length,
+    lotes: lotes.length,
+    custos: custosDivergentes.length,
+    consumo: null,
+  };
+  const loteRows: LoteRow[] = lotesVisiveis.map((l) => {
     const ins = l.insumos;
     const baixa = loteBaixaDeDb(l, reservadoPorLote);
     return {
@@ -306,8 +337,8 @@ export default async function EstoquePage({
             <h1 className="text-xl font-semibold tracking-tight">Estoque</h1>
             <HelpTip title="Estoque">
               <p>
-                Saldo de cada insumo, alertas e os lotes guardados. O uso segue <b>FEFO</b>: o lote
-                que vence primeiro sai primeiro.
+                Os alertas ficam no topo. Abaixo, escolha o que ver: saldo por insumo, lotes, custos
+                ou consumo mensal. O uso segue <b>FEFO</b>: o lote que vence primeiro sai primeiro.
               </p>
               <p>
                 <b>+ Entrada</b> registra um lote com o número do fabricante. <b>Dar baixa</b> retira
@@ -335,47 +366,111 @@ export default async function EstoquePage({
               ]}
             />
             <p>
-              O número de cada cartão é a <b>quantidade de alertas</b>; abaixo aparecem os primeiros
-              itens.
+              O número é a <b>quantidade de alertas</b>. Clique num cartão para ver só os insumos ou
+              lotes daquele alerta; clique de novo para voltar à lista inteira.
             </p>
           </HelpTip>
         </div>
-        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {(["reposicao", "reposicao_pendente", "compra_atrasada", "vencimento", "vencido", "sem_validade"] as const).map((t) => (
-            <div
-              key={t}
-              className="rounded-xl border border-border bg-card p-4 shadow-sm"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${ALERTA_META[t].cls}`}>
-                  {ALERTA_META[t].label}
+        <ul aria-label="Alertas do estoque" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+          {ALERTAS_ESTOQUE.map((alerta) => {
+            const quantidade = porTipo[alerta.tipo].length;
+            const ativo = alerta.tipo === alertaAtivo;
+            const conteudo = (
+              <>
+                <span className="text-sm font-medium leading-5 text-foreground">{alerta.rotulo}</span>
+                <span
+                  className={cn(
+                    "text-xl font-semibold leading-6 tabular-nums",
+                    quantidade === 0
+                      ? "text-muted-foreground"
+                      : alerta.tom === "critico"
+                        ? "text-danger-strong"
+                        : "text-warning-strong",
+                  )}
+                >
+                  {quantidade}
                 </span>
-                <span className="text-2xl font-semibold tabular-nums">{porTipo[t].length}</span>
-              </div>
-              <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
-                {porTipo[t].slice(0, 4).map((a, i) => (
-                  <li key={i} className="truncate" title={a.especificacao ?? ""}>
-                    {a.especificacao}
-                    {a.validade && (t === "compra_atrasada" || t === "vencido" || t === "vencimento")
-                      ? ` · ${t === "compra_atrasada" ? "chegaria em" : t === "vencido" ? "venceu" : "vence"} ${formatDate(a.validade)}`
-                      : ""}
-                    {a.lote_id ? (
-                      <>
-                        {" · "}
-                        <Link href={`/estoque/lotes/${a.lote_id}`} className="font-medium text-primary hover:underline">
-                          {t === "vencido" ? "Baixar por vencimento" : "Ver lote"}
-                        </Link>
-                      </>
-                    ) : null}
-                  </li>
-                ))}
-                {porTipo[t].length === 0 && <li className="text-muted-foreground/80">Nenhum</li>}
-              </ul>
-            </div>
-          ))}
-        </div>
+              </>
+            );
+            return (
+              <li key={alerta.tipo}>
+                {quantidade > 0 ? (
+                  <Link
+                    href={hrefAlertaEstoque(alerta.tipo, alertaAtivo)}
+                    aria-current={ativo ? "true" : undefined}
+                    data-testid={`alerta-${alerta.tipo}`}
+                    className={cn(
+                      "flex min-h-16 items-start justify-between gap-2 rounded-lg border p-3 transition-colors",
+                      ativo
+                        ? "border-primary bg-primary/5 ring-1 ring-primary"
+                        : "border-border bg-card hover:border-primary/50 hover:bg-primary/5",
+                    )}
+                  >
+                    {conteudo}
+                  </Link>
+                ) : (
+                  <div className="flex min-h-16 items-start justify-between gap-2 rounded-lg border border-dashed border-border p-3 opacity-80">
+                    {conteudo}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
 
-        <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <nav aria-label="O que mostrar do estoque" className="mt-6 flex flex-wrap gap-2 border-b border-border pb-3">
+          {VISOES_ESTOQUE.map((v) => {
+            const ativa = v.id === visao;
+            const contagem = contagemDaVisao[v.id];
+            return (
+              <Link
+                key={v.id}
+                href={hrefVisaoEstoque(v.id)}
+                aria-current={ativa ? "page" : undefined}
+                className={cn(
+                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                  ativa
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5",
+                )}
+              >
+                {v.rotulo}
+                {contagem != null && (
+                  <span
+                    className={cn(
+                      "rounded-full px-1.5 text-xs tabular-nums",
+                      ativa ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+                    )}
+                  >
+                    {contagem}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {metaAlertaAtivo && (
+          <p
+            role="status"
+            data-testid="filtro-alerta"
+            className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-primary/5 px-3 py-2 text-sm"
+          >
+            <span>
+              Mostrando só <b>{metaAlertaAtivo.rotulo}</b>:{" "}
+              {metaAlertaAtivo.visao === "lotes"
+                ? `${lotesVisiveis.length} ${lotesVisiveis.length === 1 ? "lote" : "lotes"}`
+                : `${saldoVisivel.length} ${saldoVisivel.length === 1 ? "insumo" : "insumos"}`}
+              .
+            </span>
+            <Link href={hrefVisaoEstoque(metaAlertaAtivo.visao)} className="font-medium text-primary hover:underline">
+              Mostrar tudo
+            </Link>
+          </p>
+        )}
+
+        {visao === "custos" && (
+        <section className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <div>
               <div className="flex items-center gap-1">
@@ -405,7 +500,7 @@ export default async function EstoquePage({
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/70">
-                {custosDivergentes.slice(0, 10).map((custo) => (
+                {custosDivergentes.map((custo) => (
                   <tr key={custo.insumo_id}>
                     <td className="px-2 py-2 font-medium">{custo.especificacao ?? "—"} <span className="text-xs text-muted-foreground">{custo.unidade ?? ""}</span></td>
                     <td className="px-2 py-2 text-right tabular-nums">{formatCurrency(custo.custo_padrao)}</td>
@@ -421,13 +516,19 @@ export default async function EstoquePage({
             </table>
           </div>
         </section>
+        )}
 
-        <div className="mt-8">
-          <SaldoTable
-            rows={saldoRows}
-            podeMovimentar={podeBaixar}
-            entradaInicialInsumoId={entradaInicialInsumoId}
-          />
+        {visao === "saldo" && (
+          <div className="mt-4">
+            <SaldoTable
+              rows={saldoVisivel}
+              podeMovimentar={podeBaixar}
+              entradaInicialInsumoId={entradaInicialInsumoId}
+            />
+          </div>
+        )}
+
+        {visao === "consumo" && (
           <section id="consumo-manual" aria-labelledby="titulo-consumo-manual" tabIndex={-1} className="mt-4 scroll-mt-20 rounded-lg border border-border bg-card p-4">
             <div className="flex items-center gap-1">
               <h3 id="titulo-consumo-manual" className="text-base font-semibold">Consumo mensal</h3>
@@ -523,11 +624,12 @@ export default async function EstoquePage({
               </div>
             )}
           </section>
-        </div>
-
+        )}
 
         {/* Lotes (rastreabilidade + estados) */}
-        <div className="mt-10 flex items-center gap-1">
+        {visao === "lotes" && (
+        <>
+        <div className="mt-4 flex items-center gap-1">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Lotes em estoque</h2>
           <HelpTip title="Estados do lote">
             <HelpLegend
@@ -552,6 +654,8 @@ export default async function EstoquePage({
             responsavelPadrao={usuario?.nome || usuario?.email || ""}
           />
         </div>
+        </>
+        )}
       </main>
     </div>
   );

@@ -143,19 +143,27 @@ export function montarEstoqueDisponivel({
     .sort((a, b) => a.especificacao.localeCompare(b.especificacao, "pt-BR"));
 }
 
-/** Filtros da tabela; os valores são os mesmos do Controle de Estoque. */
+/**
+ * Filtros da tabela; os valores são os mesmos do Controle de Estoque. A tela
+ * abre em "Precisa de atenção": a lista inteira só aparece quando pedida.
+ */
 export const FILTROS_ESTOQUE_DISPONIVEL = [
-  { valor: "todos", rotulo: "Todos" },
-  { valor: "reposicao", rotulo: "Repor" },
-  { valor: "sem_disponivel", rotulo: "Sem estoque" },
-  { valor: "vencido_vencendo", rotulo: "Vencido ou vencendo" },
-  { valor: "ok", rotulo: "Em dia" },
+  { valor: "atencao", rotulo: "Precisa de atenção", descricao: "Repor, sem estoque ou validade" },
+  { valor: "reposicao", rotulo: "Repor", descricao: "Hora de pedir" },
+  { valor: "sem_disponivel", rotulo: "Sem estoque", descricao: "Nada disponível agora" },
+  { valor: "vencido_vencendo", rotulo: "Vencido ou vencendo", descricao: "Lote vencido ou perto de vencer" },
+  { valor: "ok", rotulo: "Em dia", descricao: "Sem nenhum aviso" },
+  { valor: "todos", rotulo: "Todos", descricao: "Todos os insumos ativos" },
 ] as const;
 
 export type FiltroEstoqueDisponivel = (typeof FILTROS_ESTOQUE_DISPONIVEL)[number]["valor"];
 
+export const FILTRO_ESTOQUE_PADRAO: FiltroEstoqueDisponivel = "atencao";
+
 export function filtroEstoqueValido(valor: unknown): FiltroEstoqueDisponivel {
-  return FILTROS_ESTOQUE_DISPONIVEL.some((f) => f.valor === valor) ? (valor as FiltroEstoqueDisponivel) : "todos";
+  return FILTROS_ESTOQUE_DISPONIVEL.some((f) => f.valor === valor)
+    ? (valor as FiltroEstoqueDisponivel)
+    : FILTRO_ESTOQUE_PADRAO;
 }
 
 export function linhaAtendeFiltro(linha: Pick<LinhaEstoqueDisponivel, "sinais">, filtro: FiltroEstoqueDisponivel) {

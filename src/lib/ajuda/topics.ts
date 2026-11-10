@@ -279,7 +279,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Consumo mensal",
         itens: [
-          "No fim da página do Estoque, em 'Consumo mensal', escolha o insumo e clique em 'Ver consumo'.",
+          "Na página do Estoque, clique em 'Consumo mensal' (ao lado de 'Saldo por insumo' e 'Lotes em estoque'), escolha o insumo e clique em 'Ver consumo'.",
           "O Kontrol soma sozinho as saídas de cada mês completo dos últimos 12 meses. Ajustes de inventário não contam como consumo.",
           "A confiança sobe com o histórico: alta com 6 meses ou mais, saída em pelo menos 4 deles e consumo parecido de um mês para outro.",
           "O consumo de referência é o calculado quando a confiança é alta. Antes disso, vale a estimativa manual em embalagens por mês, se alguém a registrou.",

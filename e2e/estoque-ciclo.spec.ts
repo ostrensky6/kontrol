@@ -13,7 +13,12 @@ test("ciclo de estoque: receber lote (entra disponível), ajustar consumo e bloq
   await page.locator('input[name="fornecedor"]').fill("Fornecedor E2E");
   await page.locator('input[name="motivo"]').fill("Entrada E2E");
   await page.getByRole("button", { name: "Registrar entrada" }).click();
+  await expect(page.getByRole("heading", { name: "Entrada de inventário" })).toHaveCount(0);
 
+  // os lotes ficam na visão própria da página do Estoque
+  await page.getByRole("navigation", { name: "O que mostrar do estoque" }).getByRole("link", { name: /Lotes em estoque/ }).click();
+  await expect(page).toHaveURL(/ver=lotes/);
+  await page.getByPlaceholder("Buscar reagente ou lote...").fill(loteCodigo);
   const row = page.getByRole("row").filter({ has: page.getByRole("cell", { name: loteCodigo }) });
   await expect(row).toBeVisible();
   // 0130: sem quarentena nem aceite; o lote já entra disponível.

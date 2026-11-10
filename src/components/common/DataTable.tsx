@@ -33,6 +33,14 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { contemBusca, normalizarBusca } from "@/lib/busca";
 import { cn } from "@/lib/utils";
 import { chaveFiltros, restaurarFiltros, serializarFiltros } from "@/lib/tabela-filtros";
+import {
+  CHAVE_LINHAS_POR_PAGINA,
+  LINHAS_POR_PAGINA_PADRAO,
+  TODAS_AS_LINHAS,
+  linhasGuardadas,
+  mostraRodapeDePaginas,
+  opcoesDeLinhas,
+} from "@/lib/tabela-linhas";
 
 export type DataTableFilter = {
   columnId: string;
@@ -111,7 +119,7 @@ export function DataTable<TData>({
   getMobileMeta,
   getMobileActions,
   getMobileHref,
-  pageSize = 25,
+  pageSize,
   colunasOcultas,
 }: DataTableProps<TData>) {
   const [globalFilter, setGlobalFilter] = React.useState("");
@@ -140,6 +148,7 @@ export function DataTable<TData>({
   }
 
   const compact = density === "compact";
+  const linhasIniciais = pageSize ?? LINHAS_POR_PAGINA_PADRAO;
 
   const globalFilterFn = React.useCallback<FilterFn<TData>>(
     (row, _columnId, filterValue) => {
@@ -170,10 +179,32 @@ export function DataTable<TData>({
     getSortedRowModel: getSortedRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     initialState: {
-      pagination: { pageSize },
+      pagination: { pageSize: linhasIniciais },
       columnVisibility: Object.fromEntries((colunasOcultas ?? []).map((id) => [id, false])),
     },
   });
+
+  // Linhas por página: a escolha da pessoa vale em todas as tabelas deste navegador.
+  const setPageSize = table.setPageSize;
+  React.useEffect(() => {
+    if (pageSize != null) return;
+    try {
+      const guardadas = linhasGuardadas(window.localStorage.getItem(CHAVE_LINHAS_POR_PAGINA));
+      if (guardadas) setPageSize(guardadas);
+    } catch {
+      // Preferência opcional.
+    }
+  }, [pageSize, setPageSize]);
+
+  function mudarLinhasPorPagina(linhas: number) {
+    table.setPageSize(linhas);
+    try {
+      // "Todos" vale só para esta visita: não vira o padrão das outras tabelas
+      if (linhasGuardadas(String(linhas))) window.localStorage.setItem(CHAVE_LINHAS_POR_PAGINA, String(linhas));
+    } catch {
+      // Preferência opcional.
+    }
+  }
 
   // Busca e filtros sobrevivem ao recarregar a página (guardados na aba).
   const pathname = usePathname();
@@ -480,22 +511,22 @@ export function DataTable<TData>({
         )}
       </div>
 
-      {pageCount > 1 && (
+      {mostraRodapeDePaginas(totalFiltrado) && (
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
           <div className="flex items-center gap-2">
             <span>Linhas por página</span>
             <Select
               value={String(table.getState().pagination.pageSize)}
-              onChange={(event) => table.setPageSize(Number(event.target.value))}
+              onChange={(event) => mudarLinhasPorPagina(Number(event.target.value))}
               className="h-8 w-auto px-2 py-1.5 text-xs"
               aria-label="Linhas por página"
             >
-              {[25, 50, 100].map((n) => (
+              {opcoesDeLinhas(linhasIniciais).map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
-              <option value={100000}>Todos</option>
+              <option value={TODAS_AS_LINHAS}>Todos</option>
             </Select>
           </div>
           <div className="flex items-center gap-3">

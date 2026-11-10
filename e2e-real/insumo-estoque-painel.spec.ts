@@ -31,10 +31,13 @@ test("insumo cadastrado com estoque inicial aparece na lista e no estoque depois
   await expect(form).toBeHidden();
 
   // persistiu: recarrega do banco, não do estado da tela
+  // (as listas abrem com 10 linhas: a busca acha o registro)
   await page.reload();
+  await page.getByPlaceholder("Buscar…").fill(nome);
   await expect(page.getByRole("cell", { name: nome })).toBeVisible();
 
   await page.goto("/estoque");
+  await page.getByPlaceholder("Buscar reagente...").fill(nome);
   await expect(page.getByText(nome).first()).toBeVisible();
 });
 

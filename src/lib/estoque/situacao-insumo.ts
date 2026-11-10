@@ -114,6 +114,8 @@ function ehSinal(valor: string): valor is SinalInsumo {
 /** O insumo entra no filtro se tiver o sinal (não só se for o principal). */
 export function insumoAtendeFiltro(sinais: readonly SinalInsumo[], filtro: string): boolean {
   if (filtro === "todos") return true;
+  // "precisa de atenção": qualquer sinal (o contrário de "em dia")
+  if (filtro === "atencao") return sinais.length > 0;
   if (filtro === "ok") return sinais.length === 0;
   if (filtro === "vencido_vencendo") return sinais.includes("vencido") || sinais.includes("vencendo");
   return ehSinal(filtro) && sinais.includes(filtro);

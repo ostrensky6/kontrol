@@ -68,9 +68,17 @@ describe("estoque disponível da visão geral", () => {
     expect(linha.validadeEstado).toBeNull();
   });
 
-  it("filtro desconhecido na URL mostra todos", () => {
+  it("sem filtro na URL (ou com filtro desconhecido) abre em Precisa de atenção", () => {
     expect(filtroEstoqueValido("reposicao")).toBe("reposicao");
-    expect(filtroEstoqueValido("x")).toBe("todos");
-    expect(filtroEstoqueValido(undefined)).toBe("todos");
+    expect(filtroEstoqueValido("todos")).toBe("todos");
+    expect(filtroEstoqueValido("x")).toBe("atencao");
+    expect(filtroEstoqueValido(undefined)).toBe("atencao");
+  });
+
+  it("Precisa de atenção mostra quem tem qualquer aviso e esconde quem está em dia", () => {
+    const [emDia, zerado] = montarEstoqueDisponivel({ ...base, saldo: [saldo(1, "Acetona", 50), saldo(2, "Brometo", 0)] });
+    expect(linhaAtendeFiltro(emDia, "atencao")).toBe(false);
+    expect(linhaAtendeFiltro(zerado, "atencao")).toBe(true);
+    expect(linhaAtendeFiltro(zerado, "ok")).toBe(false);
   });
 });
