@@ -21,6 +21,14 @@ function Previsao({ item }: { item: ItemACaminho }) {
 }
 
 function Situacao({ item }: { item: ItemACaminho }) {
+  // sem aprovação não há compra feita: o "atraso" seria de uma expectativa, não do fornecedor
+  if (item.aguardaAprovacao) {
+    return (
+      <span className="inline-flex items-center rounded-full bg-warning-soft px-2 py-0.5 text-xs font-medium text-warning-strong">
+        {item.situacao}
+      </span>
+    );
+  }
   if (item.diasAtraso != null) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-danger-soft px-2 py-0.5 text-xs font-medium text-danger-strong">
@@ -130,12 +138,15 @@ export function ACaminhoInsumos({
   semAcesso?: boolean;
 }) {
   const resumo = resumirACaminho(itens);
-  const primeiros = itens.slice(0, VISIVEIS);
-  const demais = itens.slice(VISIVEIS);
+  // fato e expectativa separados: compra sem aprovação não é "a caminho"
+  const confirmados = itens.filter((item) => !item.aguardaAprovacao);
+  const esperando = itens.filter((item) => item.aguardaAprovacao);
+  const primeiros = confirmados.slice(0, VISIVEIS);
+  const demais = confirmados.slice(VISIVEIS);
   return (
     <section aria-labelledby="a-caminho-titulo" className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="painel-a-caminho">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="a-caminho-titulo" className="text-base font-semibold">A caminho: pedidos ainda não recebidos</h2>
+        <h2 id="a-caminho-titulo" className="text-base font-semibold">A caminho: compras ainda não recebidas</h2>
         <Link href="/recebimento" className="text-sm font-medium text-primary hover:underline">Registrar recebimento</Link>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
@@ -151,10 +162,10 @@ export function ACaminhoInsumos({
           Não foi possível ler todos os pedidos a caminho ({erro}). A lista pode estar incompleta.
         </p>
       ) : null}
-      {itens.length === 0 && !erro && !semAcesso ? (
-        <p className="mt-3 text-sm">Nenhuma compra aguardando entrega.</p>
+      {confirmados.length === 0 && !erro && !semAcesso ? (
+        <p className="mt-3 text-sm">Nenhuma compra aprovada aguardando entrega.</p>
       ) : null}
-      {itens.length > 0 ? (
+      {confirmados.length > 0 ? (
         <>
           <p className="mt-3 text-sm" data-testid="resumo-a-caminho">
             {`${resumo.itens} ${resumo.itens === 1 ? "item" : "itens"} em ${resumo.compras} ${resumo.compras === 1 ? "compra" : "compras"}`}
@@ -175,6 +186,15 @@ export function ACaminhoInsumos({
             </details>
           ) : null}
         </>
+      ) : null}
+      {esperando.length > 0 ? (
+        <details className="mt-4 rounded-md border border-dashed border-border p-3" data-testid="a-caminho-sem-aprovacao" open={confirmados.length === 0}>
+          <summary className="cursor-pointer text-sm font-medium">
+            {`${esperando.length} ${esperando.length === 1 ? "item pedido aguarda" : "itens pedidos aguardam"} aprovação`}
+            <span className="font-normal text-muted-foreground"> · ainda não é compra, não garante entrega</span>
+          </summary>
+          <div className="mt-3"><Linhas itens={esperando} /></div>
+        </details>
       ) : null}
     </section>
   );

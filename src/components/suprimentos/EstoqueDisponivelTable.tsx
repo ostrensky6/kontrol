@@ -68,6 +68,22 @@ function Validade({ linha }: { linha: LinhaEstoqueDisponivel }) {
   );
 }
 
+/** A caminho é fato (comprado ou autorizado); o que espera aprovação fica à parte. */
+function ACaminho({ linha }: { linha: LinhaEstoqueDisponivel }) {
+  if (linha.aCaminho === null) {
+    return <span className="text-xs text-muted-foreground" title="A previsão deste insumo não foi lida">sem dado</span>;
+  }
+  const esperando = linha.aguardandoAprovacao ?? 0;
+  return (
+    <div className="flex flex-col items-end gap-0.5">
+      {linha.aCaminho > 0 ? <Quantidade valor={linha.aCaminho} /> : <span className="tabular-nums text-muted-foreground">0</span>}
+      {esperando > 0 && (
+        <span className="text-xs text-warning-strong">+{formatNumber(esperando)} aguardando aprovação</span>
+      )}
+    </div>
+  );
+}
+
 const colunas: ColumnDef<LinhaEstoqueDisponivel, unknown>[] = [
   {
     accessorKey: "especificacao",
@@ -98,7 +114,7 @@ const colunas: ColumnDef<LinhaEstoqueDisponivel, unknown>[] = [
     header: "A caminho",
     sortingFn: numericSort,
     meta: { align: "right" },
-    cell: ({ row }) => (row.original.aCaminho > 0 ? <Quantidade valor={row.original.aCaminho} /> : <span className="text-muted-foreground">—</span>),
+    cell: ({ row }) => <ACaminho linha={row.original} />,
   },
   {
     accessorKey: "minimo",
@@ -170,7 +186,8 @@ export function EstoqueDisponivelTable({
         getMobileDescription={(linha) =>
           `Disponível ${formatNumber(linha.disponivel)} ${linha.unidade}` +
           (linha.reservado > 0 ? ` · reservado ${formatNumber(linha.reservado)}` : "") +
-          (linha.aCaminho > 0 ? ` · a caminho ${formatNumber(linha.aCaminho)}` : "") +
+          (linha.aCaminho === null ? " · a caminho: sem dado" : linha.aCaminho > 0 ? ` · a caminho ${formatNumber(linha.aCaminho)}` : "") +
+          ((linha.aguardandoAprovacao ?? 0) > 0 ? ` · ${formatNumber(linha.aguardandoAprovacao ?? 0)} aguardando aprovação` : "") +
           (linha.validade ? ` · validade ${formatDate(linha.validade)}` : "")
         }
         getMobileMeta={(linha) => <Situacao linha={linha} />}

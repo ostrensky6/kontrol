@@ -1,8 +1,9 @@
 /**
  * Devolução sem perder as aprovações (0175, decisão D5 de 09/11/2026).
  *
- * O banco guarda a foto do que o coordenador validou (projeto, justificativa e
- * valor). No reenvio depois de um ajuste, se os três estão iguais, as
+ * O banco guarda a foto do que o coordenador validou (projeto, justificativa,
+ * valor e, desde a 0177, os itens: item, quantidade e especificação). No
+ * reenvio depois de um ajuste, se tudo está igual, as
  * aprovações continuam valendo e o pedido volta direto para "validado"; se algo
  * mudou, passa de novo pelo coordenador. A regra mora no banco
  * (public.reenviar_pedido_interno); a tela só explica o que vai acontecer.
@@ -63,7 +64,7 @@ export function textoReenvio(s: SituacaoReenvio | null): string | null {
     return "Ao reenviar, o pedido vai para a validação do coordenador.";
   }
   if (s.mantem) {
-    return `Valor, justificativa e projeto estão iguais aos da validação: ao reenviar, as aprovações continuam valendo e o pedido volta direto para ${
+    return `Itens, valor, justificativa e projeto estão iguais aos da aprovação: ao reenviar, as aprovações continuam valendo e o pedido volta direto para ${
       s.aguardaLaboratorio ? "a coordenação do laboratório" : "o administrativo formalizar"
     }.`;
   }
@@ -73,9 +74,11 @@ export function textoReenvio(s: SituacaoReenvio | null): string | null {
         ? `o valor (${brl(s.valorValidado)} na validação, ${brl(s.valorAtual)} agora)`
         : "o valor";
     }
+    if (campo === "itens") return "os itens (item, quantidade ou especificação)";
     if (campo === "justificativa") return "a justificativa";
     if (campo === "projeto") return "o projeto";
     return campo;
   });
-  return `Mudou ${juntar(partes)}: ao reenviar, o pedido passa de novo pelo coordenador.`;
+  const verbo = partes.length > 1 || s.mudou[0] === "itens" ? "Mudaram" : "Mudou";
+  return `${verbo} ${juntar(partes)}: ao reenviar, o pedido passa de novo pelo coordenador.`;
 }

@@ -376,7 +376,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Criando e consultando",
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
-          "Ciclo de pagamento: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. O ciclo aparece no pedido e na lista.",
+          "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Vale a data da última aprovação da coordenação (a do coordenador do projeto e, em material de laboratório, a da coordenação do laboratório). Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. Feriado ainda não entra na conta. O pedido mostra a data da solicitação, a da aprovação e o ciclo.",
           "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. A urgência só muda com o pedido em rascunho ou devolvido para ajuste.",
           "Urgência Alta ou Crítica fura o ciclo do dia 10 e exige justificativa por escrito (por que não pode esperar o próximo ciclo).",
           "Pedido sem projeto é validado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
@@ -399,7 +399,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Fluxo de aprovação",
         itens: [
           "Envie para aprovação quando o pedido estiver completo; o que falta aparece destacado.",
-          "Pedido devolvido para ajuste: corrija e use 'Reenviar'. Se valor, justificativa e projeto continuarem iguais aos da validação, as aprovações continuam valendo e o pedido volta direto para onde parou (a coordenação do laboratório, se foi ela que devolveu). Se algum dos três mudou, passa de novo pelo coordenador. O pedido avisa antes, por escrito, o que vai acontecer.",
+          "Pedido devolvido para ajuste: corrija e use 'Reenviar'. Se itens (item, quantidade e especificação), valor, justificativa e projeto continuarem iguais aos da aprovação, as aprovações continuam valendo e o pedido volta direto para onde parou (a coordenação do laboratório, se foi ela que devolveu). Se algum deles mudou, passa de novo pelo coordenador: a aprovação antiga não vale para um objeto diferente. O pedido avisa antes, por escrito, o que vai acontecer.",
           "O quadro 'Quem aprova' mostra, por escrito, quem aprova e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
           "Só o coordenador do projeto aprova; sem projeto, a Supervisão. Na ausência, o Administrador aprova como substituto e fica registrado.",
           "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
@@ -416,6 +416,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Produtos controlados (clorofórmio, acetona)",
         itens: [
           "A ATGC não tem licença para comprar produto controlado. A compra só sai pela FUNPAR, em projeto com recurso na fundação.",
+          "Essa trava é uma regra operacional do laboratório. Ela não comprova o atendimento às exigências legais do produto: isso continua com a FUNPAR e com os responsáveis.",
           "O pedido mostra a faixa 'Produto controlado' quando algum item é controlado: o insumo marcado em Cadastros > Insumos ou, sem insumo escolhido, um item com clorofórmio ou acetona no nome.",
           "Pedido com controlado precisa de projeto. Na autorização administrativa a fonte do recurso tem que ser a FUNPAR (o campo já vem preenchido).",
           "Não pode ser compra direta: 'Fechar com fornecedor' fica bloqueado. Use 'Encaminhar à instituição', com destino FUNPAR.",

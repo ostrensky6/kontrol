@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 test("pedido do ciclo seguinte trava a formalização com o motivo", async ({ page }) => {
   await page.goto("/pedido/501");
   await expect(page.getByRole("heading", { name: "Reagente do ciclo seguinte E2E" })).toBeVisible();
-  await expect(page.getByTestId("ciclo-pagamento")).toContainText("Ciclo de pagamento: dezembro/2099");
+  await expect(page.getByTestId("ciclo-pagamento")).toContainText("Ciclo de compras: dezembro/2099");
   await expect(page.getByTestId("ciclo-pagamento")).toContainText("Segue para compras a partir de 01/12/2099.");
   await expect(page.getByRole("heading", { name: "Aguardar o ciclo de dezembro/2099" })).toBeVisible();
 

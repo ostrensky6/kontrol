@@ -17,7 +17,7 @@ import {
   resumirOrcamentos,
 } from "@/lib/pedido/orcamentos";
 import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
-import { cicloLiberaEm, dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, motivoCicloTravado, prazoDoCiclo, rotuloCiclo, rotuloData, rotuloPrazo } from "@/lib/pedido/ciclo";
+import { datasDoCiclo, cicloLiberaEm, dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, motivoCicloTravado, prazoDoCiclo, rotuloCiclo, rotuloData, rotuloPrazo } from "@/lib/pedido/ciclo";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
 import { PedidoTrilha } from "@/components/pedido/PedidoTrilha";
 import { etapaDoPedido } from "@/lib/pedido/etapas";
@@ -526,6 +526,8 @@ export default async function PedidoInternoDetalhe({
   const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
   const itensRecebidos = itensFisicos.filter((item) => item.recebido_em).length;
+  // as duas datas do ciclo: solicitação e a aprovação da coordenação que o define
+  const datasCiclo = datasDoCiclo(aprovacaoRows, pedido.aprovacao_area_em);
   // 0176: pedido do ciclo seguinte só segue para compras quando o ciclo abrir
   const hojeBrasilia = dataEmBrasilia(new Date());
   const cicloTravadoAte =
@@ -625,7 +627,7 @@ export default async function PedidoInternoDetalhe({
             )}
             <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
               {pedido.ciclo_pagamento
-                ? `Ciclo de pagamento: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
+                ? `${datasCiclo.solicitadoEm ? `Solicitado em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.solicitadoEm)))} · ` : ""}${datasCiclo.aprovadoEm ? `Aprovado pela coordenação em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.aprovadoEm)))} (esta data define o ciclo) · ` : ""}Ciclo de compras: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
                 : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado"].includes(pedido.status)
                   ? explicarCicloHoje(dataEmBrasilia(new Date()), ehUrgente(pedido.urgencia))
                   : null}

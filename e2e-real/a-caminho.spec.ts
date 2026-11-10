@@ -2,8 +2,9 @@ import { expect, test } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
 
 /**
- * Compra feita e não recebida aparece em "A caminho" no painel de insumos,
- * só com o que falta receber, e com o atraso pela data informada na compra.
+ * Compra pedida e não recebida aparece no quadro "A caminho" do painel de
+ * insumos, só com o que falta receber e com o atraso pela data informada. Sem
+ * aprovação ela fica à parte: pedido em aprovação não é compra a caminho.
  */
 test("compra aberta aparece em A caminho com quantidade pendente e atraso", async ({ page }) => {
   const nome = `Kit a caminho E2E ${Date.now()}`;
@@ -45,8 +46,16 @@ test("compra aberta aparece em A caminho com quantidade pendente e atraso", asyn
   await page.goto("/cadastros");
   const quadro = page.getByTestId("painel-a-caminho");
   await expect(quadro).toBeVisible();
-  const linha = quadro.locator("tr", { hasText: nome });
+  // compra só solicitada ainda não é "a caminho": fica no bloco "aguardam aprovação"
+  const semAprovacao = quadro.getByTestId("a-caminho-sem-aprovacao");
+  await expect(semAprovacao).toBeVisible();
+  if (!(await semAprovacao.evaluate((el) => (el as HTMLDetailsElement).open))) {
+    await semAprovacao.locator("summary").click();
+  }
+  const linha = semAprovacao.locator("tr", { hasText: nome });
   await expect(linha).toBeVisible();
-  await expect(linha).toContainText("Atrasado há");
+  await expect(linha).toContainText("Compra aguardando aprovação");
+  // sem aprovação não há atraso de fornecedor a cobrar
+  await expect(linha).not.toContainText("Atrasado há");
   await expect(linha.getByRole("link", { name: `Compra #${compra!.id}` })).toBeVisible();
 });

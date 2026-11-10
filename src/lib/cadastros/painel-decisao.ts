@@ -20,6 +20,8 @@ export type PrevisaoPainelDb = {
   insumo_id: Numerico;
   qtd_sugerida_compra?: Numerico;
   qtd_pedida_aberta?: Numerico;
+  /** parte do pedido aberto que ainda espera aprovação (0132) */
+  qtd_pedida_pendente?: Numerico;
   qtd_compra_atrasada?: Numerico;
   compra_atrasada_desde?: string | null;
   consumo_medio_diario?: Numerico;
@@ -54,6 +56,8 @@ export type InsumoDecisao = InsumoPainel & {
   sugestaoCompra: number;
   /** null = a previsão não comprovou a quantidade em aberto. */
   pedidoAberto: number | null;
+  /** Parte do pedido aberto que ainda espera aprovação: não é compra feita. */
+  pedidoAguardandoAprovacao: number;
   compraAtrasada: boolean;
   consumoDiario: number;
   /** null = sem dados suficientes para estimar. */
@@ -152,10 +156,13 @@ export function montarDecisao(
     const conta = contagem.get(item.id) ?? { vencidos: 0, vencendo: 0 };
     const consumoDiario = numero(p?.consumo_medio_diario);
     const pedidoAberto = numeroOuNulo(p?.qtd_pedida_aberta);
+    const pedidoValido = pedidoAberto !== null && pedidoAberto >= 0 ? pedidoAberto : null;
     const base = {
       ...item,
       sugestaoCompra: item.estadoSaldo === "saldo_sistema" ? numero(p?.qtd_sugerida_compra) : 0,
-      pedidoAberto: pedidoAberto !== null && pedidoAberto >= 0 ? pedidoAberto : null,
+      pedidoAberto: pedidoValido,
+      pedidoAguardandoAprovacao:
+        pedidoValido === null ? 0 : Math.min(Math.max(numero(p?.qtd_pedida_pendente), 0), pedidoValido),
       compraAtrasada: numero(leitura?.qtd_compra_atrasada) > 0 || Boolean(leitura?.compra_atrasada_desde),
       consumoDiario,
       coberturaDias:
@@ -216,7 +223,8 @@ export function resumirDecisao(itens: readonly InsumoDecisao[]): ResumoDecisao {
     abaixoMinimo: conta((i) => i.situacao === "abaixo_minimo"),
     acabaAntes: conta((i) => i.motivos.includes("acaba_antes")),
     compraAtrasada: conta((i) => i.compraAtrasada),
-    aCaminho: conta((i) => (i.pedidoAberto ?? 0) > 0),
+    // a caminho é fato: só o que já foi comprado ou autorizado
+    aCaminho: conta((i) => (i.pedidoAberto ?? 0) - i.pedidoAguardandoAprovacao > 0),
     lotesVencidos: itens.reduce((soma, i) => soma + i.lotesVencidos, 0),
     lotesVencendo: itens.reduce((soma, i) => soma + i.lotesVencendo, 0),
     semMinimo: conta((i) => i.situacao === "sem_minimo"),
@@ -426,7 +434,14 @@ export function montarAlertas({
     : i.estadoSaldo === "nao_conferido" ? "Sem dado de saldo nesta leitura" : "saldo indisponível";
   const pedido = (i: InsumoDecisao) => i.pedidoAberto === null
     ? "previsão indisponível"
-    : i.pedidoAberto > 0 ? `${formatar(i.pedidoAberto)} a caminho` : "nada pedido";
+    : i.pedidoAberto > 0
+      ? [
+          i.pedidoAberto - i.pedidoAguardandoAprovacao > 0
+            ? `${formatar(i.pedidoAberto - i.pedidoAguardandoAprovacao)} a caminho`
+            : null,
+          i.pedidoAguardandoAprovacao > 0 ? `${formatar(i.pedidoAguardandoAprovacao)} aguardando aprovação` : null,
+        ].filter(Boolean).join(" · ")
+      : "nada pedido";
   const porCobertura = (a: InsumoDecisao, b: InsumoDecisao) =>
     (a.coberturaDias ?? Number.POSITIVE_INFINITY) - (b.coberturaDias ?? Number.POSITIVE_INFINITY) ||
     a.especificacao.localeCompare(b.especificacao, "pt-BR");

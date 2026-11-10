@@ -1,5 +1,6 @@
 /**
- * Ciclo de pagamento do dia 10 (0172, decisão D1 de 09/11/2026). O banco grava
+ * Ciclo de compras do dia 10 (0172, decisão D1 de 09/11/2026; a coluna do
+ * banco se chama ciclo_pagamento, mas o ciclo organiza solicitações e compras). O banco grava
  * o ciclo no pedido (kontrol_private.ciclo_para); estas funções repetem a
  * mesma regra só para explicar na tela antes da aprovação.
  *
@@ -71,7 +72,7 @@ export function explicarCicloHoje(hoje: string, urgente: boolean): string {
   const { ano, mes } = partes(hoje);
   const prazo = prazoDoCiclo(iso(ano, mes, 1));
   if (ciclo.slice(0, 7) === hoje.slice(0, 7)) {
-    return `Aprovado pela coordenação até ${rotuloPrazo(prazo)}, entra no ciclo de pagamento de ${rotuloCiclo(ciclo)}. Depois disso, passa ao ciclo seguinte.`;
+    return `Aprovado pela coordenação até ${rotuloPrazo(prazo)}, entra no ciclo de compras de ${rotuloCiclo(ciclo)}. Depois disso, passa ao ciclo seguinte.`;
   }
   return `O prazo de ${rotuloCiclo(iso(ano, mes, 1))} (${rotuloPrazo(prazo)}) já passou: o pedido entra no ciclo de ${rotuloCiclo(ciclo)}, salvo urgência justificada.`;
 }
@@ -116,5 +117,31 @@ export function motivoCicloTravado(
 ): string | null {
   const libera = cicloLiberaEm(ciclo, urgencia, justificativa, hoje);
   if (!libera) return null;
-  return `Este pedido entrou no ciclo de pagamento de ${rotuloCiclo(libera)} porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de ${rotuloData(libera)}. Só pedido urgente, com justificativa, fura o ciclo.`;
+  return `Este pedido entrou no ciclo de compras de ${rotuloCiclo(libera)} porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de ${rotuloData(libera)}. Só pedido urgente, com justificativa, fura o ciclo.`;
+}
+
+/**
+ * As duas datas que enquadram o pedido no ciclo: quando foi solicitado (primeiro
+ * envio para aprovação) e quando saiu a aprovação que define o ciclo, isto é, a
+ * última aprovação de coordenação (coordenador do projeto e, em material de
+ * laboratório, coordenação do laboratório). Null = ainda não aconteceu.
+ */
+export function datasDoCiclo(
+  aprovacoes: readonly { status_origem: string | null; status_destino: string | null; criado_em: string }[],
+  aprovacaoLaboratorioEm?: string | null,
+): { solicitadoEm: string | null; aprovadoEm: string | null } {
+  const envios = aprovacoes
+    .filter((a) => a.status_destino === "em_validacao")
+    .map((a) => a.criado_em)
+    .sort();
+  const validacoes = aprovacoes
+    .filter((a) => a.status_origem === "em_validacao" && a.status_destino === "validado")
+    .map((a) => a.criado_em)
+    .sort();
+  const validadoEm = validacoes.at(-1) ?? null;
+  const aprovadoEm =
+    validadoEm && aprovacaoLaboratorioEm
+      ? (new Date(aprovacaoLaboratorioEm).getTime() > new Date(validadoEm).getTime() ? aprovacaoLaboratorioEm : validadoEm)
+      : validadoEm;
+  return { solicitadoEm: envios[0] ?? null, aprovadoEm };
 }

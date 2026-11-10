@@ -64,7 +64,7 @@ export default async function SuprimentosPage({
         .order("insumo_id")
         .range(de, ate),
     ),
-    supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta"),
+    supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente"),
     supabase.from("v_alertas_estoque").select("insumo_id, tipo"),
     lerTudo<LoteValidadeDb>((de, ate) =>
       supabase
@@ -161,7 +161,9 @@ export default async function SuprimentosPage({
                 <HelpTip title="Estoque disponível">
                   <p>
                     <b>Disponível</b> é o que pode ser usado agora: o que está em mãos menos o que está
-                    reservado para os planejamentos. <b>A caminho</b> é o que já foi comprado e ainda não chegou.
+                    reservado para os planejamentos. <b>A caminho</b> é o que já foi comprado ou autorizado e
+                    ainda não chegou. Pedido que ainda espera aprovação aparece à parte, como
+                    &quot;aguardando aprovação&quot;: ele não garante entrega e não entra no disponível.
                   </p>
                   <p>
                     <b>Repor</b> aparece quando o disponível mais o que está a caminho não cobre as saídas

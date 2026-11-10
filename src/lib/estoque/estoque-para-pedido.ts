@@ -1,17 +1,24 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { lerTudo } from "@/lib/supabase/ler-tudo";
+import { separarPedidoAberto } from "@/lib/suprimentos/pedido-aberto";
 
 /**
  * Estoque de um insumo na hora de pedir: disponível, reservado, a caminho e
  * onde está guardado. Disponível e reservado vêm de v_estoque_saldo (a mesma
- * leitura do Estoque); "a caminho" é o pedido aberto de v_previsao_suprimentos,
- * só o que falta receber. Nada é somado duas vezes.
+ * leitura do Estoque); "a caminho" é a parte do pedido aberto de
+ * v_previsao_suprimentos já comprada ou autorizada (só o que falta receber); o
+ * que ainda espera aprovação fica à parte. Nada é somado duas vezes.
  */
 type Numerico = number | string | null | undefined;
 
 export type SaldoPedidoDb = { insumo_id: number; disponivel: Numerico; reservado: Numerico; unidade_saldo: string | null; unidade: string | null };
-export type PrevisaoPedidoDb = { insumo_id: number; qtd_pedida_aberta: Numerico; qtd_compra_atrasada: Numerico };
+export type PrevisaoPedidoDb = {
+  insumo_id: number;
+  qtd_pedida_aberta: Numerico;
+  qtd_pedida_pendente?: Numerico;
+  qtd_compra_atrasada: Numerico;
+};
 export type LoteLocalDb = {
   insumo_id: number;
   status: string | null;
@@ -22,7 +29,10 @@ export type LoteLocalDb = {
 export type EstoqueParaPedido = {
   disponivel: number | null;
   reservado: number;
+  /** comprado ou autorizado, ainda não recebido */
   aCaminho: number;
+  /** pedido que ainda espera aprovação: não garante entrega */
+  aguardandoAprovacao: number;
   aCaminhoAtrasado: number;
   unidade: string | null;
   locais: string[];
@@ -50,7 +60,7 @@ export function montarEstoqueParaPedido(
   const garantir = (id: number) => {
     let atual = mapa.get(id);
     if (!atual) {
-      atual = { disponivel: null, reservado: 0, aCaminho: 0, aCaminhoAtrasado: 0, unidade: null, locais: [] };
+      atual = { disponivel: null, reservado: 0, aCaminho: 0, aguardandoAprovacao: 0, aCaminhoAtrasado: 0, unidade: null, locais: [] };
       mapa.set(id, atual);
     }
     return atual;
@@ -63,7 +73,9 @@ export function montarEstoqueParaPedido(
   }
   for (const p of previsoes) {
     const e = garantir(p.insumo_id);
-    e.aCaminho = num(p.qtd_pedida_aberta);
+    const pedido = separarPedidoAberto(p.qtd_pedida_aberta, p.qtd_pedida_pendente);
+    e.aCaminho = pedido.aCaminho ?? 0;
+    e.aguardandoAprovacao = pedido.aguardandoAprovacao ?? 0;
     e.aCaminhoAtrasado = num(p.qtd_compra_atrasada);
   }
   for (const l of lotes) {
@@ -84,7 +96,7 @@ export async function lerEstoqueParaPedido(supabase: SupabaseClient) {
     lerTudo<PrevisaoPedidoDb>((de, ate) =>
       supabase
         .from("v_previsao_suprimentos")
-        .select("insumo_id, qtd_pedida_aberta, qtd_compra_atrasada")
+        .select("insumo_id, qtd_pedida_aberta, qtd_pedida_pendente, qtd_compra_atrasada")
         .order("insumo_id")
         .range(de, ate),
     ),

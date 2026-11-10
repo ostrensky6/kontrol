@@ -438,8 +438,13 @@ export function EstoqueDoInsumo({ estoque }: { estoque?: EstoqueParaPedido | nul
       )}
       {estoque && estoque.aCaminho > 0 ? (
         <p className={estoque.aCaminhoAtrasado > 0 ? "font-medium text-danger-strong" : "text-info-strong"}>
-          <b>Já pedido, a caminho:</b> {qtd(estoque.aCaminho)}
+          <b>Comprado, a caminho:</b> {qtd(estoque.aCaminho)}
           {estoque.aCaminhoAtrasado > 0 ? ` (${qtd(estoque.aCaminhoAtrasado)} atrasado)` : ""}. Confira antes de pedir de novo.
+        </p>
+      ) : null}
+      {estoque && estoque.aguardandoAprovacao > 0 ? (
+        <p className="text-warning-strong" data-testid="pedido-aguardando-aprovacao">
+          <b>Já pedido, aguardando aprovação:</b> {qtd(estoque.aguardandoAprovacao)}. Ainda não é compra: não conte com a entrega.
         </p>
       ) : null}
       {estoque && estoque.locais.length > 0 ? (

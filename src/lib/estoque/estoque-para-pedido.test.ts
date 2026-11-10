@@ -8,7 +8,8 @@ describe("montarEstoqueParaPedido", () => {
       [{ insumo_id: 1, disponivel: "4", reservado: 2, unidade_saldo: "frasco", unidade: "mL" }],
       [
         { insumo_id: 1, qtd_pedida_aberta: 3, qtd_compra_atrasada: 1 },
-        { insumo_id: 2, qtd_pedida_aberta: 5, qtd_compra_atrasada: 0 },
+        // 2 dos 5 ainda esperam aprovação: não são compra a caminho
+        { insumo_id: 2, qtd_pedida_aberta: 5, qtd_pedida_pendente: 2, qtd_compra_atrasada: 0 },
       ],
       [
         { insumo_id: 1, status: "aceito", quantidade_atual: 2, locais: { nome: "LQA · Geladeira 2" } },
@@ -23,11 +24,12 @@ describe("montarEstoqueParaPedido", () => {
       disponivel: 4,
       reservado: 2,
       aCaminho: 3,
+      aguardandoAprovacao: 0,
       aCaminhoAtrasado: 1,
       unidade: "frasco",
       locais: ["Genética · Armário A", "LQA · Geladeira 2", "Sem local informado"],
     });
     // sem saldo registrado, mas com compra aberta: disponível fica desconhecido, não zero
-    expect(mapa.get(2)).toMatchObject({ disponivel: null, aCaminho: 5, locais: [] });
+    expect(mapa.get(2)).toMatchObject({ disponivel: null, aCaminho: 3, aguardandoAprovacao: 2, locais: [] });
   });
 });
