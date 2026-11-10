@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
 import { PlanoLinhaAcoes } from "@/components/planejamento/PlanoGestao";
@@ -10,7 +10,7 @@ import { criarResolvedorDeTaxas, valorLaboratorioNaProposta, valorProjetoNaPropo
 import { formatCurrency as moeda, formatDate as fmtData } from "@/lib/formatters";
 import { rotuloStatusOrcamento } from "@/lib/orcamento/rotulos-status";
 import { STATUS_PROJETO } from "../_lib/status";
-import { responsavelDoProjeto } from "../_lib/responsavel";
+import { coordenadorDoProjeto, responsavelDoProjeto, type UsuarioCoordenador } from "../_lib/responsavel";
 import { temPapel } from "@/lib/auth/roles";
 import { VinculosProjeto, type VinculoPessoa } from "@/components/projetos/VinculosProjeto";
 
@@ -85,6 +85,23 @@ export default async function ProjetoHubPage({
     .single();
 
   if (!projeto) notFound();
+
+  // quem aprova os pedidos do projeto é o usuário indicado como coordenador (0136/0169)
+  // (coordenador_id ainda não está nos tipos gerados: lido à parte)
+  const { data: linhaCoordenador } = await (await createClientUntyped())
+    .from("projetos")
+    .select("coordenador_id")
+    .eq("id", id)
+    .maybeSingle();
+  const coordenadorId = (linhaCoordenador as { coordenador_id: string | null } | null)?.coordenador_id ?? null;
+  const { data: usuarioCoordenador } = coordenadorId
+    ? await supabase.from("perfis").select("id, nome, email, suspenso").eq("id", coordenadorId)
+    : { data: [] };
+  const coordenador = coordenadorDoProjeto(
+    { ...projeto, coordenador_id: coordenadorId },
+    (usuarioCoordenador ?? []) as UsuarioCoordenador[],
+  );
+  const escrito = responsavelDoProjeto(projeto);
 
   // 0160: só o Admin vê e altera quem atua no projeto.
   const ehAdmin = await temPapel("admin");
@@ -229,7 +246,8 @@ export default async function ProjetoHubPage({
             </div>
             <p className="mt-1 text-sm text-muted-foreground">
               {cliente?.nome ? `Cliente: ${cliente.nome}` : "Sem cliente vinculado"}
-              {responsavelDoProjeto(projeto) ? ` · Responsável: ${responsavelDoProjeto(projeto)}` : ""}
+              {coordenador.situacao === "ok" ? ` · Coordenador: ${coordenador.nome}` : ""}
+              {escrito && !(coordenador.situacao === "ok" && coordenador.nome === escrito) ? ` · Responsável técnico: ${escrito}` : ""}
               {projeto.data_inicio || projeto.data_fim
                 ? ` · ${fmtData(projeto.data_inicio)} → ${fmtData(projeto.data_fim)}`
                 : ""}
@@ -239,12 +257,34 @@ export default async function ProjetoHubPage({
             )}
           </div>
           <Link
-            href="/cadastros/projetos"
+            href={`/cadastros/projetos?focus=${projeto.id}`}
             className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
           >
             Editar cadastro
           </Link>
         </div>
+
+        {coordenador.situacao !== "ok" && !["concluido", "cancelado"].includes(projeto.status) && (
+          <div
+            data-testid="projeto-sem-coordenador"
+            className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning-strong/40 bg-warning-soft px-4 py-3 text-sm text-warning-strong"
+          >
+            <p className="max-w-3xl">
+              <b>
+                {coordenador.situacao === "suspenso"
+                  ? `O coordenador ${coordenador.nome} está com o usuário suspenso.`
+                  : "Este projeto está sem coordenador."}
+              </b>{" "}
+              Os pedidos de compra do projeto não seguem para aprovação.
+              {coordenador.situacao === "falta" && coordenador.escrito
+                ? ` O nome “${coordenador.escrito}” está só escrito no cadastro: para aprovar, a pessoa precisa ser indicada como coordenador.`
+                : ""}
+            </p>
+            <Link href={`/cadastros/projetos?focus=${projeto.id}`} className="font-semibold underline">
+              Indicar coordenador
+            </Link>
+          </div>
+        )}
 
         {/* KPIs */}
         <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

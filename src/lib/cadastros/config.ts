@@ -139,7 +139,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     colunas: [
       { key: "nome", label: "Projeto" },
       { key: "cliente_nome", label: "Cliente" },
-      { key: "responsavel", label: "Responsável" },
+      { key: "coordenador_usuario", label: "Coordenador" },
       { key: "data_inicio", label: "Início", tipo: "date" },
       { key: "data_fim", label: "Fim", tipo: "date" },
       { key: "status", label: "Status" },
@@ -147,13 +147,18 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     campos: [
       { name: "nome", label: "Nome do projeto", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação" },
       { name: "cliente_id", label: "Cliente", tipo: "select", opcoesDe: "clientes" },
-      { name: "responsavel", label: "Responsável (laboratório)", tipo: "text" },
       {
         name: "coordenador_id",
-        label: "Coordenador (usuário)",
+        label: "Coordenador do projeto",
         tipo: "select",
         opcoesDe: "perfis",
-        ajuda: "Recebe o aviso de validação dos pedidos internos do projeto e pode validar ou aprovar os próprios pedidos.",
+        ajuda: "Usuário que aprova os pedidos de compra do projeto. Sem coordenador, o pedido não segue.",
+      },
+      {
+        name: "responsavel",
+        label: "Responsável técnico (opcional)",
+        tipo: "text",
+        ajuda: "Nome livre, só informativo. Quem aprova é o coordenador.",
       },
       {
         name: "status",

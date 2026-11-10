@@ -435,13 +435,13 @@ export default async function PedidoInternoDetalhe({
   } | null;
   const projeto = projetoRow?.nome ?? "—";
   const compraFormal = pedido.pedidos_compra as { id: number; status: string } | null;
+  // Quem aprovou fica gravado no pedido; antes disso vale o que o banco aponta
+  // (usuário coordenador do projeto), nunca o nome escrito à mão no cadastro.
   const coordenadorProjeto =
     pedido.coordenador_projeto_nome ??
     pedido.coordenador_projeto_email ??
-    projetoRow?.coordenador_nome ??
-    projetoRow?.coordenador ??
-    projetoRow?.coordenador_email ??
-    "—";
+    aprovadores?.coordenador?.nome ??
+    (aprovadores?.falta_coordenador ? "não indicado" : "—");
   const modalidadeLabel: Record<string, string> = {
     compra_direta: "Compra direta",
     fundacao: "Fundação",
@@ -777,6 +777,20 @@ export default async function PedidoInternoDetalhe({
               </p>
             )}
             {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
+            {editavel && (aprovadores?.falta_coordenador || aprovadores?.falta_laboratorio) && (
+              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="resolver-trava">
+                {aprovadores.falta_coordenador && pedido.projeto_id != null && (
+                  <Link href={`/cadastros/projetos?focus=${pedido.projeto_id}`} className="font-medium text-primary hover:underline">
+                    Indicar o coordenador do projeto
+                  </Link>
+                )}
+                {aprovadores.falta_laboratorio && (
+                  <Link href="/cadastros/coordenacoes" className="font-medium text-primary hover:underline">
+                    Indicar a coordenação do laboratório
+                  </Link>
+                )}
+              </p>
+            )}
             {comOrcamentos && (
               <PedidoOrcamentos
                 pedidoId={pedidoId}
