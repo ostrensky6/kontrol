@@ -6,6 +6,7 @@ import type { PedidoInternoRow } from "@/components/pedido/PedidosInternosTable"
 import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
 import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
 import { proximoPasso } from "@/lib/pedido/proximo-passo";
+import { coordenadorDoProjeto, type UsuarioCoordenador } from "@/app/projetos/_lib/responsavel";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
 import { PENDENCIAS_DE_PEDIDOS, montarPendencias, pendenciasDe } from "@/components/dashboard/aguardando";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
@@ -33,6 +34,14 @@ type ProjetoOption = {
   coordenador_email?: string | null;
 };
 
+type ProjetoDoPedido = {
+  nome: string | null;
+  coordenador_id?: string | null;
+  coordenador?: string | null;
+  coordenador_nome?: string | null;
+  coordenador_email?: string | null;
+};
+
 type PedidoInternoListRow = {
   id: number;
   titulo: string;
@@ -50,7 +59,7 @@ type PedidoInternoListRow = {
   criado_em: string;
   coordenador_projeto_nome?: string | null;
   coordenador_projeto_email?: string | null;
-  projetos: { nome: string | null; coordenador?: string | null; coordenador_nome?: string | null; coordenador_email?: string | null } | Array<{ nome: string | null; coordenador?: string | null; coordenador_nome?: string | null; coordenador_email?: string | null }> | null;
+  projetos: ProjetoDoPedido | ProjetoDoPedido[] | null;
   pedidos_compra?: { id: number; status: string } | Array<{ id: number; status: string }> | null;
   pedidos_internos_itens: Array<PedidoItemView & { recebido_em?: string | null }>;
   pedidos_internos_anexos: Array<{ id: number; tipo: string }>;
@@ -93,17 +102,20 @@ export default async function PedidoPage({
   const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
   const abrirNovo = query.novo === "1";
   const supabase = await createClientUntyped();
-  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando] = await Promise.all([
+  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp] = await Promise.all([
     supabase
       .from("pedidos_internos")
-      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
+      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
       .order("criado_em", { ascending: false }),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
     lerAreasPedido(supabase),
     // o banco diz, pela competência de cada um, o que espera este usuário (0173)
     supabase.rpc("aguardando_voce"),
+    // quem aprova pelo projeto é o usuário coordenador (0136/0169), não o nome escrito no cadastro
+    supabase.from("perfis").select("id, nome, email, suspenso"),
   ]);
+  const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
   const pendencias = pendenciasDe(montarPendencias(aguardando.data), PENDENCIAS_DE_PEDIDOS);
   const { data: pedidos } = pedidosFull.error
     ? await supabase
@@ -126,13 +138,12 @@ export default async function PedidoPage({
     const projetoRow = asOne(pedido.projetos);
     const compraRow = asOne(pedido.pedidos_compra);
     const projeto = projetoRow?.nome ?? "—";
+    // quem aprovou fica gravado no pedido; antes disso, o usuário coordenador do projeto
+    const coordenadorAtual = projetoRow ? coordenadorDoProjeto(projetoRow, usuarios) : null;
     const coordenador =
       pedido.coordenador_projeto_nome ??
       pedido.coordenador_projeto_email ??
-      projetoRow?.coordenador_nome ??
-      projetoRow?.coordenador ??
-      projetoRow?.coordenador_email ??
-      "—";
+      (coordenadorAtual?.situacao === "ok" ? coordenadorAtual.nome : coordenadorAtual ? "Sem coordenador no projeto" : "—");
     const docsCotacao = (pedido.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
     const recebidos = (pedido.pedidos_internos_itens ?? []).filter((item) => item.recebido_em).length;
     // 0176: pedido do ciclo seguinte espera o ciclo abrir
@@ -141,7 +152,8 @@ export default async function PedidoPage({
       : null;
     // mesmo texto da página do pedido; o nome do coordenador só vale com projeto
     const proxima = proximoPasso(pedido, {
-      coordenador: projetoRow ? coordenador : null,
+      coordenador: coordenadorAtual?.situacao === "ok" ? coordenadorAtual.nome : null,
+      semCoordenador: Boolean(coordenadorAtual && coordenadorAtual.situacao !== "ok"),
       semProjeto: !projetoRow,
       cicloAbreEm: cicloTravadoAte,
     });

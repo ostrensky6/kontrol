@@ -30,6 +30,10 @@ describe("proximoPasso", () => {
       "Coordenador do projeto (sem projeto: Supervisão)",
     );
     expect(proximoPasso({ status: "em_validacao" }, { semProjeto: true }).responsavel).toBe("Supervisão");
+    // projeto sem usuário coordenador: a tela diz, em vez de mostrar o nome escrito no cadastro
+    expect(proximoPasso({ status: "em_validacao" }, { semCoordenador: true }).responsavel).toBe(
+      "Projeto sem coordenador (o Administrador aprova)",
+    );
   });
 
   it("material de laboratório passa pela coordenação do laboratório antes de seguir", () => {

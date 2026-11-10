@@ -1,3 +1,4 @@
+import { coordenadorDoProjeto, rotuloCoordenador, type UsuarioCoordenador } from "@/app/projetos/_lib/responsavel";
 import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
 import {
@@ -307,6 +308,16 @@ export default async function CadastroPage({
     linhas = linhas.map((r) => ({
       ...r,
       cliente_nome: r.cliente_id != null ? nomePorId.get(String(r.cliente_id)) ?? "—" : "—",
+    }));
+    // coordenador = usuário que aprova os pedidos; o nome escrito à mão não aprova (0136/0169)
+    const usuarios: UsuarioCoordenador[] = (opcoesPorFonte["perfis"] ?? []).map((o) => ({
+      id: o.value,
+      nome: o.label,
+      suspenso: Boolean(o.inativo),
+    }));
+    linhas = linhas.map((r) => ({
+      ...r,
+      coordenador_usuario: rotuloCoordenador(coordenadorDoProjeto(r as { coordenador_id?: string | null }, usuarios)),
     }));
   }
 

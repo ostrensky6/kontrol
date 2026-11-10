@@ -100,6 +100,8 @@ export type ContextoProximoPasso = {
   coordenador?: string | null;
   /** papel de quem aprova, ex.: "Coordenador do projeto" ou "Supervisão" */
   coordenadorRotulo?: string | null;
+  /** o projeto não tem usuário coordenador ativo: ninguém consegue aprovar */
+  semCoordenador?: boolean;
   /** pedido sem projeto: quem aprova é a Supervisão (0169) */
   semProjeto?: boolean;
   /** coordenação do laboratório, já com a área, ex.: "Sandra (Genética)" */
@@ -130,9 +132,11 @@ export function proximoPasso(
       responsavel:
         nome && nome !== "—"
           ? `${nome} (${contexto.coordenadorRotulo?.trim() || "coordenador do projeto"})`
-          : contexto.semProjeto
-            ? "Supervisão"
-            : PASSOS.em_validacao.responsavel,
+          : contexto.semCoordenador
+            ? "Projeto sem coordenador (o Administrador aprova)"
+            : contexto.semProjeto
+              ? "Supervisão"
+              : PASSOS.em_validacao.responsavel,
       depois: materialDeLaboratorio
         ? "a coordenação do laboratório também aprova, por ser material de laboratório."
         : PASSOS.em_validacao.depois,
