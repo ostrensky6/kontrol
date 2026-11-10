@@ -30,25 +30,25 @@ const CATALOGO: Record<
   { titulo: string; acao: string; lista: string; item: (id: number) => string }
 > = {
   pedidos_validacao: {
-    titulo: "Pedidos internos para validar",
-    acao: "validar ou devolver ao solicitante",
-    lista: "/pedido?status=em_validacao",
+    titulo: "Pedidos para você aprovar",
+    acao: "aprovar ou devolver ao solicitante",
+    lista: "/pedido?etapa=aprovacao",
     item: (id) => `/pedido/${id}`,
   },
   pedidos_laboratorio: {
     titulo: "Pedidos para a coordenação do laboratório",
     acao: "aprovar ou devolver o material de laboratório",
-    lista: "/pedido",
+    lista: "/pedido?etapa=aprovacao",
     item: (id) => `/pedido/${id}`,
   },
   pedidos_administrativo: {
     titulo: "Pedidos para formalizar e autorizar",
     acao: "formalizar, definir fonte e rubrica e autorizar",
-    lista: "/pedido",
+    lista: "/pedido?etapa=administrativo",
     item: (id) => `/pedido/${id}`,
   },
   pedidos_compras: {
-    titulo: "Pedidos em compra",
+    titulo: "Pedidos em cotação e compra",
     acao: "registrar os 3 orçamentos, escolher, aprovar e fechar a compra",
     lista: "/pedido",
     item: (id) => `/pedido/${id}`,
@@ -84,6 +84,25 @@ const CATALOGO: Record<
     item: (id) => `/planejamento/${id}`,
   },
 };
+
+/** Chaves que dizem respeito aos pedidos (lista de Pedidos) e a Suprimentos inteiro (visão geral). */
+export const PENDENCIAS_DE_PEDIDOS: readonly PendenciaChave[] = [
+  "pedidos_validacao",
+  "pedidos_laboratorio",
+  "pedidos_administrativo",
+  "pedidos_compras",
+  "pedidos_pagamento",
+];
+export const PENDENCIAS_DE_SUPRIMENTOS: readonly PendenciaChave[] = [
+  ...PENDENCIAS_DE_PEDIDOS,
+  "compras_aprovar",
+  "compras_receber",
+  "planos_rascunho",
+];
+
+export function pendenciasDe(pendencias: readonly Pendencia[], chaves: readonly PendenciaChave[]): Pendencia[] {
+  return pendencias.filter((p) => chaves.includes(p.chave));
+}
 
 function ehChave(valor: unknown): valor is PendenciaChave {
   return typeof valor === "string" && valor in CATALOGO;

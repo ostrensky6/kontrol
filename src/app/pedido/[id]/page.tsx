@@ -19,6 +19,10 @@ import {
 import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
 import { cicloLiberaEm, dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, motivoCicloTravado, prazoDoCiclo, rotuloCiclo, rotuloData, rotuloPrazo } from "@/lib/pedido/ciclo";
 import { QuemAprova } from "@/components/pedido/QuemAprova";
+import { PedidoTrilha } from "@/components/pedido/PedidoTrilha";
+import { etapaDoPedido } from "@/lib/pedido/etapas";
+import { proximoPasso } from "@/lib/pedido/proximo-passo";
+import { cn } from "@/lib/utils";
 import {
   adicionarAnexoPedidoInterno,
   adicionarItemPedidoInterno,
@@ -33,7 +37,7 @@ import { ItemRecebimentoCell } from "@/components/pedido/ItemRecebimentoCell";
 import { PedidoItemEditar } from "@/components/pedido/PedidoItemEditar";
 import { PedidoItemCamposAssistidos, type PedidoItemCatalogo } from "@/components/pedido/PedidoItemCamposAssistidos";
 import { Timeline } from "@/components/common/Timeline";
-import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
@@ -43,12 +47,9 @@ import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
 import { STATUS_DE_AJUSTE, lerSituacaoReenvio, textoReenvio } from "@/lib/pedido/reenvio";
 import { listarEventos } from "@/lib/actions/eventos";
 import {
-  PEDIDO_INTERNO_ETAPA_RECEBIDA,
-  PEDIDO_INTERNO_FLUXO,
   PEDIDO_INTERNO_STATUS,
   pedidoInternoNumero,
   pedidoInternoSituacao,
-  pedidoInternoStatus,
   podeMarcarRecebida,
   type PedidoInternoStatus,
 } from "@/lib/pedido/status";
@@ -208,29 +209,6 @@ const DECISAO_LABEL: Record<string, string> = {
 function rotuloEtapa(valor: string | null | undefined) {
   if (!valor) return null;
   return PEDIDO_INTERNO_STATUS[valor as PedidoInternoStatus]?.label ?? valor;
-}
-
-function proximaAcaoDetalhe(status: string) {
-  const map: Record<string, { acao: string; responsavel: string }> = {
-    rascunho: { acao: "Enviar para validação", responsavel: "Solicitante" },
-    ajuste_solicitante: { acao: "Corrigir e reenviar", responsavel: "Solicitante" },
-    ajuste_compras: { acao: "Corrigir e reenviar", responsavel: "Solicitante" },
-    em_validacao: { acao: "Validar especificações", responsavel: "Coordenador do projeto" },
-    validado: { acao: "Formalizar em compras", responsavel: "Coordenador/Compras" },
-    formalizado: { acao: "Registrar análise administrativa", responsavel: "Administrativo" },
-    analise_administrativa: { acao: "Aprovar para cotação", responsavel: "Coordenador/Admin." },
-    aprovado_compra: { acao: "Registrar cotações", responsavel: "Compras/Admin." },
-    orcamentos: { acao: "Anexar cotações", responsavel: "Compras/Admin." },
-    orcamentos_recebidos: { acao: "Enviar para aprovação final", responsavel: "Coordenador" },
-    aguardando_aprovacao_final: { acao: "Aprovar compra final", responsavel: "Coordenador" },
-    aprovado_para_compra: { acao: "Definir modalidade", responsavel: "Compras/Admin." },
-    compra_fechada: { acao: "Receber (ou confirmar o serviço) e então liberar o pagamento", responsavel: "Recebimento e Compras/Admin." },
-    encaminhado_instituicao: { acao: "Acompanhar instituição e receber", responsavel: "Administrativo e Recebimento" },
-    aguardando_pagamento_nf: { acao: "Anexar documento fiscal", responsavel: "Compras/Admin." },
-    compra_concluida: { acao: "Processo concluído", responsavel: "—" },
-    cancelado: { acao: "Processo encerrado", responsavel: "—" },
-  };
-  return map[status] ?? { acao: "Revisar pedido", responsavel: "Operação" };
 }
 
 function itemTipoLabel(tipo: string | null | undefined) {
@@ -519,33 +497,14 @@ export default async function PedidoInternoDetalhe({
   const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado"].includes(pedido.status));
   const inputCls = "rounded-md border border-input bg-card px-3 py-2 text-sm";
 
-  // Etapas: verde = superada, amarelo = em andamento, branco = futura.
-  // Etapa 11 (recebimento) é derivada: o pedido está recebido quando tem itens e
+  // Recebimento é uma marca paralela: o pedido está recebido quando tem itens e
   // todos foram recebidos individualmente.
-  const recebido = linhas.length > 0 && linhas.every((item) => item.recebido_em);
   const aguardandoChegada = podeMarcarRecebida(pedidoStatus);
-  // O fluxo de 10 etapas está concluído quando a compra avançou além da aprovação ou já foi recebida.
-  const fluxoCompleto =
-    recebido ||
-    ["compra_fechada", "encaminhado_instituicao", "aguardando_pagamento_nf", "compra_concluida"].includes(pedidoStatus);
-  // Etapa em andamento dentro do fluxo de 10 etapas (status de ajuste retornam à etapa equivalente).
-  let etapaAtiva = PEDIDO_INTERNO_FLUXO.indexOf(pedidoStatus);
-  if (etapaAtiva < 0 && pedidoStatus === "ajuste_solicitante") etapaAtiva = PEDIDO_INTERNO_FLUXO.indexOf("em_validacao");
-  if (etapaAtiva < 0 && pedidoStatus === "ajuste_compras") etapaAtiva = PEDIDO_INTERNO_FLUXO.indexOf("analise_administrativa");
-  const classeEtapa = (estado: "concluido" | "ativo" | "futuro") =>
-    estado === "concluido"
-      ? "border-leaf-300 bg-leaf-50 dark:border-leaf-900 dark:bg-leaf-950/30"
-      : estado === "ativo"
-        ? "border-warning-strong/30 bg-warning-soft"
-        : "border-border bg-card";
-  const estadoRecebida: "concluido" | "ativo" | "futuro" = recebido
-    ? "concluido"
-    : aguardandoChegada
-      ? "ativo"
-      : "futuro";
+  const etapa = etapaDoPedido(pedido);
+  const encerrado = etapa === "concluido" || etapa === "cancelado";
   const pendencias = [
     // 0169: sem projeto vale (a Supervisão valida); sem quem valide, não segue
-    { label: "Quem valida indicado", ok: !aprovadores?.falta_coordenador },
+    { label: "Quem aprova indicado", ok: !aprovadores?.falta_coordenador },
     ...(pedido.natureza === "material_consumo_lab"
       ? [{ label: "Laboratório com coordenação", ok: !aprovadores?.falta_laboratorio }]
       : []),
@@ -577,18 +536,54 @@ export default async function PedidoInternoDetalhe({
     pedido.status === "validado"
       ? motivoCicloTravado(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
-  const proxima = esperaLaboratorio
-    ? {
-        acao: "Aprovar pela coordenação do laboratório",
-        responsavel: aprovadores?.laboratorio?.nome
-          ? `${aprovadores.laboratorio.nome} (${aprovadores.laboratorio.area})`
-          : "Coordenação do laboratório",
-      }
-    : pedido.status === "em_validacao" && aprovadores?.coordenador?.nome
-      ? { acao: "Validar especificações", responsavel: `${aprovadores.coordenador.nome} (${aprovadores.coordenador.rotulo})` }
-      : cicloTravadoAte
-        ? { acao: `Aguardar o ciclo de ${rotuloCiclo(cicloTravadoAte)}`, responsavel: `Compras/Admin., a partir de ${rotuloData(cicloTravadoAte)}` }
-        : proximaAcaoDetalhe(pedido.status);
+  const proxima = proximoPasso(pedido, {
+    coordenador: aprovadores?.coordenador?.nome,
+    coordenadorRotulo: aprovadores?.coordenador?.rotulo,
+    laboratorio: aprovadores?.laboratorio?.nome
+      ? `${aprovadores.laboratorio.nome} (${aprovadores.laboratorio.area})`
+      : null,
+    cicloAbreEm: cicloTravadoAte,
+  });
+  // De quem é a vez. "Sua vez" só quando o banco aponta o usuário como quem
+  // decide (coordenador ou laboratório); nas outras etapas vale a permissão.
+  const usuarioId = usuario?.id ?? null;
+  const titularCoordenador = Boolean(usuarioId && aprovadores?.coordenador?.ids?.includes(usuarioId));
+  const titularLaboratorio = Boolean(usuarioId && aprovadores?.laboratorio?.ids?.includes(usuarioId));
+  const vez: { tom: "sua" | "espera" | "neutro"; rotulo: string; texto: string | null } = encerrado
+    ? { tom: "neutro", rotulo: statusMeta.label, texto: null }
+    : editavel
+      ? {
+          tom: "neutro",
+          rotulo: "Com o solicitante",
+          texto: rascunhoCompleto
+            ? "Tudo conferido. Envie para aprovação no fim da lista de itens."
+            : `Falta para enviar: ${pendencias.filter((item) => !item.ok).map((item) => item.label.toLowerCase()).join("; ")}.`,
+        }
+      : esperaLaboratorio
+        ? podeDecidirLaboratorio
+          ? {
+              tom: "sua",
+              rotulo: "Sua vez",
+              texto: titularLaboratorio
+                ? "Você responde pela coordenação deste laboratório. Confira os itens abaixo e aprove ou devolva."
+                : "Você pode decidir como Administrador, na ausência da coordenação do laboratório.",
+            }
+          : { tom: "espera", rotulo: "Aguardando o laboratório", texto: null }
+        : pedido.status === "em_validacao"
+          ? podeGerir && podeValidar
+            ? {
+                tom: "sua",
+                rotulo: "Sua vez",
+                texto: titularCoordenador
+                  ? "Você é quem aprova este pedido. Confira os itens abaixo e aprove ou devolva ao solicitante."
+                  : `Você pode aprovar como Administrador, na ausência de ${aprovadores?.coordenador?.nome ?? "quem aprova"}.`,
+              }
+            : { tom: "espera", rotulo: "Aguardando aprovação", texto: null }
+          : cicloTravadoAte
+            ? { tom: "espera", rotulo: "Aguardando o ciclo abrir", texto: null }
+            : podeGerir || (aguardandoChegada && podeRegistrarRecebimento)
+              ? { tom: "sua", rotulo: "Você pode agir", texto: null }
+              : { tom: "espera", rotulo: "Em andamento", texto: null };
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -660,61 +655,236 @@ export default async function PedidoInternoDetalhe({
           </div>
         </div>
 
-        <section className="mt-3 rounded-lg border border-border bg-card p-3 shadow-sm">
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Etapas do processo</h2>
-              <HelpTip title="Etapas do pedido">
-                <p>
-                  Mostra onde o pedido está. A próxima ação e quem responde por ela aparecem no{" "}
-                  <b>Painel operacional</b>, logo abaixo.
-                </p>
-                <HelpLegend
-                  items={[
-                    { tom: "ok", rotulo: "Verde", texto: "etapa concluída" },
-                    { tom: "atencao", rotulo: "Amarelo", texto: "etapa atual" },
-                    { tom: "neutro", rotulo: "Branco", texto: "etapa futura" },
-                  ]}
-                />
-              </HelpTip>
-            </div>
-            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{statusMeta.label}</span>
-          </div>
-          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-6">
-            {PEDIDO_INTERNO_FLUXO.map((status, index) => {
-              const meta = pedidoInternoStatus(status);
-              const estado: "concluido" | "ativo" | "futuro" =
-                fluxoCompleto || (etapaAtiva >= 0 && index < etapaAtiva)
-                  ? "concluido"
-                  : etapaAtiva === index
-                    ? "ativo"
-                    : "futuro";
-              return (
-                <div key={status} className={`min-h-16 rounded-md border px-3 py-2 ${classeEtapa(estado)}`}>
-                  <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">Etapa {index + 1}</p>
-                  <p className="mt-0.5 text-sm font-medium">{meta.label}</p>
-                  <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">{meta.etapa}</p>
-                </div>
-              );
-            })}
-            <div className={`min-h-16 rounded-md border px-3 py-2 ${classeEtapa(estadoRecebida)}`}>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/80">
-                Etapa {PEDIDO_INTERNO_FLUXO.length + 1}
-              </p>
-              <p className="mt-0.5 text-sm font-medium">{PEDIDO_INTERNO_ETAPA_RECEBIDA.label}</p>
-              <p className="mt-0.5 line-clamp-2 text-xs leading-4 text-muted-foreground">{PEDIDO_INTERNO_ETAPA_RECEBIDA.etapa}</p>
-            </div>
-          </div>
+        <section aria-label="Andamento do pedido" className="mt-3 rounded-lg border border-border bg-card px-3 py-4 shadow-sm">
+          <PedidoTrilha etapa={etapa} />
           {pedido.status === "ajuste_solicitante" && (
             <p className="mt-3 text-sm text-warning-strong">
-              Compra não aprovada na validação. Revise os itens com o solicitante e reenvie.
+              Pedido devolvido ao solicitante. Revise os itens e reenvie.
             </p>
           )}
           {pedido.status === "ajuste_compras" && (
             <p className="mt-3 text-sm text-danger-strong">
-              Compra não aprovada na análise administrativa. Revise com compras e/ou solicitante.
+              Pedido devolvido na análise administrativa. Revise com Compras e reenvie.
             </p>
           )}
+        </section>
+
+        <section className="mt-3 grid items-start gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)]">
+          <div
+            data-testid="painel-agora"
+            className={cn(
+              "rounded-lg border bg-card p-4 shadow-sm",
+              vez.tom === "sua" ? "border-primary/60 ring-1 ring-primary/30" : "border-border",
+            )}
+          >
+            <div className="flex flex-col-reverse items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-1">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    {encerrado ? "Situação" : "O que falta agora"}
+                  </p>
+                  <HelpTip title="O que falta agora">
+                    <p>
+                      Este quadro diz o próximo passo do pedido, com quem ele está e o que vem depois. Quando
+                      o passo depende de você, aparece <b>Sua vez</b> e os botões ficam aqui mesmo.
+                    </p>
+                    <p>A trilha acima mostra as seis etapas: as cumpridas levam um visto e a atual fica em destaque.</p>
+                  </HelpTip>
+                </div>
+                <h2 className="mt-0.5 text-lg font-semibold leading-6">{proxima.acao}</h2>
+                {proxima.responsavel !== "—" && (
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Com: <b className="font-medium text-foreground">{proxima.responsavel}</b>
+                  </p>
+                )}
+              </div>
+              <span
+                data-testid="vez"
+                className={cn(
+                  "inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold",
+                  vez.tom === "sua"
+                    ? "bg-primary text-primary-foreground"
+                    : vez.tom === "espera"
+                      ? "bg-warning-soft text-warning-strong"
+                      : "bg-muted text-muted-foreground",
+                )}
+              >
+                {vez.rotulo}
+              </span>
+            </div>
+            {vez.texto && <p className="mt-2 max-w-2xl text-sm text-foreground">{vez.texto}</p>}
+            <div className="mt-3">
+              {statusMeta && !editavel && (
+                <PedidoInternoAcoes
+                  pedidoId={pedidoId}
+                  status={pedido.status}
+                  podeGerir={podeGerir}
+                  podeEnviarValidacao={rascunhoCompleto}
+                  temCompraFormal={Boolean(compraFormal)}
+                  motivoSemValidacao={
+                    podeValidar
+                      ? undefined
+                      : `Quem aprova: ${aprovadores?.coordenador?.nome ?? "coordenador do projeto"}. Na ausência, o Administrador.`
+                  }
+                  aguardandoLaboratorio={esperaLaboratorio}
+                  podeDecidirLaboratorio={podeDecidirLaboratorio}
+                  motivoCicloTravado={motivoCiclo}
+                  pendenciaPagamento={pendenciaPagamento}
+                  podeConfirmarEntrega={podeConfirmar}
+                  motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
+                  motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
+                  controlado={controlados.length > 0}
+                />
+              )}
+              {pendenciaPagamento && (
+                <p className="mt-2 text-xs text-warning-strong" data-testid="pendencia-pagamento">
+                  <span aria-hidden="true">⏳ </span>
+                  {pendenciaPagamento}
+                </p>
+              )}
+              {pedido.entrega_confirmada_em && (
+                <p className="mt-2 text-xs text-muted-foreground" data-testid="entrega-confirmada">
+                  <span aria-hidden="true">✓ </span>
+                  Entrega confirmada em {formatDateTime(pedido.entrega_confirmada_em)} por {pedido.entrega_confirmada_por ?? "—"}
+                  {pedido.entrega_observacao ? `: ${pedido.entrega_observacao}` : "."}
+                </p>
+              )}
+              {pedido.excecao_pagamento && (
+                <p className="mt-2 text-xs text-warning-strong" data-testid="excecao-pagamento">
+                  <span aria-hidden="true">! </span>
+                  Exceção registrada por {pedido.excecao_pagamento_por ?? "—"}
+                  {pedido.excecao_pagamento_em ? ` em ${formatDateTime(pedido.excecao_pagamento_em)}` : ""}: pagamento antes da entrega.
+                  Acordo: {pedido.excecao_pagamento}
+                </p>
+              )}
+              {editavel && (
+                <a
+                  href="#envio"
+                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Conferir e enviar, no fim da lista de itens
+                </a>
+              )}
+              {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && (
+                <p className="text-sm text-muted-foreground">
+                  Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos internos”.
+                </p>
+              )}
+            </div>
+            {proxima.depois && (
+              <p className="mt-3 border-t border-border/70 pt-3 text-sm text-muted-foreground" data-testid="depois">
+                <b className="font-medium text-foreground">Depois:</b> {proxima.depois}
+              </p>
+            )}
+            {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
+            {comOrcamentos && (
+              <PedidoOrcamentos
+                pedidoId={pedidoId}
+                status={pedido.status}
+                orcamentos={orcamentos}
+                podeGerir={podeGerir}
+                fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
+                  .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
+                  .map((f) => ({ id: f.id, nome: f.nome }))}
+                anexos={anexoRowsBase
+                  .filter((a) => ["orcamento_previo", "proposta", "print", "email"].includes(a.tipo))
+                  .map((a) => ({ id: a.id, titulo: a.titulo }))}
+              />
+            )}
+            {pedido.status === "formalizado" && podeGerir && (
+              <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
+                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
+                <div className="flex items-center gap-1 md:col-span-2">
+                  <h3 className="text-sm font-semibold">Análise administrativa</h3>
+                  <HelpTip title="Análise administrativa">
+                    <p>Confirme recurso, rubrica e conformidade antes de liberar cotação.</p>
+                  </HelpTip>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
+                  <input
+                    name="fonte_recurso"
+                    required
+                    defaultValue={pedido.fonte_recurso ?? (controlados.length > 0 ? "FUNPAR" : "")}
+                    className={`${inputCls} mt-1 w-full`}
+                  />
+                  {controlados.length > 0 && (
+                    <p className="mt-1 text-xs text-warning-strong">Produto controlado: a fonte tem que ser a FUNPAR.</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-muted-foreground">Rubrica</label>
+                  <input name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
+                  <textarea name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
+                </div>
+                <div className="md:col-span-2">
+                  <label className="block text-xs font-medium text-muted-foreground">Observação</label>
+                  <input name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
+                </div>
+                <div className="md:col-span-2">
+                  <SubmitButton pendingLabel="Registrando…" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                    Registrar análise administrativa
+                  </SubmitButton>
+                </div>
+              </FormComMensagem>
+            )}
+            {aguardandoChegada && (
+              <div className="mt-3 rounded-lg border border-leaf-300 bg-leaf-50 p-3 text-sm text-leaf-800 dark:border-leaf-900 dark:bg-leaf-950/30 dark:text-leaf-300">
+                <span className="inline-flex items-center gap-1">
+                  <span>
+                    Receba os itens na tabela ou em{" "}
+                    <Link href="/recebimento" className="font-medium underline">
+                      Recebimento
+                    </Link>
+                    .
+                  </span>
+                  <HelpTip title="Quando o recebimento termina">
+                    <p>
+                      A etapa de recebimento só fecha quando <b>todos</b> os materiais e equipamentos do
+                      pedido forem lançados no estoque.
+                    </p>
+                  </HelpTip>
+                </span>
+              </div>
+            )}
+          </div>
+
+          <aside className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm">
+            <h2 className="text-sm font-semibold">Resumo do pedido</h2>
+            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
+                <p className="text-muted-foreground">Itens</p>
+                <p className="text-base font-semibold tabular-nums">{linhas.length}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
+                <p className="text-muted-foreground">Recebidos</p>
+                <p className="text-base font-semibold tabular-nums">{itensFisicos.length ? `${itensRecebidos}/${itensFisicos.length}` : "—"}</p>
+              </div>
+              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
+                <p className="text-muted-foreground">Valor prévio</p>
+                <p className="text-base font-semibold tabular-nums">{brl(total)}</p>
+              </div>
+            </div>
+            <dl className="mt-3 grid gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <Referencia label="Compra formal">
+                {compraFormal ? (
+                  <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">
+                    #{compraFormal.id} · {statusInfo(compraFormal.status).label}
+                  </Link>
+                ) : "—"}
+              </Referencia>
+              <Referencia label="Modalidade">{pedido.modalidade_compra ? modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra : "—"}</Referencia>
+              <Referencia label="Instituição">{pedido.instituicao_destino ?? "—"}</Referencia>
+              <Referencia label="Protocolo">{pedido.protocolo_externo ?? "—"}</Referencia>
+              <Referencia label="Fonte">{pedido.fonte_recurso ?? "—"}</Referencia>
+              <Referencia label="Rubrica">{pedido.rubrica ?? "—"}</Referencia>
+              <Referencia label="Doc. cotação">{temDocumentoCotacao ? "registrado" : "pendente"}</Referencia>
+              <Referencia label="Doc. fiscal">{temDocumentoFiscal ? "registrado" : "pendente"}</Referencia>
+            </dl>
+          </aside>
         </section>
 
         <section className="mt-4">
@@ -724,7 +894,7 @@ export default async function PedidoInternoDetalhe({
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Materiais, serviços e equipamentos</h2>
                 <HelpTip title="Itens do pedido">
                   <p>
-                    Monte a lista antes de enviar para validação. O valor <b>prévio</b> é uma estimativa;
+                    Monte a lista antes de enviar para aprovação. O valor <b>prévio</b> é uma estimativa;
                     o preço final vem da cotação.
                   </p>
                 </HelpTip>
@@ -867,11 +1037,11 @@ export default async function PedidoInternoDetalhe({
             </FormComMensagem>
           )}
           {editavel && (
-            <div className="mt-3 rounded-lg border border-border bg-card p-3 shadow-sm">
+            <div id="envio" className="mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-3 shadow-sm">
               {/* Em larguras médias (~1024 px com a barra lateral) a lista e as ações não cabem lado a lado: empilham. */}
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Conferência do rascunho</h3>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Conferir e enviar</h3>
                   <div className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
                     {pendencias.map((item) => (
                       <div key={item.label} className="flex items-start gap-2 text-xs">
@@ -903,194 +1073,6 @@ export default async function PedidoInternoDetalhe({
               </div>
             </div>
           )}
-        </section>
-
-        <section className="mt-4 grid items-start gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)]">
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Painel operacional</p>
-                <h2 className="mt-0.5 text-base font-semibold">{proxima.acao}</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Responsável: <b className="font-medium text-foreground">{proxima.responsavel}</b>
-                </p>
-              </div>
-              <div className="grid min-w-64 grid-cols-3 gap-2 text-center text-xs">
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground">Itens</p>
-                  <p className="text-base font-semibold tabular-nums">{linhas.length}</p>
-                </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground">Recebidos</p>
-                  <p className="text-base font-semibold tabular-nums">{itensFisicos.length ? `${itensRecebidos}/${itensFisicos.length}` : "—"}</p>
-                </div>
-                <div className="rounded-md border border-border bg-muted/30 px-3 py-2">
-                  <p className="text-muted-foreground">Prévio</p>
-                  <p className="text-base font-semibold tabular-nums">{brl(total)}</p>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3 border-t border-border/70 pt-3">
-              {statusMeta && !editavel && (
-                <PedidoInternoAcoes
-                  pedidoId={pedidoId}
-                  status={pedido.status}
-                  podeGerir={podeGerir}
-                  podeEnviarValidacao={rascunhoCompleto}
-                  temCompraFormal={Boolean(compraFormal)}
-                  motivoSemValidacao={
-                    podeValidar
-                      ? undefined
-                      : `Quem valida: ${aprovadores?.coordenador?.nome ?? "coordenador do projeto"}. Na ausência, o Administrador.`
-                  }
-                  aguardandoLaboratorio={esperaLaboratorio}
-                  podeDecidirLaboratorio={podeDecidirLaboratorio}
-                  motivoCicloTravado={motivoCiclo}
-                  pendenciaPagamento={pendenciaPagamento}
-                  podeConfirmarEntrega={podeConfirmar}
-                  motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
-                  motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
-                  controlado={controlados.length > 0}
-                />
-              )}
-              {pendenciaPagamento && (
-                <p className="mt-2 text-xs text-warning-strong" data-testid="pendencia-pagamento">
-                  <span aria-hidden="true">⏳ </span>
-                  {pendenciaPagamento}
-                </p>
-              )}
-              {pedido.entrega_confirmada_em && (
-                <p className="mt-2 text-xs text-muted-foreground" data-testid="entrega-confirmada">
-                  <span aria-hidden="true">✓ </span>
-                  Entrega confirmada em {formatDateTime(pedido.entrega_confirmada_em)} por {pedido.entrega_confirmada_por ?? "—"}
-                  {pedido.entrega_observacao ? `: ${pedido.entrega_observacao}` : "."}
-                </p>
-              )}
-              {pedido.excecao_pagamento && (
-                <p className="mt-2 text-xs text-warning-strong" data-testid="excecao-pagamento">
-                  <span aria-hidden="true">! </span>
-                  Exceção registrada por {pedido.excecao_pagamento_por ?? "—"}
-                  {pedido.excecao_pagamento_em ? ` em ${formatDateTime(pedido.excecao_pagamento_em)}` : ""}: pagamento antes da entrega.
-                  Acordo: {pedido.excecao_pagamento}
-                </p>
-              )}
-              {editavel && (
-                <p className="text-sm text-muted-foreground">
-                  O pedido ainda está em rascunho. A ação de envio fica no fechamento da lista de itens.
-                </p>
-              )}
-              {!podeGerir && !podeDecidirLaboratorio && !["rascunho", "ajuste_solicitante", "ajuste_compras"].includes(pedido.status) && (
-                <p className="text-sm text-muted-foreground/80">Esta etapa exige a permissão “Aprovar pedidos internos”.</p>
-              )}
-            </div>
-            {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
-            {comOrcamentos && (
-              <PedidoOrcamentos
-                pedidoId={pedidoId}
-                status={pedido.status}
-                orcamentos={orcamentos}
-                podeGerir={podeGerir}
-                fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
-                  .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
-                  .map((f) => ({ id: f.id, nome: f.nome }))}
-                anexos={anexoRowsBase
-                  .filter((a) => ["orcamento_previo", "proposta", "print", "email"].includes(a.tipo))
-                  .map((a) => ({ id: a.id, titulo: a.titulo }))}
-              />
-            )}
-            {pedido.status === "formalizado" && podeGerir && (
-              <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
-                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <div className="flex items-center gap-1 md:col-span-2">
-                  <h3 className="text-sm font-semibold">Análise administrativa</h3>
-                  <HelpTip title="Análise administrativa">
-                    <p>Confirme recurso, rubrica e conformidade antes de liberar cotação.</p>
-                  </HelpTip>
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
-                  <input
-                    name="fonte_recurso"
-                    required
-                    defaultValue={pedido.fonte_recurso ?? (controlados.length > 0 ? "FUNPAR" : "")}
-                    className={`${inputCls} mt-1 w-full`}
-                  />
-                  {controlados.length > 0 && (
-                    <p className="mt-1 text-xs text-warning-strong">Produto controlado: a fonte tem que ser a FUNPAR.</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-muted-foreground">Rubrica</label>
-                  <input name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
-                  <textarea name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground">Observação</label>
-                  <input name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <SubmitButton pendingLabel="Registrando…" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                    Registrar análise administrativa
-                  </SubmitButton>
-                </div>
-              </FormComMensagem>
-            )}
-            {aguardandoChegada && (
-              <div className="mt-3 rounded-lg border border-leaf-300 bg-leaf-50 p-3 text-sm text-leaf-800 dark:border-leaf-900 dark:bg-leaf-950/30 dark:text-leaf-300">
-                <span className="inline-flex items-center gap-1">
-                  <span>
-                    Receba os itens na tabela ou em{" "}
-                    <Link href="/recebimento" className="font-medium underline">
-                      Recebimento
-                    </Link>
-                    .
-                  </span>
-                  <HelpTip title="Quando o recebimento termina">
-                    <p>
-                      A etapa de recebimento só fecha quando <b>todos</b> os materiais e equipamentos do
-                      pedido forem lançados no estoque.
-                    </p>
-                  </HelpTip>
-                </span>
-              </div>
-            )}
-          </div>
-
-          <aside className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm">
-            <h2 className="text-sm font-semibold">Referências operacionais</h2>
-            <dl className="mt-2 grid gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <Referencia label="Compra formal">
-                {compraFormal ? (
-                  <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">
-                    #{compraFormal.id} · {statusInfo(compraFormal.status).label}
-                  </Link>
-                ) : "—"}
-              </Referencia>
-              <Referencia label="Modalidade">{pedido.modalidade_compra ? modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra : "—"}</Referencia>
-              <Referencia label="Instituição">{pedido.instituicao_destino ?? "—"}</Referencia>
-              <Referencia label="Protocolo">{pedido.protocolo_externo ?? "—"}</Referencia>
-              <Referencia label="Fonte">{pedido.fonte_recurso ?? "—"}</Referencia>
-              <Referencia label="Rubrica">{pedido.rubrica ?? "—"}</Referencia>
-              <Referencia label="Doc. cotação">{temDocumentoCotacao ? "registrado" : "pendente"}</Referencia>
-              <Referencia label="Doc. fiscal">{temDocumentoFiscal ? "registrado" : "pendente"}</Referencia>
-            </dl>
-            <div className="mt-3 border-t border-border/70 pt-3">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Checklist da etapa</h3>
-              <div className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                {pendencias.map((item) => (
-                  <div key={item.label} className="flex items-center gap-2 text-xs">
-                    <span className={`h-2.5 w-2.5 rounded-full ${item.ok ? "bg-brand-500" : "bg-warning-strong"}`} />
-                    <span className={item.ok ? "text-muted-foreground" : "font-medium text-warning-strong"}>
-                      {item.label}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
         </section>
 
         <section className="mt-4 grid items-start gap-4 lg:grid-cols-2">

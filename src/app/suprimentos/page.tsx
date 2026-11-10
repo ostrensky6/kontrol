@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { CalendarClock, ClipboardList, PackageCheck, ShoppingCart, type LucideIcon } from "lucide-react";
+
+import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
+import { PENDENCIAS_DE_SUPRIMENTOS, montarPendencias, pendenciasDe } from "@/components/dashboard/aguardando";
+import { AndamentoPedidos } from "@/components/suprimentos/AndamentoPedidos";
 
 import { HelpTip } from "@/components/common/HelpTip";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
@@ -7,20 +10,18 @@ import { EstoqueDisponivelTable } from "@/components/suprimentos/EstoqueDisponiv
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { hojeIso } from "@/lib/estoque/baixa";
 import { janelaVencimentoDias } from "@/lib/estoque/situacao-insumo";
-import { etapaDoPedido, etapaEmAndamento } from "@/lib/pedido/etapas";
+import { ETAPAS_PEDIDO, etapaDoPedido, type EtapaAtivaId } from "@/lib/pedido/etapas";
 import { PEDIDO_INTERNO_AGUARDANDO_CHEGADA } from "@/lib/pedido/status";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 import { createClientUntyped } from "@/lib/supabase/server";
 import {
   filtroEstoqueValido,
-  linhaAtendeFiltro,
   montarEstoqueDisponivel,
   type AlertaDisponivelDb,
   type LoteValidadeDb,
   type PrevisaoDisponivelDb,
   type SaldoDisponivelDb,
 } from "@/lib/suprimentos/estoque-disponivel";
-import { cn } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,49 +29,6 @@ type PedidoResumoDb = { id: number; status: string | null; natureza: string | nu
 type ItemAReceberDb = { id: number; pedidos_internos: { status: string | null } | { status: string | null }[] | null };
 
 const asOne = <T,>(valor: T | T[] | null | undefined) => (Array.isArray(valor) ? (valor[0] ?? null) : (valor ?? null));
-
-type Tom = "red" | "amber" | "info" | "neutro";
-
-const TOM_CARTAO: Record<Tom, { borda: string; numero: string }> = {
-  red: { borda: "border-l-danger-strong", numero: "text-danger-strong" },
-  amber: { borda: "border-l-warning-strong", numero: "text-warning-strong" },
-  info: { borda: "border-l-info-strong", numero: "text-info-strong" },
-  neutro: { borda: "border-l-border", numero: "text-foreground" },
-};
-
-function CartaoAtencao({
-  href,
-  icone: Icone,
-  titulo,
-  valor,
-  detalhe,
-  tom,
-}: {
-  href: string;
-  icone: LucideIcon;
-  titulo: string;
-  valor: number;
-  detalhe: string;
-  tom: Tom;
-}) {
-  const cores = TOM_CARTAO[valor > 0 ? tom : "neutro"];
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "group flex items-center gap-3 rounded-lg border border-l-4 border-border bg-card p-4 shadow-sm transition hover:border-primary/40 hover:shadow-md",
-        cores.borda,
-      )}
-    >
-      <Icone aria-hidden className="h-5 w-5 shrink-0 text-muted-foreground group-hover:text-primary" />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium text-foreground">{titulo}</p>
-        <p className="text-xs text-muted-foreground">{detalhe}</p>
-      </div>
-      <span className={cn("text-2xl font-semibold tabular-nums", cores.numero)}>{valor}</span>
-    </Link>
-  );
-}
 
 export default async function SuprimentosPage({
   searchParams,
@@ -95,6 +53,7 @@ export default async function SuprimentosPage({
     { data: parametros },
     pedidosResp,
     itensResp,
+    aguardando,
   ] = await Promise.all([
     // listas de estoque lidas de mil em mil (o PostgREST corta em 1.000 linhas)
     lerTudo<SaldoDisponivelDb>((de, ate) =>
@@ -127,7 +86,10 @@ export default async function SuprimentosPage({
           .select("id, pedidos_internos!inner(status)")
           .is("recebido_em", null)
       : Promise.resolve({ data: [] as ItemAReceberDb[] }),
+    // o banco diz, pela competência de cada um, o que espera este usuário (0173)
+    supabase.rpc("aguardando_voce"),
   ]);
+  const pendencias = pendenciasDe(montarPendencias(aguardando.data), PENDENCIAS_DE_SUPRIMENTOS);
   if (saldoError) throw new Error(`Não foi possível ler o saldo do estoque: ${saldoError.message}`);
 
   const linhas = montarEstoqueDisponivel({
@@ -138,13 +100,10 @@ export default async function SuprimentosPage({
     hoje: hojeIso(),
     janelaVencimento: janelaVencimentoDias((parametros as { valor: unknown }[] | null)?.[0]?.valor),
   });
-  const repor = linhas.filter((l) => linhaAtendeFiltro(l, "reposicao")).length;
-  const validade = linhas.filter((l) => linhaAtendeFiltro(l, "vencido_vencendo")).length;
-  const vencidos = linhas.filter((l) => l.sinais.includes("vencido")).length;
-
   const etapas = ((pedidosResp.data ?? []) as PedidoResumoDb[]).map((p) => etapaDoPedido(p));
-  const emAndamento = etapas.filter(etapaEmAndamento).length;
-  const emAprovacao = etapas.filter((e) => e === "aprovacao").length;
+  const porEtapa = Object.fromEntries(
+    ETAPAS_PEDIDO.map((e) => [e.id, etapas.filter((etapa) => etapa === e.id).length]),
+  ) as Record<EtapaAtivaId, number>;
   const statusAguardandoChegada: readonly string[] = PEDIDO_INTERNO_AGUARDANDO_CHEGADA;
   const aReceber = ((itensResp.data ?? []) as ItemAReceberDb[]).filter((item) =>
     statusAguardandoChegada.includes(asOne(item.pedidos_internos)?.status ?? ""),
@@ -159,8 +118,8 @@ export default async function SuprimentosPage({
               <h1 className="text-xl font-semibold tracking-tight">Suprimentos</h1>
               <HelpTip title="Suprimentos">
                 <p>
-                  Aqui você vê <b>o que temos em estoque</b> e o que precisa de atenção. Cada assunto tem
-                  um lugar só, na barra acima:
+                  Aqui você vê, nesta ordem: <b>o que espera você</b>, <b>em que etapa está cada pedido</b> e{" "}
+                  <b>o que temos em estoque</b>. Cada assunto tem um lugar só, na barra acima:
                 </p>
                 <ul className="list-disc space-y-1 pl-4">
                   <li><b>Estoque</b>: entradas, baixas, lotes, leitura de código, inventário e etiquetas.</li>
@@ -170,7 +129,7 @@ export default async function SuprimentosPage({
                 </ul>
               </HelpTip>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">O que temos em estoque e o que precisa de atenção.</p>
+            <p className="mt-1 text-sm text-muted-foreground">O que espera você, o andamento dos pedidos e o que temos em estoque.</p>
           </div>
           {podeCriarPedido && (
             <div className="flex flex-wrap items-center gap-2">
@@ -185,53 +144,14 @@ export default async function SuprimentosPage({
           )}
         </div>
 
-        <section aria-labelledby="titulo-atencao">
-          <h2 id="titulo-atencao" className="sr-only">Precisa de atenção</h2>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <CartaoAtencao
-              href="/suprimentos?situacao=reposicao#estoque-disponivel"
-              icone={ShoppingCart}
-              titulo="Repor"
-              valor={repor}
-              detalhe={repor ? "insumos que a previsão manda comprar" : "nenhum insumo para comprar agora"}
-              tom="amber"
-            />
-            <CartaoAtencao
-              href="/suprimentos?situacao=vencido_vencendo#estoque-disponivel"
-              icone={CalendarClock}
-              titulo="Validade"
-              valor={validade}
-              detalhe={
-                validade
-                  ? vencidos
-                    ? `insumos com lote vencido ou vencendo (${vencidos} com vencido)`
-                    : "insumos com lote vencendo"
-                  : "nenhum lote vencendo"
-              }
-              tom={vencidos ? "red" : "amber"}
-            />
-            {podeVerPedidos && (
-              <CartaoAtencao
-                href="/pedido"
-                icone={ClipboardList}
-                titulo="Pedidos em andamento"
-                valor={emAndamento}
-                detalhe={emAprovacao ? `${emAprovacao} aguardando aprovação` : "veja em que etapa cada um está"}
-                tom="info"
-              />
-            )}
-            {podeVerRecebimento && (
-              <CartaoAtencao
-                href="/recebimento"
-                icone={PackageCheck}
-                titulo="A receber"
-                valor={aReceber}
-                detalhe={aReceber ? "itens comprados que ainda não chegaram" : "nada esperando chegada"}
-                tom="info"
-              />
-            )}
-          </div>
-        </section>
+        <AguardandoVoce
+          pendencias={pendencias}
+          destaque
+          vazio="Nada esperando a sua ação em Suprimentos agora. Quando um pedido, uma compra ou um plano depender de você, aparece aqui."
+          ajuda="O que depende de você em Suprimentos: pedidos para aprovar, autorizar, cotar ou pagar, compras para receber e planos em rascunho."
+        />
+
+        {podeVerPedidos && <AndamentoPedidos porEtapa={porEtapa} aReceber={podeVerRecebimento ? aReceber : null} />}
 
         <section id="estoque-disponivel" aria-labelledby="titulo-estoque-disponivel" className="scroll-mt-20 space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">

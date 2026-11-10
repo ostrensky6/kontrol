@@ -43,7 +43,7 @@ export function GerarPedidoReposicaoButton() {
               <HelpTip title="Pedido de reposição">
                 <p>
                   O pedido nasce como <b>rascunho</b>. Antes de virar compra, revise os itens, informe o
-                  projeto e a fonte de recurso e envie para validação.
+                  projeto e a fonte de recurso e envie para aprovação.
                 </p>
               </HelpTip>
             </div>

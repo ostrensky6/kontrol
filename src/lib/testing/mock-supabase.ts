@@ -299,7 +299,11 @@ const baseStore = (): Store => {
   orcamento_projeto_catalogo: [],
   demanda_analises: [],
   demanda_grupos_amostras: [],
-  projetos: [{ id: 1, nome: "Projeto E2E" }],
+  projetos: [
+    { id: 1, nome: "Projeto E2E" },
+    // 1.7.2: projeto com coordenador ativo, para o pedido que espera aprovação
+    { id: 2, nome: "Projeto com coordenação E2E", coordenador_id: "00000000-0000-4000-8000-0000000000c1", coordenador_nome: "Coordenação E2E" },
+  ],
   // 0176: pedido validado depois do prazo do dia 10, no ciclo seguinte (travado)
   pedidos_internos: [
     {
@@ -323,6 +327,28 @@ const baseStore = (): Store => {
       criado_em: "2026-11-12T13:00:00.000Z",
       atualizado_em: "2026-11-12T14:00:00.000Z",
     },
+    // 1.7.2: pedido enviado, esperando a aprovação do coordenador do projeto
+    {
+      id: 502,
+      titulo: "Primers para aprovar E2E",
+      status: "em_validacao",
+      solicitante: "e2e@example.com",
+      projeto_id: 2,
+      natureza: "material_consumo_geral",
+      objetivo: "projeto",
+      tipo_demanda: "laboratorio",
+      justificativa: "Primers para as análises do projeto.",
+      urgencia: "normal",
+      urgencia_justificativa: null,
+      ciclo_pagamento: null,
+      data_necessidade: null,
+      modalidade_compra: null,
+      area_id: null,
+      aprovacao_area_em: null,
+      pedido_compra_id: null,
+      criado_em: "2026-11-12T15:00:00.000Z",
+      atualizado_em: "2026-11-12T15:30:00.000Z",
+    },
   ],
   pedidos_internos_itens: [
     {
@@ -333,6 +359,16 @@ const baseStore = (): Store => {
       quantidade: 2,
       unidade: "un",
       orcamento_previo: 80,
+      recebido_em: null,
+    },
+    {
+      id: 5021,
+      pedido_interno_id: 502,
+      tipo: "material",
+      especificacao: "Primer COI 25 nmol",
+      quantidade: 4,
+      unidade: "un",
+      orcamento_previo: 120,
       recebido_em: null,
     },
   ],
@@ -994,6 +1030,34 @@ function mockAguardandoVoce(sessao: SessaoMock) {
       (store.pedidos_internos ?? []).filter((row) => row.status === "em_validacao"),
       (row) => `#${row.id} · ${row.titulo ?? "sem título"}`,
     );
+    // 0173: etapas por competência; no mock, quem aprova pedidos responde por todas
+    const pedidos = store.pedidos_internos ?? [];
+    const rotulo = (row: Row) => `#${row.id} · ${row.titulo ?? "sem título"}`;
+    const esperaLab = (row: Row) =>
+      row.status === "validado" && row.natureza === "material_consumo_lab" && !row.aprovacao_area_em;
+    const filas: [string, Row[]][] = [
+      ["pedidos_laboratorio", pedidos.filter(esperaLab)],
+      [
+        "pedidos_administrativo",
+        pedidos.filter(
+          (row) =>
+            ["formalizado", "analise_administrativa"].includes(String(row.status)) ||
+            (row.status === "validado" &&
+              !esperaLab(row) &&
+              !(row.ciclo_pagamento && String(row.ciclo_pagamento).slice(0, 10) > new Date().toISOString().slice(0, 10))),
+        ),
+      ],
+      [
+        "pedidos_compras",
+        pedidos.filter((row) =>
+          ["aprovado_compra", "orcamentos", "orcamentos_recebidos", "aguardando_aprovacao_final", "aprovado_para_compra"].includes(
+            String(row.status),
+          ),
+        ),
+      ],
+      ["pedidos_pagamento", pedidos.filter((row) => row.status === "aguardando_pagamento_nf")],
+    ];
+    for (const [chave, rows] of filas) if (rows.length) linha(chave, rows, rotulo);
   }
   if (mockTemPermissao("compras.aprovar", sessao)) {
     linha(

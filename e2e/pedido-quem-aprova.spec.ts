@@ -21,12 +21,12 @@ test("pedido de material de laboratório mostra quem aprova e trava sem coordena
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const quadro = page.getByTestId("quem-aprova");
   await expect(quadro).toBeVisible();
-  await expect(quadro).toContainText("Validação pelo coordenador do projeto");
+  await expect(quadro).toContainText("Aprovação pelo coordenador do projeto");
   await expect(quadro).toContainText("Trava o envio");
   await expect(quadro).toContainText("não tem coordenador cadastrado");
   await expect(quadro).toContainText("Coordenação do laboratório (Genética)");
   await expect(quadro).toContainText("Coordenação E2E");
-  await expect(page.getByRole("button", { name: "Enviar para validação" }).first()).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Enviar para aprovação" }).first()).toBeDisabled();
 });
 
 test("cadastro de laboratórios mostra quem coordena e onde falta", async ({ page }) => {

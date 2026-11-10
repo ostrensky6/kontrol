@@ -107,7 +107,7 @@ export function etapasAprovacao(
   const c = aprovadores.coordenador;
   etapas.push({
     chave: "coordenador",
-    titulo: c?.motivo === "supervisao" ? "Validação pela Supervisão" : "Validação pelo coordenador do projeto",
+    titulo: c?.motivo === "supervisao" ? "Aprovação pela Supervisão" : "Aprovação pelo coordenador do projeto",
     quem: c?.nome ?? "Sem coordenador indicado",
     situacao: aprovadores.falta_coordenador && antes
       ? "travada"
@@ -126,7 +126,7 @@ export function etapasAprovacao(
     detalhe: antes && aprovadores.falta_coordenador
       ? aprovadores.falta_coordenador
       : c
-        ? `${c.rotulo}. Na ausência, o Administrador valida como substituto.`
+        ? `${c.rotulo}. Na ausência, o Administrador aprova como substituto.`
         : null,
   });
 

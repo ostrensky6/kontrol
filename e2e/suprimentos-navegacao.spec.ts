@@ -87,3 +87,57 @@ test("Novo pedido da visão geral abre o formulário em Pedidos", async ({ page 
   await expect(page).toHaveURL(/\/pedido\?novo=1$/);
   await expect(page.getByRole("dialog").getByRole("heading", { name: "Novo pedido" })).toBeVisible();
 });
+
+/**
+ * 1.7.2: o caminho da aprovação fica evidente. O pedido que espera o
+ * coordenador aparece em "Aguardando você" (visão geral e Pedidos), a visão
+ * geral mostra o andamento pelas seis etapas, e na página do pedido o botão de
+ * aprovar fica no topo, no quadro "O que falta agora".
+ */
+test("coordenador acha o pedido para aprovar e o botão fica no topo da página", async ({ page }) => {
+  await page.goto("/suprimentos");
+  const aguardando = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
+  await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
+    "href",
+    "/pedido?etapa=aprovacao",
+  );
+
+  // andamento: as seis etapas, na ordem, cada uma abrindo a lista filtrada
+  const andamento = page.getByRole("region", { name: "Andamento dos pedidos" });
+  await expect(andamento.getByRole("link", { name: /^Etapa \d/ })).toHaveCount(6);
+  await expect(andamento.getByRole("link", { name: /^Etapa 2, Aprovação: \d+ pedidos?$/ })).toHaveAttribute(
+    "href",
+    "/pedido?etapa=aprovacao",
+  );
+  await expect(andamento.getByRole("link", { name: /^A receber: / })).toHaveAttribute("href", "/recebimento");
+
+  // a lista de Pedidos repete o "Aguardando você" e leva direto ao pedido
+  await page.goto("/pedido");
+  await page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Aguardando você" }) })
+    .getByRole("link", { name: /Primers para aprovar E2E/ })
+    .click();
+  await expect(page).toHaveURL(/\/pedido\/502$/);
+
+  // trilha das seis etapas, com a atual marcada
+  const trilha = page.getByRole("list", { name: "Etapas do pedido" });
+  await expect(trilha.getByRole("listitem")).toHaveCount(6);
+  await expect(trilha.locator('[aria-current="step"]')).toContainText("Aprovação");
+
+  // o quadro diz o que falta, com quem está, de quem é a vez e o que vem depois
+  const painel = page.getByTestId("painel-agora");
+  await expect(painel.getByRole("heading", { name: "Aprovar pedido" })).toBeVisible();
+  await expect(painel).toContainText("Com: Coordenação E2E");
+  await expect(painel.getByTestId("vez")).toHaveText("Sua vez");
+  await expect(painel.getByTestId("depois")).toContainText("o Administrativo formaliza a compra");
+  await expect(painel.getByRole("button", { name: "Devolver ao solicitante" })).toBeVisible();
+
+  // o quadro vem antes da lista de itens
+  const yPainel = (await painel.boundingBox())!.y;
+  const yItens = (await page.getByRole("heading", { name: "Materiais, serviços e equipamentos" }).boundingBox())!.y;
+  expect(yPainel).toBeLessThan(yItens);
+
+  // o botão está liberado para quem decide (a gravação é coberta pelos testes com banco real)
+  await expect(painel.getByRole("button", { name: "Aprovar pedido" })).toBeEnabled();
+});

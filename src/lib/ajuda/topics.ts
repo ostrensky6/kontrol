@@ -181,14 +181,14 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Suprimentos: visão geral",
     grupo: "Suprimentos",
     href: "/suprimentos",
-    resumo: "O que temos em estoque e o que precisa de atenção.",
+    resumo: "O que espera você, o andamento dos pedidos e o que temos em estoque.",
     intro:
-      "A visão geral de Suprimentos responde duas perguntas: o que temos disponível e o que precisa de atenção agora. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento, Equipamentos e Notificações.",
+      "A visão geral de Suprimentos responde três perguntas, nesta ordem: o que espera a sua ação, em que etapa está cada pedido e o que temos disponível em estoque. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento, Equipamentos e Notificações.",
     secoes: [
       {
         titulo: "Onde fica cada coisa",
         itens: [
-          "Visão geral: a tabela 'Estoque disponível' e os quatro avisos (repor, validade, pedidos em andamento e a receber).",
+          "Visão geral: 'Aguardando você', o andamento dos pedidos pelas seis etapas e a tabela 'Estoque disponível'.",
           "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário, etiquetas e códigos não reconhecidos.",
           "Planejamento: reservas de insumo para as análises previstas.",
           "Pedidos: cada pedido e a etapa em que está. Compras formais e prazos de compra ficam no topo dessa página.",
@@ -196,16 +196,24 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Aguardando você e andamento dos pedidos",
+        itens: [
+          "'Aguardando você' mostra só o que depende de você em Suprimentos: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras para receber e planos em rascunho. Clique no nome para abrir direto o registro.",
+          "'Andamento dos pedidos' mostra quantos pedidos há em cada uma das seis etapas (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) e quantos itens comprados ainda não chegaram. Clique numa etapa para abrir a lista já filtrada.",
+          "As seis etapas são as mesmas na visão geral, na lista de Pedidos e na página de cada pedido.",
+        ],
+      },
+      {
         titulo: "Estoque disponível",
         itens: [
           "Uma linha por insumo ativo: disponível (em mãos menos o reservado), reservado, a caminho, mínimo, validade mais próxima e situação.",
           "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia. As regras são as mesmas do Controle de Estoque.",
-          "Clicar em 'Repor' ou 'Validade' nos avisos já abre a tabela filtrada.",
+          "O número em cada botão diz quantos insumos estão naquela situação; o aviso de reposição da página inicial já abre a tabela filtrada.",
           "Para dar entrada, baixa ou ver os lotes, use o Estoque.",
         ],
       },
     ],
-    termos: ["visão geral", "disponível", "a caminho", "mínimo", "repor", "onde fica", "navegação", "menu"],
+    termos: ["visão geral", "disponível", "a caminho", "mínimo", "repor", "onde fica", "navegação", "menu", "aguardando você", "andamento", "etapas"],
   },
   {
     id: "estoque",
@@ -356,6 +364,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Onde o coordenador aprova",
+        itens: [
+          "O pedido enviado aparece para quem aprova em 'Aguardando você': na página inicial, na visão geral de Suprimentos e no topo de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
+          "Clique no nome do pedido para abrir. Logo abaixo do cabeçalho ficam a trilha das seis etapas e o quadro 'O que falta agora', com o próximo passo, com quem está e o que vem depois.",
+          "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
+          "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",
+        ],
+      },
+      {
         titulo: "Criando e consultando",
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
@@ -381,10 +398,10 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Fluxo de aprovação",
         itens: [
-          "Envie para validação quando o pedido estiver completo; pendências aparecem destacadas.",
+          "Envie para aprovação quando o pedido estiver completo; o que falta aparece destacado.",
           "Pedido devolvido para ajuste: corrija e use 'Reenviar'. Se valor, justificativa e projeto continuarem iguais aos da validação, as aprovações continuam valendo e o pedido volta direto para onde parou (a coordenação do laboratório, se foi ela que devolveu). Se algum dos três mudou, passa de novo pelo coordenador. O pedido avisa antes, por escrito, o que vai acontecer.",
-          "O quadro 'Quem aprova' mostra, por escrito, quem valida e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
-          "Só o coordenador do projeto valida; sem projeto, a Supervisão. Na ausência, o Administrador valida como substituto e fica registrado.",
+          "O quadro 'Quem aprova' mostra, por escrito, quem aprova e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
+          "Só o coordenador do projeto aprova; sem projeto, a Supervisão. Na ausência, o Administrador aprova como substituto e fica registrado.",
           "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
           "Após validado (e aprovado pelo laboratório, quando for o caso), formalize em Compras para gerar o pedido formal.",
           "Toda compra tem 3 orçamentos de fornecedores diferentes (inclusive FUNPAR e Petrobras). Registre cada um no quadro 'Orçamentos' do pedido, com valor, prazo e o documento anexado. 'Marcar cotações recebidas' só libera com os 3.",
@@ -831,7 +848,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Pedido de compra: quem é avisado em cada passagem",
         itens: [
-          "Enviado para validação: o coordenador do projeto (sem projeto, a Supervisão). Material de consumo de laboratório: depois, a coordenação do laboratório.",
+          "Enviado para aprovação: o coordenador do projeto (sem projeto, a Supervisão). Material de consumo de laboratório: depois, a coordenação do laboratório.",
           "Formalizar, autorizar (fonte e rubrica), pedir os 3 orçamentos, escolher, aprovação final e fechar a compra: o responsável do administrativo. Sem responsável indicado, o Administrador.",
           "Entrega registrada e pagamento/nota fiscal: o responsável do pagamento. Sem responsável indicado, o Administrador.",
           "O solicitante é avisado quando o pedido volta para ajuste, é aprovado para compra, está a caminho, é concluído ou cancelado.",

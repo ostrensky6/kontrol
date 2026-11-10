@@ -57,10 +57,10 @@ function Botao({
 
   const cls =
     variant === "danger"
-      ? "h-8 rounded-md border border-danger-strong/30 px-3 text-xs font-medium text-danger-strong hover:bg-danger-soft disabled:opacity-50"
+      ? "h-9 rounded-md border border-danger-strong/30 bg-card px-3 text-sm font-medium text-danger-strong shadow-none hover:bg-danger-soft hover:text-danger-strong disabled:opacity-50"
       : variant === "outline"
-        ? "h-8 rounded-md border border-input px-3 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
-        : "h-8 rounded-md bg-brand-600 px-3 text-xs font-medium text-white hover:bg-brand-500 disabled:opacity-50";
+        ? "h-9 rounded-md border border-input bg-card px-3 text-sm font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground disabled:opacity-50"
+        : "h-9 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50";
 
   return (
     <div className="flex flex-col gap-1">
@@ -73,17 +73,24 @@ function Botao({
             required
             aria-label={comentarioPlaceholder}
             placeholder={comentarioPlaceholder}
-            className="h-8 w-52 rounded-md border border-input bg-card px-2 text-xs"
+            className="h-9 w-56 rounded-md border border-input bg-card px-2 text-sm"
           />
         )}
         {children}
-        <SubmitButton disabled={disabled} pendingLabel="Enviando…" className={cls} title={disabledReason}>
+        {/* a variante evita que o fundo do botão principal vaze para os botões de contorno */}
+        <SubmitButton
+          variant={variant === "primary" ? "default" : "outline"}
+          disabled={disabled}
+          pendingLabel="Enviando…"
+          className={cls}
+          title={disabledReason}
+        >
           {label}
         </SubmitButton>
       </form>
-      {disabled && disabledReason && <p className="max-w-64 text-xs text-muted-foreground">{disabledReason}</p>}
+      {disabled && disabledReason && <p className="max-w-80 text-xs text-muted-foreground">{disabledReason}</p>}
       {state.message && (
-        <p className={`max-w-64 text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
+        <p className={`max-w-80 text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
           {state.message}
         </p>
       )}
@@ -147,7 +154,7 @@ export function PedidoInternoAcoes({
         <Botao
           pedidoId={pedidoId}
           action={enviarParaValidacao}
-          label={status === "rascunho" ? "Enviar para validação" : "Reenviar"}
+          label={status === "rascunho" ? "Enviar para aprovação" : "Reenviar"}
           disabled={!podeEnviarValidacao || Boolean(motivoSemEnvio)}
           disabledReason={
             motivoSemEnvio ??
@@ -161,7 +168,7 @@ export function PedidoInternoAcoes({
           <Botao
             pedidoId={pedidoId}
             action={validarInformacoes}
-            label="Validar informações"
+            label="Aprovar pedido"
             disabled={Boolean(motivoSemValidacao)}
             disabledReason={motivoSemValidacao}
           />
@@ -208,7 +215,7 @@ export function PedidoInternoAcoes({
 
       {status === "analise_administrativa" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={aprovarAnaliseAdministrativa} label="Aprovar compra" />
+          <Botao pedidoId={pedidoId} action={aprovarAnaliseAdministrativa} label="Autorizar compra" />
           <Botao
             pedidoId={pedidoId}
             action={devolverParaCompras}
@@ -260,7 +267,7 @@ export function PedidoInternoAcoes({
           />
           <Botao pedidoId={pedidoId} action={encaminharInstituicao} label="Encaminhar à instituição" variant="outline">
             <div className="grid w-72 gap-2">
-              <select name="modalidade_compra" defaultValue="fundacao" className="h-8 rounded-md border border-input bg-card px-2 text-xs">
+              <select name="modalidade_compra" defaultValue="fundacao" className="h-9 rounded-md border border-input bg-card px-2 text-sm">
                 <option value="fundacao">Fundação</option>
                 <option value="universidade">Universidade</option>
                 <option value="outra">Outra instituição</option>
@@ -270,12 +277,12 @@ export function PedidoInternoAcoes({
                 required
                 defaultValue={controlado ? "FUNPAR" : undefined}
                 placeholder="Instituição de destino"
-                className="h-8 rounded-md border border-input bg-card px-2 text-xs"
+                className="h-9 rounded-md border border-input bg-card px-2 text-sm"
               />
               <input
                 name="protocolo_externo"
                 placeholder="Protocolo/referência externa"
-                className="h-8 rounded-md border border-input bg-card px-2 text-xs"
+                className="h-9 rounded-md border border-input bg-card px-2 text-sm"
               />
             </div>
           </Botao>
@@ -288,7 +295,7 @@ export function PedidoInternoAcoes({
             name="observacao"
             aria-label="Observação da entrega (opcional)"
             placeholder="Observação (opcional)"
-            className="h-8 w-52 rounded-md border border-input bg-card px-2 text-xs"
+            className="h-9 w-56 rounded-md border border-input bg-card px-2 text-sm"
           />
         </Botao>
       )}

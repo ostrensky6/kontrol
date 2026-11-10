@@ -83,11 +83,11 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     match: (path) => path === "/suprimentos",
     content: {
       title: "Suprimentos",
-      description: "O que temos em estoque e o que precisa de atenção. Cada assunto tem um lugar só na barra de cima.",
+      description: "O que espera você, o andamento dos pedidos e o que temos em estoque. Cada assunto tem um lugar só na barra de cima.",
       checks: [
-        "A tabela Estoque disponível mostra, por insumo, o que dá para usar, o reservado, o que está a caminho e a validade mais próxima.",
-        "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia.",
-        "Entradas, baixas e lotes ficam em Estoque; o andamento de cada pedido, em Pedidos.",
+        "Aguardando você mostra o que depende de você: pedidos para aprovar, autorizar, cotar ou pagar, compras para receber e planos em rascunho.",
+        "Andamento dos pedidos mostra quantos pedidos há em cada uma das seis etapas; clique numa etapa para ver os pedidos dela.",
+        "A tabela Estoque disponível mostra, por insumo, o que dá para usar, o reservado, o que está a caminho e a validade mais próxima; os botões acima filtram por situação.",
       ],
     },
   },
@@ -97,9 +97,21 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Pedidos",
       description: "O que foi pedido e em que etapa cada pedido está, da solicitação ao pagamento.",
       checks: [
+        "Aguardando você mostra os pedidos que dependem de você, como os que o coordenador precisa aprovar. Clique no nome para abrir.",
         "Clique numa etapa para ver só os pedidos dela; Em andamento, Concluídos, Cancelados e Todos trocam o conjunto.",
-        "A barra de cada linha mostra as etapas cumpridas (verde) e a atual (amarelo).",
-        "Próximo passo diz o que falta e com quem está. Abra o pedido para agir.",
+        "Próximo passo diz o que falta e com quem está. Os botões de cada etapa ficam no topo do pedido, no quadro O que falta agora.",
+      ],
+    },
+  },
+  {
+    match: (path) => /^\/pedido\/\d+/.test(path),
+    content: {
+      title: "Pedido",
+      description: "Em que etapa o pedido está, o que falta agora e com quem.",
+      checks: [
+        "A trilha no topo mostra as seis etapas: as cumpridas levam um visto e a atual fica em destaque.",
+        "O quadro O que falta agora diz o próximo passo, com quem está e o que vem depois. Com Sua vez, os botões ficam ali: aprovar ou devolver.",
+        "Os itens ficam logo abaixo; documentos, aprovações e a linha do tempo, no fim da página.",
       ],
     },
   },

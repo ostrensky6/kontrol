@@ -672,7 +672,7 @@ export async function validarInformacoes(_prev: FormState, formData: FormData): 
     return {
       ok: false,
       message: aprovadores.coordenador
-        ? `Este pedido é validado por ${aprovadores.coordenador.nome ?? "quem coordena"} (${aprovadores.coordenador.rotulo}). Na ausência, o Administrador valida como substituto.`
+        ? `Este pedido é aprovado por ${aprovadores.coordenador.nome ?? "quem coordena"} (${aprovadores.coordenador.rotulo}). Na ausência, o Administrador aprova como substituto.`
         : aprovadores.falta_coordenador ?? "Este pedido não tem coordenador indicado.",
     };
   }
