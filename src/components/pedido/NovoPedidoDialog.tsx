@@ -64,9 +64,6 @@ export function NovoPedidoDialog({
           <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-12">
             <div className="md:col-span-12">
               <h3 className="text-sm font-semibold">Identificação do pedido</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">
-                O suficiente para o coordenador entender origem, urgência e contexto.
-              </p>
             </div>
             <div className="md:col-span-6">
               <label htmlFor="novo-pedido-titulo" className="block text-xs font-medium text-muted-foreground">Título do pedido</label>
@@ -207,7 +204,7 @@ export function NovoPedidoDialog({
             <div className="md:col-span-2">
               <h3 className="text-sm font-semibold">Justificativa</h3>
               <p className="mt-0.5 text-xs text-muted-foreground">
-                Explique para que serve e por que é necessário. Fonte e rubrica são definidas pelo administrativo.
+                Fonte e rubrica são definidas pelo administrativo.
               </p>
             </div>
             <div className="md:col-span-2">

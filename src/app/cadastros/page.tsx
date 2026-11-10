@@ -192,7 +192,7 @@ export default async function CadastrosIndex() {
         <section id="todos-os-cadastros" aria-labelledby="todos-os-cadastros-titulo" className="mt-10 scroll-mt-20 border-t border-border pt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 id="todos-os-cadastros-titulo" className="text-lg font-semibold tracking-tight">
-              Cadastros — dados mestres
+              Todos os cadastros
             </h2>
             <Link href="/cadastros/qualidade" className="inline-flex rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
               Revisar qualidade dos cadastros

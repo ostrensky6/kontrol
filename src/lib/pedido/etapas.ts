@@ -9,12 +9,12 @@
  */
 
 export const ETAPAS_PEDIDO = [
-  { id: "solicitacao", rotulo: "Solicitação", descricao: "o solicitante monta a lista e envia" },
-  { id: "aprovacao", rotulo: "Aprovação", descricao: "coordenador do projeto e, no material de laboratório, a coordenação do laboratório" },
-  { id: "administrativo", rotulo: "Administrativo", descricao: "formalização, fonte de recurso e autorização" },
+  { id: "solicitacao", rotulo: "Solicitação", descricao: "o solicitante monta e envia" },
+  { id: "aprovacao", rotulo: "Aprovação", descricao: "coordenador do projeto e do laboratório" },
+  { id: "administrativo", rotulo: "Administrativo", descricao: "fonte de recurso e autorização" },
   { id: "cotacao", rotulo: "Cotação", descricao: "três orçamentos e aprovação final" },
-  { id: "compra", rotulo: "Compra e entrega", descricao: "compra direta ou pela instituição, até o material chegar" },
-  { id: "pagamento", rotulo: "Pagamento", descricao: "nota fiscal, boleto e comprovante" },
+  { id: "compra", rotulo: "Compra e entrega", descricao: "da compra até o material chegar" },
+  { id: "pagamento", rotulo: "Pagamento", descricao: "nota fiscal e comprovante" },
 ] as const;
 
 export type EtapaAtivaId = (typeof ETAPAS_PEDIDO)[number]["id"];
