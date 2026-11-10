@@ -150,9 +150,7 @@ export function PainelInsumos({
         </p>
       ) : null}
 
-      <p className="text-sm text-muted-foreground">
-        Saldo registrado no sistema · Conferência física não comprovada. O disponível pode ser zero mesmo com saldo em mãos.
-      </p>
+      <p className="text-xs text-muted-foreground">Saldo registrado no sistema · Conferência física não comprovada.</p>
 
       <div className="flex flex-wrap items-end gap-3 rounded-lg border border-border bg-card p-3 shadow-sm">
         <label className="grid min-w-48 flex-1 gap-1 text-xs font-medium text-muted-foreground sm:flex-none">

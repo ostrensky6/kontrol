@@ -1,3 +1,4 @@
+import { HelpTip } from "@/components/common/HelpTip";
 import Link from "next/link";
 
 import { formatDate } from "@/lib/formatters";
@@ -146,12 +147,18 @@ export function ACaminhoInsumos({
   return (
     <section aria-labelledby="a-caminho-titulo" className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="painel-a-caminho">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 id="a-caminho-titulo" className="text-base font-semibold">A caminho: compras ainda não recebidas</h2>
+        <div className="flex items-center gap-1">
+          <h2 id="a-caminho-titulo" className="text-base font-semibold">A caminho: compras ainda não recebidas</h2>
+          <HelpTip title="A caminho">
+            <p>
+              Confira aqui antes de pedir de novo. Só aparece o que falta receber do que já foi comprado ou
+              autorizado; o que já chegou está no saldo do estoque.
+            </p>
+            <p>Compra que ainda espera aprovação fica à parte, logo abaixo: ela não garante entrega.</p>
+          </HelpTip>
+        </div>
         <Link href="/recebimento" className="text-sm font-medium text-primary hover:underline">Registrar recebimento</Link>
       </div>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Confira aqui antes de pedir de novo. Só aparece o que falta receber; o que já chegou está no saldo do estoque.
-      </p>
       {semAcesso ? (
         <p className="mt-3 text-sm text-muted-foreground">
           Para ver as compras a caminho é preciso a permissão &quot;Acessar Compras&quot;. Peça ao administrador.

@@ -86,6 +86,8 @@ export type CadastroConfig = {
   tabela: string;
   titulo: string;
   singular: string;
+  /** uma linha curta para o cartão de Cadastros; a explicação completa fica em `subtitulo` (ajuda) */
+  resumo: string;
   subtitulo: string;
   /** coluna usada como rótulo nas confirmações */
   rotulo: string;
@@ -102,6 +104,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "clientes",
     titulo: "Clientes",
     singular: "cliente",
+    resumo: "Quem contrata o laboratório.",
     subtitulo:
       "Quem contrata o laboratório. Cada cliente se liga às **propostas** e, pelos projetos, aos planejamentos e compras.",
     rotulo: "nome",
@@ -133,6 +136,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "projetos",
     titulo: "Projetos",
     singular: "projeto",
+    resumo: "Cliente, coordenador e vínculos de cada projeto.",
     subtitulo:
       "Trabalhos do laboratório. Cada projeto pertence a um **cliente** e reúne orçamentos, planejamentos e compras.",
     rotulo: "nome",
@@ -184,6 +188,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "coordenacoes_area",
     titulo: "Laboratórios e áreas",
     singular: "laboratório ou área",
+    resumo: "Quem coordena cada laboratório ou área.",
     subtitulo:
       "Quem coordena cada laboratório ou área. A coordenação **aprova o material de consumo de laboratório** depois do coordenador do projeto; sem coordenação indicada, o pedido não segue.",
     rotulo: "nome",
@@ -220,6 +225,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "responsaveis_compras",
     titulo: "Responsáveis do administrativo e do pagamento",
     singular: "responsável",
+    resumo: "Quem autoriza a compra e quem paga.",
     subtitulo:
       "Quem **autoriza a compra** (fonte e rubrica, cotações, aprovação final) e quem **paga**. Essas pessoas recebem os avisos e os e-mails de cada passagem do pedido nessas etapas e veem os pedidos em \"Aguardando você\". Sem responsável, os avisos vão para o Administrador.",
     rotulo: "etapa_nome",
@@ -255,6 +261,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "previsao_equipamentos",
     titulo: "Previsão de equipamentos",
     singular: "equipamento previsto",
+    resumo: "O que a equipe pretende comprar, por prioridade.",
     subtitulo:
       "Equipamentos que a equipe vai precisar (aba EQ da planilha), com **prioridade de 1 a 3**. Quando a compra começar, abra um pedido de equipamento e informe o número aqui: a situação acompanha o pedido (concluído vira comprado; cancelado volta a previsto).",
     rotulo: "nome",
@@ -321,6 +328,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "equipamentos",
     titulo: "Equipamentos",
     singular: "equipamento",
+    resumo: "Equipamentos do laboratório e o custo por dia.",
     subtitulo:
       "Equipamentos do laboratório. O **custo/dia** soma a depreciação pela vida útil e a manutenção, dividido pelos dias úteis do ano.",
     rotulo: "nome",
@@ -386,6 +394,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "insumos",
     titulo: "Insumos",
     singular: "insumo",
+    resumo: "Reagentes e consumíveis, com embalagem e reposição.",
     subtitulo:
       "Catálogo de reagentes e consumíveis, com embalagem, fornecedor, reposição e armazenamento. O **custo unitário** é o valor da embalagem dividido pela quantidade.",
     rotulo: "especificacao",
@@ -589,6 +598,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "tipo_insumos",
     titulo: "Tipos técnicos",
     singular: "tipo técnico",
+    resumo: "Nomes padronizados que agrupam itens equivalentes.",
     subtitulo:
       "Nomes padronizados usados nos cálculos e relatórios. Cada tipo técnico **agrupa itens equivalentes** do catálogo de insumos (marcas ou embalagens diferentes).",
     rotulo: "nome",
@@ -626,6 +636,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "tecnicos",
     titulo: "Técnicos",
     singular: "técnico",
+    resumo: "Equipe do laboratório e dedicação.",
     subtitulo:
       "Equipe do laboratório e sua dedicação. O **valor HH** (custo da hora × % dedicado) entra no custo das análises.",
     rotulo: "nome",
@@ -678,6 +689,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "fornecedores",
     titulo: "Fornecedores",
     singular: "fornecedor",
+    resumo: "Empresas que vendem ao laboratório.",
     subtitulo:
       "Empresas que vendem ao laboratório, com dados fiscais, contato e prazos. Usados nos insumos, nas compras e no **ponto de reposição**.",
     rotulo: "nome",
@@ -714,6 +726,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "locais",
     titulo: "Locais",
     singular: "local",
+    resumo: "Onde o material fica guardado.",
     subtitulo:
       "Onde o material fica guardado: prédio, sala, freezer, geladeira, gaveta, caixa ou posição. Usados no **inventário** e na localização dos lotes.",
     rotulo: "nome",
@@ -764,6 +777,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     tabela: "overhead",
     titulo: "Overhead",
     singular: "item de overhead",
+    resumo: "Custos fixos mensais do laboratório.",
     subtitulo:
       "Custos fixos mensais (aluguel, energia, incubação UFPR…) rateados por **hora de bancada**. A taxa de incubação em % da proposta fica em Parâmetros de custeio.",
     rotulo: "item",
