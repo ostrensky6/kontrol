@@ -44,6 +44,18 @@ export function papelAlcanca(papel: string | null | undefined, minimo: PapelUsua
   const atual = nivelPapel(papel);
   return atual >= 0 && atual >= nivelPapel(minimo);
 }
+
+/**
+ * Quem decide disputa de reserva entre planos (decisão do dono em 10/11/2026;
+ * mesma regra de kontrol_private.pode_decidir_disputa_reserva, 0178). É uma
+ * lista de funções, não um nível: o Gestor identifica a falta e pede a
+ * reserva, mas não decide.
+ */
+export const PAPEIS_DECIDEM_DISPUTA_RESERVA: readonly PapelUsuario[] = ["coordenador", "supervisor", "admin"];
+
+export function decideDisputaReserva(papel: string | null | undefined): boolean {
+  return PAPEIS_DECIDEM_DISPUTA_RESERVA.some((item) => item === papel);
+}
 export type PermissaoUsuario =
   | "orcamentos.visualizar"
   | "orcamentos.criar_editar"

@@ -152,6 +152,24 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
     expect(papelAlcanca("inventado", "laboratorio")).toBe(false);
   });
 
+  it("disputa de reserva: decidem Coordenador, Supervisor e Administrador; o Gestor só pede (0178)", async () => {
+    const { PAPEIS, PAPEIS_DECIDEM_DISPUTA_RESERVA, decideDisputaReserva, papelAlcanca } = await import("./permissions");
+    const decidem = PAPEIS.map((papel) => papel.value).filter((papel) => decideDisputaReserva(papel));
+    expect(decidem).toEqual(["coordenador", "supervisor", "admin"]);
+    // Não é nível: o Gestor está acima do Coordenador e mesmo assim não decide.
+    expect(papelAlcanca("gestor", "coordenador")).toBe(true);
+    expect(decideDisputaReserva("gestor")).toBe(false);
+    for (const papel of ["laboratorio", "compra", "cadastro", "tecnico", "inventado", "", null, undefined]) {
+      expect(decideDisputaReserva(papel)).toBe(false);
+    }
+    // A tela e o banco usam a mesma lista.
+    const { readFileSync } = await import("node:fs");
+    const sql = readFileSync("supabase/migrations/0178_disputa_reservas_sem_gestor.sql", "utf8");
+    const lista = /current_papel\(\) in \(([^)]*)\)/.exec(sql)?.[1] ?? "";
+    const noBanco = [...lista.matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+    expect(noBanco).toEqual([...PAPEIS_DECIDEM_DISPUTA_RESERVA].sort());
+  });
+
   it("Compra e Cadastro começam só com o que a função faz, sem salário, orçamento ou auditoria", () => {
     const compra = defaultPermissionsForRole("compra");
     expect(compra).toEqual(expect.arrayContaining(["compras.ver", "compras.solicitar", "compras.receber", "recebimento.registrar"]));
