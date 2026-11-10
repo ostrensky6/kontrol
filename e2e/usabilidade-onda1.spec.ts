@@ -62,3 +62,23 @@ test("página inicial não aponta para rotas que só redirecionam", async ({ pag
   await expect(page.locator('a[href="/orcamento/projetos"], a[href="/orcamento/revisao"], a[href="/orcamento"]')).toHaveCount(0);
   await expect(page.getByRole("link", { name: /^Ver todos:/ }).first()).toBeVisible();
 });
+
+// Lapidação de 10/11: o que pede decisão vem antes dos gráficos e cada destino
+// aparece uma vez só; a compra começa em Pedidos (caminho único).
+test("página inicial mostra as pendências antes dos gráficos, sem atalhos repetidos", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const main = page.getByRole("main");
+  const pendencias = main.getByRole("region", { name: "Pendências" });
+  const graficos = main.getByRole("heading", { name: "Dashboard executivo" });
+  await expect(pendencias).toBeVisible();
+  await expect(graficos).toBeVisible();
+  const yPendencias = (await pendencias.boundingBox())!.y;
+  const yGraficos = (await graficos.boundingBox())!.y;
+  expect(yPendencias).toBeLessThan(yGraficos);
+
+  await expect(main.locator('a[href="/orcamento/demandas/nova"]')).toHaveCount(1);
+  await expect(main.locator('a[href="/planejamento"]')).toHaveCount(1);
+  await expect(main.getByRole("link", { name: /Abrir compras/ })).toHaveCount(0);
+  await expect(main.getByRole("link", { name: /^3\s*Pedidos/ })).toHaveAttribute("href", "/pedido");
+});

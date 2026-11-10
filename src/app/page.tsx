@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { ArrowRight, Bell, ClipboardList, PackageSearch, ShoppingCart, TestTube2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { ExecutiveCharts } from "@/components/dashboard/ExecutiveCharts";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
@@ -68,34 +67,6 @@ type Notificacao = {
 };
 
 const vazio = { data: null, count: null };
-
-function AcaoRapida({
-  href,
-  titulo,
-  desc,
-  icon: Icon,
-}: {
-  href: string;
-  titulo: string;
-  desc: string;
-  icon: React.ComponentType<{ className?: string }>;
-}) {
-  return (
-    <Link
-      href={href}
-      className="group flex min-w-52 flex-1 items-center gap-3 rounded-lg border border-border bg-card p-3 shadow-xs transition-colors hover:bg-muted/50"
-    >
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-colors group-hover:text-foreground">
-        <Icon className="h-4 w-4" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{titulo}</span>
-        <span className="block truncate text-xs text-muted-foreground">{desc}</span>
-      </span>
-      <ArrowRight className="h-4 w-4 shrink-0 text-muted-foreground/60 transition-transform group-hover:translate-x-0.5" />
-    </Link>
-  );
-}
 
 /** Indicador clicável: leva à lista que explica o número. */
 function Indicador({
@@ -341,14 +312,6 @@ export default async function Home() {
     });
   }
 
-  const acoesRapidas = [
-    pode("orcamentos.criar_editar") && { href: "/orcamento/demandas/nova", titulo: "Novo orçamento", desc: "Montar análises e preço", icon: TestTube2 },
-    verPlanejamento && { href: "/planejamento", titulo: "Planejar campanha", desc: "Reservas e consumo", icon: ClipboardList },
-    verEstoque && { href: "/estoque", titulo: "Revisar estoque", desc: "Saldos, lotes e validade", icon: PackageSearch },
-    verCompras && { href: "/compras", titulo: "Abrir compras", desc: "Reposição e recebimento", icon: ShoppingCart },
-    { href: "/notificacoes", titulo: "Notificações", desc: "Avisos para você", icon: Bell },
-  ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string; icon: React.ComponentType<{ className?: string }> }>;
-
   const passosOrcamento = [
     pode("orcamentos.criar_editar") && { href: "/orcamento/demandas/nova", titulo: "Novo orçamento", desc: "Cliente, amostras e análises em um só formulário." },
     verOrcamentos && { href: "/orcamento/demandas", titulo: "Orçamentos em andamento", desc: "Custos, revisão e emissão da proposta final." },
@@ -358,7 +321,8 @@ export default async function Home() {
   const passosEstoque = [
     verPlanejamento && { href: "/planejamento", titulo: "Planejamento", desc: "Calcule consumo por campanha e reserve material antes da execução." },
     verEstoque && { href: "/estoque", titulo: "Estoque e lotes", desc: "Veja saldo, validade, bloqueios e rastreabilidade." },
-    verCompras && { href: "/compras", titulo: "Compras", desc: "Transforme alertas em solicitação, aprovação, envio e recebimento." },
+    // caminho único da compra (decisão de 09/11): começa e é acompanhada em Pedidos
+    pode("pedido.ver") && { href: "/pedido", titulo: "Pedidos", desc: "Peça material e acompanhe do pedido ao pagamento." },
   ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string }>;
 
   const baseControle = (
@@ -405,54 +369,11 @@ export default async function Home() {
         </section>
       )}
 
-      <section className="flex flex-wrap gap-3" aria-label="Ações rápidas">
-        {acoesRapidas.map((acao) => (
-          <AcaoRapida key={acao.href} {...acao} />
-        ))}
-      </section>
-
       {semModulos && (
         <EmptyState
           title="Nenhuma área liberada para o seu usuário"
           description="Peça ao administrador para liberar as áreas de que você precisa em Usuários. Os avisos para você continuam em Notificações."
         />
-      )}
-
-      {(gastos !== null || funil !== null) && (
-        <SectionCard title="Dashboard executivo">
-          <ExecutiveCharts gastos={gastos} funil={funil} />
-        </SectionCard>
-      )}
-
-      {(passosOrcamento.length > 0 || passosEstoque.length > 0) && (
-        <section className="grid gap-4 lg:grid-cols-2" aria-label="Jornadas">
-          {passosOrcamento.length > 0 && (
-            <JornadaCard
-              titulo="Orçamento"
-              subtitulo="Do pedido do cliente à proposta emitida."
-              ajuda={
-                <p>
-                  O preço sai das análises escolhidas: <b>custos diretos</b> (reagentes, equipamento e
-                  pessoal), overhead e fatores comerciais. Tudo fica registrado na proposta.
-                </p>
-              }
-              passos={passosOrcamento}
-            />
-          )}
-          {passosEstoque.length > 0 && (
-            <JornadaCard
-              titulo="Estoque"
-              subtitulo="Do planejamento à reposição."
-              ajuda={
-                <p>
-                  O plano calcula quanto de cada insumo será usado e <b>reserva os lotes</b>. A baixa
-                  segue o lote que vence primeiro, e a falta de saldo gera pedido de compra.
-                </p>
-              }
-              passos={passosEstoque}
-            />
-          )}
-        </section>
       )}
 
       <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" aria-label="Pendências">
@@ -479,7 +400,7 @@ export default async function Home() {
           <ListaProblemas
             titulo="Compras em andamento"
             href="/compras"
-            vazio="Nenhum pedido aberto no ciclo de compras."
+            vazio="Nenhuma compra formal em andamento."
             itens={pedidos.slice(0, 5).map((p) => ({
               titulo: `Compra #${p.id}`,
               meta: `${statusInfo(p.status).label}${p.data_solicitacao ? ` · ${formatDate(p.data_solicitacao)}` : ""}${p.projeto ? ` · ${p.projeto}` : ""}`,
@@ -496,6 +417,43 @@ export default async function Home() {
           }))}
         />
       </section>
+
+      {(gastos !== null || funil !== null) && (
+        <SectionCard title="Dashboard executivo">
+          <ExecutiveCharts gastos={gastos} funil={funil} />
+        </SectionCard>
+      )}
+
+      {(passosOrcamento.length > 0 || passosEstoque.length > 0) && (
+        <section className="grid gap-4 lg:grid-cols-2" aria-label="Jornadas">
+          {passosOrcamento.length > 0 && (
+            <JornadaCard
+              titulo="Orçamento"
+              subtitulo="Do pedido do cliente à proposta emitida."
+              ajuda={
+                <p>
+                  O preço sai das análises escolhidas: <b>custos diretos</b> (reagentes, equipamento e
+                  pessoal), overhead e fatores comerciais. Tudo fica registrado na proposta.
+                </p>
+              }
+              passos={passosOrcamento}
+            />
+          )}
+          {passosEstoque.length > 0 && (
+            <JornadaCard
+              titulo="Suprimentos"
+              subtitulo="Do planejamento à reposição."
+              ajuda={
+                <p>
+                  O plano calcula quanto de cada insumo será usado e <b>reserva os lotes</b>. A baixa
+                  segue o lote que vence primeiro, e a falta de saldo vira pedido, acompanhado em <b>Pedidos</b>.
+                </p>
+              }
+              passos={passosEstoque}
+            />
+          )}
+        </section>
+      )}
 
       {baseControle.length > 0 && (
         <SectionCard
