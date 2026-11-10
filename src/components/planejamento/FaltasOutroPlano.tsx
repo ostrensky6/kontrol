@@ -39,7 +39,7 @@ export async function FaltasOutroPlano({ planId, reservado, podeExecutar }: { pl
     <section id="faltas-outro-plano" className="mt-8 scroll-mt-24 rounded-lg border border-border bg-card p-4 shadow-sm" aria-labelledby="faltas-outro-plano-titulo">
       <h2 id="faltas-outro-plano-titulo" className="text-base font-semibold">Falta na reserva: pedir de outro plano</h2>
       <p className="mt-1 text-xs text-muted-foreground">
-        Se outro plano reservado segura o insumo que falta aqui, peça a reserva dele. Coordenador ou acima decide em{" "}
+        Se outro plano reservado segura o insumo que falta aqui, peça a reserva dele. Coordenador, Supervisor ou Administrador decide em{" "}
         <Link href="/planejamento/disputas" className="text-primary hover:underline">Disputas de reserva</Link>; o outro plano fica com a falta.
       </p>
       {porInsumo.size > 0 && (

@@ -1,4 +1,4 @@
-import { papelAlcanca } from "@/lib/auth/permissions";
+import { decideDisputaReserva, papelAlcanca } from "@/lib/auth/permissions";
 
 type Row = Record<string, unknown>;
 type Store = Record<string, Row[]>;
@@ -2429,6 +2429,10 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         };
       }
       if (fn === "decidir_disputa_reserva") {
+        // 0178: o Gestor identifica e pede; decidem Coordenador, Supervisor e Administrador.
+        if (!decideDisputaReserva(papelMockAtual())) {
+          return { data: null, error: { message: "Somente Coordenador, Supervisor ou Administrador decidem disputas de reserva. O Gestor identifica a falta e pede a reserva.", code: "42501" } };
+        }
         const d = (store.reservas_disputas ?? []).find((row) => Number(row.id) === Number(args.p_disputa_id));
         if (!d) return { data: null, error: { message: "Pedido não encontrado.", code: "P0002" } };
         if (d.status !== "pendente") return { data: null, error: { message: "Este pedido já foi decidido por outra pessoa. Recarregue a página.", code: "55000" } };

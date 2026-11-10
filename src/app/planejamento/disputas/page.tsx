@@ -3,7 +3,8 @@ import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
 import { DecidirDisputaForm, type PlanoCandidato } from "@/components/planejamento/DisputaReservaForms";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import { temPapel } from "@/lib/auth/roles";
+import { decideDisputaReserva } from "@/lib/auth/permissions";
+import { usuarioAtual } from "@/lib/auth/roles";
 import { formatDateTime, formatNumber as fmt } from "@/lib/formatters";
 import { createClientUntyped } from "@/lib/supabase/server";
 
@@ -34,7 +35,9 @@ export default async function DisputasReservaPage() {
       </main>
     );
   }
-  const podeDecidir = await temPapel("coordenador");
+  // 0178: o Gestor identifica a falta e pede; decidem Coordenador, Supervisor e Administrador.
+  const usuario = await usuarioAtual();
+  const podeDecidir = usuario != null && !usuario.suspenso && decideDisputaReserva(usuario.papel);
   const supabase = await createClientUntyped();
   const { data, error } = await supabase
     .from("reservas_disputas")
@@ -66,12 +69,15 @@ export default async function DisputasReservaPage() {
         Disputas de reserva
         <HelpTip title="Como funciona">
           <p>Quando um plano reservado fica com falta de um insumo que outro plano reservado segura, quem executa pode pedir a reserva do outro plano.</p>
-          <p>Coordenador, Gestor, Supervisor ou Administrador decide: <b>transferir</b> (a reserva passa de um plano para o outro, lote por lote, validade mais curta primeiro) ou <b>negar</b>.</p>
+          <p>O Gestor identifica a falta e pede, mas não decide.</p>
+          <p>Coordenador, Supervisor ou Administrador decide: <b>transferir</b> (a reserva passa de um plano para o outro, lote por lote, validade mais curta primeiro) ou <b>negar</b>.</p>
           <p>O plano que cede fica com a falta e precisa repor ou reservar de novo antes de iniciar. Se duas pessoas decidirem ao mesmo tempo, só a primeira vale.</p>
         </HelpTip>
       </h1>
       <p className="mt-1 text-sm text-muted-foreground">
-        {pendentes === 0 ? "Nenhum pedido aguardando decisão." : `${pendentes} ${pendentes === 1 ? "pedido aguardando" : "pedidos aguardando"} decisão.`}
+        {pendentes === 0
+          ? "Nenhum pedido aguardando decisão."
+          : `${pendentes} ${pendentes === 1 ? "pedido aguardando" : "pedidos aguardando"} decisão${podeDecidir ? "" : " de Coordenador, Supervisor ou Administrador"}.`}
       </p>
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os pedidos agora. Recarregue a página.</p>}
       <section className="mt-6 space-y-3" aria-label="Pedidos de reserva">

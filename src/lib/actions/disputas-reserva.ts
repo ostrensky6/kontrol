@@ -22,10 +22,10 @@ export async function pedirReservaDeOutroPlano(_prev: EstadoAcao, form: FormData
   if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/planejamento/${plano}`);
   revalidatePath("/planejamento/disputas");
-  return { ok: true, message: "Pedido enviado. Coordenador ou acima vai decidir." };
+  return { ok: true, message: "Pedido enviado. Coordenador, Supervisor ou Administrador vai decidir." };
 }
 
-/** Coordenador ou acima transfere a reserva de um plano para outro, ou nega. */
+/** Coordenador, Supervisor ou Administrador transfere a reserva de um plano para outro, ou nega (0178: o Gestor não decide). */
 export async function decidirDisputaReserva(_prev: EstadoAcao, form: FormData): Promise<EstadoAcao> {
   const disputa = String(form.get("disputa_id") ?? "").trim();
   const decisao = String(form.get("decisao") ?? "").trim();
