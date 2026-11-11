@@ -1,7 +1,8 @@
+import Link from "next/link";
+
 import { createClient } from "@/lib/supabase/server";
 import { criarPedido } from "@/lib/actions/compras";
 import { ComprasTable, type CompraRow } from "@/components/compras/ComprasTable";
-import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
 import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -138,7 +139,10 @@ export default async function ComprasPage() {
                   </HelpTip>
                 </div>
               </div>
-              <GerarPedidoReposicaoButton />
+              {/* D6: o botão de gerar a reposição fica num lugar só, junto dos alertas de repor */}
+              <Link href="/estoque/situacao" className="text-sm font-semibold text-warning-strong underline underline-offset-2">
+                Repor pela Situação do estoque
+              </Link>
             </div>
             <PrazoReposicao className="mt-1" />
             <ul className="mt-2 space-y-1 text-xs text-warning-strong">
@@ -170,7 +174,11 @@ export default async function ComprasPage() {
                 </HelpTip>
               </div>
             </div>
-            {sugestoes.length === 0 && <GerarPedidoReposicaoButton />}
+            {sugestoes.length === 0 && (
+              <Link href="/estoque/situacao" className="text-sm font-semibold text-info-strong underline underline-offset-2">
+                Repor pela Situação do estoque
+              </Link>
+            )}
           </div>
         </div>
 

@@ -125,7 +125,7 @@ function Linhas({ itens }: { itens: ItemACaminho[] }) {
 }
 
 /**
- * Quadro "A caminho" do painel de insumos: compras feitas e ainda não
+ * Quadro "A caminho" da Situação do estoque: compras feitas e ainda não
  * recebidas por inteiro. Mostra só o que falta receber; o que chegou já está
  * no saldo do estoque.
  */
@@ -146,7 +146,7 @@ export function ACaminhoInsumos({
   const primeiros = confirmados.slice(0, VISIVEIS);
   const demais = confirmados.slice(VISIVEIS);
   return (
-    <section aria-labelledby="a-caminho-titulo" className="mt-6 rounded-lg border border-border bg-card p-4" data-testid="painel-a-caminho">
+    <section aria-labelledby="a-caminho-titulo" className="rounded-lg border border-border bg-card p-4" data-testid="painel-a-caminho">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <div className="flex items-center gap-1">
           <h2 id="a-caminho-titulo" className="text-base font-semibold">A caminho: compras ainda não recebidas</h2>

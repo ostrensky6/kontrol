@@ -355,6 +355,7 @@ async function criarPedidoReposicao(
   revalidatePath("/suprimentos");
   revalidatePath("/estoque");
   revalidatePath("/estoque/controle");
+  revalidatePath("/estoque/situacao");
 
   return {
     ok: true,
@@ -410,7 +411,7 @@ export async function gerarPedidosReposicaoEstoque(
   return criarPedidoReposicao(
     (data ?? []) as PrevisaoReposicao[],
     `Reposição automática de estoque · ${hojeData()}`,
-    "Pedido gerado pelo Controle de Estoque com os insumos abaixo do ponto de reposição sugerido. Revisar itens, projeto, fonte de recurso e justificativa antes de enviar para validação.",
+    "Pedido gerado pela Situação do estoque com os insumos abaixo do ponto de reposição sugerido. Revisar itens, projeto, fonte de recurso e justificativa antes de enviar para validação.",
   );
 }
 

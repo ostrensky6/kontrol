@@ -67,6 +67,19 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path.startsWith("/estoque/situacao"),
+    content: {
+      title: "Situação do estoque",
+      description: "O painel único de alertas: saldo, compra, validade e lotes.",
+      checks: [
+        "Urgente pede ação agora; Atenção pede acompanhamento de perto.",
+        "Clique no nome para abrir a ficha do insumo ou a página do lote.",
+        "Gerar pedidos de reposição cria um rascunho com os insumos que precisam de compra. O botão fica só aqui.",
+        "A caminho, no fim, mostra o que já foi comprado e ainda não chegou.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/estoque/insumos/"),
     content: {
       title: "Ficha do insumo",
@@ -188,6 +201,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
         "Salário dos técnicos só aparece para quem tem a permissão Ver salário dos técnicos.",
         "A barra tem 4 grupos (Materiais, Pessoas e áreas, Comercial, Custos); as abas levam a cada cadastro.",
         "Qualidade dos cadastros, no topo, mostra quantas pendências existem e lista o que falta.",
+        "Os alertas de estoque ficam em Estoque → Situação; o cartão Situação do estoque leva até lá.",
       ],
     },
   },

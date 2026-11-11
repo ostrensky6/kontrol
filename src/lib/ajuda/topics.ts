@@ -189,7 +189,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Onde fica cada coisa",
         itens: [
           "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
-          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
+          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Situação (o painel de alertas), Controle de Estoque, entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
           "Planejamento: reservas de insumo para as análises previstas.",
           "Pedidos: cada pedido e a etapa em que está. Compras formais e Prazos de compra são abas dessa tela, logo abaixo da barra.",
           "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
@@ -234,9 +234,21 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Situação do estoque",
+        itens: [
+          "Estoque → Situação é o painel único de alertas: cada quadro lista os insumos ou lotes que pedem atenção e por quê. Urgente pede ação agora, Atenção pede acompanhamento de perto, Acompanhar e Cadastro podem esperar.",
+          "O Início e Cadastros mostram só a contagem (por exemplo, '3 urgentes · 5 de atenção') e levam ao painel. O número é o mesmo nas três telas, porque sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
+          "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir no Inventário.",
+          "Zero no sistema é o disponível zerado com mínimo definido. Zero sem mínimo aparece em Sem mínimo definido. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
+          "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
+          "O quadro 'A caminho', no fim do painel, lista as compras feitas e não recebidas, para conferir antes de pedir de novo. Ele aparece para quem tem acesso a Compras.",
+          "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
+        ],
+      },
+      {
         titulo: "Ficha do insumo",
         itens: [
-          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes, ou no botão 'Ficha' do Controle de Estoque. Ler o código do insumo com o leitor também abre a ficha.",
+          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes, no botão 'Ficha' do Controle de Estoque ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
           "A ficha junta o que antes ficava em seis telas: disponível, reservado, a caminho e mínimo; os lotes, na ordem em que vencem; os pedidos e compras em andamento; as reservas em planos; o consumo mensal; as análises que usam o insumo; e as últimas movimentações.",
           "'A caminho' conta só o que já foi comprado ou autorizado e ainda não chegou. Pedido em aprovação ou cotação aparece na lista como 'Ainda não comprado' e não entra nesse número.",
           "Pedidos, compras e análises só aparecem para quem tem acesso a essas áreas. 'Abrir cadastro' aparece para quem acessa Cadastros.",
@@ -266,7 +278,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Estoque → 'Planilha de insumos' baixa a lista completa de insumos em Excel.",
           "Cadastros → Insumos → 'Planilha' baixa a mesma lista.",
-          "Para importar alterações, use Cadastros → 'Importar XLSX' (no topo do painel de insumos, ao lado de 'Cadastrar insumo'); escolher o arquivo já envia.",
+          "Para importar alterações, use Cadastros → 'Importar XLSX' (no topo da tela, ao lado de 'Cadastrar insumo'); escolher o arquivo já envia.",
         ],
       },
       {
@@ -466,7 +478,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Acompanhar a compra depois que o pedido foi aprovado: fornecedor, envio e recebimento.",
           "Reunir as compras formais, inclusive as geradas por reposição automática.",
           "Registrar a entrada de itens, que já ficam disponíveis no Estoque.",
-          "No Painel de insumos, o quadro 'A caminho' lista as compras feitas e não recebidas: quanto foi pedido, recebido e falta receber, a previsão (informada na compra ou estimada pelo prazo) e os atrasos.",
+          "Em Estoque → Situação, o quadro 'A caminho' lista as compras feitas e não recebidas: quanto foi pedido, recebido e falta receber, a previsão (informada na compra ou estimada pelo prazo) e os atrasos.",
         ],
       },
       {
@@ -692,20 +704,17 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
-        titulo: "Painel de insumos",
+        titulo: "Visão geral dos cadastros",
         itens: [
-          "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir.",
-          "Crítico no sistema é o disponível abaixo do ponto de reposição, inclusive zero. Zero sem ponto de reposição aparece em Sem mínimo definido.",
-          "Saldo não conferido significa que não há dado de saldo nesta leitura. Saldo indisponível indica falha de leitura ou valor inválido. Confira no Inventário, em Estoque, se você tiver acesso.",
-          "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. Não gera compra automática nem garante a data de chegada.",
-          "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
+          "A primeira tela de Cadastros mostra o que falta preencher (Qualidade dos cadastros) e a lista de todos os cadastros, por grupo.",
+          "Os alertas de estoque saíram daqui: ficam em Suprimentos → Estoque → Situação. Quem acessa o Estoque vê em Cadastros um cartão com a contagem, que abre o painel.",
         ],
       },
       {
         titulo: "Passo a passo",
         itens: [
           "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos e fornecedores) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
-          "Os mesmos grupos aparecem em 'Todos os cadastros', no fim do painel de insumos, e a busca (Ctrl+K) abre qualquer cadastro pelo nome.",
+          "Os mesmos grupos aparecem em 'Todos os cadastros', na primeira tela de Cadastros, e a busca (Ctrl+K) abre qualquer cadastro pelo nome.",
           "Crie ou edite o registro com os campos solicitados.",
           "Revise periodicamente para corrigir duplicidades e dados desatualizados.",
         ],
@@ -983,7 +992,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "'Aguardando você' vem primeiro: é o que depende da sua decisão. O mesmo quadro abre pelo sino, em qualquer tela.",
           "Cada número abre a lista completa daquele assunto.",
-          "'Precisa de atenção hoje' junta numa lista só o que está vencido, sem validade, com compra sugerida ou vencendo.",
+          "'Situação do estoque' mostra quantos itens estão em alerta urgente ou de atenção e abre o painel em Estoque → Situação.",
+          "'Precisa de atenção hoje' lista os primeiros itens desse painel, do mais grave para o menos grave. Cada linha abre a ficha do insumo ou o lote.",
           "Os gráficos aparecem para Gestor, Supervisor e Administrador, e só quando há dados.",
         ],
       },

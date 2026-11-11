@@ -20,7 +20,9 @@ import {
 import {
   faixasCobertura,
   montarAlertas,
+  resumirAlertas,
   resumirDecisao,
+  textoResumoAlertas,
   valorPorCategoria,
   type Alerta,
   type InsumoDecisao,
@@ -53,7 +55,12 @@ const TOM_ALERTA: Record<TomAlerta, { borda: string; selo: string; rotulo: strin
 
 const ITENS_POR_ALERTA = 5;
 
-export function PainelInsumos({
+/**
+ * Painel único de situação do estoque (D1 e L1 da revisão de 11/11): os 14
+ * quadros de alerta e os gráficos. Fica em Suprimentos › Estoque › Situação;
+ * o Início e Cadastros mostram só a contagem e levam até aqui.
+ */
+export function PainelSituacaoEstoque({
   insumos,
   lotesVencendo,
   lotes,
@@ -139,9 +146,9 @@ export function PainelInsumos({
   }
 
   return (
-    <section aria-labelledby="painel-insumos-titulo" className="mt-4 space-y-4">
-      <h2 id="painel-insumos-titulo" className="sr-only">
-        Painel de insumos
+    <section aria-labelledby="painel-situacao-titulo" className="space-y-4">
+      <h2 id="painel-situacao-titulo" className="sr-only">
+        Alertas do estoque
       </h2>
 
       {erro ? (
@@ -186,10 +193,10 @@ export function PainelInsumos({
         ) : null}
         <dl className="ml-auto flex flex-wrap gap-x-6 gap-y-1 text-sm">
           <div>
-            <dt className="text-xs text-muted-foreground">{erro ? "Alertas identificados" : "Alertas ativos"}</dt>
-            <dd className="font-semibold tabular-nums">
-              {formatInteger(ativos.length)}
-              {urgentes > 0 ? <span className="ml-1 text-xs font-medium text-danger-strong">({formatInteger(urgentes)} urgentes)</span> : null}
+            {/* o mesmo texto do cartão de contagem do Início e de Cadastros (D1) */}
+            <dt className="text-xs text-muted-foreground">{erro ? "Itens em alerta (leitura parcial)" : "Itens em alerta"}</dt>
+            <dd className={urgentes > 0 ? "font-semibold text-danger-strong" : "font-semibold"} data-testid="resumo-situacao">
+              {textoResumoAlertas(resumirAlertas(alertas))}
             </dd>
           </div>
           <div>

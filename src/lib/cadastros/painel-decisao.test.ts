@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { montarInsumosPainel } from "./painel-insumos";
-import { faixasCobertura, filaDeAcao, maisUsados, montarAlertas, montarDecisao, resumirDecisao, valorPorCategoria } from "./painel-decisao";
+import {
+  faixasCobertura,
+  filaDeAcao,
+  linhasDeAtencao,
+  maisUsados,
+  montarAlertas,
+  montarDecisao,
+  resumirAlertas,
+  resumirDecisao,
+  textoResumoAlertas,
+  valorPorCategoria,
+} from "./painel-decisao";
 
 const insumos = [
   { id: 1, especificacao: "Ladder", nome_item: "Ladder", categoria_compra: "Reagentes", ponto_reposicao: 2 },
@@ -196,5 +207,57 @@ describe("painel de alertas", () => {
     // primeiro os vermelhos com itens; o último tem lista vazia
     expect(alertas[0].tom).toBe("vermelho");
     expect(alertas.at(-1)!.itens).toEqual([]);
+  });
+
+  // D1: Início e Cadastros mostram a contagem do painel, com as regras dele
+  describe("contagem para as outras telas", () => {
+    const entrada = { itens, lotesVencendo: lotes, lotes: lotesDb, movimentos: [], hojeIso: hoje };
+    const alertas = montarAlertas(entrada);
+
+    it("conta os itens dos quadros urgentes e de atenção; azul e cinza ficam de fora", () => {
+      const resumo = resumirAlertas(alertas);
+      // urgentes: Ladder zerado, Beads com risco de falta, Ponteira vencida e com compra atrasada
+      expect(resumo.urgentes).toBe(4);
+      // atenção: Beads aberto fora da ordem, Ponteira com dois abertos, Tubo vencendo
+      expect(resumo.atencao).toBe(3);
+      expect(resumo.quadros).toEqual([
+        "Zero no sistema",
+        "Risco de falta sem pedido aberto",
+        "Lotes vencidos com saldo",
+        "Compras atrasadas",
+        "Aberto fora da ordem de validade",
+        "Mais de um frasco aberto",
+        "Vencem em breve",
+      ]);
+      // quarentena, bloqueado e sem validade existem no painel, mas não entram na contagem
+      expect(alertas.find((a) => a.chave === "quarentena")?.itens).toHaveLength(1);
+    });
+
+    it("não muda com o histórico de movimentos, que só alimenta o quadro cinza de estoque parado", () => {
+      const comHistorico = montarAlertas({ ...entrada, movimentosCompletos: true });
+      expect(comHistorico.find((a) => a.chave === "parado")?.itens.length).toBeGreaterThan(0);
+      expect(resumirAlertas(comHistorico)).toEqual(resumirAlertas(alertas));
+      expect(linhasDeAtencao(comHistorico)).toEqual(linhasDeAtencao(alertas));
+    });
+
+    it("texto igual em todas as telas; leitura incompleta é 'sem dado', nunca 'nada urgente'", () => {
+      expect(textoResumoAlertas(resumirAlertas(alertas))).toBe("4 urgentes · 3 de atenção");
+      expect(textoResumoAlertas({ urgentes: 1, atencao: 0, quadros: [] })).toBe("1 urgente");
+      expect(textoResumoAlertas({ urgentes: 0, atencao: 2, quadros: [] })).toBe("2 de atenção");
+      expect(textoResumoAlertas({ urgentes: 0, atencao: 0, quadros: [] })).toBe("nada urgente");
+      expect(textoResumoAlertas(null)).toBe("sem dado");
+    });
+
+    it("linhas do Início: urgentes primeiro, cada uma com o quadro de origem e o destino do painel", () => {
+      const linhas = linhasDeAtencao(alertas);
+      expect(linhas).toHaveLength(7);
+      expect(linhas.map((l) => l.tom)).toEqual(["vermelho", "vermelho", "vermelho", "vermelho", "ambar", "ambar", "ambar"]);
+      expect(linhas[0]).toMatchObject({ quadro: "Zero no sistema", titulo: "Ladder", href: "/estoque/insumos/1" });
+      // lote vencido abre a página do lote; insumo abre a ficha
+      expect(linhas.find((l) => l.quadro === "Lotes vencidos com saldo")?.href).toBe("/estoque/lotes/7");
+      expect(new Set(linhas.map((l) => l.chave)).size).toBe(linhas.length);
+      // sem alerta, sem linha
+      expect(linhasDeAtencao(montarAlertas({ itens: [], lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje }))).toEqual([]);
+    });
   });
 });

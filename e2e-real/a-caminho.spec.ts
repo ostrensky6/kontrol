@@ -2,8 +2,8 @@ import { expect, test } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
 
 /**
- * Compra pedida e não recebida aparece no quadro "A caminho" do painel de
- * insumos, só com o que falta receber e com o atraso pela data informada. Sem
+ * Compra pedida e não recebida aparece no quadro "A caminho" da Situação do
+ * estoque (o painel único, D1), só com o que falta receber e com o atraso pela data informada. Sem
  * aprovação ela fica à parte: pedido em aprovação não é compra a caminho.
  */
 test("compra aberta aparece em A caminho com quantidade pendente e atraso", async ({ page }) => {
@@ -43,7 +43,7 @@ test("compra aberta aparece em A caminho com quantidade pendente e atraso", asyn
   });
   expect(erroItem).toBeNull();
 
-  await page.goto("/cadastros");
+  await page.goto("/estoque/situacao");
   const quadro = page.getByTestId("painel-a-caminho");
   await expect(quadro).toBeVisible();
   // compra só solicitada ainda não é "a caminho": fica no bloco "aguardam aprovação"

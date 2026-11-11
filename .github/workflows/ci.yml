@@ -218,7 +218,17 @@ jobs:
         run: npm run test:e2e:real:prep
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chrome
+        # A imagem ubuntu-24.04 do GitHub já traz o Google Chrome. Reinstalar passa
+        # pelo espelho do apt, que em 11/11/2026 ficou fora do ar e derrubou a CI
+        # antes de qualquer teste rodar; por isso só instala quando falta o Chrome.
+        # O ffmpeg (vídeo dos testes que falham) vem do servidor do Playwright.
+        run: |
+          if command -v google-chrome >/dev/null; then
+            google-chrome --version
+            npx playwright install ffmpeg
+          else
+            npx playwright install --with-deps chrome
+          fi
 
       - name: Build contra o Supabase local
         run: npm run build
@@ -282,7 +292,17 @@ jobs:
         run: node --test supabase/tests/inativacao_insumos_0144.test.mjs
 
       - name: Install Playwright browser
-        run: npx playwright install --with-deps chrome
+        # A imagem ubuntu-24.04 do GitHub já traz o Google Chrome. Reinstalar passa
+        # pelo espelho do apt, que em 11/11/2026 ficou fora do ar e derrubou a CI
+        # antes de qualquer teste rodar; por isso só instala quando falta o Chrome.
+        # O ffmpeg (vídeo dos testes que falham) vem do servidor do Playwright.
+        run: |
+          if command -v google-chrome >/dev/null; then
+            google-chrome --version
+            npx playwright install ffmpeg
+          else
+            npx playwright install --with-deps chrome
+          fi
 
       - name: Validar tipo, lint, testes, build e E2E
         run: npm run verify

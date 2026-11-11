@@ -383,6 +383,7 @@ const DEPENDENTES = [
   // Painel de alertas, reposição e telas de estoque que mostram o insumo.
   "/suprimentos",
   "/estoque/controle",
+  "/estoque/situacao",
   "/estoque/inventario",
   "/recebimento",
   "/",

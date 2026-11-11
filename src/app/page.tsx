@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { ExecutiveCharts } from "@/components/dashboard/ExecutiveCharts";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
 import { carregarPendencias } from "@/lib/pendencias/carregar";
-import { formatCompactCurrency, formatDate, formatNumber } from "@/lib/formatters";
+import { formatCompactCurrency, formatNumber } from "@/lib/formatters";
 import { minhasPermissoes, temNaLista } from "@/lib/auth/permissao-efetiva";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
 import { papelAtual } from "@/lib/auth/roles";
@@ -14,24 +14,14 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { SectionCard } from "@/components/app/SectionCard";
 import { StatCard, type Tone } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
+import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoque";
+import { textoResumoAlertas } from "@/lib/cadastros/painel-decisao";
+import { hojeIso } from "@/lib/estoque/baixa";
+import { contarSituacaoEstoque } from "@/lib/estoque/situacao-dados";
 
 export const dynamic = "force-dynamic";
 
-type EstoqueSaldo = {
-  insumo_id: number;
-  especificacao: string | null;
-  disponivel: number | null;
-};
-
-type AlertaEstoque = {
-  tipo: string;
-  insumo_id: number;
-  especificacao: string | null;
-  validade: string | null;
-  valor: number | null;
-};
-
-/** Mesma fonte e fórmula de Suprimentos (EST-7): v_previsao_suprimentos. */
+/** Mesma fonte e fórmula de Suprimentos (EST-7): v_previsao_suprimentos. Só para quem vê Compras sem ver Estoque. */
 type Previsao = {
   insumo_id: number;
   especificacao: string | null;
@@ -125,24 +115,24 @@ export default async function Home() {
 
   const [
     pendencias,
+    situacaoEstoque,
     { data: previsaoRaw },
-    { data: alertasRaw },
-    { data: saldoRaw },
     { data: pedidosRaw },
     { data: dashboardRaw },
     { data: notificacoesRaw },
   ] = await Promise.all([
     // a função do banco mais lotes em quarentena, disputas, códigos e manutenção vencida (F8)
     carregarPendencias(),
-    verSuprimentos
+    // D1: o Início mostra a contagem do painel único de situação, com as regras dele
+    verEstoque ? createClientUntyped().then((semTipo) => contarSituacaoEstoque(semTipo, hojeIso())) : null,
+    // quem vê Compras sem ver Estoque não abre o painel: fica com a sugestão de compra
+    verCompras && !verEstoque
       ? supabase
           .from("v_previsao_suprimentos")
           .select("insumo_id, especificacao, unidade, unidade_saldo, disponivel, qtd_sugerida_compra, qtd_pedida_aberta, categoria_compra")
           .gt("qtd_sugerida_compra", 0)
           .order("qtd_sugerida_compra", { ascending: false })
       : vazio,
-    verEstoque ? supabase.from("v_alertas_estoque").select("tipo, insumo_id, especificacao, validade, valor") : vazio,
-    verEstoque ? supabase.from("v_estoque_saldo").select("insumo_id, especificacao, disponivel") : vazio,
     verCompras
       ? supabase
           .from("pedidos_compra")
@@ -165,8 +155,6 @@ export default async function Home() {
   ]);
 
   const previsao = ((previsaoRaw ?? []) as Previsao[]).filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0);
-  const alertas = (alertasRaw ?? []) as AlertaEstoque[];
-  const saldo = (saldoRaw ?? []) as EstoqueSaldo[];
   const pedidos = (pedidosRaw ?? []) as PedidoCompra[];
   const dashboard = dashboardRaw as DashboardExecutivo | null;
   const notificacoes = (notificacoesRaw ?? []) as Notificacao[];
@@ -178,9 +166,6 @@ export default async function Home() {
       peso: (p.categoria_compra === "critico" ? 1e9 : 0) + Number(p.qtd_sugerida_compra ?? 0),
     }))
     .sort((a, b) => b.peso - a.peso);
-  const vencidos = alertas.filter((a) => a.tipo === "vencido" || a.tipo === "sem_validade");
-  const vencendo = alertas.filter((a) => a.tipo === "vencimento");
-  const semDisponivel = saldo.filter((s) => (s.disponivel ?? 0) <= 0);
 
   const gastos =
     verCompras && Array.isArray(dashboard?.gasto_por_projeto_mes)
@@ -199,34 +184,24 @@ export default async function Home() {
 
   // No máximo 5 indicadores, sem repetição, cada um levando à sua lista.
   const indicadores: Array<{ href: string; label: string; value: React.ReactNode; detail: string; tone: Tone }> = [];
-  if (verSuprimentos) {
+  if (situacaoEstoque) {
+    // um número só para o estoque, o mesmo do painel; leitura incompleta aparece como "sem dado"
+    const resumo = situacaoEstoque.resumo;
     indicadores.push({
-      href: verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras",
+      href: HREF_SITUACAO_ESTOQUE,
+      label: "Situação do estoque",
+      value: resumo ? resumo.urgentes + resumo.atencao : "sem dado",
+      detail: resumo ? `${textoResumoAlertas(resumo)} · abre o painel` : "a leitura do estoque não respondeu por inteiro",
+      tone: !resumo ? "neutral" : resumo.urgentes ? "danger" : resumo.atencao ? "warning" : "neutral",
+    });
+  } else if (verCompras) {
+    indicadores.push({
+      href: "/compras",
       label: "Comprar agora",
       value: comprarAgora.length,
       detail: "insumos com compra sugerida pela previsão",
       tone: comprarAgora.length ? "warning" : "neutral",
     });
-  }
-  if (verEstoque) {
-    indicadores.push(
-      {
-        href: "/estoque/controle",
-        label: "Vencidos",
-        value: vencidos.length,
-        detail: vencendo.length
-          ? `vencidos ou sem validade · ${vencendo.length} vencendo em breve`
-          : "vencidos ou críticos sem validade",
-        tone: vencidos.length ? "danger" : vencendo.length ? "warning" : "neutral",
-      },
-      {
-        href: "/estoque",
-        label: "Sem disponível",
-        value: semDisponivel.length,
-        detail: saldo.length ? `de ${saldo.length} insumos monitorados` : "nenhum insumo monitorado",
-        tone: semDisponivel.length ? "danger" : "neutral",
-      },
-    );
   }
   if (verCompras) {
     indicadores.push({
@@ -250,29 +225,25 @@ export default async function Home() {
 
   // Uma lista só, do mais grave para o menos grave. Cada assunto aparece uma vez:
   // o número fica no indicador e os itens ficam aqui (D12 da revisão de 11/11).
-  const hrefValidade = "/estoque/controle";
-  const hrefComprar = verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras";
-  const linhaValidade = (a: AlertaEstoque, selo: string, tom: LinhaAtencao["tom"]): LinhaAtencao => ({
-    chave: `${a.tipo}-${a.insumo_id}-${a.validade ?? ""}`,
-    selo,
-    tom,
-    titulo: a.especificacao ?? `Insumo #${a.insumo_id}`,
-    meta: `${a.validade ? `validade ${formatDate(a.validade)} · ` : ""}saldo ${formatNumber(a.valor)}`,
-    href: hrefValidade,
-  });
-  const atencao: LinhaAtencao[] = [
-    ...alertas.filter((a) => a.tipo === "vencido").map((a) => linhaValidade(a, "Vencido", "critico")),
-    ...alertas.filter((a) => a.tipo === "sem_validade").map((a) => linhaValidade(a, "Sem validade", "critico")),
-    ...comprarAgora.map((c, i): LinhaAtencao => ({
-      chave: `comprar-${i}-${c.titulo}`,
-      selo: "Comprar agora",
-      tom: "atencao",
-      titulo: c.titulo,
-      meta: c.meta,
-      href: hrefComprar,
-    })),
-    ...vencendo.map((a) => linhaValidade(a, "Vencendo", "atencao")),
-  ];
+  // Com Estoque, as linhas são as do painel de situação e abrem a ficha ou o lote (D1).
+  const atencao: LinhaAtencao[] = situacaoEstoque
+    ? situacaoEstoque.linhas.map((linha) => ({
+        chave: linha.chave,
+        selo: linha.tom === "vermelho" ? "Urgente" : "Atenção",
+        tom: linha.tom === "vermelho" ? "critico" : "atencao",
+        titulo: linha.titulo,
+        meta: `${linha.quadro} · ${linha.detalhe}`,
+        href: linha.href,
+      }))
+    : comprarAgora.map((c, i) => ({
+        chave: `comprar-${i}-${c.titulo}`,
+        selo: "Comprar agora",
+        tom: "atencao",
+        titulo: c.titulo,
+        meta: c.meta,
+        href: "/compras",
+      }));
+  const hrefListaCompleta = situacaoEstoque ? HREF_SITUACAO_ESTOQUE : "/compras";
 
   // Gráficos só para quem decide, e só o gráfico que tem dado (8.1 da revisão).
   const decide = efetivas.admin || papel === "gestor" || papel === "supervisor";
@@ -303,8 +274,8 @@ export default async function Home() {
             </p>
             <HelpLegend
               items={[
-                { tom: "critico", rotulo: "Crítico", texto: "vencido ou sem saldo disponível." },
-                { tom: "atencao", rotulo: "Atenção", texto: "compra sugerida ou lote vencendo." },
+                { tom: "critico", rotulo: "Urgente", texto: "zero no sistema, lote vencido, risco de falta ou compra atrasada." },
+                { tom: "atencao", rotulo: "Atenção", texto: "abaixo do mínimo, lote vencendo ou aberto fora da ordem." },
                 { tom: "info", rotulo: "Em andamento", texto: "compras abertas ou propostas com o cliente." },
               ]}
             />
@@ -360,13 +331,20 @@ export default async function Home() {
                 </ul>
                 {atencao.length > LIMITE_ATENCAO && (
                   <p className="px-2 pt-2 text-xs text-muted-foreground">
-                    E mais {atencao.length - LIMITE_ATENCAO}. Os números acima abrem as listas completas.
+                    E mais {atencao.length - LIMITE_ATENCAO}.{" "}
+                    <Link href={hrefListaCompleta} className="font-medium text-primary hover:underline">
+                      Ver a lista completa
+                    </Link>
                   </p>
                 )}
               </>
             ) : (
               <p className="px-2 py-1 text-sm text-muted-foreground">
-                Nada vencido, vencendo ou com compra sugerida agora.
+                {situacaoEstoque && !situacaoEstoque.resumo
+                  ? "Sem dado: a leitura do estoque não respondeu por inteiro. Abra a Situação do estoque para conferir."
+                  : situacaoEstoque
+                    ? "Nada urgente nem de atenção no estoque agora."
+                    : "Nenhuma compra sugerida agora."}
               </p>
             )}
           </SectionCard>

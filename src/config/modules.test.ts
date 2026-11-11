@@ -192,9 +192,9 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
     expect(moduleIsActive(modulo("governanca"), "/governanca/regras")).toBe(true);
   });
 
-  it("Cadastros: a barra tem o painel e 4 grupos; cada cadastro marca o seu grupo e continua na busca", () => {
+  it("Cadastros: a barra tem a visão geral e 4 grupos; cada cadastro marca o seu grupo e continua na busca", () => {
     const visiveis = modulo("cadastros").children.filter((c) => c.showInTopNav !== false);
-    expect(visiveis.map((c) => c.label)).toEqual(["Painel de insumos", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
+    expect(visiveis.map((c) => c.label)).toEqual(["Visão geral", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
     expect(hrefAtivoNaBarra(visiveis, "/cadastros")).toBe("/cadastros");
     expect(hrefAtivoNaBarra(visiveis, "/cadastros/qualidade")).toBe("/cadastros");
     expect(hrefAtivoNaBarra(visiveis, "/cadastros/insumos")).toBe("/cadastros/grupo/materiais");

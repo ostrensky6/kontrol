@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-test("painel de insumos: origem dos alertas e filtro na URL", async ({ page }, testInfo) => {
+// O painel de alertas saiu de Cadastros e virou o painel único em Estoque → Situação (D1, L1).
+test("situação do estoque: origem dos alertas e filtro na URL", async ({ page }, testInfo) => {
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
   page.on("console", (mensagem) => {
@@ -9,16 +10,16 @@ test("painel de insumos: origem dos alertas e filtro na URL", async ({ page }, t
   await page.addInitScript(() => localStorage.setItem("theme", "system"));
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.emulateMedia({ colorScheme: "light" });
+  // importar e baixar a planilha continuam em Cadastros, ao lado de "Cadastrar insumo"
   await page.goto("/cadastros");
-  await expect(page.getByRole("heading", { name: "Painel de insumos", level: 1 })).toBeVisible();
-  // a lista completa saiu do painel: ela fica em Cadastros → Insumos
-  await expect(page.getByRole("link", { name: "Cadastros → Insumos" })).toHaveAttribute("href", "/cadastros/insumos");
-  // importar e baixar a planilha ficam no topo, ao lado de "Cadastrar insumo"
   await expect(page.getByText("Importar XLSX")).toBeVisible();
   await expect(page.getByRole("button", { name: "Baixar XLSX" })).toBeVisible();
 
+  await page.goto("/estoque/situacao");
+  await expect(page.getByRole("heading", { name: "Situação do estoque", level: 1 })).toBeVisible();
+
   // Outros testes do mesmo servidor mexem no saldo do mock: aqui só a estrutura é fixa.
-  const painel = page.getByRole("region", { name: "Painel de insumos" });
+  const painel = page.getByRole("region", { name: "Alertas do estoque" });
   const semMinimo = page.getByRole("region", { name: "Sem mínimo definido" });
   await expect(semMinimo.getByRole("link").first()).toHaveAttribute("href", /\/cadastros\/insumos\?focus=\d+/);
   // Insumo sem linha de saldo é "não conferido", nunca zero.
