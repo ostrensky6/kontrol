@@ -84,7 +84,7 @@ export function NovoPedidoDialog({
                 aria-describedby="novo-pedido-projeto-ajuda"
                 className={inputCls}
               >
-                <option value="">Sem projeto (a Supervisão valida)</option>
+                <option value="">Sem projeto (a Supervisão aprova)</option>
                 {projetos.map((projeto) => (
                   <option key={projeto.id} value={projeto.id}>
                     {projeto.nome}
@@ -95,7 +95,7 @@ export function NovoPedidoDialog({
                 ))}
               </select>
               <p id="novo-pedido-projeto-ajuda" className="mt-1 text-xs text-muted-foreground">
-                O coordenador do projeto valida o pedido. Sem coordenador cadastrado, o envio trava.
+                O coordenador do projeto aprova o pedido. Sem coordenador cadastrado, o envio trava.
               </p>
             </div>
             <div className="md:col-span-4">

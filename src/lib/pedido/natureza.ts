@@ -32,6 +32,22 @@ export type ObjetivoPedido = (typeof OBJETIVOS_PEDIDO)[number]["valor"];
 const NATUREZA_ROTULO = new Map<string, string>(NATUREZAS_PEDIDO.map((n) => [n.valor, n.rotulo]));
 const OBJETIVO_ROTULO = new Map<string, string>(OBJETIVOS_PEDIDO.map((o) => [o.valor, o.rotulo]));
 
+/** "Onde será usado" (tipo_demanda): os mesmos rótulos do formulário, na lista e no pedido. */
+export const USOS_PEDIDO = [
+  { valor: "laboratorio", rotulo: "Laboratório" },
+  { valor: "campo", rotulo: "Campo" },
+  { valor: "laboratorio_campo", rotulo: "Lab./campo" },
+  { valor: "administrativo", rotulo: "Administrativo" },
+  { valor: "outro", rotulo: "Outro" },
+] as const;
+
+const USO_ROTULO = new Map<string, string>(USOS_PEDIDO.map((u) => [u.valor, u.rotulo]));
+
+/** Sem valor gravado o pedido é de laboratório (padrão do banco). */
+export function rotuloUso(valor: string | null | undefined) {
+  return USO_ROTULO.get(valor ?? "laboratorio") ?? valor ?? "Laboratório";
+}
+
 export function rotuloNatureza(valor: string | null | undefined) {
   return valor ? NATUREZA_ROTULO.get(valor) ?? valor : null;
 }

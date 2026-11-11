@@ -52,7 +52,9 @@ test("parâmetros de custeio: fatores versionados só para consulta", async ({ p
   await page.keyboard.press("Escape");
   await expect(page.getByLabel(/^Impostos/)).toBeDisabled();
   await expect(page.getByLabel(/^Dias úteis por ano/)).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Salvar parâmetros" })).toBeVisible();
+  // no mock todos os campos são de consulta: sem nada editável, não há botão de salvar sem efeito
+  await expect(page.getByRole("button", { name: "Salvar parâmetros" })).toHaveCount(0);
+  await expect(page.getByText("Nada para salvar nesta tela")).toBeVisible();
   await expect(page.getByRole("link", { name: "Alterar em Parâmetros econômicos" })).toHaveAttribute(
     "href",
     "/orcamento/parametros",

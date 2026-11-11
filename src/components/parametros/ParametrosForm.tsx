@@ -215,7 +215,16 @@ export function ParametrosForm({ params, podeEditar = true }: { params: Param[];
         }`}
       />
 
-      {podeEditar ? (
+      {podeEditar && editaveis.length === 0 ? (
+        // sem campo editável o botão não teria o que salvar
+        <p className="text-sm text-muted-foreground">
+          Nada para salvar nesta tela: todos os campos são de consulta e mudam em{" "}
+          <Link href={LINK_VERSIONADOS} className="font-medium text-primary hover:underline">
+            Parâmetros econômicos
+          </Link>
+          .
+        </p>
+      ) : podeEditar ? (
         <div>
           <SubmitButton>Salvar parâmetros</SubmitButton>
         </div>

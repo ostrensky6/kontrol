@@ -5,6 +5,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { focarPrimeiroCampo } from "./foco-inicial";
 
 const Drawer = DialogPrimitive.Root;
 const DrawerTrigger = DialogPrimitive.Trigger;
@@ -33,6 +34,7 @@ function DrawerContent({
   className,
   children,
   showCloseButton = true,
+  onOpenAutoFocus,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean;
@@ -45,6 +47,10 @@ function DrawerContent({
           "fixed inset-y-0 right-0 z-50 flex h-full w-full max-w-2xl flex-col overflow-y-auto border-l border-border bg-card p-6 text-card-foreground shadow-xl data-[state=closed]:animate-out data-[state=closed]:slide-out-to-right data-[state=open]:animate-in data-[state=open]:slide-in-from-right",
           className,
         )}
+        onOpenAutoFocus={(evento) => {
+          onOpenAutoFocus?.(evento);
+          focarPrimeiroCampo(evento);
+        }}
         {...props}
       >
         {children}

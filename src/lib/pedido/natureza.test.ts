@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { naturezaValida, objetivoValido, rotuloNatureza, separarSinonimos } from "./natureza";
+import { naturezaValida, objetivoValido, rotuloNatureza, rotuloUso, separarSinonimos } from "./natureza";
 
 describe("natureza e objetivo do pedido", () => {
   it("aceita só valores da lista que o banco aceita", () => {
@@ -12,6 +12,12 @@ describe("natureza e objetivo do pedido", () => {
     expect(objetivoValido("Projeto")).toBeNull();
     expect(rotuloNatureza("material_consumo_geral")).toBe("Material de consumo geral (campo, coleta)");
     expect(rotuloNatureza(null)).toBeNull();
+  });
+
+  it("mostra o uso com o rótulo do formulário, nunca o valor do banco", () => {
+    expect(rotuloUso("laboratorio")).toBe("Laboratório");
+    expect(rotuloUso("laboratorio_campo")).toBe("Lab./campo");
+    expect(rotuloUso(null)).toBe("Laboratório");
   });
 
   it("separa sinônimos sem vazios nem repetidos", () => {

@@ -84,16 +84,16 @@ function leituraSaidasDiarias(
 ): SaidasDiarias {
   if (falha === "falha") return { estado: falha, motivo: "Não foi possível ler a previsão." };
   if (falha === "parcial") return { estado: falha, motivo: "A fonte retornou linhas com erro." };
-  if (!prev) return { estado: "indisponivel", motivo: "Sem linha nesta consulta." };
+  if (!prev) return { estado: "indisponivel", motivo: "Sem previsão de consumo para este insumo." };
 
   const taxa = prev.consumo_medio_diario;
-  if (taxa == null) return { estado: "indisponivel", motivo: "Taxa não informada." };
-  if (!Number.isFinite(taxa) || taxa < 0) return { estado: "indisponivel", motivo: "Taxa inválida." };
-  if (taxa === 0) return { estado: "indisponivel", motivo: "Zero da previsão não confirma ausência de saídas." };
+  if (taxa == null) return { estado: "indisponivel", motivo: "Consumo médio ainda não calculado." };
+  if (!Number.isFinite(taxa) || taxa < 0) return { estado: "indisponivel", motivo: "Consumo médio inválido." };
+  if (taxa === 0) return { estado: "indisponivel", motivo: "A previsão veio zerada; isso não confirma que não houve saída." };
 
   const janelaDias = prev.janela_dias;
   if (janelaDias == null || !Number.isSafeInteger(janelaDias) || janelaDias <= 0) {
-    return { estado: "indisponivel", motivo: "Janela nominal ausente ou inválida." };
+    return { estado: "indisponivel", motivo: "Período da previsão não informado." };
   }
   const unidadeReferencia = typeof prev.unidade_saldo === "string" ? prev.unidade_saldo.trim() : "";
   if (!unidadeReferencia || unidadeReferencia === "—" || unidadeReferencia === "-") {

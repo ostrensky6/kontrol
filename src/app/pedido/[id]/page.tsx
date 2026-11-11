@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
-import { rotuloNatureza, rotuloObjetivo, separarSinonimos } from "@/lib/pedido/natureza";
+import { rotuloNatureza, rotuloObjetivo, rotuloUso, separarSinonimos } from "@/lib/pedido/natureza";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { aguardaLaboratorio, etapasAprovacao, lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
@@ -608,7 +608,7 @@ export default async function PedidoInternoDetalhe({
             <p className="mt-1 text-sm text-muted-foreground">
               {pedido.natureza ? `${rotuloNatureza(pedido.natureza)} · ` : ""}
               {pedido.objetivo ? `Objetivo: ${rotuloObjetivo(pedido.objetivo)} · ` : ""}
-              Uso: {String(pedido.tipo_demanda ?? "laboratorio").replaceAll("_", "/")} · Coordenador: {coordenadorProjeto}
+              Uso: {rotuloUso(pedido.tipo_demanda)} · Coordenador: {coordenadorProjeto}
               {pedido.aprovador_coordenador_diferente ? " · aprovado por substituto" : ""}
               {pedido.modalidade_compra ? ` · Modalidade: ${modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra}` : ""}
             </p>

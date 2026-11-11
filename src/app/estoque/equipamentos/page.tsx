@@ -419,6 +419,8 @@ export default async function EquipamentosPage({
           </table>
         </div>
 
+        {/* sem unidade cadastrada a seção ficava só com o título */}
+        {unidades.length > 0 && (
         <section className="mt-8">
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
@@ -434,12 +436,6 @@ export default async function EquipamentosPage({
                 </HelpTip>
               </div>
             </div>
-            <Link
-              href="/cadastros/equipamentos"
-              className="text-sm font-medium text-brand-700 underline-offset-4 hover:underline dark:text-brand-300"
-            >
-              Gerenciar cadastro de equipamentos
-            </Link>
           </div>
 
           <div className="mt-4 grid gap-4 lg:grid-cols-2 2xl:grid-cols-3">
@@ -602,6 +598,7 @@ export default async function EquipamentosPage({
             })}
           </div>
         </section>
+        )}
       </main>
     </div>
   );

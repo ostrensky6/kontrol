@@ -124,7 +124,7 @@ function SaidasDiariasValor({ leitura }: { leitura: SaidasDiarias }) {
   return (
     <>
       <span className="block text-sm text-foreground">
-        {leitura.estado === "parcial" ? "Leitura parcial" : leitura.estado === "falha" ? "Falha na leitura" : "Indisponível"}
+        {leitura.estado === "parcial" ? "Leitura parcial" : leitura.estado === "falha" ? "Falha na leitura" : "Sem dado"}
       </span>
       <span className="block text-xs text-muted-foreground">{leitura.motivo}</span>
     </>
