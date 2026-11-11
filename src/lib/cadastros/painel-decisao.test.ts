@@ -256,6 +256,13 @@ describe("painel de alertas", () => {
       // lote vencido abre a página do lote; insumo abre a ficha
       expect(linhas.find((l) => l.quadro === "Lotes vencidos com saldo")?.href).toBe("/estoque/lotes/7");
       expect(new Set(linhas.map((l) => l.chave)).size).toBe(linhas.length);
+      // prazo de cada linha, para a tabela do Início: sem estoque é hoje, lote traz a data, o resto não tem prazo
+      expect(linhas[0]).toMatchObject({ alerta: "em-falta", prazo: "hoje" });
+      expect(linhas.find((l) => l.alerta === "acaba-antes")?.prazo).toMatch(/^acaba em \d+ dia\(s\)$/);
+      expect(linhas.find((l) => l.alerta === "vencidos")?.prazo).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+      expect(linhas.find((l) => l.alerta === "vencendo")?.prazo).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
+      expect(linhas.find((l) => l.alerta === "compra-atrasada")?.prazo).toBeNull();
+      expect(linhas.find((l) => l.alerta === "varios-abertos")?.prazo).toBeNull();
       // sem alerta, sem linha
       expect(linhasDeAtencao(montarAlertas({ itens: [], lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje }))).toEqual([]);
     });

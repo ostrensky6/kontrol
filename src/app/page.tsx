@@ -2,12 +2,12 @@ import Link from "next/link";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { ExecutiveCharts } from "@/components/dashboard/ExecutiveCharts";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
+import { TabelaAtencaoHoje } from "@/components/dashboard/TabelaAtencaoHoje";
 import { carregarPendencias } from "@/lib/pendencias/carregar";
 import { formatCompactCurrency, formatNumber } from "@/lib/formatters";
 import { minhasPermissoes, temNaLista } from "@/lib/auth/permissao-efetiva";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
 import { papelAtual } from "@/lib/auth/roles";
-import { rotuloTipoNotificacao } from "@/lib/notifications/links";
 import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -15,6 +15,17 @@ import { SectionCard } from "@/components/app/SectionCard";
 import { StatCard, type Tone } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoque";
+import {
+  comprasDoInicio,
+  linhasDeAvisos,
+  linhasDeCompras,
+  linhasDeSugestao,
+  linhasDoEstoque,
+  ordenarAtencaoHoje,
+  type OrigemAtencao,
+  type PedidoCompraInicioDb,
+} from "@/lib/inicio/atencao-hoje";
+import { lerACaminho } from "@/lib/suprimentos/a-caminho";
 import { hojeIso } from "@/lib/estoque/baixa";
 import { contarSinaisEstoque } from "@/lib/estoque/controle-dados";
 import { hrefListaPorInsumo, numerosDoEstoque } from "@/lib/estoque/controle-estoque";
@@ -35,13 +46,6 @@ type Previsao = {
   categoria_compra: string | null;
 };
 
-type PedidoCompra = {
-  id: number;
-  status: string;
-  data_solicitacao: string | null;
-  projeto: string | null;
-};
-
 type DashboardExecutivo = {
   orcamentos_rascunho: number | null;
   orcamentos_enviados: number | null;
@@ -56,9 +60,16 @@ type Notificacao = {
   tipo: string;
   titulo: string;
   corpo: string | null;
+  entidade_tipo: string | null;
+  entidade_id: number | null;
+  criado_em: string | null;
 };
 
+/** Avisos não lidos que entram na tabela; o resto fica em Notificações. */
+const LIMITE_AVISOS = 50;
+
 const vazio = { data: null, count: null };
+const semErro = { data: null, error: null };
 
 /** Indicador clicável: leva à lista que explica o número. */
 function Indicador({
@@ -80,28 +91,10 @@ function Indicador({
       aria-label={`${label}: ${typeof value === "string" || typeof value === "number" ? value : ""}. ${detail}`}
       className="block rounded-lg transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2"
     >
-      <StatCard label={label} value={value} detail={detail} tone={tone} className="h-full" />
+      <StatCard label={label} value={value} detail={detail} tone={tone} className="h-full" labelInteiro />
     </Link>
   );
 }
-
-/** Tom de cada tipo de linha em "Precisa de atenção hoje": vermelho só para o que bloqueia. */
-const TOM_ATENCAO = {
-  critico: "border-danger-strong/30 bg-danger-soft text-danger-strong",
-  atencao: "border-warning-strong/30 bg-warning-soft text-warning-strong",
-} as const;
-
-type LinhaAtencao = {
-  chave: string;
-  selo: string;
-  tom: keyof typeof TOM_ATENCAO;
-  titulo: string;
-  meta: string;
-  href: string;
-};
-
-/** Quantas linhas a lista mostra: a página inicial precisa caber em uma tela. */
-const LIMITE_ATENCAO = 8;
 
 export default async function Home() {
   const supabase = await createClient();
@@ -115,22 +108,24 @@ export default async function Home() {
   const verPlanejamento = pode("planejamento.ver");
   const verSuprimentos = verEstoque || verCompras;
 
-  const semTipo = verEstoque ? await createClientUntyped() : null;
+  const hoje = hojeIso();
+  const semTipo = verEstoque || verCompras ? await createClientUntyped() : null;
   const [
     pendencias,
     situacaoEstoque,
     sinaisEstoque,
     { data: previsaoRaw },
-    { data: pedidosRaw },
+    { data: pedidosRaw, error: erroPedidos },
+    aCaminho,
     { data: dashboardRaw },
-    { data: notificacoesRaw },
+    { data: notificacoesRaw, error: erroNotificacoes },
   ] = await Promise.all([
     // a função do banco mais lotes em quarentena, disputas, códigos e manutenção vencida (F8)
     carregarPendencias(),
     // D1: o Início mostra a contagem do painel único de situação, com as regras dele
-    semTipo ? contarSituacaoEstoque(semTipo, hojeIso()) : null,
+    semTipo && verEstoque ? contarSituacaoEstoque(semTipo, hoje) : null,
     // os números do estoque saem da mesma conta dos números do topo da Situação do estoque
-    semTipo ? contarSinaisEstoque(semTipo, hojeIso()) : null,
+    semTipo && verEstoque ? contarSinaisEstoque(semTipo, hoje) : null,
     // quem vê Compras sem ver Estoque não abre o painel: fica com a sugestão de compra
     verCompras && !verEstoque
       ? supabase
@@ -142,10 +137,12 @@ export default async function Home() {
     verCompras
       ? supabase
           .from("pedidos_compra")
-          .select("id, status, data_solicitacao, projeto")
+          .select("id, status, data_solicitacao, data_prevista_entrega, projeto, fornecedores(nome)")
           .in("status", ["solicitado", "aprovado", "enviado", "em_transito"])
           .order("criado_em", { ascending: false })
-      : vazio,
+      : semErro,
+    // prazo dos itens que ainda faltam chegar: a mesma leitura do quadro "A caminho"
+    semTipo && verCompras ? lerACaminho(semTipo, hoje) : null,
     verOrcamentos || verCompras
       ? supabase
           .from("v_dashboard_executivo")
@@ -154,20 +151,21 @@ export default async function Home() {
       : vazio,
     supabase
       .from("v_minhas_notificacoes")
-      .select("id, tipo, titulo, corpo")
+      .select("id, tipo, titulo, corpo, entidade_tipo, entidade_id, criado_em")
       .eq("status", "nao_lida")
       .order("criado_em", { ascending: false })
-      .limit(5),
+      .limit(LIMITE_AVISOS),
   ]);
 
   const previsao = ((previsaoRaw ?? []) as Previsao[]).filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0);
-  const pedidos = (pedidosRaw ?? []) as PedidoCompra[];
+  const pedidos = (pedidosRaw ?? []) as PedidoCompraInicioDb[];
   const dashboard = dashboardRaw as DashboardExecutivo | null;
   // avisos gravados pelo banco ainda trazem palavras antigas: o glossário (10.5) vale aqui também
   const notificacoes = ((notificacoesRaw ?? []) as Notificacao[]).map((n) => ({ ...n, titulo: noGlossario(n.titulo), corpo: noGlossario(n.corpo) }));
 
   const comprarAgora = previsao
     .map((p) => ({
+      insumoId: p.insumo_id,
       titulo: p.especificacao ?? `Insumo #${p.insumo_id}`,
       meta: `disp. ${formatNumber(p.disponivel)} · já pedido ${formatNumber(p.qtd_pedida_aberta)} · sugerido ${formatNumber(p.qtd_sugerida_compra)} ${p.unidade_saldo ?? p.unidade ?? ""}`.trim(),
       peso: (p.categoria_compra === "critico" ? 1e9 : 0) + Number(p.qtd_sugerida_compra ?? 0),
@@ -221,9 +219,12 @@ export default async function Home() {
     indicadores.push({
       href: "/compras",
       label: "Compras abertas",
-      value: pedidos.length,
-      detail: `${formatCompactCurrency(dashboard?.compras_abertas_valor)} estimados em andamento`,
-      tone: pedidos.length ? "info" : "neutral",
+      // leitura que falha mostra "sem dado", nunca zero
+      value: erroPedidos ? "sem dado" : pedidos.length,
+      detail: erroPedidos
+        ? "a leitura das compras não respondeu"
+        : `${formatCompactCurrency(dashboard?.compras_abertas_valor)} estimados em andamento`,
+      tone: !erroPedidos && pedidos.length ? "info" : "neutral",
     });
   }
   if (verOrcamentos) {
@@ -237,27 +238,47 @@ export default async function Home() {
     });
   }
 
-  // Uma lista só, do mais grave para o menos grave. Cada assunto aparece uma vez:
-  // o número fica no indicador e os itens ficam aqui (D12 da revisão de 11/11).
-  // Com Estoque, as linhas são as do painel de situação e abrem a ficha ou o lote (D1).
-  const atencao: LinhaAtencao[] = situacaoEstoque
-    ? situacaoEstoque.linhas.map((linha) => ({
-        chave: linha.chave,
-        selo: linha.tom === "vermelho" ? "Urgente" : "Atenção",
-        tom: linha.tom === "vermelho" ? "critico" : "atencao",
-        titulo: linha.titulo,
-        meta: `${linha.quadro} · ${linha.detalhe}`,
-        href: linha.href,
-      }))
-    : comprarAgora.map((c, i) => ({
-        chave: `comprar-${i}-${c.titulo}`,
-        selo: "Repor",
-        tom: "atencao",
-        titulo: c.titulo,
-        meta: c.meta,
-        href: "/compras",
-      }));
-  const hrefListaCompleta = situacaoEstoque ? HREF_SITUACAO_ESTOQUE : "/compras";
+  // Tabela "Precisa de atenção hoje": as quatro listas que o Início tinha (prioridade de
+  // compra, validade, compras em andamento e avisos) numa tabela só, do mais grave para o
+  // menos grave. Com Estoque, as linhas são as do painel de situação (D1); sem Estoque e
+  // com Compras, fica a sugestão de compra da previsão.
+  const origens: OrigemAtencao[] = [
+    ...(verSuprimentos ? (["Estoque"] as const) : []),
+    ...(verEstoque ? (["Validade"] as const) : []),
+    ...(verCompras ? (["Compras"] as const) : []),
+    "Aviso",
+  ];
+  const atencao = ordenarAtencaoHoje([
+    ...(situacaoEstoque ? linhasDoEstoque(situacaoEstoque.linhas) : linhasDeSugestao(comprarAgora)),
+    ...linhasDeCompras(comprasDoInicio(pedidos, aCaminho && !aCaminho.erro ? aCaminho.itens : null, hoje)),
+    ...linhasDeAvisos(
+      notificacoes.map((n) => ({
+        id: n.id,
+        tipo: n.tipo,
+        titulo: n.titulo,
+        corpo: n.corpo,
+        entidadeTipo: n.entidade_tipo,
+        entidadeId: n.entidade_id,
+        criadoEm: n.criado_em,
+      })),
+    ),
+  ]);
+  // leitura que falhou vira aviso na tabela: ela nunca fica menor em silêncio
+  const semDado = [
+    situacaoEstoque && !situacaoEstoque.resumo
+      ? "Estoque e validade: sem dado. A leitura do estoque não respondeu por inteiro; abra a Situação do estoque para conferir."
+      : null,
+    erroPedidos ? "Compras: sem dado. A leitura das compras não respondeu." : null,
+    !erroPedidos && aCaminho?.erro
+      ? "Compras: prazos estimados sem dado. Só as datas informadas nas compras foram usadas para dizer o que está atrasado."
+      : null,
+    erroNotificacoes ? "Avisos: sem dado. A leitura dos avisos não respondeu." : null,
+  ].filter((texto): texto is string => Boolean(texto));
+  const listas = [
+    ...(verEstoque ? [{ rotulo: "Situação do estoque", href: HREF_SITUACAO_ESTOQUE }] : []),
+    ...(verCompras ? [{ rotulo: "Compras", href: "/compras" }] : []),
+    { rotulo: "Notificações", href: "/notificacoes" },
+  ];
 
   // Gráficos só para quem decide, e só o gráfico que tem dado (8.1 da revisão).
   const decide = efetivas.admin || papel === "gestor" || papel === "supervisor";
@@ -284,13 +305,14 @@ export default async function Home() {
             <p>O que espera por você e o que precisa de compra, baixa ou revisão hoje.</p>
             <p>
               Mostra só as áreas que o seu usuário pode abrir. Em <b>Aguardando você</b> ficam as
-              etapas que dependem da sua ação; cada número leva à lista que o explica.
+              etapas que dependem da sua ação; cada número leva à lista que o explica; a tabela junta
+              estoque, validade, compras e avisos, do mais grave para o menos grave.
             </p>
             <HelpLegend
               items={[
-                { tom: "critico", rotulo: "Urgente", texto: "zero no sistema, lote vencido, risco de falta ou compra atrasada." },
-                { tom: "atencao", rotulo: "Atenção", texto: "abaixo do mínimo, lote vencendo ou aberto fora da ordem." },
-                { tom: "info", rotulo: "Em andamento", texto: "compras abertas ou propostas com o cliente." },
+                { tom: "critico", rotulo: "Urgente", texto: "sem estoque, lote vencido, risco de falta ou entrega atrasada." },
+                { tom: "atencao", rotulo: "Atenção", texto: "abaixo do mínimo, lote vencendo, aberto fora da ordem ou aviso não lido." },
+                { tom: "info", rotulo: "Em andamento", texto: "compras abertas dentro do prazo." },
               ]}
             />
           </HelpTip>
@@ -314,82 +336,25 @@ export default async function Home() {
         />
       )}
 
-      <div className={notificacoes.length > 0 && verSuprimentos ? "grid gap-4 lg:grid-cols-3" : "grid gap-4"}>
-        {verSuprimentos && (
-          <SectionCard
-            title="Precisa de atenção hoje"
-            className={notificacoes.length > 0 ? "lg:col-span-2" : undefined}
-            contentClassName="p-3 sm:p-3"
-          >
-            {atencao.length > 0 ? (
-              <>
-                <ul aria-label="Precisa de atenção hoje" className="divide-y divide-border/60">
-                  {atencao.slice(0, LIMITE_ATENCAO).map((linha) => (
-                    <li key={linha.chave}>
-                      <Link
-                        href={linha.href}
-                        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2"
-                      >
-                        <span
-                          className={`w-28 shrink-0 rounded-full border px-2 py-0.5 text-center text-xs font-medium ${TOM_ATENCAO[linha.tom]}`}
-                        >
-                          {linha.selo}
-                        </span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={linha.titulo}>
-                          {linha.titulo}
-                        </span>
-                        <span className="text-xs text-muted-foreground">{linha.meta}</span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-                {atencao.length > LIMITE_ATENCAO && (
-                  <p className="px-2 pt-2 text-xs text-muted-foreground">
-                    E mais {atencao.length - LIMITE_ATENCAO}.{" "}
-                    <Link href={hrefListaCompleta} className="font-medium text-primary hover:underline">
-                      Ver a lista completa
-                    </Link>
-                  </p>
-                )}
-              </>
-            ) : (
-              <p className="px-2 py-1 text-sm text-muted-foreground">
-                {situacaoEstoque && !situacaoEstoque.resumo
-                  ? "Sem dado: a leitura do estoque não respondeu por inteiro. Abra a Situação do estoque para conferir."
-                  : situacaoEstoque
-                    ? "Nada urgente nem de atenção no estoque agora."
-                    : "Nenhuma compra sugerida agora."}
-              </p>
-            )}
-          </SectionCard>
-        )}
-
-        {notificacoes.length > 0 && (
-          <SectionCard
-            title="Notificações"
-            actions={
-              <Link href="/notificacoes" className="text-xs font-semibold text-primary hover:underline">
-                Ver todas
-              </Link>
-            }
-            contentClassName="p-3 sm:p-3"
-          >
-            <ul className="space-y-2">
-              {notificacoes.map((n) => (
-                <li key={n.id} className="rounded-md bg-muted/50 px-3 py-2">
-                  <div className="truncate text-sm font-medium text-foreground" title={n.titulo}>
-                    {n.titulo}
-                  </div>
-                  <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
-                    {rotuloTipoNotificacao(n.tipo)}
-                    {n.corpo ? ` · ${n.corpo}` : ""}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </SectionCard>
-        )}
-      </div>
+      <SectionCard
+        title="Precisa de atenção hoje"
+        help={
+          <HelpTip title="Precisa de atenção hoje">
+            <p>
+              Uma linha por item, do mais grave para o menos grave. Com a mesma gravidade, as origens se
+              alternam, para uma não esconder as outras.
+            </p>
+            <p>
+              <b>Estoque</b> e <b>Validade</b> vêm do painel de Situação do estoque. <b>Compras</b> são as
+              compras abertas. <b>Avisos</b> são as suas notificações não lidas.
+            </p>
+            <p>A tabela mostra 10 linhas; <b>Ver todos</b> abre o resto aqui mesmo.</p>
+          </HelpTip>
+        }
+        contentClassName="p-3 sm:p-4"
+      >
+        <TabelaAtencaoHoje linhas={atencao} origens={origens} semDado={semDado} listas={listas} />
+      </SectionCard>
 
       {(gastosComDado !== null || funilComDado !== null) && (
         <SectionCard title="Dashboard executivo">

@@ -38,7 +38,14 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Início", item: "Número Repor", onde: [tela("app/page.tsx", '"sem_disponivel", "vencido_vencendo", "reposicao"'), tela("lib/estoque/controle-estoque.ts", '"Repor",')] },
   { area: "Início", item: "Número Compras abertas", onde: [tela("app/page.tsx", 'label: "Compras abertas"')] },
   { area: "Início", item: "Número Propostas com o cliente", onde: [tela("app/page.tsx", 'label: "Propostas com o cliente"')] },
-  { area: "Início", item: "Precisa de atenção hoje", onde: [tela("app/page.tsx", "Precisa de atenção hoje")] },
+  { area: "Início", item: "Precisa de atenção hoje", onde: [tela("app/page.tsx", "Precisa de atenção hoje"), tela("app/page.tsx", "<TabelaAtencaoHoje")] },
+  // as quatro listas da 1.8.1 viraram as quatro origens da tabela (etapa 4 da organização de 11/11)
+  { area: "Início", item: "Tabela: prioridade de compra (origem Estoque)", onde: [tela("app/page.tsx", "linhasDoEstoque(situacaoEstoque.linhas)"), tela("app/page.tsx", "linhasDeSugestao(comprarAgora)")] },
+  { area: "Início", item: "Tabela: validade e uso (origem Validade)", onde: [tela("lib/inicio/atencao-hoje.ts", '"vencidos", "vencendo", "fora-de-ordem", "varios-abertos"')] },
+  { area: "Início", item: "Tabela: compras em andamento (origem Compras)", onde: [tela("app/page.tsx", "linhasDeCompras(")] },
+  { area: "Início", item: "Tabela: avisos não lidos (origem Aviso)", onde: [tela("app/page.tsx", "linhasDeAvisos("), tela("app/page.tsx", '{ rotulo: "Notificações", href: "/notificacoes" }')] },
+  { area: "Início", item: "Tabela: colunas Origem, Item, Situação, Prazo e Ação", onde: [tela("components/dashboard/TabelaAtencaoHoje.tsx", "Origem\n"), tela("components/dashboard/TabelaAtencaoHoje.tsx", "Prazo\n"), tela("components/dashboard/TabelaAtencaoHoje.tsx", "Ação\n")] },
+  { area: "Início", item: "Tabela: Ver todos", onde: [tela("components/dashboard/TabelaAtencaoHoje.tsx", "Ver todos (")] },
   { area: "Início", item: "Dashboard executivo (gastos por mês e funil)", onde: [tela("app/page.tsx", "<ExecutiveCharts")] },
   { area: "Início", item: "Notificações", onde: [busca("/notificacoes"), tela("components/layout/SinoAvisos.tsx", 'href="/notificacoes"')] },
   // ── Barra do topo ──

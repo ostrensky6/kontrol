@@ -239,7 +239,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Situação do estoque",
         itens: [
           "Estoque → Situação é o painel único de alertas: cada quadro lista os insumos ou lotes que pedem atenção e por quê. Urgente pede ação agora, Atenção pede acompanhamento de perto, Acompanhar e Cadastro podem esperar.",
-          "O Início e Cadastros mostram só a contagem (por exemplo, '3 urgentes · 5 de atenção') e levam ao painel. O número é o mesmo nas três telas, porque sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
+          "Cadastros mostra só a contagem (por exemplo, '3 urgentes · 5 de atenção') e leva ao painel. O Início mostra os números Sem estoque, Vencidos ou vencendo e Repor, os mesmos do topo da Situação, e traz as linhas do painel na tabela 'Precisa de atenção hoje'. Tudo sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
           "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir no Inventário.",
           "Sem estoque é o disponível zerado com mínimo definido. Zero sem mínimo aparece em Sem mínimo definido. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
           "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
@@ -1014,9 +1014,10 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Início",
         itens: [
           "'Aguardando você' vem primeiro: é o que depende da sua decisão. O mesmo quadro abre pelo sino, em qualquer tela.",
-          "Cada número abre a lista completa daquele assunto.",
-          "'Situação do estoque' mostra quantos itens estão em alerta urgente ou de atenção e abre o painel em Estoque → Situação.",
-          "'Precisa de atenção hoje' lista os primeiros itens desse painel, do mais grave para o menos grave. Cada linha abre a ficha do insumo ou o lote.",
+          "Cinco números, e cada um abre a lista que o explica: Sem estoque, Vencidos ou vencendo, Repor, Compras abertas e Propostas com o cliente. Os três do estoque são os mesmos do topo de Estoque → Situação.",
+          "'Precisa de atenção hoje' é uma tabela com cinco colunas: Origem, Item, Situação, Prazo e Ação. As origens são Estoque, Validade, Compras e Avisos; os botões acima da tabela filtram por origem.",
+          "A tabela vai do mais grave para o menos grave: Urgente (sem estoque, lote vencido, entrega atrasada), Atenção (abaixo do mínimo, lote vencendo, aviso não lido) e Em andamento (compra dentro do prazo). Com a mesma gravidade, as origens se alternam.",
+          "A tabela mostra 10 linhas; 'Ver todos' abre o resto ali mesmo. Compra só solicitada aparece como 'aguardando aprovação' e nunca como atrasada. Prazo calculado pelo sistema aparece como 'estimada'.",
           "Os gráficos aparecem para Gestor, Supervisor e Administrador, e só quando há dados.",
         ],
       },
