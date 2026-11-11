@@ -473,6 +473,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Aproveite os rascunhos automáticos para não esquecer reposições críticas.",
           "Receba sempre pela compra ou pelo pedido, assim o rastreio do lote fica completo.",
           "Cheque divergências de quantidade no recebimento antes de fechar o pedido.",
+          "Registrou um recebimento por engano? Use 'Estornar' ao lado do item. O app mostra o que será desfeito e pede confirmação: o lote sai do estoque e o item volta a ficar pendente.",
         ],
       },
       {

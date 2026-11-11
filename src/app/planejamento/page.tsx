@@ -4,6 +4,7 @@ import { PlanosTable, type PlanoRow } from "@/components/planejamento/PlanosTabl
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { avaliarGestaoPlano } from "@/lib/planejamento/gestao";
+import { formatDate, formatPeriodo } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
 
@@ -87,10 +88,8 @@ export default async function PlanejamentoPage({
       id: p.id as number,
       nome: p.nome ?? "Plano sem nome",
       projeto: p.projeto_id != null ? projetoNome.get(p.projeto_id) ?? "—" : "—",
-      dataAlvo: p.data_alvo ?? "—",
-      periodo: p.data_inicio_prevista && p.data_fim_prevista
-        ? `${p.data_inicio_prevista} → ${p.data_fim_prevista}`
-        : p.data_inicio_prevista ?? p.data_fim_prevista ?? "—",
+      dataAlvo: formatDate(p.data_alvo),
+      periodo: formatPeriodo(p.data_inicio_prevista, p.data_fim_prevista),
       prioridade: p.prioridade ?? "normal",
       responsavel: p.responsavel ?? "—",
       itens,

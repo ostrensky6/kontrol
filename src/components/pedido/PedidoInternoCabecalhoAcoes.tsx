@@ -99,7 +99,7 @@ export function PedidoInternoCabecalhoAcoes({
               <div>
                 <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
                 <select name="projeto_id" defaultValue={projetoId ?? ""} className={inputCls}>
-                  <option value="">Sem projeto (a Supervisão valida)</option>
+                  <option value="">Sem projeto (a Supervisão aprova)</option>
                   {projetos.map((projeto) => (
                     <option key={projeto.id} value={projeto.id}>
                       {projeto.nome}

@@ -84,6 +84,25 @@ export function formatDate(value: string | Date | null | undefined) {
   return dateFormatter.format(date);
 }
 
+/**
+ * Período de calendário para listas: "22/06 a 30/06/2026" (mesmo ano),
+ * "22/12/2026 a 05/01/2027" (anos diferentes) ou só a data que existir.
+ * Nunca mostra a data no formato técnico do banco (2026-06-22).
+ */
+export function formatPeriodo(
+  inicio: string | Date | null | undefined,
+  fim: string | Date | null | undefined,
+) {
+  if (!inicio && !fim) return "—";
+  if (!inicio || !fim) return formatDate(inicio ?? fim);
+  const de = formatDate(inicio);
+  const ate = formatDate(fim);
+  if (de === "—" || ate === "—") return de === "—" ? ate : de;
+  if (de === ate) return de;
+  const mesmoAno = de.slice(-4) === ate.slice(-4);
+  return `${mesmoAno ? de.slice(0, 5) : de} a ${ate}`;
+}
+
 export function formatDateTime(value: string | Date | null | undefined) {
   if (!value) return "—";
   const date = value instanceof Date ? value : new Date(value);

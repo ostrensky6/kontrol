@@ -1,4 +1,5 @@
 import { cicloLiberaEm, dataEmBrasilia, rotuloCiclo, rotuloData } from "@/lib/pedido/ciclo";
+import { rotuloUso } from "@/lib/pedido/natureza";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import Link from "next/link";
@@ -68,14 +69,6 @@ type PedidoInternoListRow = {
 function asOne<T>(value: T | T[] | null | undefined) {
   return Array.isArray(value) ? (value[0] ?? null) : (value ?? null);
 }
-
-const LABEL_TIPO: Record<string, string> = {
-  laboratorio: "Laboratório",
-  campo: "Campo",
-  laboratorio_campo: "Lab./campo",
-  administrativo: "Administrativo",
-  outro: "Outro",
-};
 
 const LABEL_MODALIDADE: Record<string, string> = {
   compra_direta: "Compra direta",
@@ -162,7 +155,7 @@ export default async function PedidoPage({
       id: pedido.id,
       numero: pedidoInternoNumero(pedido.id),
       titulo: pedido.titulo,
-      tipoDemanda: LABEL_TIPO[pedido.tipo_demanda ?? "laboratorio"] ?? pedido.tipo_demanda ?? "—",
+      tipoDemanda: rotuloUso(pedido.tipo_demanda),
       projeto,
       coordenador,
       solicitante: pedido.solicitante ?? "—",
