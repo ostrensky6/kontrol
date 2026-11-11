@@ -135,8 +135,10 @@ describe("hrefAtivoNaBarra", () => {
       "Pedidos",
       "Recebimento",
       "Equipamentos",
-      "Notificações",
     ]);
+    // os avisos vêm de todos os módulos: saíram da barra de Suprimentos e abrem pelo sino (L2)
+    expect(suprimentos.children.map((c) => c.href)).not.toContain("/notificacoes");
+    expect(moduleIsActive(suprimentos, "/notificacoes")).toBe(false);
     // cada rota marca exatamente o item da tarefa
     expect(hrefAtivoNaBarra(visiveis, "/suprimentos")).toBe("/suprimentos");
     expect(hrefAtivoNaBarra(visiveis, "/suprimentos/prazos")).toBe("/pedido");
@@ -173,14 +175,17 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
     ]);
   });
 
-  it("Início só fica ativo na própria página inicial", () => {
+  it("Início só fica ativo na página inicial e em Notificações, que continua na busca", () => {
     expect(moduleIsActive(modulo("inicio"), "/")).toBe(true);
+    expect(moduleIsActive(modulo("inicio"), "/notificacoes")).toBe(true);
+    expect(modulo("inicio").children.filter((c) => c.showInTopNav !== false).map((c) => c.href)).toEqual(["/"]);
+    expect(getCommandGroups(admin).flatMap((g) => g.links.map((l) => l.href))).toContain("/notificacoes");
     expect(moduleIsActive(modulo("inicio"), "/estoque")).toBe(false);
     expect(moduleIsActive(modulo("inicio"), "/orcamento/demandas")).toBe(false);
   });
 
   it("uma rota marca um único item da barra lateral", () => {
-    const rotas = ["/", "/projetos/3", "/orcamento/parametros", "/governanca/regras", "/estoque", "/custeio", "/cadastros/insumos", "/ajuda"];
+    const rotas = ["/", "/notificacoes", "/projetos/3", "/orcamento/parametros", "/governanca/regras", "/estoque", "/custeio", "/cadastros/insumos", "/ajuda"];
     for (const rota of rotas) {
       expect(APP_MODULES.filter((m) => moduleIsActive(m, rota)).map((m) => m.id), rota).toHaveLength(1);
     }

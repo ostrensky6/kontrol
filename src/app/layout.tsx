@@ -4,12 +4,17 @@ import "./globals.css";
 import { createClient } from "@/lib/supabase/server";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { AppFooter } from "@/components/layout/AppFooter";
+import { AvisosProvider } from "@/components/layout/AvisosContexto";
+import { BarraSuperior, type ModuloDaBarra } from "@/components/layout/BarraSuperior";
 import { CommandPalette } from "@/components/layout/CommandPalette";
 import { ContextHelp } from "@/components/layout/ContextHelp";
 import { AvisoIncidentes } from "@/components/incidentes/AvisoIncidentes";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { Toaster } from "@/components/ui/sonner";
+import { getModulesForProfile } from "@/config/modules";
 import { getCommandGroups, getSidebarGroups } from "@/config/navigation";
+import { carregarAvisosDoSinoSeguro } from "@/lib/pendencias/carregar";
+import { AVISOS_VAZIOS } from "@/lib/pendencias/tipos";
 import { minhasPermissoes } from "@/lib/auth/permissao-efetiva";
 
 const geistSans = Geist({
@@ -54,6 +59,16 @@ export default async function RootLayout({
 
   const sidebarGroups = getSidebarGroups(perfil);
   const commandGroups = getCommandGroups(perfil);
+  // barra do topo: os lugares de cada módulo que a pessoa vê; o navegador escolhe o módulo pela rota
+  const modulosDaBarra: ModuloDaBarra[] = getModulesForProfile(perfil).map((modulo) => ({
+    id: modulo.id,
+    label: modulo.label,
+    activePaths: modulo.activePaths,
+    itens: modulo.children
+      .filter((child) => child.showInTopNav !== false)
+      .map(({ href, label, desc, icon, ativoTambem }) => ({ href, label, desc, icon, ativoTambem })),
+  }));
+  const avisosIniciais = user ? await carregarAvisosDoSinoSeguro() : AVISOS_VAZIOS;
 
   return (
     <html
@@ -75,10 +90,12 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           {user ? (
+            <AvisosProvider iniciais={avisosIniciais}>
             <div className="flex min-h-dvh flex-col md:flex-row">
               <Sidebar groups={sidebarGroups} perfil={perfil} userEmail={user.email ?? null} />
               <div className="flex min-w-0 flex-1 flex-col">
                 <AvisoIncidentes />
+                <BarraSuperior modulos={modulosDaBarra} />
                 <div
                   id="conteudo-principal"
                   tabIndex={-1}
@@ -91,6 +108,7 @@ export default async function RootLayout({
               <CommandPalette groups={commandGroups} />
               <ContextHelp />
             </div>
+            </AvisosProvider>
           ) : (
             <div id="conteudo-principal" tabIndex={-1} className="outline-none">
               {children}

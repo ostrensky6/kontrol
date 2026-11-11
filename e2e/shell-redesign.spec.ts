@@ -37,10 +37,14 @@ test("drawer mobile abre navegação modular sem perder ações do shell", async
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/orcamento/demandas");
 
+  // busca, sino e ajuda ficam na barra do logotipo, à mão sem abrir o menu (revisão de 11/11)
+  await expect(page.getByRole("button", { name: "Buscar ou executar ação" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Avisos: / })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ajuda contextual" })).toBeVisible();
+
   await page.getByRole("button", { name: "Abrir menu" }).click();
   await expect(page.getByRole("heading", { name: "Menu de navegação" })).toBeAttached();
   await expect(page.getByRole("button", { name: "Alternar tema claro/escuro" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Buscar ou executar" })).toBeVisible();
   await page.getByRole("link", { name: "Suprimentos" }).click();
   await expect(page).toHaveURL(/\/suprimentos$/);
 });

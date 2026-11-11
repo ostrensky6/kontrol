@@ -3,9 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
+import { abrirPaletaComandos } from "@/components/layout/BarraSuperior";
 import { abrirAjudaContextual } from "@/components/layout/ContextHelp";
 import { KontrolLogo } from "@/components/brand/KontrolLogo";
 import { SideNav, type NavGroup } from "@/components/layout/SideNav";
+import { SinoAvisos } from "@/components/layout/SinoAvisos";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { sair } from "@/lib/actions/auth";
 import {
@@ -21,10 +23,6 @@ const PAPEL_LABEL: Record<string, string> = { ...LABEL_PAPEL, admin: "Admin" };
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "kontrol:sidebar:collapsed";
 
 type Perfil = { nome: string | null; email: string | null; papel: string } | null;
-
-function abrirPaletaComandos() {
-  window.dispatchEvent(new Event("kontrol:open-command-palette"));
-}
 
 /** Conteúdo da barra (logo + navegação + sessão), reutilizado no rail e no drawer. */
 function SidebarContent({
@@ -42,45 +40,24 @@ function SidebarContent({
 }) {
   return (
     <>
-      <Link
-        href="/"
-        onClick={onNavigate}
-        className="flex items-center justify-center border-b border-border/70 px-4 py-4"
-      >
-        <KontrolLogo
-          className="h-auto w-40 max-w-full object-contain"
-          fetchPriority="high"
-        />
-      </Link>
-
-      <div className="border-b border-border/70 px-3 py-2.5">
-        <div className="flex items-center gap-2">
+      {/* A busca, o sino e a ajuda ficam na barra do topo (revisão de 11/11, 10.2). */}
+      <div className="flex items-center gap-1 border-b border-border/70 py-3 pl-4 pr-2">
+        <Link href="/" onClick={onNavigate} className="flex min-w-0 flex-1 items-center">
+          <KontrolLogo className="h-auto w-36 max-w-full object-contain" fetchPriority="high" />
+        </Link>
+        {onCollapse && (
           <Button
             type="button"
-            variant="outline"
-            onClick={abrirPaletaComandos}
-            className="h-8 min-w-0 flex-1 justify-start gap-2 border-border bg-background text-sm text-muted-foreground shadow-none hover:text-foreground"
+            variant="ghost"
+            size="icon"
+            onClick={onCollapse}
+            aria-label="Colapsar menu"
+            title="Colapsar menu"
+            className="hidden h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground md:inline-flex"
           >
-            <Search className="h-3.5 w-3.5" />
-            <span className="min-w-0 flex-1 truncate text-left">Buscar ou executar</span>
-            <kbd className="rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
-              Ctrl K
-            </kbd>
+            <PanelLeftClose className="h-4 w-4" />
           </Button>
-          {onCollapse && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              onClick={onCollapse}
-              aria-label="Colapsar menu"
-              title="Colapsar menu"
-              className="hidden h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground md:inline-flex"
-            >
-              <PanelLeftClose className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        )}
       </div>
 
       <SideNav groups={groups} onNavigate={onNavigate} />
@@ -143,17 +120,6 @@ function CollapsedSidebar({
           className="h-10 w-10 text-muted-foreground hover:text-foreground"
         >
           <PanelLeftOpen className="h-4 w-4" />
-        </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          onClick={abrirPaletaComandos}
-          aria-label="Buscar ou executar"
-          title="Buscar ou executar"
-          className="h-10 w-10 text-muted-foreground hover:text-foreground"
-        >
-          <Search className="h-4 w-4" />
         </Button>
       </div>
 
@@ -232,7 +198,8 @@ export function Sidebar({
           />
         </Link>
         <div className="flex items-center">
-          {/* No celular a ajuda contextual abre daqui, e não por um botão flutuante. */}
+          {/* No celular o sino, a ajuda e a busca ficam aqui; no computador, na barra do topo. */}
+          <SinoAvisos />
           <Button
             type="button"
             aria-label="Ajuda contextual"

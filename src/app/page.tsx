@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ExecutiveCharts } from "@/components/dashboard/ExecutiveCharts";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
-import { montarPendencias } from "@/components/dashboard/aguardando";
+import { carregarPendencias } from "@/lib/pendencias/carregar";
 import { formatCompactCurrency, formatDate, formatNumber } from "@/lib/formatters";
 import { minhasPermissoes, temNaLista } from "@/lib/auth/permissao-efetiva";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
@@ -124,7 +124,7 @@ export default async function Home() {
   const verSuprimentos = verEstoque || verCompras;
 
   const [
-    { data: aguardandoRaw },
+    pendencias,
     { data: previsaoRaw },
     { data: alertasRaw },
     { data: saldoRaw },
@@ -132,7 +132,8 @@ export default async function Home() {
     { data: dashboardRaw },
     { data: notificacoesRaw },
   ] = await Promise.all([
-    supabase.rpc("aguardando_voce"),
+    // a função do banco mais lotes em quarentena, disputas, códigos e manutenção vencida (F8)
+    carregarPendencias(),
     verSuprimentos
       ? supabase
           .from("v_previsao_suprimentos")
@@ -163,7 +164,6 @@ export default async function Home() {
       .limit(5),
   ]);
 
-  const pendencias = montarPendencias(aguardandoRaw);
   const previsao = ((previsaoRaw ?? []) as Previsao[]).filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0);
   const alertas = (alertasRaw ?? []) as AlertaEstoque[];
   const saldo = (saldoRaw ?? []) as EstoqueSaldo[];

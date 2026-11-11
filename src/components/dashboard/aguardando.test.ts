@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { PENDENCIAS_DE_PEDIDOS, PENDENCIAS_DE_SUPRIMENTOS, montarPendencias, pendenciasDe } from "./aguardando";
+import {
+  PENDENCIAS_DE_PEDIDOS,
+  PENDENCIAS_DE_SUPRIMENTOS,
+  destinoDaPendencia,
+  montarPendenciaDoApp,
+  montarPendencias,
+  pendenciasDe,
+  totalPendencias,
+} from "./aguardando";
 
 describe("montarPendencias", () => {
   it("traduz a resposta do banco em texto e links, só com o que tem contagem", () => {
@@ -7,7 +15,8 @@ describe("montarPendencias", () => {
       { chave: "pedidos_validacao", quantidade: 2, itens: [{ id: 7, rotulo: "#7 · Reagentes" }] },
       { chave: "compras_aprovar", quantidade: 0, itens: [] },
       { chave: "compras_receber", quantidade: "1", itens: [{ id: 3 }] },
-      // 0130: sem quarentena; a chave antiga não vira pendência
+      // 0130: a função do banco não devolve mais quarentena; se devolver, não vira pendência por aqui
+      // (lotes em quarentena são lidos pelo app, com a permissão de aceitar lote)
       { chave: "lotes_quarentena", quantidade: 4, itens: [] },
     ]);
     expect(pendencias).toEqual([
@@ -15,6 +24,7 @@ describe("montarPendencias", () => {
         chave: "pedidos_validacao",
         titulo: "Pedidos para você aprovar",
         acao: "aprovar ou devolver ao solicitante",
+        frase: "2 pedidos esperam a sua aprovação",
         quantidade: 2,
         href: "/pedido?etapa=aprovacao",
         itens: [{ id: 7, rotulo: "#7 · Reagentes", href: "/pedido/7" }],
@@ -23,6 +33,7 @@ describe("montarPendencias", () => {
         chave: "compras_receber",
         titulo: "Compras para receber",
         acao: "registrar a chegada dos itens",
+        frase: "1 compra espera o registro da chegada",
         quantidade: 1,
         href: "/recebimento",
         itens: [{ id: 3, rotulo: "#3", href: "/compras/3" }],
@@ -73,5 +84,48 @@ describe("montarPendencias", () => {
       "compras_receber",
       "planos_rascunho",
     ]);
+  });
+});
+
+describe("pendências lidas pelo app (revisão de 11/11, F8)", () => {
+  it("sem itens não vira pendência; com itens, mostra até três pelo nome e conta todos", () => {
+    expect(montarPendenciaDoApp("codigos_triagem", [])).toBeNull();
+    const itens = [1, 2, 3, 4].map((id) => ({ id, rotulo: `Disputa #${id}` }));
+    const disputas = montarPendenciaDoApp("disputas_decidir", itens)!;
+    expect(disputas.quantidade).toBe(4);
+    expect(disputas.frase).toBe("4 disputas de reserva esperam a sua decisão");
+    expect(disputas.href).toBe("/planejamento/disputas");
+    expect(disputas.itens.map((item) => item.href)).toEqual([
+      "/planejamento/disputas#disputa-1",
+      "/planejamento/disputas#disputa-2",
+      "/planejamento/disputas#disputa-3",
+    ]);
+  });
+
+  it("cada pendência do app abre a tela onde se resolve", () => {
+    const um = [{ id: 9, rotulo: "x" }];
+    expect(montarPendenciaDoApp("lotes_quarentena", um)).toMatchObject({ href: "/estoque?ver=lotes", itens: [{ href: "/estoque/lotes/9" }] });
+    expect(montarPendenciaDoApp("codigos_triagem", um)).toMatchObject({ href: "/scanner/triagem", frase: "1 código lido ainda não tem cadastro" });
+    expect(montarPendenciaDoApp("equipamentos_vencidos", um)).toMatchObject({
+      href: "/estoque/equipamentos",
+      itens: [{ href: "/estoque/equipamentos?focus=9" }],
+    });
+  });
+
+  it("entram em Suprimentos, não em Pedidos", () => {
+    const triagem = montarPendenciaDoApp("codigos_triagem", [{ id: 1, rotulo: "Código 789" }])!;
+    expect(pendenciasDe([triagem], PENDENCIAS_DE_SUPRIMENTOS)).toHaveLength(1);
+    expect(pendenciasDe([triagem], PENDENCIAS_DE_PEDIDOS)).toHaveLength(0);
+  });
+});
+
+describe("linha Sua vez (D4)", () => {
+  it("com um item só abre o registro; com vários, a lista", () => {
+    const [um] = montarPendencias([{ chave: "pedidos_validacao", quantidade: 1, itens: [{ id: 7, rotulo: "#7" }] }]);
+    const [varios] = montarPendencias([{ chave: "pedidos_validacao", quantidade: 3, itens: [{ id: 7, rotulo: "#7" }] }]);
+    expect(destinoDaPendencia(um)).toBe("/pedido/7");
+    expect(um.frase).toBe("1 pedido espera a sua aprovação");
+    expect(destinoDaPendencia(varios)).toBe("/pedido?etapa=aprovacao");
+    expect(totalPendencias([um, varios])).toBe(4);
   });
 });

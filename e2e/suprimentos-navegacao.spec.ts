@@ -17,7 +17,6 @@ test("barra de Suprimentos tem um link por tarefa e a visão geral mostra o esto
     "Pedidos",
     "Recebimento",
     "Equipamentos",
-    "Notificações",
   ]);
   await expect(barra.getByRole("link", { name: "Visão geral" })).toHaveAttribute("aria-current", "page");
   // nada de segunda fileira de abas ou de "Ferramentas" repetindo a barra
@@ -99,35 +98,28 @@ test("Novo pedido da visão geral abre o formulário em Pedidos", async ({ page 
 });
 
 /**
- * 1.7.2: o caminho da aprovação fica evidente. O pedido que espera o
- * coordenador aparece em "Aguardando você" (visão geral e Pedidos), a visão
- * geral mostra o andamento pelas seis etapas, e na página do pedido o botão de
- * aprovar fica no topo, no quadro "O que falta agora".
+ * 1.7.2: o caminho da aprovação fica evidente. Desde a revisão de 11/11 (D4 e
+ * D5) o quadro completo de "Aguardando você" fica só no Início e no sino: a
+ * visão geral e Pedidos mostram a linha "Sua vez", que leva direto ao pedido,
+ * e as caixas das seis etapas ficam só em Pedidos. Na página do pedido o
+ * botão de aprovar fica no topo, no quadro "O que falta agora".
  */
 test("coordenador acha o pedido para aprovar e o botão fica no topo da página", async ({ page }) => {
   await page.goto("/suprimentos");
-  const aguardando = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
-  await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
+  const suaVez = page.getByRole("status", { name: "Sua vez" });
+  await expect(suaVez.getByRole("link", { name: "1 pedido espera a sua aprovação" })).toHaveAttribute("href", "/pedido/502");
+  // o quadro inteiro e as caixas das etapas não se repetem aqui
+  await expect(page.getByRole("heading", { name: "Aguardando você" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Andamento dos pedidos" })).toHaveCount(0);
+  await expect(page.getByTestId("andamento-resumo").getByRole("link", { name: /^\d+ pedidos? em andamento$/ })).toHaveAttribute(
     "href",
-    "/pedido?etapa=aprovacao",
+    "/pedido",
   );
 
-  // andamento: as seis etapas, na ordem, cada uma abrindo a lista filtrada
-  const andamento = page.getByRole("region", { name: "Andamento dos pedidos" });
-  await expect(andamento.getByRole("link", { name: /^Etapa \d/ })).toHaveCount(6);
-  await expect(andamento.getByRole("link", { name: /^Etapa 2, Aprovação: \d+ pedidos?$/ })).toHaveAttribute(
-    "href",
-    "/pedido?etapa=aprovacao",
-  );
-  await expect(andamento.getByRole("link", { name: /^A receber: / })).toHaveAttribute("href", "/recebimento");
-
-  // a lista de Pedidos repete o "Aguardando você" e leva direto ao pedido
+  // a lista de Pedidos tem as etapas e a mesma linha, que leva direto ao pedido
   await page.goto("/pedido");
-  await page
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Aguardando você" }) })
-    .getByRole("link", { name: /Primers para aprovar E2E/ })
-    .click();
+  await expect(page.getByRole("heading", { name: "Aguardando você" })).toHaveCount(0);
+  await page.getByRole("status", { name: "Sua vez" }).getByRole("link", { name: "1 pedido espera a sua aprovação" }).click();
   await expect(page).toHaveURL(/\/pedido\/502$/);
 
   // trilha das seis etapas, com a atual marcada

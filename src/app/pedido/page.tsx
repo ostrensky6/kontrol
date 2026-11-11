@@ -8,8 +8,9 @@ import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
 import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
 import { proximoPasso } from "@/lib/pedido/proximo-passo";
 import { coordenadorDoProjeto, type UsuarioCoordenador } from "@/app/projetos/_lib/responsavel";
-import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
-import { PENDENCIAS_DE_PEDIDOS, montarPendencias, pendenciasDe } from "@/components/dashboard/aguardando";
+import { AguardandoVoceLinha } from "@/components/dashboard/AguardandoVoceLinha";
+import { PENDENCIAS_DE_PEDIDOS, pendenciasDe } from "@/components/dashboard/aguardando";
+import { carregarPendencias } from "@/lib/pendencias/carregar";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
 import { NovoPedidoDialog } from "@/components/pedido/NovoPedidoDialog";
 import { pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
@@ -104,12 +105,12 @@ export default async function PedidoPage({
     pode("pedido.aprovar"),
     lerAreasPedido(supabase),
     // o banco diz, pela competência de cada um, o que espera este usuário (0173)
-    supabase.rpc("aguardando_voce"),
+    carregarPendencias(),
     // quem aprova pelo projeto é o usuário coordenador (0136/0169), não o nome escrito no cadastro
     supabase.from("perfis").select("id, nome, email, suspenso"),
   ]);
   const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
-  const pendencias = pendenciasDe(montarPendencias(aguardando.data), PENDENCIAS_DE_PEDIDOS);
+  const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PEDIDOS);
   const { data: pedidos } = pedidosFull.error
     ? await supabase
         .from("pedidos_internos")
@@ -210,14 +211,8 @@ export default async function PedidoPage({
           <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} abrirAoCarregar={abrirNovo} />
         </div>
 
-        <div className="mt-5">
-          <AguardandoVoce
-            pendencias={pendencias}
-            destaque
-            vazio="Nenhum pedido esperando a sua ação agora. Quando um pedido depender de você, ele aparece aqui."
-            ajuda="Pedidos que dependem de você: aprovar como coordenador ou pelo laboratório, autorizar, cotar, fechar a compra ou pagar."
-          />
-        </div>
+        {/* o quadro completo fica no Início e no sino; aqui, uma linha (D4) */}
+        <AguardandoVoceLinha pendencias={pendencias} className="mt-4" />
 
         <div className="mt-5">
           <PedidosPorEtapa key={filtroEtapa} rows={rows} podeExcluir={podeExcluir} filtroInicial={filtroEtapa} />

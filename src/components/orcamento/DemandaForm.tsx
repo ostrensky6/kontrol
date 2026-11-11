@@ -671,7 +671,7 @@ export function DemandaForm({
       )}
 
       {/* Barra de ação presa ao pé da tela, como em SalvarDemandaForm. */}
-      <div className="sticky bottom-0 z-10 -mx-4 -mb-4 flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-border bg-card/95 px-4 py-2.5 backdrop-blur">
+      <div className="sticky bottom-0 z-10 shadow-[0_-4px_12px_-6px_rgba(15,23,42,0.18)] -mx-4 -mb-4 flex flex-wrap items-center justify-between gap-3 rounded-b-lg border-t border-border bg-card px-4 py-2.5">
         {state.message ? (
           <div
             role={state.ok ? "status" : "alert"}

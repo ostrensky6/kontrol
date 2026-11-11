@@ -65,13 +65,21 @@ export const APP_MODULES: AppModule[] = [
     desc: "o que depende de você e o que precisa de atenção hoje",
     icon: "Home",
     accent: "brand",
-    activePaths: ["/"],
+    // os avisos vêm de todos os módulos: abrem pelo sino do topo, não por uma barra (L2)
+    activePaths: ["/", "/notificacoes"],
     children: [
       {
         href: "/",
         label: "Início",
         desc: "pendências, números do dia e o que precisa de atenção",
         icon: "Home",
+      },
+      {
+        href: "/notificacoes",
+        label: "Notificações",
+        desc: "avisos para você",
+        icon: "Bell",
+        showInTopNav: false,
       },
     ],
   },
@@ -175,7 +183,6 @@ export const APP_MODULES: AppModule[] = [
       "/pedido",
       "/compras",
       "/recebimento",
-      "/notificacoes",
       "/etiquetas",
       "/scanner",
     ],
@@ -223,12 +230,6 @@ export const APP_MODULES: AppModule[] = [
         label: "Equipamentos",
         desc: "unidades físicas, calibrações e manutenções",
         icon: "Wrench",
-      },
-      {
-        href: "/notificacoes",
-        label: "Notificações",
-        desc: "avisos para você",
-        icon: "Bell",
       },
       {
         href: "/estoque/controle",
