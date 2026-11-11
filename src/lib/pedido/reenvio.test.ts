@@ -4,7 +4,7 @@ import { situacaoReenvio, textoReenvio } from "./reenvio";
 describe("reenvio depois do ajuste (0175, D5)", () => {
   it("sem validação anterior, vai ao coordenador", () => {
     const s = situacaoReenvio({ mantem: false, mudou: [], motivo: "sem_validacao", valor_atual: 300 });
-    expect(textoReenvio(s)).toBe("Ao reenviar, o pedido vai para a validação do coordenador.");
+    expect(textoReenvio(s)).toBe("Ao reenviar, o pedido vai para a aprovação do coordenador.");
   });
 
   it("sem mudança, mantém as aprovações e diz para onde volta", () => {

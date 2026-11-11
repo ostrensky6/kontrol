@@ -217,7 +217,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
 
 export function PedidosInternosTable({
   rows,
-  emptyText = "Nenhum pedido interno ainda.",
+  emptyText = "Nenhum pedido ainda.",
   podeExcluir = false,
 }: {
   rows: PedidoInternoRow[];

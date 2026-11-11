@@ -377,7 +377,7 @@ test("Planejamento e Pedidos ganham abas; na página de um registro elas não ap
 
   await page.goto("/pedido");
   const pedidos = page.getByRole("navigation", { name: "Seções de pedidos" });
-  await expect(pedidos.getByRole("link")).toHaveText(["Pedidos", "Compras formais", "Prazos de compra"]);
+  await expect(pedidos.getByRole("link")).toHaveText(["Pedidos", "Compras", "Prazos de compra"]);
   // os links de texto sob o título saíram
   await expect(page.getByRole("navigation", { name: "Compras e prazos" })).toHaveCount(0);
   await pedidos.getByRole("link", { name: "Prazos de compra" }).click();

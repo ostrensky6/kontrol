@@ -320,7 +320,8 @@ describe("recebimento de pedido interno", () => {
 
     expect(result).toEqual({
       ok: false,
-      message: "Item vinculado a compra formal deve ser recebido pelo pedido de compra.",
+      // a recusa do banco chega com as palavras do glossário (10.5)
+      message: "Item vinculado a compra deve ser recebido pela compra.",
     });
   });
 

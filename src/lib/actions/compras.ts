@@ -84,7 +84,7 @@ export async function comprarFaltasDoPlano(_prev: EstadoAcao, formData: FormData
   const planId = Number(formData.get("planejamento_id"));
   if (!planId) return falha("Planejamento não informado.");
   if (!(await pode("pedido.criar"))) {
-    return falha("Seu perfil não tem permissão para criar pedido interno. Peça ao administrador para liberar em Usuários.");
+    return falha("Seu perfil não tem permissão para criar pedido. Peça ao administrador para liberar em Usuários.");
   }
   const supabase = await createClientUntyped();
 
@@ -145,7 +145,7 @@ export async function comprarFaltasDoPlano(_prev: EstadoAcao, formData: FormData
   if (error) return falha(mensagemDoBanco(error));
   const pedidoId = Number((data as { pedido_id?: number } | null)?.pedido_id);
   if (!Number.isInteger(pedidoId) || pedidoId <= 0) {
-    return falha("Não foi possível criar o pedido interno para as faltas do planejamento.");
+    return falha("Não foi possível criar o pedido para as faltas do planejamento.");
   }
 
   revalidatePath("/pedido");

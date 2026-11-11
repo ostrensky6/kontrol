@@ -116,7 +116,7 @@ describe("actions de estoque", () => {
 
     expect(result).toEqual({
       ok: true,
-      message: "Entrada registrada: o lote já está disponível no estoque.",
+      message: "Chegada registrada: o lote já está disponível no estoque.",
     });
     // 0127: idempotente por operacao_id (gerado se o formulário não mandar).
     expect(rpc).toHaveBeenCalledWith("entrada_inventario", {

@@ -156,7 +156,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Coordenador do projeto",
         tipo: "select",
         opcoesDe: "perfis",
-        ajuda: "Usuário que aprova os pedidos de compra do projeto. Sem coordenador, o pedido não segue.",
+        ajuda: "Usuário que aprova os pedidos do projeto. Sem coordenador, o pedido não segue.",
       },
       {
         name: "responsavel",
@@ -313,7 +313,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       },
       {
         name: "pedido_interno_id",
-        label: "Nº do pedido interno",
+        label: "Nº do pedido",
+        rotulosAntigos: ["Nº do pedido interno"],
         tipo: "number",
         min: 1,
         step: "1",

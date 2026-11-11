@@ -12,6 +12,7 @@ import { minhasPermissoes, temNaLista } from "@/lib/auth/permissao-efetiva";
 import { decideDisputaReserva } from "@/lib/auth/permissions";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { rotuloTipo } from "@/lib/equipamentos/avisos";
+import { noGlossario } from "@/lib/glossario";
 import { caminhoNotificacao } from "@/lib/notifications/links";
 import { AVISOS_VAZIOS, type AvisosDoSino } from "@/lib/pendencias/tipos";
 import { createClientUntyped } from "@/lib/supabase/server";
@@ -177,8 +178,8 @@ export async function carregarAvisosDoSino(): Promise<AvisosDoSino> {
     naoLidos: naoLidas.length,
     avisos: naoLidas.slice(0, AVISOS_NO_SINO).map((n) => ({
       id: Number(n.id),
-      titulo: n.titulo,
-      corpo: n.corpo,
+      titulo: noGlossario(n.titulo),
+      corpo: noGlossario(n.corpo),
       href: caminhoNotificacao(n.entidade_tipo, n.entidade_id),
       criadoEm: n.criado_em,
     })),

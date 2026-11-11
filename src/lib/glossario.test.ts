@@ -23,6 +23,21 @@ const ALVOS = [
   "components/cadastros",
   "lib/cadastros",
   "app/page.tsx",
+  // 2e: pedidos, compras, recebimento e planejamento
+  "app/pedido",
+  "components/pedido",
+  "lib/pedido",
+  "app/compras",
+  "components/compras",
+  "app/recebimento",
+  "app/planejamento",
+  "components/planejamento",
+  "lib/planejamento",
+  "lib/actions/pedidos-internos.ts",
+  "lib/actions/compras.ts",
+  "lib/actions/estoque.ts",
+  "lib/actions/leitura-estoque.ts",
+  "components/layout/ContextHelp.tsx",
 ];
 
 const PALAVRAS_ANTIGAS: { antiga: RegExp; usar: string }[] = [
@@ -36,6 +51,10 @@ const PALAVRAS_ANTIGAS: { antiga: RegExp; usar: string }[] = [
   { antiga: /header: "(Status|Estado|Estágio)"|label: "(Status|Estado)"/, usar: "Situação" },
   { antiga: /header: "Reagente"/, usar: "Insumo" },
   { antiga: /Campanha|campanha/, usar: "Contagem" },
+  { antiga: /[Pp]edidos? internos?\b/, usar: "Pedido" },
+  { antiga: /[Cc]ompras? forma(l|is)\b|[Pp]edidos? de compra/, usar: "Compra" },
+  { antiga: /aguardando validação|para validação|\bvalidam\b/, usar: "Aprovar" },
+  { antiga: /\+ Entrada|Registrar entrada|Entrada de inventário|Entrada registrada|Confirmar recebimento|Receber compras|Receber pedidos/, usar: "Registrar chegada" },
 ];
 
 function arquivos(caminho: string): string[] {
@@ -78,5 +97,49 @@ describe("glossário da revisão (10.5) nas telas da Onda 2", () => {
     const amostra = semComentarios('const a = { label: "Repos." }; // Zero no sistema só no comentário');
     expect(PALAVRAS_ANTIGAS.some(({ antiga }) => antiga.test(amostra))).toBe(true);
     expect(/Zero no sistema/.test(amostra)).toBe(false);
+  });
+});
+
+describe("noGlossario: recusas e avisos que vêm prontos do banco", () => {
+  it("troca as palavras antigas e mantém o gênero", async () => {
+    const { noGlossario } = await import("./glossario");
+    expect(noGlossario("Item vinculado a compra formal deve ser recebido pelo pedido de compra.")).toBe(
+      "Item vinculado a compra deve ser recebido pela compra.",
+    );
+    expect(noGlossario("Este pedido interno ja possui compra formal.")).toBe("Este pedido ja possui compra.");
+    expect(noGlossario("Pedido interno aguardando validação")).toBe("Pedido aguardando aprovação");
+    expect(noGlossario("Pedido interno validado: formalizar a compra")).toBe("Pedido aprovado pelo coordenador: formalizar a compra");
+    expect(noGlossario('Escolher o orçamento exige a permissão "Aprovar pedidos internos".')).toBe(
+      'Escolher o orçamento exige a permissão "Aprovar pedidos".',
+    );
+    expect(noGlossario("Faça pelo Pedido (Pedido interno), que leva à FUNPAR, e cancele esta compra.")).toBe(
+      "Faça pelo Pedido, que leva à FUNPAR, e cancele esta compra.",
+    );
+    expect(noGlossario("Há 1 contagem(ns) com diferença sem ajuste aplicado. Aplique os ajustes antes de fechar a campanha.")).toBe(
+      "Há 1 item(ns) contado(s) com diferença sem ajuste aplicado. Aplique os ajustes antes de fechar a contagem.",
+    );
+    expect(noGlossario("A campanha de inventário #4 não está aberta: não recebe contagem nova.")).toBe(
+      "A contagem #4 não está aberta: não recebe contagem nova.",
+    );
+    expect(noGlossario("Este pedido é validado por Sandra (coordenação). Na ausência, o Administrador valida como substituto.")).toBe(
+      "Este pedido é aprovado por Sandra (coordenação). Na ausência, o Administrador aprova como substituto.",
+    );
+  });
+
+  it("prova negativa: texto sem palavra antiga sai igual, e vazio continua vazio", async () => {
+    const { noGlossario } = await import("./glossario");
+    const texto = "A validade informada (2026-01-01) já passou: material vencido não entra no estoque.";
+    expect(noGlossario(texto)).toBe(texto);
+    expect(noGlossario("A foto da validação é gravada pelo sistema.")).toBe("A foto da validação é gravada pelo sistema.");
+    expect(noGlossario(null)).toBeNull();
+    expect(noGlossario("")).toBe("");
+  });
+
+  it("mensagemDoBanco já entrega com as palavras do glossário", async () => {
+    const { mensagemDoBanco } = await import("./erros");
+    expect(mensagemDoBanco({ code: "P0001", message: "Pedido interno não encontrado." })).toBe("Pedido não encontrado.");
+    expect(mensagemDoBanco({ code: "42501", message: 'Confirmar a entrega exige a permissão "Aprovar pedidos internos".' })).toBe(
+      'Confirmar a entrega exige a permissão "Aprovar pedidos".',
+    );
   });
 });

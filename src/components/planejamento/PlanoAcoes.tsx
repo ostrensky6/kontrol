@@ -115,8 +115,8 @@ export function PlanoAcoes({
           <HelpTip title="Como resolver a falta">
             <p>Escolha uma saída:</p>
             <ul className="list-disc space-y-0.5 pl-4">
-              <li><b>Gerar pedido interno</b> com os itens em falta;</li>
-              <li>liberar ou receber lotes no estoque;</li>
+              <li><b>Gerar pedido</b> com os itens em falta;</li>
+              <li>liberar lotes ou registrar a chegada no estoque;</li>
               <li>reduzir as análises ou amostras do plano.</li>
             </ul>
           </HelpTip>

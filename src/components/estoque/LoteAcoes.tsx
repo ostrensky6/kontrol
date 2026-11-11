@@ -344,7 +344,7 @@ export function LoteAcoes({
                   </p>
                   <p>
                     {estornoRecebimento
-                      ? "Lote de compra ou pedido interno: o estorno também devolve a quantidade ao item, que volta a aguardar a chegada."
+                      ? "Lote de compra ou de pedido: o estorno também devolve a quantidade ao item, que volta a aguardar a chegada."
                       : "Só aparece para lotes em quarentena que não vieram de um pedido."}
                   </p>
                 </HelpTip>
@@ -366,7 +366,7 @@ export function LoteAcoes({
                 : modal === "estornar"
                   ? estornoRecebimento
                     ? origemRecebimento === "pedido_interno"
-                      ? "O saldo do lote será zerado e o pedido interno volta a aguardar esse recebimento. O histórico é mantido."
+                      ? "O saldo do lote será zerado e o pedido volta a aguardar essa chegada. O histórico é mantido."
                       : "O saldo do lote será zerado e a compra volta a aguardar esse recebimento. O histórico é mantido."
                     : "O saldo do lote será zerado; o histórico é mantido."
                 : modal === "bloquear"

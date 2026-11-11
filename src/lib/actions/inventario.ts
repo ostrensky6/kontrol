@@ -226,18 +226,6 @@ const fecharCicloSchema = z.object({
 });
 
 /**
- * A recusa do banco (0136) ainda fala em "campanha" e chama cada item de
- * "contagem"; na tela a campanha é a Contagem (glossário 10.5 da revisão de
- * 11/11). Troca só as palavras, a regra continua a do banco.
- */
-function palavrasDaContagem(mensagem: string): string {
-  return mensagem
-    .replace(/(\d+) contagem\(ns\)/g, "$1 item(ns) contado(s)")
-    .replace(/fechar a campanha/g, "fechar a contagem")
-    .replace(/campanha/g, "contagem");
-}
-
-/**
  * Fecha a contagem (D7, 0136; no banco, "ciclo"). O banco recusa se ainda houver
  * item contado com diferença sem ajuste; contagem fechada não recebe item novo.
  */
@@ -252,7 +240,7 @@ export async function fecharCicloInventario(_prev: FormState, formData: FormData
   const { data, error } = await supabase.rpc("fechar_ciclo_inventario" as never, {
     p_ciclo_id: parsed.data.ciclo_id,
   } as never);
-  if (error) return { ok: false, message: palavrasDaContagem(mensagemDoBanco(error)) };
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   const resumo = (data ?? {}) as { contagens?: number; ajustes?: number };
   revalidatePath("/estoque/inventario");

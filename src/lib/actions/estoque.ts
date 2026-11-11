@@ -1,6 +1,7 @@
 "use server";
 
 import { mensagemDoBanco } from "@/lib/erros";
+import { noGlossario } from "@/lib/glossario";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -168,8 +169,8 @@ export async function entradaInventario(
   return {
     ok: true,
     message: emFrascos
-      ? `Entrada registrada: ${resultado?.quantidade ?? d.quantidade} frasco(s) disponíveis no estoque.`
-      : "Entrada registrada: o lote já está disponível no estoque.",
+      ? `Chegada registrada: ${resultado?.quantidade ?? d.quantidade} frasco(s) disponíveis no estoque.`
+      : "Chegada registrada: o lote já está disponível no estoque.",
   };
 }
 
@@ -262,7 +263,7 @@ export async function estornarRecebimentoLote(
       ok: true,
       message: resultado?.pedido_compra_id
         ? `Recebimento estornado. A compra #${resultado.pedido_compra_id} voltou a esperar esta quantidade.`
-        : "Recebimento estornado. O pedido interno voltou a esperar esta quantidade.",
+        : "Chegada estornada. O pedido voltou a esperar esta quantidade.",
     };
   }
 
@@ -401,7 +402,7 @@ function lerBaixa(formData: FormData) {
 
 function mensagemErro(error: unknown, padrao: string) {
   if (error && typeof error === "object" && "message" in error && typeof error.message === "string") {
-    return error.message;
+    return noGlossario(error.message);
   }
   return padrao;
 }

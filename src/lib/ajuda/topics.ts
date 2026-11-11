@@ -191,7 +191,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
           "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Saldo e lotes, Situação (o painel de alertas), entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
           "Planejamento: reservas de insumo para as análises previstas.",
-          "Pedidos: cada pedido e a etapa em que está. Compras formais e Prazos de compra são abas dessa tela, logo abaixo da barra.",
+          "Pedidos: cada pedido e a etapa em que está. Compras e Prazos de compra são abas dessa tela, logo abaixo da barra.",
           "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
           "Notificações saíram desta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",
         ],
@@ -199,7 +199,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Sua vez e pedidos em andamento",
         itens: [
-          "A linha 'Sua vez' aparece só quando algo de Suprimentos depende de você: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras para receber, planos em rascunho, lotes em quarentena, disputas de reserva, códigos lidos sem cadastro e manutenção vencida. Clique para abrir o registro ou a lista. O quadro completo, 'Aguardando você', fica no Início e no sino.",
+          "A linha 'Sua vez' aparece só quando algo de Suprimentos depende de você: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras com chegada a registrar, planos em rascunho, lotes em quarentena, disputas de reserva, códigos lidos sem cadastro e manutenção vencida. Clique para abrir o registro ou a lista. O quadro completo, 'Aguardando você', fica no Início e no sino.",
           "O total de pedidos em andamento leva a Pedidos, onde cada uma das seis etapas (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) abre a sua lista.",
           "As seis etapas são as mesmas na lista de Pedidos e na página de cada pedido.",
         ],
@@ -256,10 +256,10 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
-        titulo: "Entrada de lote (+ Entrada)",
+        titulo: "Chegada de lote (Registrar chegada)",
         itens: [
-          "Na linha do insumo, clique em '+ Entrada' e informe quantidade, validade e o número do lote do fabricante.",
-          "O número do lote também pode ser informado no cadastro do insumo (Cadastros → Insumos → Lotes em estoque → '+ Entrada').",
+          "Na linha do insumo, clique em 'Registrar chegada' e informe quantidade, validade e o número do lote do fabricante.",
+          "O número do lote também pode ser informado no cadastro do insumo (Cadastros → Insumos → Lotes em estoque → 'Registrar chegada').",
           "O lote entra disponível na hora. Material com validade vencida não entra.",
         ],
       },
@@ -360,7 +360,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Mantenha o plano realista — superestimar reserva trava estoque desnecessariamente.",
           "Libere reservas que não serão usadas para devolver saldo ao estoque.",
-          "Com falta de insumo, 'Gerar pedido interno' abre o pedido de compra dos itens em falta.",
+          "Com falta de insumo, 'Gerar pedido' abre um pedido com os itens em falta.",
           "Na coluna de falta aparece 'Mesmo tipo com saldo' quando outra marca ou apresentação do mesmo tipo técnico tem estoque. Trocar o insumo da análise é decisão sua; o aviso só mostra que existe a alternativa.",
         ],
       },
@@ -424,7 +424,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Vale a data da última aprovação da coordenação (a do coordenador do projeto e, em material de laboratório, a da coordenação do laboratório). Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. Feriado ainda não entra na conta. O pedido mostra a data da solicitação, a da aprovação e o ciclo.",
           "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. A urgência só muda com o pedido em rascunho ou devolvido para ajuste.",
           "Urgência Alta ou Crítica fura o ciclo do dia 10 e exige justificativa por escrito (por que não pode esperar o próximo ciclo).",
-          "Pedido sem projeto é validado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
+          "Pedido sem projeto é aprovado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
           "Na lista, o botão 'Itens (N)' abre um resumo rápido do que está sendo solicitado, sem precisar abrir o pedido.",
           "A coluna 'Nº' mostra o número sequencial do pedido; clique para abrir o detalhe completo.",
         ],
@@ -448,10 +448,10 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "O quadro 'Quem aprova' mostra, por escrito, quem aprova e em que situação está cada etapa. Se o projeto não tiver coordenador cadastrado (ou o laboratório não tiver coordenação), o envio trava com a explicação.",
           "Só o coordenador do projeto aprova; sem projeto, a Supervisão. Na ausência, o Administrador aprova como substituto e fica registrado.",
           "Material de consumo de laboratório passa depois pela coordenação do laboratório, que aprova ou devolve com motivo. Só então o pedido segue para compras. O substituto cadastrado também decide.",
-          "Após validado (e aprovado pelo laboratório, quando for o caso), formalize em Compras para gerar o pedido formal.",
+          "Depois de aprovado pelo coordenador (e pelo laboratório, quando for o caso), formalize em Compras para abrir a compra.",
           "Toda compra tem 3 orçamentos de fornecedores diferentes (inclusive FUNPAR e Petrobras). Registre cada um no quadro 'Orçamentos' do pedido, com valor, prazo e o documento anexado. 'Marcar cotações recebidas' só libera com os 3.",
           "Antes da aprovação final, escolha um orçamento. Se não for o de menor valor, escreva a justificativa (prazo, qualidade, exclusividade). Quem escolheu, quando e por quê ficam registrados, e o fornecedor escolhido vai para a compra.",
-          "Caminho único: a compra formal ligada ao pedido é aprovada junto com ele, quando o pedido chega a 'Aprovado para compra'. Não há segunda aprovação em Compras.",
+          "Caminho único: a compra ligada ao pedido é aprovada junto com ele, quando o pedido chega a 'Aprovado para compra'. Não há segunda aprovação em Compras.",
           "Pagamento só depois da entrega: materiais e equipamentos precisam ter a chegada registrada; serviço precisa de 'Confirmar entrega (serviço prestado)'. Diária é paga antes da viagem.",
           "Pagar antes da entrega só com acordo específico: 'Registrar exceção (pagar antes)' pede o acordo por escrito (com quem, o quê e por quê) e fica registrado com quem e quando.",
           "Acompanhe documentos, comunicações, aprovações e a linha do tempo dentro do pedido.",
@@ -476,15 +476,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Compras",
     grupo: "Suprimentos",
     href: "/compras",
-    resumo: "A compra formal de cada pedido: fornecedor, envio e recebimento.",
+    resumo: "A compra de cada pedido: fornecedor, envio e chegada.",
     intro:
-      "A compra formal é o registro da compra feita ao fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra o recebimento, que põe o material no Estoque. Fica em Suprimentos → Pedidos → Compras formais.",
+      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra a chegada, que põe o material no Estoque. Fica em Suprimentos → Pedidos → Compras.",
     secoes: [
       {
         titulo: "Para que serve",
         itens: [
           "Acompanhar a compra depois que o pedido foi aprovado: fornecedor, envio e recebimento.",
-          "Reunir as compras formais, inclusive as geradas por reposição automática.",
+          "Reunir as compras, inclusive as geradas por reposição automática.",
           "Registrar a entrada de itens, que já ficam disponíveis no Estoque.",
           "Em Estoque → Situação, o quadro 'A caminho' lista as compras feitas e não recebidas: quanto foi pedido, recebido e falta receber, a previsão (informada na compra ou estimada pelo prazo) e os atrasos.",
         ],
@@ -492,7 +492,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou na aba 'Compras formais' de Pedidos. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
+          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou na aba 'Compras' de Pedidos. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
           "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
@@ -511,7 +511,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Prazos de compra (ATGC, Funpar e outros caminhos)",
         itens: [
-          "Na aba 'Prazos de compra' de Pedidos, veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
+          "Na aba 'Prazos de compra' de Pedidos, veja quanto tempo as compras levaram, do envio do pedido para aprovação até a chegada.",
           "O prazo aparece por caminho (Funpar, compra direta ATGC, universidade...), por categoria e por insumo, com o número de compras medidas e a confiança.",
           "Curto: metade das compras chegou até ali. Intermediário: 3 de cada 4. Conservador: 9 de cada 10. Para insumo crítico, planeje pelo conservador.",
           "Pedido aberto, atrasado ou cancelado não entra na conta. Informe a instituição ou a modalidade no pedido para o caminho sair certo.",
@@ -731,7 +731,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Insumos, lotes e planilha",
         itens: [
           "Na ficha do insumo, 'Lotes em estoque' mostra cada lote com seu número, validade e saldo.",
-          "'+ Entrada' registra um lote novo com o número do lote do fabricante; 'Dar baixa' retira material com motivo (consumo, perda ou quebra, vencimento).",
+          "'Registrar chegada' cria um lote novo com o número do lote do fabricante; 'Dar baixa' retira material com motivo (consumo, perda ou quebra, vencimento).",
           "'Planilha' (no topo de cada cadastro) baixa a lista em Excel; a importação fica em 'Todos os cadastros'.",
         ],
       },
@@ -739,7 +739,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Laboratório dono, almoxarifados e controlados",
         itens: [
           "O estoque é um só. Na ficha do insumo, 'Laboratório dono' diz de qual laboratório ele é, e 'Local' diz onde está guardado (laboratório, Almoxarifado geral ou Almoxarifado do LGA).",
-          "Marque 'Produto controlado (só pela FUNPAR)' nos insumos que exigem licença, como clorofórmio e acetona. O pedido de compra com esse insumo só segue pela FUNPAR.",
+          "Marque 'Produto controlado (só pela FUNPAR)' nos insumos que exigem licença, como clorofórmio e acetona. O pedido com esse insumo só segue pela FUNPAR.",
           "Os locais ficam em Cadastros > Locais, com o tipo Laboratório ou Almoxarifado.",
         ],
       },
@@ -748,7 +748,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Em Cadastros > Previsão de equipamentos, liste o que o laboratório pretende comprar, com prioridade (1 alta, 2 média, 3 baixa), quantidade, valor estimado, justificativa e 'Patrimônio de' (de quem o equipamento será).",
           "Quem aprova pedidos (pedido.aprovar) cadastra e edita; todos veem.",
-          "Ao ligar a previsão a um pedido interno, ela passa a 'Pedido'. Pedido concluído vira 'Comprado'; pedido cancelado volta a 'Previsto'.",
+          "Ao ligar a previsão a um pedido, ela passa a 'Pedido'. Pedido concluído vira 'Comprado'; pedido cancelado volta a 'Previsto'.",
         ],
       },
       {
@@ -849,7 +849,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Laboratório: operação do dia a dia (análises, retiradas, baixas, pedidos e recebimentos). Antes se chamava Técnico.",
           "Compra: acompanha o que falta, solicita, conduz e recebe compras.",
           "Cadastro: mantém cadastros, insumos e projetos.",
-          "Coordenador: valida, aprova e faz orçamentos.",
+          "Coordenador: aprova pedidos e faz orçamentos.",
           "Gestor: tudo do coordenador mais parâmetros econômicos, fundos, modelos e Auditoria.",
           "Supervisor: acima de Coordenador e Gestor; começa com as permissões do Gestor e não precisa estar ligado aos projetos.",
           "Administrador: controle total, incluindo usuários, privilégios e backups.",
@@ -858,7 +858,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Quem atua em cada projeto",
         itens: [
-          "Coordenador e Gestor só alteram um projeto e só validam pedidos internos dele se estiverem ligados ao projeto ou forem o coordenador cadastrado.",
+          "Coordenador e Gestor só alteram um projeto e só aprovam os pedidos dele se estiverem ligados ao projeto ou forem o coordenador cadastrado.",
           "Na página do projeto, em 'Quem atua neste projeto', o Administrador liga ou desliga cada pessoa.",
           "Em Cadastros > Laboratórios e áreas, o Administrador indica a coordenação de cada laboratório e o substituto.",
           "Quem cria um projeto já fica ligado a ele. Ver os projetos continua igual para todos.",
@@ -870,7 +870,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Clique em 'Novo usuário', no topo da lista, e escolha a função; a pessoa entra com senha provisória e troca no primeiro acesso.",
           "Use os três pontinhos para editar a função, ajustar permissões só daquela pessoa, enviar a assinatura, alterar a senha, suspender ou excluir.",
           "Para mudar o que uma função inteira pode fazer, use Governança → Privilégios.",
-          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem em Notificações (e por e-mail, quando configurado) o resumo da semana: insumos abaixo do mínimo ou vencidos, pedidos internos aguardando validação e manutenções de equipamento a vencer sem encaminhamento.",
+          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem em Notificações (e por e-mail, quando configurado) o resumo da semana: insumos abaixo do mínimo ou vencidos, pedidos aguardando aprovação e manutenções de equipamento a vencer sem encaminhamento.",
         ],
       },
     ],
@@ -894,7 +894,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
-        titulo: "Pedido de compra: quem é avisado em cada passagem",
+        titulo: "Pedido: quem é avisado em cada passagem",
         itens: [
           "Enviado para aprovação: o coordenador do projeto (sem projeto, a Supervisão). Material de consumo de laboratório: depois, a coordenação do laboratório.",
           "Formalizar, autorizar (fonte e rubrica), pedir os 3 orçamentos, escolher, aprovação final e fechar a compra: o responsável do administrativo. Sem responsável indicado, o Administrador.",
@@ -907,9 +907,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "E-mails",
         itens: [
-          "Os avisos também saem por e-mail para as mesmas pessoas, com link direto para a tela certa. Nas passagens do pedido de compra o e-mail sai logo depois da ação; os demais saem no envio diário.",
+          "Os avisos também saem por e-mail para as mesmas pessoas, com link direto para a tela certa. Nas passagens do pedido o e-mail sai logo depois da ação; os demais saem no envio diário.",
           "Cada aviso é enviado uma vez só, mesmo que o envio seja repetido.",
-          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem um resumo da semana: insumos abaixo do mínimo ou vencendo, pedidos em validação e equipamentos com calibração ou manutenção vencida.",
+          "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem um resumo da semana: insumos abaixo do mínimo ou vencendo, pedidos aguardando aprovação e equipamentos com calibração ou manutenção vencida.",
         ],
       },
     ],

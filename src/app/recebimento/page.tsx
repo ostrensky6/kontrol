@@ -148,7 +148,7 @@ export default async function RecebimentoPage() {
               <h1 className="text-xl font-semibold tracking-tight">Recebimento</h1>
               <HelpTip title="Recebimento">
                 <p>
-                  Tudo o que está para chegar, de pedidos internos e de compras. Cada entrega vira um{" "}
+                  Tudo o que está para chegar, de pedidos e de compras. Cada entrega vira um{" "}
                   <b>lote já disponível no estoque</b>; o que faltar continua na fila até chegar tudo.
                 </p>
                 <p>
@@ -184,9 +184,9 @@ export default async function RecebimentoPage() {
         <section className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Compras formais sem pedido interno</h2>
-              <HelpTip title="Compras formais sem pedido interno">
-                <p>Itens recebidos diretamente do fornecedor, inclusive recebimentos parciais.</p>
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Compras sem pedido</h2>
+              <HelpTip title="Compras sem pedido">
+                <p>Itens que chegam direto do fornecedor, inclusive chegadas parciais.</p>
               </HelpTip>
             </div>
             <span className="text-sm tabular-nums text-muted-foreground">{comprasFormais.length} pendente(s)</span>
@@ -232,14 +232,14 @@ export default async function RecebimentoPage() {
                             locais={locais}
                           />
                         ) : (
-                          <span className="text-xs text-muted-foreground">Requer a permissão “Receber compras”</span>
+                          <span className="text-xs text-muted-foreground">Requer a permissão “Registrar chegada de compras”</span>
                         )}
                       </td>
                     </tr>
                   );
                 })}
                 {comprasFormais.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Nenhuma compra formal pendente.</td></tr>
+                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Nenhuma compra pendente.</td></tr>
                 )}
               </tbody>
             </table>

@@ -41,7 +41,7 @@ test("entrada por leitura cria o lote com a validade e código desconhecido ofer
   await expect(page.getByLabel("Embalagens recebidas")).toHaveValue("1");
   await page.getByLabel("Validade").fill("2099-01-31");
   await page.getByRole("button", { name: "Confirmar entrada" }).click();
-  await expect(page.getByRole("complementary", { name: "Leituras desta sessão" })).toContainText(/Entrada registrada: 1 embalagem de Kit extração E2E\. Lote LEIT-/);
+  await expect(page.getByRole("complementary", { name: "Leituras desta sessão" })).toContainText(/Chegada registrada: 1 embalagem de Kit extração E2E\. Lote LEIT-/);
 
   await campo.fill("1234567890128");
   await campo.press("Enter");

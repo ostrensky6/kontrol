@@ -84,7 +84,7 @@ test("pedidos aparecem pela etapa, da solicitação ao pagamento", async ({ page
 
   // compras formais e prazos ficam dentro de Pedidos, em abas
   await page.goto("/pedido");
-  await page.getByRole("navigation", { name: "Seções de pedidos" }).getByRole("link", { name: "Compras formais" }).click();
+  await page.getByRole("navigation", { name: "Seções de pedidos" }).getByRole("link", { name: "Compras", exact: true }).click();
   await expect(page).toHaveURL(/\/compras$/);
   await expect(
     page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Pedidos" }),

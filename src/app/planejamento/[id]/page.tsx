@@ -630,9 +630,9 @@ export default async function PlanoDetalhe({
               {temFalta && (
                 <HelpTip title="O que acontece com as faltas">
                   <p>
-                    Faltas viram pedido interno, não compra direta. <b>Gerar pedido interno</b> cria um
-                    pedido com os itens em falta. Ele segue o caminho normal: validação, compra e
-                    recebimento no estoque.
+                    Faltas viram pedido, não compra direta. <b>Gerar pedido</b> cria um
+                    pedido com os itens em falta. Ele segue o caminho normal: aprovação, compra e
+                    chegada no estoque.
                   </p>
                   <p>A <b>Qtd. pedido</b> arredonda a falta para a embalagem ou a compra mínima do insumo.</p>
                 </HelpTip>
@@ -642,7 +642,7 @@ export default async function PlanoDetalhe({
               <FormComMensagem action={comprarFaltasDoPlano} className="flex max-w-xs flex-col items-end gap-1">
                 <input type="hidden" name="planejamento_id" value={planId} />
                 <SubmitButton pendingLabel="Gerando…" className="app-action-compact bg-primary text-primary-foreground hover:bg-primary/90">
-                  Gerar pedido interno
+                  Gerar pedido
                 </SubmitButton>
               </FormComMensagem>
             )}

@@ -244,7 +244,7 @@ export function LotesTable({
       data={rows}
       columns={lotesColumns(permissoes)}
       searchPlaceholder="Buscar insumo ou lote..."
-      emptyText="Nenhum lote em estoque. Use + Entrada em Saldo por insumo para receber."
+      emptyText="Nenhum lote em estoque. Use Registrar chegada em Saldo por insumo."
       filters={[
         {
           columnId: "statusLabel",

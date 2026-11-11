@@ -173,7 +173,7 @@ export function ItemRecebimentoCell({
   if (item.compraFormalId) {
     return (
       <Link href={`/compras/${item.compraFormalId}`} className="text-xs font-medium text-primary hover:underline">
-        Receber em compras
+        Registrar chegada em Compras
       </Link>
     );
   }

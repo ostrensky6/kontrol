@@ -60,7 +60,7 @@ const columns: ColumnDef<PlanoRow, unknown>[] = [
   },
   {
     accessorKey: "statusLabel",
-    header: "Status",
+    header: "Situação",
     meta: { align: "center" },
     cell: ({ row }) => <StatusBadge status={row.original.status} label={row.original.statusLabel} />,
     filterFn: "equalsString",
@@ -118,7 +118,7 @@ export function PlanosTable({ rows }: { rows: PlanoRow[] }) {
       filters={[
         {
           columnId: "statusLabel",
-          label: "Status",
+          label: "Situação",
           options: [
             { value: "Rascunho", label: "Rascunho" },
             { value: "Reservado", label: "Reservado" },

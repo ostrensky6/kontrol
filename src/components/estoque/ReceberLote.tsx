@@ -27,7 +27,7 @@ export function AjusteInventarioButton({
   abertoInicial = false,
   embalagemFechada = false,
   emFrascos = false,
-  triggerLabel = "+ Entrada",
+  triggerLabel = "Registrar chegada",
   triggerClassName,
 }: {
   insumoId: number;
@@ -121,16 +121,16 @@ export function AjusteInventarioButton({
       >
         <DialogHeader className="gap-0">
           <div className="flex items-center gap-1">
-            <DialogTitle>{embalagemFechada ? "Entrada de lote" : "Entrada de inventário"}</DialogTitle>
-            <HelpTip title="Quando usar esta entrada">
+            <DialogTitle>Registrar chegada sem pedido</DialogTitle>
+            <HelpTip title="Quando usar">
               <p>
-                Para contagem, doação ou correção de inventário. Material comprado deve ser recebido
-                pelo item do pedido, em <b>Compras</b>, para fechar o pedido.
+                Para contagem, doação ou correção de inventário. Material comprado deve ter a chegada
+                registrada pelo item da compra, em <b>Compras</b>, para fechar o pedido.
               </p>
               <p>
                 {embalagemFechada
                   ? "O lote entra disponível para uso, contado em frascos fechados."
-                  : "O lote entra disponível para uso assim que a entrada é registrada."}
+                  : "O lote entra disponível para uso assim que a chegada é registrada."}
               </p>
               <HelpExample>
                 Doação de 2 kits → quantidade 2, motivo “doação” e o número do lote impresso no kit.
@@ -152,7 +152,7 @@ export function AjusteInventarioButton({
               aria-live="polite"
               className="rounded-md bg-brand-50 px-3 py-2 text-sm text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"
             >
-              <p>{state.message ?? "Entrada registrada: o lote já está disponível."}</p>
+              <p>{state.message ?? "Chegada registrada: o lote já está disponível."}</p>
             </div>
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button
@@ -294,7 +294,7 @@ export function AjusteInventarioButton({
                 aria-busy={pending || undefined}
                 className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
               >
-                {pending ? "Registrando…" : "Registrar entrada"}
+                {pending ? "Registrando…" : "Registrar chegada"}
               </button>
             </div>
           </form>

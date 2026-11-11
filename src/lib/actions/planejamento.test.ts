@@ -196,7 +196,8 @@ describe("exclusão e cancelamento do planejamento", () => {
     const store = semear({ pedidos: [{ status: "em_validacao" }] });
     const { excluirPlano } = await import("./planejamento");
     const resultado = await excluirPlano(vazio, form({ planejamento_id: 10, motivo: "Plano duplicado" }));
-    expect(resultado).toEqual({ ok: false, message: "Cancele antes os pedidos internos vinculados ao plano: #70 (em_validacao)." });
+    // a recusa do banco chega com as palavras do glossário (10.5)
+    expect(resultado).toEqual({ ok: false, message: "Cancele antes os pedidos vinculados ao plano: #70 (em_validacao)." });
     expect(store.planejamento).toHaveLength(1);
   });
 

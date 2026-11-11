@@ -90,7 +90,7 @@ export default async function PrazosCompraPage() {
         title="Prazos de compra"
         help={
           <HelpTip title="Como o prazo é medido">
-            <p>Conta os dias do envio do pedido interno para validação até o recebimento de cada item. Pedido ainda aberto, atrasado ou cancelado não entra.</p>
+            <p>Conta os dias do envio do pedido para aprovação até a chegada de cada item. Pedido ainda aberto, atrasado ou cancelado não entra.</p>
             <p><b>Curto</b>: metade das compras chegou até aqui. <b>Intermediário</b>: 3 de cada 4. <b>Conservador</b>: 9 de cada 10.</p>
             <p>O caminho vem da instituição do pedido (por exemplo, Funpar) ou da modalidade (compra direta pela ATGC, fundação, universidade).</p>
           </HelpTip>

@@ -48,7 +48,7 @@ export function GerarPedidoReposicaoButton() {
               </HelpTip>
             </div>
             <DialogDescription>
-              Cria um pedido interno em rascunho com os insumos abaixo do mínimo.
+              Cria um pedido em rascunho com os insumos abaixo do mínimo.
             </DialogDescription>
           </DialogHeader>
           <form action={action} {...formularioSemPerda(state)} onSubmit={() => setOpen(false)}>

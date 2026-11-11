@@ -31,7 +31,7 @@ const columns: ColumnDef<CompraRow, unknown>[] = [
   { accessorKey: "solicitante", header: "Solicitante" },
   {
     accessorKey: "statusLabel",
-    header: "Status",
+    header: "Situação",
     meta: { align: "center" },
     cell: ({ row }) => <StatusBadge status={row.original.status} label={row.original.statusLabel} />,
     filterFn: "equalsString",
@@ -63,7 +63,7 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
       filters={[
         {
           columnId: "statusLabel",
-          label: "Status",
+          label: "Situação",
           options: [
             { value: "Solicitado", label: "Solicitado" },
             { value: "Aprovado", label: "Aprovado" },

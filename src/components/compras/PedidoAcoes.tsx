@@ -195,7 +195,7 @@ export function PedidoAcoes({
         <p role="note" className="max-w-md rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-xs">
           Esta compra vem do{" "}
           <Link href={`/pedido/${pedidoInternoPendente.id}`} className="font-medium text-primary hover:underline">
-            pedido interno #{pedidoInternoPendente.id}
+            pedido #{pedidoInternoPendente.id}
           </Link>
           , que está em “{pedidoInternoPendente.rotulo}”.{" "}
           {status === "solicitado"

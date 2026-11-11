@@ -769,7 +769,7 @@ export default async function PedidoInternoDetalhe({
               )}
               {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && (
                 <p className="text-sm text-muted-foreground">
-                  Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos internos”.
+                  Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos”.
                 </p>
               )}
             </div>
@@ -885,7 +885,7 @@ export default async function PedidoInternoDetalhe({
               </div>
             </div>
             <dl className="mt-3 grid gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <Referencia label="Compra formal">
+              <Referencia label="Compra">
                 {compraFormal ? (
                   <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">
                     #{compraFormal.id} · {statusInfo(compraFormal.status).label}
@@ -1010,7 +1010,7 @@ export default async function PedidoInternoDetalhe({
                       )}
                       {aguardandoChegada && compraFormal && !item.recebido_em && (
                         <p className="mt-1 text-[11px] text-muted-foreground">
-                          Receber pela <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">compra formal</Link>.
+                          Registrar a chegada pela <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">compra</Link>.
                         </p>
                       )}
                     </td>

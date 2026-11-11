@@ -49,7 +49,7 @@ test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o disponível", 
   await page.goto("/estoque");
   const linha = page
     .getByRole("row")
-    .filter({ has: page.getByRole("button", { name: "+ Entrada" }) })
+    .filter({ has: page.getByRole("button", { name: "Registrar chegada" }) })
     .filter({ hasText: "Kit extração E2E" });
   await expect(linha).toBeVisible();
   const antes = await disponivelDaLinha(linha);

@@ -1,4 +1,5 @@
 import { formatDateTime as quando } from "@/lib/formatters";
+import { PEDIDO_INTERNO_STATUS } from "@/lib/pedido/status";
 
 type Evento = {
   id: number;
@@ -9,6 +10,8 @@ type Evento = {
   criado_em: string;
 };
 
+// Situações de compras e orçamentos. As do pedido vêm da mesma tabela que a
+// tela do pedido usa, para a linha do tempo dizer o mesmo nome (glossário 10.5).
 const STATUS_LABEL: Record<string, string> = {
   rascunho: "Rascunho",
   enviado: "Enviado",
@@ -18,21 +21,7 @@ const STATUS_LABEL: Record<string, string> = {
   em_transito: "Em trânsito",
   recebido: "Recebido",
   cancelado: "Cancelado",
-  em_validacao: "Em validação",
-  ajuste_solicitante: "Devolvido ao solicitante",
-  validado: "Validado",
-  formalizado: "Formalizado",
-  analise_administrativa: "Em análise administrativa",
-  ajuste_compras: "Devolvido a Compras",
-  aprovado_compra: "Aprovado para cotação",
-  orcamentos: "Em cotação",
-  orcamentos_recebidos: "Cotações recebidas",
-  aguardando_aprovacao_final: "Aguardando aprovação final",
-  aprovado_para_compra: "Aprovado para compra",
-  compra_fechada: "Compra fechada",
-  encaminhado_instituicao: "Encaminhado",
-  aguardando_pagamento_nf: "Aguardando pagamento/NF",
-  compra_concluida: "Compra concluída",
+  ...Object.fromEntries(Object.entries(PEDIDO_INTERNO_STATUS).map(([chave, info]) => [chave, info.label])),
 };
 
 const rotulo = (s: string | null) => (s ? STATUS_LABEL[s] ?? s : null);
