@@ -27,6 +27,7 @@ import {
   lerLinhasCadastro,
 } from "@/lib/cadastros/salario";
 import { pode, podeVerSalario } from "@/lib/auth/permissao-efetiva";
+import { temPapel } from "@/lib/auth/roles";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 
@@ -164,6 +165,9 @@ export default async function CadastroPage({
   if (!cfg) notFound();
 
   const supabase = await createClientUntyped();
+  // Só o Administrador cadastra usuário: os campos de usuário oferecem "Cadastrar nova pessoa" a ele
+  // e mandam os demais pedirem a ele.
+  const podeCadastrarPessoa = cfg.campos.some((c) => c.opcoesDe === "perfis") && (await temPapel("admin"));
   // Sem a permissão de edição, a tela vira consulta (sem Novo, Editar e Excluir).
   const podeEditar = await pode(PERMISSAO_EDITAR[slug] ?? "cadastros.editar");
   // Salário: decidido no servidor; sem permissão o valor real nunca é lido
@@ -399,6 +403,7 @@ export default async function CadastroPage({
             }
             abrirNovo={!cfg.apenasEditar && query.novo === "1"}
             apenasEditar={cfg.apenasEditar}
+            podeCadastrarPessoa={podeCadastrarPessoa}
           />
         </div>
       </main>

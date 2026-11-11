@@ -2223,6 +2223,39 @@ function transicionarOrcamentoProjeto(args: Row) {
   return { status_origem: origem, status_destino: destino, alterado: true };
 }
 
+/**
+ * Cliente administrativo do mock E2E: cria e remove contas no mesmo armazém de
+ * perfis que a tela de Usuários e os campos de coordenador leem. O trigger do
+ * banco cria o perfil com a função padrão; a action ajusta nome e função.
+ */
+export function createMockAdminClient() {
+  const base = createMockSupabaseClient();
+  return {
+    ...base,
+    auth: {
+      admin: {
+        createUser: async (dados: { email: string; user_metadata?: { nome?: string } }) => {
+          const email = String(dados.email).toLowerCase();
+          if ((store.perfis ?? []).some((perfil) => String(perfil.email ?? "").toLowerCase() === email)) {
+            return { data: { user: null }, error: { message: "A user with this email address has already been registered" } };
+          }
+          const id = `00000000-0000-4000-8000-${String((store.perfis ?? []).length + 1000).padStart(12, "0")}`;
+          store.perfis = [
+            ...(store.perfis ?? []),
+            { id, nome: dados.user_metadata?.nome ?? null, email, papel: "laboratorio", suspenso: false },
+          ];
+          return { data: { user: { id, email } }, error: null };
+        },
+        deleteUser: async (id: string) => {
+          store.perfis = (store.perfis ?? []).filter((perfil) => perfil.id !== id);
+          return { data: null, error: null };
+        },
+        updateUserById: async () => ({ data: null, error: null }),
+      },
+    },
+  };
+}
+
 export function createMockSupabaseClient(sessao: SessaoMock = {}) {
   return {
     auth: {

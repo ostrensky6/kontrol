@@ -37,6 +37,8 @@ import {
 import { ChevronDown, ChevronUp, ChevronsUpDown, Lock, MoreHorizontal, Plus, Search } from "lucide-react";
 import { contemBusca } from "@/lib/busca";
 import type { Campo, Coluna } from "@/lib/cadastros/config";
+import { comPessoasNovas, papelDaNovaPessoa, type OpcaoPessoa } from "@/lib/cadastros/pessoas";
+import { NovaPessoaDialog } from "@/components/cadastros/NovaPessoaDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -197,6 +199,7 @@ export function CrudShell({
   novoComCodigo,
   abrirNovo,
   apenasEditar = false,
+  podeCadastrarPessoa = false,
 }: {
   slug: string;
   singular: string;
@@ -219,6 +222,8 @@ export function CrudShell({
   abrirNovo?: boolean;
   /** linhas fixas (ex.: responsáveis do administrativo e do pagamento): só editar */
   apenasEditar?: boolean;
+  /** só o Administrador cadastra usuário: os campos de usuário oferecem "Cadastrar nova pessoa" */
+  podeCadastrarPessoa?: boolean;
 }) {
   const [aberto, setAberto] = useState(false);
   const [codigosNovo, setCodigosNovo] = useState<string[]>([]);
@@ -709,6 +714,7 @@ export function CrudShell({
           onSalvo={setRetorno}
           podeMovimentarEstoque={podeMovimentarEstoque}
           podeCorrigirEstoque={podeCorrigirEstoque}
+          podeCadastrarPessoa={podeCadastrarPessoa}
           codigosNovo={codigosNovo}
         />
       )}
@@ -1103,6 +1109,7 @@ function CadastroDrawer({
   onSalvo,
   podeMovimentarEstoque,
   podeCorrigirEstoque,
+  podeCadastrarPessoa,
   codigosNovo = [],
 }: {
   open: boolean;
@@ -1115,9 +1122,14 @@ function CadastroDrawer({
   onSalvo: (estado: FormState) => void;
   podeMovimentarEstoque: boolean;
   podeCorrigirEstoque: boolean;
+  podeCadastrarPessoa: boolean;
   codigosNovo?: string[];
 }) {
   const router = useRouter();
+  // pessoa cadastrada sem sair do formulário: entra nas listas de usuário e já vem escolhida no campo
+  const [campoNovaPessoa, setCampoNovaPessoa] = useState<Campo | null>(null);
+  const [pessoasNovas, setPessoasNovas] = useState<OpcaoPessoa[]>([]);
+  const [escolhas, setEscolhas] = useState<Record<string, string>>({});
   const [state, action] = useActionState<FormState, FormData>(
     salvarRegistro,
     { ok: false },
@@ -1129,7 +1141,7 @@ function CadastroDrawer({
   const isInsumos = slug === "insumos";
   const quantidadeModelo = isInsumos ? (registro?.quantidade_modelo as string | null | undefined) : null;
   const podeCorrigirQuantidade = isInsumos && registro?.id != null && quantidadeModelo !== "LEGADO";
-  const { formulario, estoqueInicial } = camposComSecao(campos, !registro);
+  const { formulario, estoqueInicial } = camposComSecao(comPessoasNovas(campos, pessoasNovas), !registro);
 
   useEffect(() => {
     if (!state.ok) return;
@@ -1176,6 +1188,9 @@ function CadastroDrawer({
                 campo={c}
                 valor={registro?.[c.name]}
                 erro={state.errors?.[c.name]}
+                escolhida={escolhas[c.name]}
+                podeCadastrarPessoa={podeCadastrarPessoa}
+                aoCadastrarPessoa={() => setCampoNovaPessoa(c)}
               />
             </Fragment>
           ))}
@@ -1267,6 +1282,20 @@ function CadastroDrawer({
             <SubmitButton>Salvar</SubmitButton>
           </DrawerFooter>
         </form>
+
+        {campoNovaPessoa && (
+          <NovaPessoaDialog
+            rotuloCampo={campoNovaPessoa.label}
+            papelPadrao={papelDaNovaPessoa(campoNovaPessoa)}
+            aoFechar={(usuario) => {
+              if (usuario) {
+                setPessoasNovas((atuais) => [...atuais, { value: usuario.id, label: usuario.nome }]);
+                setEscolhas((atuais) => ({ ...atuais, [campoNovaPessoa.name]: usuario.id }));
+              }
+              setCampoNovaPessoa(null);
+            }}
+          />
+        )}
       </DrawerContent>
     </Drawer>
   );
@@ -1483,10 +1512,17 @@ function CampoInput({
   campo,
   valor,
   erro,
+  escolhida,
+  podeCadastrarPessoa = false,
+  aoCadastrarPessoa,
 }: {
   campo: Campo;
   valor: unknown;
   erro?: string;
+  /** pessoa cadastrada agora para este campo: vira o valor escolhido */
+  escolhida?: string;
+  podeCadastrarPessoa?: boolean;
+  aoCadastrarPessoa?: () => void;
 }) {
   const base =
     "mt-1 " +
@@ -1495,7 +1531,7 @@ function CampoInput({
       : "");
   const span = campo.colSpan === 2 ? "sm:col-span-2" : "sm:col-span-1";
   const valorInicial = valor == null ? campo.valorPadrao : valor;
-  const v = valorInicial == null ? "" : String(valorInicial);
+  const v = escolhida ?? (valorInicial == null ? "" : String(valorInicial));
   const idBase = useId();
   const inputId = `campo-${campo.name}`;
   const erroId = erro ? `${inputId}-erro` : undefined;
@@ -1594,6 +1630,8 @@ function CampoInput({
         />
       ) : campo.tipo === "select" ? (
         <Select
+          // a pessoa recém-cadastrada troca o valor de um campo que não é controlado
+          key={escolhida ?? "inicial"}
           id={inputId}
           aria-invalid={erro ? true : undefined}
           aria-describedby={descritoPor}
@@ -1653,6 +1691,20 @@ function CampoInput({
           {campo.aviso}
         </p>
       )}
+      {campo.opcoesDe === "perfis" &&
+        (podeCadastrarPessoa ? (
+          <button
+            type="button"
+            onClick={aoCadastrarPessoa}
+            className="mt-1 min-h-8 rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
+          >
+            A pessoa não está na lista? Cadastrar nova pessoa
+          </button>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">
+            A pessoa não está na lista? Peça ao Administrador para cadastrá-la em Governança → Usuários.
+          </p>
+        ))}
       {erro && (
         <p id={erroId} className="mt-1 text-xs text-destructive">
           {erro}

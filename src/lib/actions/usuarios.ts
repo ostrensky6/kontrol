@@ -21,7 +21,20 @@ import type { Database } from "@/lib/supabase/database.types";
 import type { FormState } from "./cadastros";
 
 /** Resultado que carrega a senha provisória gerada, mostrada uma única vez ao administrador. */
-export type UsuarioFormState = FormState & { senhaProvisoria?: string };
+export type UsuarioFormState = FormState & {
+  senhaProvisoria?: string;
+  /** conta criada agora: o formulário que a pediu (ex.: campo de coordenador) já a escolhe */
+  usuario?: { id: string; nome: string };
+};
+
+/** Cliente administrativo; no mock E2E, o que grava no mesmo armazém de perfis das telas. */
+async function clienteAdmin(): Promise<ReturnType<typeof createAdminClient>> {
+  if (process.env.PLAYWRIGHT_MOCK_SUPABASE === "1") {
+    const { createMockAdminClient } = await import("@/lib/testing/mock-supabase");
+    return createMockAdminClient() as unknown as ReturnType<typeof createAdminClient>;
+  }
+  return createAdminClient();
+}
 
 const PAPEIS_VALIDOS = PAPEIS.map((papel) => papel.value);
 const BUCKET_ASSINATURAS = "user-signatures";
@@ -50,7 +63,7 @@ function mensagemErroExclusaoUsuario(error: { message?: string; code?: string } 
 
 /** Marcação efetiva da categoria (papel), como o banco a aplica (0124). */
 async function categoriaEfetiva(papel: string) {
-  const { data } = await createAdminClient()
+  const { data } = await (await clienteAdmin())
     .from("permissoes_categorias")
     .select("permissoes")
     .eq("papel", papel)
@@ -139,7 +152,7 @@ export async function criarUsuario(_prev: UsuarioFormState, formData: FormData):
     const permissoes = await permissoesDoUsuario(papel, formData);
 
     const senhaProvisoria = gerarSenhaProvisoria();
-    const admin = createAdminClient();
+    const admin = await clienteAdmin();
     const { data, error } = await admin.auth.admin.createUser({
       email,
       password: senhaProvisoria,
@@ -171,6 +184,7 @@ export async function criarUsuario(_prev: UsuarioFormState, formData: FormData):
       ok: true,
       message: `Usuário ${email} criado. ${AVISO_SENHA_PROVISORIA}`,
       senhaProvisoria,
+      usuario: { id: data.user.id, nome: nome || email },
     };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
