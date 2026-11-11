@@ -16,6 +16,7 @@ import type { SimuladorAnalise } from "@/lib/costing/loader";
 import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/formatters";
 import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
+import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
 
 const COLORS = ["#01489d", "#008e9c", "#008a00", "#d97706", "#7c3aed", "#dc2626"];
@@ -189,26 +190,14 @@ export function CusteioAmostrasChart({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 16, right: 28, left: 8, bottom: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.28)" />
-                  <XAxis
-                    dataKey="amostras"
-                    fontSize={12}
-                    tickLine={{ stroke: "var(--muted-foreground)" }}
-                    axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.25 }}
-                    label={{ value: "Amostras", position: "insideBottom", offset: -12, fontSize: 12 }}
-                  />
+                  <XAxis dataKey="amostras" fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Amostras")} />
                   <YAxis
                     fontSize={12}
-                    tickLine={{ stroke: "var(--muted-foreground)" }}
-                    axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.25 }}
+                    tickLine={MARCA_EIXO}
+                    axisLine={LINHA_EIXO}
                     tickFormatter={(value) => formatCompactCurrency(Number(value))}
-                    width={82}
-                    label={{
-                      value: metric === "unitario" ? "Custo por amostra" : "Custo total",
-                      angle: -90,
-                      position: "insideLeft",
-                      offset: 4,
-                      style: { textAnchor: "middle", fontSize: 12, fill: "var(--muted-foreground)" },
-                    }}
+                    width={92}
+                    label={tituloEixoY(metric === "unitario" ? "Custo por amostra (R$)" : "Custo total (R$)")}
                   />
                   <Tooltip
                     formatter={(value, name) => [formatCurrency(Number(value)), name]}

@@ -50,7 +50,9 @@ const PALAVRAS_ANTIGAS: { antiga: RegExp; usar: string }[] = [
   { antiga: /label: "Repos\."|label: "Ponto de reposição"|>\s*Ponto de reposição\s*</, usar: "Mínimo" },
   { antiga: /header: "(Status|Estado|Estágio)"|label: "(Status|Estado)"/, usar: "Situação" },
   { antiga: /header: "Reagente"/, usar: "Insumo" },
-  { antiga: /Campanha|campanha/, usar: "Contagem" },
+  // "Projeto ou campanha" é o campo de texto livre de Nova compra: ali campanha é a
+  // campanha de campo do projeto, não a contagem do inventário.
+  { antiga: /(?<!Projeto ou )[Cc]ampanha/, usar: "Contagem" },
   { antiga: /[Pp]edidos? internos?\b/, usar: "Pedido" },
   { antiga: /[Cc]ompras? forma(l|is)\b|[Pp]edidos? de compra/, usar: "Compra" },
   { antiga: /aguardando validação|para validação|\bvalidam\b/, usar: "Aprovar" },
@@ -92,6 +94,16 @@ describe("glossário da revisão (10.5) nas telas da Onda 2", () => {
       expect(achados).toEqual([]);
     });
   }
+
+  it("campanha: passa só no campo “Projeto ou campanha” de Nova compra", () => {
+    const regra = PALAVRAS_ANTIGAS.find(({ usar }) => usar === "Contagem")!.antiga;
+    expect(regra.test('<Campo rotulo="Projeto ou campanha (texto livre)">')).toBe(false);
+    expect(regra.test("Fechar a campanha de inventário")).toBe(true);
+    expect(regra.test('header: "Campanha"')).toBe(true);
+    const compras = fontes.find((f) => f.arquivo.endsWith("app/compras/page.tsx"));
+    expect(compras?.codigo).toContain('rotulo="Projeto ou campanha (texto livre)"');
+    expect(compras?.codigo).toContain('name="projeto"');
+  });
 
   it("prova negativa: o teste acusa a palavra antiga quando ela aparece", () => {
     const amostra = semComentarios('const a = { label: "Repos." }; // Zero no sistema só no comentário');

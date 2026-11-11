@@ -32,6 +32,7 @@ import {
 } from "@/lib/cadastros/painel-decisao";
 import { formatCompactCurrency, formatCurrency, formatInteger } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
+import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 import { TabelaDoGrafico } from "@/components/common/TabelaDoGrafico";
 
 const COR = {
@@ -244,11 +245,11 @@ export function PainelSituacaoEstoque({
           {graficosIncompletos.cobertura ? (
             <SemDados texto="Cobertura indisponível nesta leitura." />
           ) : montado && temCobertura ? (
-            <ResponsiveContainer width="100%" height={208}>
-              <BarChart data={cobertura} margin={{ right: 8 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={cobertura} margin={{ top: 8, right: 8, left: 4, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="faixa" fontSize={11} tickLine={false} axisLine={false} interval={0} />
-                <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={32} />
+                <XAxis dataKey="faixa" fontSize={11} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} interval={0} label={tituloEixoX("Cobertura estimada")} />
+                <YAxis allowDecimals={false} fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} width={52} label={tituloEixoY("Insumos")} />
                 <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
                 <Bar dataKey="insumos" name="Insumos" radius={[4, 4, 0, 0]}>
                   {cobertura.map((faixa) => (
@@ -280,13 +281,13 @@ export function PainelSituacaoEstoque({
           {graficosIncompletos.categorias ? (
             <SemDados texto="Situação por categoria indisponível nesta leitura." />
           ) : montado && porCategoria.length > 0 ? (
-            <ResponsiveContainer width="100%" height={208}>
-              <BarChart data={porCategoria} layout="vertical" maxBarSize={22} margin={{ left: 8, right: 16 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={porCategoria} layout="vertical" maxBarSize={22} margin={{ top: 4, left: 8, right: 16, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis type="category" dataKey="categoria" width={120} fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis type="number" allowDecimals={false} fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Insumos")} />
+                <YAxis type="category" dataKey="categoria" width={140} fontSize={11} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoY("Categoria")} />
                 <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="critico" name="Crítico no sistema" stackId="s" fill={COR.critico} />
                 <Bar dataKey="ok" name="Acima do mínimo" stackId="s" fill={COR.ok} />
                 <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={[0, 4, 4, 0]} />
@@ -314,11 +315,11 @@ export function PainelSituacaoEstoque({
           {graficosIncompletos.valores ? (
             <SemDados texto="Valor por categoria indisponível nesta leitura." />
           ) : montado && valores.length > 0 ? (
-            <ResponsiveContainer width="100%" height={208}>
-              <BarChart data={valores} layout="vertical" maxBarSize={22} margin={{ left: 8, right: 16 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={valores} layout="vertical" maxBarSize={22} margin={{ top: 8, left: 8, right: 16, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                <XAxis type="number" fontSize={11} tickLine={false} axisLine={false} tickFormatter={(v: number) => formatCompactCurrency(v)} />
-                <YAxis type="category" dataKey="categoria" width={120} fontSize={11} tickLine={false} axisLine={false} />
+                <XAxis type="number" fontSize={11} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} tickFormatter={(v: number) => formatCompactCurrency(v)} label={tituloEixoX("Valor em estoque (R$)")} />
+                <YAxis type="category" dataKey="categoria" width={140} fontSize={11} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoY("Categoria")} />
                 <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} formatter={(v) => formatCurrency(Number(v))} />
                 <Bar dataKey="valor" name="Valor" fill={COR.valor} radius={[0, 4, 4, 0]} />
               </BarChart>
@@ -343,13 +344,13 @@ export function PainelSituacaoEstoque({
           {graficosIncompletos.movimentos ? (
             <SemDados texto="Histórico indisponível. A leitura de movimentos ou insumos está incompleta." />
           ) : montado && temMovimento ? (
-            <ResponsiveContainer width="100%" height={208}>
-              <BarChart data={movimentosMes} maxBarSize={16} margin={{ right: 8 }}>
+            <ResponsiveContainer width="100%" height={240}>
+              <BarChart data={movimentosMes} maxBarSize={16} margin={{ top: 4, right: 8, left: 4, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="rotulo" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis allowDecimals={false} fontSize={12} tickLine={false} axisLine={false} width={32} />
+                <XAxis dataKey="rotulo" fontSize={11} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Mês")} />
+                <YAxis allowDecimals={false} fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} width={52} label={tituloEixoY("Registros")} />
                 <Tooltip cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
-                <Legend wrapperStyle={{ fontSize: 12 }} />
+                <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="entradas" name="Entradas" fill={COR.entradas} radius={[4, 4, 0, 0]} />
                 <Bar dataKey="saidas" name="Saídas" fill={COR.saidas} radius={[4, 4, 0, 0]} />
               </BarChart>
@@ -436,7 +437,7 @@ function Grafico({ titulo, subtitulo, children }: { titulo: string; subtitulo: s
     <section className="min-w-0 rounded-lg border border-border bg-card p-4 shadow-sm">
       <h3 className="text-sm font-semibold">{titulo}</h3>
       <p className="text-xs text-muted-foreground">{subtitulo}</p>
-      <div className="mt-3 h-52 min-w-0">{children}</div>
+      <div className="mt-3 h-60 min-w-0">{children}</div>
     </section>
   );
 }

@@ -15,6 +15,7 @@ import type { CurvaCustoAmostrasPonto } from "@/lib/costing/engine";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
 import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/formatters";
+import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 
 type TooltipPayload = {
   value?: number;
@@ -100,19 +101,14 @@ export function CustoAnaliseChart({
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={data} margin={{ top: 12, right: 24, left: 8, bottom: 22 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.28)" />
-              <XAxis
-                dataKey="amostras"
-                fontSize={12}
-                tickLine={{ stroke: "var(--muted-foreground)" }}
-                axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.25 }}
-                label={{ value: "Amostras", position: "insideBottom", offset: -12, fontSize: 12 }}
-              />
+              <XAxis dataKey="amostras" fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Amostras")} />
               <YAxis
                 fontSize={12}
-                tickLine={{ stroke: "var(--muted-foreground)" }}
-                axisLine={{ stroke: "var(--foreground)", strokeWidth: 1.25 }}
+                tickLine={MARCA_EIXO}
+                axisLine={LINHA_EIXO}
                 tickFormatter={(value) => formatCompactCurrency(Number(value))}
-                width={82}
+                width={92}
+                label={tituloEixoY("Custo por amostra (R$)")}
               />
               {markers.map((marker) => (
                 <ReferenceLine

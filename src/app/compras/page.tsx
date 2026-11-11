@@ -9,6 +9,7 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { Campo } from "@/components/common/Campo";
+import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
@@ -110,6 +111,9 @@ export default async function ComprasPage() {
                   <option key={p.id} value={p.id}>{p.nome}</option>
                 ))}
               </Select>
+            </Campo>
+            <Campo rotulo="Projeto ou campanha (texto livre)" htmlFor="nova-compra-projeto-livre" className="min-w-40 flex-1">
+              <Input id="nova-compra-projeto-livre" name="projeto" />
             </Campo>
             <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
               Criar compra
