@@ -222,7 +222,7 @@ export const APP_MODULES: AppModule[] = [
       {
         href: "/estoque/equipamentos",
         label: "Equipamentos",
-        desc: "unidades físicas, calibrações e manutenções",
+        desc: "unidades, tipos e custo, previsão de compra, calibrações e manutenções",
         icon: "Wrench",
       },
       {

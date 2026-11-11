@@ -45,8 +45,8 @@ export function IndicadoresEstoque({ resumo }: { resumo: ResumoSinais | null }) 
             </p>
             <p>Nos outros números, um insumo com dois sinais conta nos dois.</p>
             <p>
-              <b>Sem estoque</b> conta todo insumo com o disponível zerado. Nos quadros de alerta, o zerado que
-              ainda não tem mínimo aparece em <b>Sem mínimo definido</b>.
+              <b>Sem estoque</b> conta todo insumo com o disponível zerado, no número e nos quadros de alerta. O
+              zerado que ainda não tem mínimo traz a observação <b>sem mínimo definido</b> na linha.
             </p>
             <HelpExample>40 insumos, 30 em dia → saúde de 75%.</HelpExample>
           </HelpTip>

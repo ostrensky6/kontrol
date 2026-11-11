@@ -2,6 +2,7 @@ import Link from "next/link";
 import { QrCode } from "@/components/common/QrCode";
 import { formatDate } from "@/lib/formatters";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { AbasEquipamentos } from "@/components/estoque/AbasEquipamentos";
 import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { createClientUntyped } from "@/lib/supabase/server";
@@ -202,7 +203,8 @@ export default async function EquipamentosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-start justify-between gap-4">
+        <AbasEquipamentos ativa="unidades" />
+        <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Estoque · Patrimônio físico
@@ -222,12 +224,6 @@ export default async function EquipamentosPage({
               </HelpTip>
             </div>
           </div>
-          <Link
-            href="/cadastros/equipamentos"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            Cadastro de tipos
-          </Link>
         </div>
 
         {scanId && (
@@ -310,7 +306,7 @@ export default async function EquipamentosPage({
             <div className="mt-3">
               {catalogo.length > 0
                 ? <NovaUnidadeForm equipamentos={catalogo} />
-                : <p className="text-sm text-muted-foreground">Cadastre primeiro o equipamento em Cadastro de tipos.</p>}
+                : <p className="text-sm text-muted-foreground">Cadastre primeiro o equipamento na aba Tipos e custo.</p>}
             </div>
           </details>
         )}

@@ -159,7 +159,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Equipamento de parceiro",
         itens: [
-          "Quando a análise usa equipamento de outra instituição que cobra por amostra, cadastre o equipamento em Cadastros → Equipamentos e preencha 'Custo do parceiro por amostra'.",
+          "Quando a análise usa equipamento de outra instituição que cobra por amostra, cadastre o equipamento em Estoque → Equipamentos → Tipos e custo e preencha 'Custo do parceiro por amostra'.",
           "O valor entra no custo de equipamento da análise (valor × peso do vínculo na aba Equipamentos da análise).",
           "Se o valor ainda não foi confirmado, marque 'Valor do parceiro é estimativa' e diga de onde veio; a análise mostra o aviso até a confirmação.",
         ],
@@ -191,7 +191,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Visão geral: o quadro 'Aguardando você' e o quadro 'Andamento dos pedidos', com as seis etapas.",
           "Pedidos: cada pedido e a etapa em que está, da solicitação ao pagamento.",
-          "Compras com fornecedor: as compras fechadas, cada uma ligada ao seu pedido, e o botão 'Nova compra'.",
+          "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'.",
           "Recebimento: registrar o que chegou. A chegada cria o lote no Estoque.",
           "Prazos de compra: quanto tempo cada compra levou, do pedido à chegada.",
           "O Estoque é um módulo próprio na barra lateral, logo abaixo de Compras. O Planejamento fica em Projetos, porque o plano vem antes da compra.",
@@ -241,7 +241,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Estoque → Situação é o painel único de alertas: cada quadro lista os insumos ou lotes que pedem atenção e por quê. Urgente pede ação agora, Atenção pede acompanhamento de perto, Acompanhar e Cadastro podem esperar.",
           "Cadastros mostra só a contagem (por exemplo, '3 urgentes · 5 de atenção') e leva ao painel. O Início mostra os números Sem estoque, Vencidos ou vencendo e Repor, os mesmos do topo da Situação, e traz as linhas do painel na tabela 'Precisa de atenção hoje'. Tudo sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
           "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir no Inventário.",
-          "Sem estoque é o disponível zerado com mínimo definido. Zero sem mínimo aparece em Sem mínimo definido. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
+          "Sem estoque é todo disponível zerado, com ou sem mínimo definido (a linha avisa quando falta o mínimo). Sem mínimo definido lista só o que tem saldo e ainda não tem mínimo. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
           "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
           "O quadro 'A caminho', no fim do painel, lista as compras feitas e não recebidas, para conferir antes de pedir de novo. Ele aparece para quem tem acesso a Compras.",
           "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
@@ -306,7 +306,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Equipamentos: calibração e manutenção",
         itens: [
-          "Em Estoque → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
+          "Equipamentos é uma tela só, em Estoque, com três abas: Unidades (cada aparelho, a manutenção e os avisos), Tipos e custo (o cadastro de equipamentos e o custo por dia) e Previsão de compra (o que a equipe vai precisar comprar).",
+          "Na aba Unidades, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
           "Na ficha da unidade, 'Definir frequência e aviso' diz de quantos em quantos dias a calibração ou manutenção é feita e com quantos dias de antecedência avisar.",
           "Depois de cada serviço, use 'Registrar manutenção ou calibração'. Se o certificado traz a próxima data, informe-a; senão o Kontrol soma a frequência.",
           "Os avisos aparecem no topo da página quando o vencimento se aproxima e ficam lá até alguém agendar o serviço ou clicar em 'Encaminhar' e dizer o que foi decidido.",
@@ -507,7 +508,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
+          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
           "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
@@ -736,7 +737,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos e fornecedores) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
+          "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais; equipamentos e previsão abrem em Estoque → Equipamentos), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos e fornecedores) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
           "Os mesmos grupos aparecem em 'Todos os cadastros', na primeira tela de Cadastros, e a busca (Ctrl+K) abre qualquer cadastro pelo nome.",
           "Crie ou edite o registro com os campos solicitados.",
           "Revise periodicamente para corrigir duplicidades e dados desatualizados.",
@@ -761,7 +762,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Previsão de equipamentos",
         itens: [
-          "Em Cadastros > Previsão de equipamentos, liste o que o laboratório pretende comprar, com prioridade (1 alta, 2 média, 3 baixa), quantidade, valor estimado, justificativa e 'Patrimônio de' (de quem o equipamento será).",
+          "Em Estoque → Equipamentos → Previsão de compra, liste o que o laboratório pretende comprar, com prioridade (1 alta, 2 média, 3 baixa), quantidade, valor estimado, justificativa e 'Patrimônio de' (de quem o equipamento será).",
           "Quem aprova pedidos (pedido.aprovar) cadastra e edita; todos veem.",
           "Ao ligar a previsão a um pedido, ela passa a 'Pedido'. Pedido concluído vira 'Comprado'; pedido cancelado volta a 'Previsto'.",
         ],

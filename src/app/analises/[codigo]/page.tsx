@@ -391,7 +391,7 @@ export default async function AnaliseDetalhe({
         {custo && (custo.equipamentosEstimados ?? []).length > 0 && (
           <p role="status" className="mt-3 rounded-md bg-info-soft px-3 py-2 text-sm text-info-strong">
             Estimativa: o custo por amostra de {(custo.equipamentosEstimados ?? []).join(", ")} (equipamento de parceiro) ainda não
-            foi confirmado. Atualize em Cadastros → Equipamentos quando tiver o valor do parceiro.
+            foi confirmado. Atualize em Estoque → Equipamentos → Tipos e custo quando tiver o valor do parceiro.
           </p>
         )}
 

@@ -1,16 +1,10 @@
 import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
-import { criarPedido } from "@/lib/actions/compras";
 import { ComprasTable, type CompraRow } from "@/components/compras/ComprasTable";
 import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
-import { FormComMensagem } from "@/components/pedido/FormComMensagem";
-import { SubmitButton } from "@/components/common/SubmitButton";
+import { PageHeader } from "@/components/app/PageHeader";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
-import { CriarPorBotao } from "@/components/common/CriarPorBotao";
-import { Campo } from "@/components/common/Campo";
-import { Input } from "@/components/ui/input";
-import { Select } from "@/components/ui/select";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
@@ -25,12 +19,11 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 
 export default async function ComprasPage() {
   const supabase = await createClient();
-  const [{ data: pedidos }, { data: fornecedores }, { data: saldo }, { data: projetos }, { data: previsao }] = await Promise.all([
+  const [{ data: pedidos }, { data: saldo }, { data: projetos }, { data: previsao }] = await Promise.all([
     supabase
       .from("pedidos_compra")
       .select("id, status, projeto, projeto_id, solicitante, data_solicitacao, fornecedores(nome)")
       .order("criado_em", { ascending: false }),
-    supabase.from("fornecedores").select("id, nome").eq("ativo", true).order("nome"),
     supabase.from("v_estoque_saldo").select("*"),
     supabase.from("projetos").select("id, nome").order("nome"),
     supabase.from("v_previsao_suprimentos").select("*").order("qtd_sugerida_compra", { ascending: false }),
@@ -70,56 +63,37 @@ export default async function ComprasPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        {/* a lista vem primeiro; o formulário de nova compra abre pelo botão (L14) */}
-        <CriarPorBotao
-          rotulo="Nova compra"
-          cabecalho={
-            <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Compras com fornecedor</h1>
-              <HelpTip title="Compras com fornecedor">
-                <p>
-                  Cada compra segue as situações abaixo. Quem registra a chegada cadastra o lote e ele já fica
-                  <b>disponível no estoque</b>. Compra que nasceu de um pedido é aprovada junto com o
-                  pedido, quando ele chega a “Aprovado para compra”.
-                </p>
-                <HelpLegend
-                  items={[
-                    { tom: "atencao", rotulo: "Solicitado", texto: "aguardando aprovação" },
-                    { tom: "info", rotulo: "Aprovado", texto: "liberado para comprar" },
-                    { tom: "info", rotulo: "Enviado", texto: "pedido feito ao fornecedor" },
-                    { tom: "info", rotulo: "Recebido", texto: "material entregue e registrado" },
-                    { tom: "neutro", rotulo: "Cancelado", texto: "não segue adiante" },
-                  ]}
-                />
-              </HelpTip>
-            </div>
+        {/* toda compra nasce de um pedido aprovado (decisão de 11/11/2026): não há mais "Nova compra" avulsa */}
+        <PageHeader
+          title="Compras com fornecedor"
+          description="As compras fechadas, cada uma ligada ao pedido de onde nasceu."
+          help={
+            <HelpTip title="Compras com fornecedor">
+              <p>
+                Toda compra nasce de um <b>pedido</b>: ela é criada quando o pedido chega a “Aprovado para compra” e
+                é aprovada junto com ele. Para pedir algo, use <b>Novo pedido</b> em Compras → Pedidos.
+              </p>
+              <p>
+                Cada compra segue as situações abaixo. Quem registra a chegada cadastra o lote e ele já fica
+                <b> disponível no estoque</b>.
+              </p>
+              <HelpLegend
+                items={[
+                  { tom: "atencao", rotulo: "Solicitado", texto: "aguardando aprovação" },
+                  { tom: "info", rotulo: "Aprovado", texto: "liberado para comprar" },
+                  { tom: "info", rotulo: "Enviado", texto: "pedido feito ao fornecedor" },
+                  { tom: "info", rotulo: "Recebido", texto: "material entregue e registrado" },
+                  { tom: "neutro", rotulo: "Cancelado", texto: "não segue adiante" },
+                ]}
+              />
+            </HelpTip>
           }
-        >
-          <FormComMensagem action={criarPedido} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <Campo rotulo="Fornecedor" htmlFor="nova-compra-fornecedor" className="min-w-48">
-              <Select id="nova-compra-fornecedor" name="fornecedor_id" defaultValue="">
-                <option value="">—</option>
-                {(fornecedores ?? []).map((f) => (
-                  <option key={f.id} value={f.id}>{f.nome}</option>
-                ))}
-              </Select>
-            </Campo>
-            <Campo rotulo="Projeto" htmlFor="nova-compra-projeto" className="min-w-48">
-              <Select id="nova-compra-projeto" name="projeto_id" defaultValue="">
-                <option value="">—</option>
-                {(projetos ?? []).map((p) => (
-                  <option key={p.id} value={p.id}>{p.nome}</option>
-                ))}
-              </Select>
-            </Campo>
-            <Campo rotulo="Projeto ou campanha (texto livre)" htmlFor="nova-compra-projeto-livre" className="min-w-40 flex-1">
-              <Input id="nova-compra-projeto-livre" name="projeto" />
-            </Campo>
-            <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
-              Criar compra
-            </SubmitButton>
-          </FormComMensagem>
-        </CriarPorBotao>
+          actions={
+            <Link href="/pedido?novo=1" className="text-sm font-semibold text-primary underline underline-offset-2">
+              Novo pedido
+            </Link>
+          }
+        />
 
         {/* sugestões */}
         {sugestoes.length > 0 && (

@@ -46,7 +46,7 @@ export function destinoScanner(tipo: EntidadeScanner, id: number) {
       // F5: quem lê o código quer saber como está o insumo; o cadastro abre de lá
       return `/estoque/insumos/${id}`;
     case "equipamento":
-      return `/cadastros/equipamentos?focus=${id}`;
+      return `/estoque/equipamentos/tipos?focus=${id}`;
     case "equipamento_unidade":
       return `/estoque/equipamentos?tab=unidades&focus=${id}`;
     case "local":
