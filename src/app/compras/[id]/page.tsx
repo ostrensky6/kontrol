@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
+import { rotuloCodigoFabricante } from "@/lib/pedido/codigo-fabricante";
 import {
   adicionarItemPedido,
   definirFornecedorCompra,
@@ -51,7 +52,7 @@ type PedidoCompraItemRow = {
   quantidade_nao_atendida: number | null;
   destino_pendencia: string | null;
   compra_pendencia_id: number | null;
-  insumos: { especificacao: string | null; unidade: string | null } | null;
+  insumos: { especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null } | null;
   pedidos_internos_itens?: { pedido_interno_id: number | null; fornecedor_sugerido: string | null } | null;
   pedidos_compra_item_recebimentos?: CompraItemRecebimento[] | null;
 };
@@ -99,10 +100,10 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   const semFornecedor = pedido.status === "solicitado" && pedido.fornecedor_id == null;
   const [consultaItens, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
     (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
-      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)", { count: "exact" })
+      .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade, codigo_fabricante), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)", { count: "exact" })
       .eq("pedido_id", pedidoId)
       .order("id"),
-    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
+    supabase.from("insumos").select("id, especificacao, codigo_fabricante").eq("ativo", true).order("especificacao"),
     pode("compras.aprovar"),
     pode("compras.receber"),
     pode("compras.cancelar"),
@@ -318,13 +319,20 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
               </thead>
               <tbody className="divide-y divide-border/70">
                 {(itens ?? []).map((it) => {
-                  const ins = it.insumos as { especificacao: string | null; unidade: string | null } | null;
+                  const ins = it.insumos as { especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null } | null;
                   const recebimentos = (it.pedidos_compra_item_recebimentos ?? [])
                     .slice()
                     .sort((a, b) => Date.parse(b.recebido_em) - Date.parse(a.recebido_em));
                   return (
                     <tr key={it.id}>
-                      <td className="px-4 py-2.5 max-w-xs truncate" title={ins?.especificacao ?? ""}>{ins?.especificacao}</td>
+                      <td className="px-4 py-2.5 max-w-xs" title={ins?.especificacao ?? ""}>
+                        <span className="block truncate">{ins?.especificacao}</span>
+                        {ins?.codigo_fabricante ? (
+                          <span className="block text-xs text-muted-foreground">
+                            Código do fabricante: <span className="font-mono">{ins.codigo_fabricante}</span>
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-2.5 text-muted-foreground">
                         {it.pedidos_internos_itens?.pedido_interno_id ? (
                           <Link href={`/pedido/${it.pedidos_internos_itens.pedido_interno_id}`} className="text-primary hover:underline">
@@ -448,7 +456,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                 <select name="insumo_id" className={inp} defaultValue="">
                   <option value="" disabled>Selecione…</option>
                   {(insumos ?? []).map((i) => (
-                    <option key={i.id} value={i.id}>{i.especificacao}</option>
+                    <option key={i.id} value={i.id}>{[i.especificacao, rotuloCodigoFabricante(i.codigo_fabricante)].filter(Boolean).join(" · ")}</option>
                   ))}
                 </select>
               </div>

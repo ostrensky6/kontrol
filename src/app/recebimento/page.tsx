@@ -56,7 +56,7 @@ type CompraFormalItemRaw = {
   quantidade_recebida: number | null;
   quantidade_em: string | null;
   conteudo_embalagem: number | null;
-  insumos: { especificacao: string | null; unidade: string | null } | null;
+  insumos: { especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null } | null;
   pedidos_compra: {
     id: number;
     status: string;
@@ -74,10 +74,10 @@ export default async function RecebimentoPage() {
       )
       .is("recebido_em", null)
       .order("id", { ascending: false }),
-    supabase.from("insumos").select("id, especificacao, unidade").eq("ativo", true).order("especificacao"),
+    supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao"),
     supabase
       .from("pedidos_compra_itens")
-      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_compra!inner(id, status, fornecedores(nome))")
+      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!inner(id, status, fornecedores(nome))")
       .is("pedido_interno_item_id", null)
       .order("id", { ascending: false }),
     pode("compras.receber"),
@@ -210,7 +210,14 @@ export default async function RecebimentoPage() {
                   return (
                     <tr key={item.id}>
                       <td className="px-4 py-3 font-mono text-xs">#{item.pedido_id}</td>
-                      <td className="px-4 py-3 font-medium">{insumo?.especificacao ?? `Insumo #${item.insumo_id}`}</td>
+                      <td className="px-4 py-3">
+                        <span className="block font-medium">{insumo?.especificacao ?? `Insumo #${item.insumo_id}`}</span>
+                        {insumo?.codigo_fabricante ? (
+                          <span className="block text-xs text-muted-foreground">
+                            Código do fabricante: <span className="font-mono">{insumo.codigo_fabricante}</span>
+                          </span>
+                        ) : null}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">{pedido?.fornecedores?.nome ?? "—"}</td>
                       <td className="px-4 py-3 text-right tabular-nums">
                         {formatNumber(recebido)} de {rotuloQuantidadeItem(item, insumo?.unidade)}

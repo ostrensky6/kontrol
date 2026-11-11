@@ -7,7 +7,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { ItemRecebimentoCell, type RecebimentoLancamento } from "./ItemRecebimentoCell";
 
-type Insumo = { id: number; especificacao: string | null; unidade: string | null };
+type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
 
 export type RecebimentoItemRow = {
   id: number;
@@ -29,6 +29,17 @@ export type RecebimentoItemRow = {
   podeReceber: boolean;
 };
 
+/** Código do fabricante do insumo vinculado: quem recebe confere o produto exato. */
+function CodigoFabricanteDoItem({ insumos, insumoId }: { insumos: Insumo[]; insumoId: number | null }) {
+  const codigo = insumoId == null ? null : insumos.find((insumo) => insumo.id === insumoId)?.codigo_fabricante?.trim();
+  if (!codigo) return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Código do fabricante: <span className="font-mono">{codigo}</span>
+    </p>
+  );
+}
+
 function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
   return [
     {
@@ -46,6 +57,7 @@ function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
       cell: ({ row }) => (
         <div>
           <p className="font-medium">{row.original.especificacao}</p>
+          <CodigoFabricanteDoItem insumos={insumos} insumoId={row.original.insumoId} />
           <p className="text-xs text-muted-foreground">{row.original.pedidoTitulo}</p>
         </div>
       ),

@@ -410,6 +410,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     colunas: [
       { key: "especificacao", label: "Item específico / SKU", largura: "lg" },
       { key: "fabricante", label: "Marca / fabricante", largura: "sm" },
+      { key: "codigo_fabricante", label: "Código do fabricante", largura: "sm" },
       { key: "unidade", label: "Unidade", largura: "xs" },
       { key: "quantidade", label: "Quantidade", tipo: "number", alinhar: "right", largura: "sm", calculada: true },
       { key: "custo_unitario", label: "Custo un.", tipo: "currency", alinhar: "right", largura: "sm", calculada: true },
@@ -421,6 +422,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     colunasXlsx: [
       { key: "especificacao", label: "Item específico / SKU" },
       { key: "fabricante", label: "Marca / fabricante" },
+      { key: "codigo_fabricante", label: "Código do fabricante" },
       { key: "unidade", label: "Unidade da embalagem" },
       // Só vale para itens novos na importação (estoque inicial); para itens
       // existentes é informativa — entradas e baixas passam pelo Estoque.

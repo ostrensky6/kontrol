@@ -17,7 +17,7 @@ import {
 import { formatDate } from "@/lib/formatters";
 import { ReceberItemPedidoInterno, type ItemRecebivel } from "./ReceberItemPedidoInterno";
 
-type Insumo = { id: number; especificacao: string | null; unidade: string | null };
+type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
 export type RecebimentoLancamento = {
   id: number;
   loteId: number | null;

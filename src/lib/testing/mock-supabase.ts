@@ -380,6 +380,8 @@ const baseStore = (): Store => {
       especificacao: "Etanol absoluto 1 L",
       // 1.8.9: item ligado a um insumo do cadastro, para a ficha do insumo mostrar o pedido (F5)
       insumo_id: 900,
+      // o mock não resolve junções: o insumo ligado vem junto (código do fabricante)
+      insumos: { especificacao: "Kit extração E2E", unidade: "kit", controlado: false, codigo_fabricante: "KX-900" },
       quantidade: 2,
       unidade: "un",
       orcamento_previo: 80,
@@ -426,6 +428,8 @@ const baseStore = (): Store => {
     {
       id: 900,
       especificacao: "Kit extração E2E",
+      fabricante: "Fabricante E2E",
+      codigo_fabricante: "KX-900",
       custo_unitario: 100,
       unidade: "kit",
       unidade_consumo: "kit",

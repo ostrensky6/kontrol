@@ -53,9 +53,10 @@ describe("totais de unidades de insumos", () => {
     );
     const headers = workbookColumns(CADASTROS.insumos, [linha]).map((coluna) => coluna.header);
 
-    expect(headers.slice(1, 5)).toEqual([
+    expect(headers.slice(1, 6)).toEqual([
       "Item específico / SKU",
       "Marca / fabricante",
+      "Código do fabricante",
       "Unidade da embalagem",
       "Quantidade (embalagens fechadas)",
     ]);

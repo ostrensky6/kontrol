@@ -81,7 +81,7 @@ type PedidoInternoItem = {
   recebido_em: string | null;
   recebido_por: string | null;
   lote_id: number | null;
-  insumos: { especificacao: string | null; unidade: string | null; controlado?: boolean | null } | null;
+  insumos: { especificacao: string | null; unidade: string | null; controlado?: boolean | null; codigo_fabricante?: string | null } | null;
   pedidos_internos_item_recebimentos?: PedidoInternoItemRecebimento[] | null;
 };
 
@@ -266,6 +266,8 @@ function montarCatalogoItens(
     categoriaCompra: insumo.categoria_compra,
     tipoInsumo: primeiraRelacao(insumo.tipo_insumos)?.nome,
     unidade: insumo.unidade,
+    fabricante: insumo.fabricante,
+    codigoFabricante: insumo.codigo_fabricante,
     custoUnitario: insumo.custo_unitario,
     // Mesma regra de kontrol_private.modelo_quantidade_insumo (0123): conta em frascos
     // quando há volume do frasco e unidade, e não restam lotes antigos por volume.
@@ -366,7 +368,7 @@ export default async function PedidoInternoDetalhe({
   ] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
-      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade, controlado), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
+      .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade, controlado, codigo_fabricante), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
       .eq("pedido_interno_id", pedidoId)
       .order("id"),
     supabase
@@ -941,6 +943,11 @@ export default async function PedidoInternoDetalhe({
                         {itemTipoLabel(item.tipo)}
                         {item.insumos?.especificacao ? ` · vinculado: ${item.insumos.especificacao}` : ""}
                       </p>
+                      {item.insumos?.codigo_fabricante ? (
+                        <p className="text-xs" data-testid="item-codigo-fabricante">
+                          <span className="font-medium">Código do fabricante:</span> <span className="font-mono">{item.insumos.codigo_fabricante}</span>
+                        </p>
+                      ) : null}
                       {item.caracteristicas ? (
                         <p className="text-xs"><span className="font-medium">Indispensável:</span> {item.caracteristicas}</p>
                       ) : null}
@@ -983,7 +990,7 @@ export default async function PedidoInternoDetalhe({
                           fornecedorSugerido: item.fornecedor_sugerido,
                           orcamentoPrevio: item.orcamento_previo,
                         }}
-                        insumos={catalogoComVinculoAtual(catalogoItens, item)}
+                        insumos={catalogoComVinculoAtual(catalogoItens, item).map((insumo) => ({ ...insumo, codigo_fabricante: insumo.codigoFabricante }))}
                         podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
                         recebidoEm={item.recebido_em}
                         recebidoPor={item.recebido_por}
