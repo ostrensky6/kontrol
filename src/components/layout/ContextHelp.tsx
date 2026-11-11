@@ -50,6 +50,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
         "Entrada: confira as embalagens (1 por padrão) e a validade; o lote é criado sozinho.",
         "Saída: cada leitura abre 1 embalagem do lote que vence primeiro.",
         "Código novo: vincule a um insumo ou cadastre; errou, use Desfazer a última.",
+        "Códigos não reconhecidos, ao lado do título, mostra quantos códigos esperam cadastro.",
       ],
     },
   },
@@ -170,7 +171,8 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       checks: [
         "Planilha baixa o cadastro; a mesma planilha preenchida pode ser importada.",
         "Salário dos técnicos só aparece para quem tem a permissão Ver salário dos técnicos.",
-        "Qualidade dos cadastros lista o que falta e pode distorcer custos.",
+        "A barra tem 4 grupos (Materiais, Pessoas e áreas, Comercial, Custos); as abas levam a cada cadastro.",
+        "Qualidade dos cadastros, no topo, mostra quantas pendências existem e lista o que falta.",
       ],
     },
   },

@@ -6,7 +6,7 @@ import { expect, test } from "@playwright/test";
  */
 test("responsáveis do administrativo e do pagamento: só editar, sem responsável vai ao Administrador", async ({ page }) => {
   await page.goto("/cadastros/responsaveis");
-  await expect(page.getByRole("heading", { name: "Responsáveis do administrativo e do pagamento" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Responsáveis por etapa" })).toBeVisible();
   const administrativo = page.getByRole("row", { name: /Administrativo: autorização/ });
   await expect(administrativo).toContainText("Sem responsável: avisos vão ao Administrador");
   await expect(page.getByRole("row", { name: /Pagamento e nota fiscal/ })).toBeVisible();

@@ -192,6 +192,25 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
     expect(moduleIsActive(modulo("governanca"), "/governanca/regras")).toBe(true);
   });
 
+  it("Cadastros: a barra tem o painel e 4 grupos; cada cadastro marca o seu grupo e continua na busca", () => {
+    const visiveis = modulo("cadastros").children.filter((c) => c.showInTopNav !== false);
+    expect(visiveis.map((c) => c.label)).toEqual(["Painel de insumos", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros")).toBe("/cadastros");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/qualidade")).toBe("/cadastros");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/insumos")).toBe("/cadastros/grupo/materiais");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/locais")).toBe("/cadastros/grupo/materiais");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/responsaveis")).toBe("/cadastros/grupo/pessoas");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/projetos")).toBe("/cadastros/grupo/comercial");
+    expect(hrefAtivoNaBarra(visiveis, "/cadastros/overhead")).toBe("/cadastros/grupo/custos");
+    // o grupo é só um atalho da barra: a busca mostra os 12 cadastros pelo nome, sem repetir
+    const naBusca = getCommandGroups(admin).find((g) => g.title === "Cadastros")!.links;
+    expect(naBusca.map((l) => l.href).filter((href) => href.startsWith("/cadastros/grupo/"))).toEqual([]);
+    expect(naBusca.filter((l) => l.href.startsWith("/cadastros/"))).toHaveLength(12);
+    expect(naBusca.map((l) => l.label)).toContain("Responsáveis por etapa");
+    // a página do grupo existe (redireciona para o primeiro cadastro)
+    expect(existsSync(path.join(APP_DIR, "cadastros", "grupo", "[grupo]", "page.tsx"))).toBe(true);
+  });
+
   it("Orçamentos: Configurações marca as três telas e não repete na busca", () => {
     const visiveis = modulo("orcamentos").children.filter((c) => c.showInTopNav !== false);
     expect(visiveis.map((c) => c.label)).toEqual(["Orçamentos", "Histórico de orçamentos", "Fundos e taxas", "Configurações"]);

@@ -3,38 +3,9 @@ import type { ReactNode } from "react";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { lerQualidadeDosCadastros } from "@/lib/cadastros/qualidade";
 
 export const dynamic = "force-dynamic";
-
-type ReceitaInsumo = {
-  id: number;
-  codigo_analise: string;
-  especificacao_insumo: string | null;
-  quantidade_por_amostra: number | null;
-  insumo_id: number | null;
-};
-
-type Insumo = {
-  id: number;
-  especificacao: string;
-  unidade: string | null;
-  unidade_consumo: string | null;
-  fator_conversao: number | null;
-  custo_unitario: number | null;
-  fornecedor_id: number | null;
-};
-
-type Lote = {
-  id: number;
-  codigo_lote: string | null;
-  status: string;
-  validade: string | null;
-  validade_apos_abertura: string | null;
-  insumos: { especificacao: string | null } | { especificacao: string | null }[] | null;
-};
-
-type Analise = { codigo: string; ativo: boolean; ofertavel: boolean };
-type ItemOrcamento = { codigo_analise: string | null };
 
 function one<T>(value: T | T[] | null | undefined): T | null {
   return Array.isArray(value) ? value[0] ?? null : value ?? null;
@@ -42,59 +13,21 @@ function one<T>(value: T | T[] | null | undefined): T | null {
 
 export default async function QualidadeCadastrosPage() {
   const supabase = await createClientUntyped();
-  const [
-    { data: receitasRaw },
-    { data: insumosRaw },
-    { data: lotesRaw },
-    { data: analisesRaw },
-    { data: itensOrcamentoRaw },
-  ] = await Promise.all([
-    supabase
-      .from("insumo_analise")
-      .select("id, codigo_analise, especificacao_insumo, quantidade_por_amostra, insumo_id")
-      .gt("quantidade_por_amostra", 0),
-    supabase
-      .from("insumos")
-      .select("id, especificacao, unidade, unidade_consumo, fator_conversao, custo_unitario, fornecedor_id")
-      .order("especificacao"),
-    supabase
-      .from("lotes_estoque")
-      .select("id, codigo_lote, status, validade, validade_apos_abertura, insumos(especificacao)")
-      .not("status", "in", "(consumido,descartado)"),
-    supabase.from("analises").select("codigo, ativo, ofertavel").order("codigo"),
-    supabase.from("orcamento_itens").select("codigo_analise"),
-  ]);
-
-  const receitas = (receitasRaw ?? []) as ReceitaInsumo[];
-  const insumos = (insumosRaw ?? []) as Insumo[];
-  const lotes = (lotesRaw ?? []) as unknown as Lote[];
-  const analises = (analisesRaw ?? []) as Analise[];
-  const itensOrcamento = (itensOrcamentoRaw ?? []) as ItemOrcamento[];
-
-  const receitasSemInsumo = receitas.filter((linha) => !linha.insumo_id);
-  const insumosSemCusto = insumos.filter((insumo) => !(Number(insumo.custo_unitario) > 0));
-  const insumosSemUnidade = insumos.filter((insumo) =>
-    !insumo.unidade || !insumo.unidade_consumo || !(Number(insumo.fator_conversao) > 0),
-  );
-  const insumosSemFornecedor = insumos.filter((insumo) => !insumo.fornecedor_id);
-  const lotesSemValidade = lotes.filter((lote) => !lote.validade && !lote.validade_apos_abertura);
-  const codigosEmOrcamento = new Set(itensOrcamento.map((item) => item.codigo_analise).filter(Boolean));
-  const analisesIndisponiveisEmOrcamento = analises.filter((analise) =>
-    codigosEmOrcamento.has(analise.codigo) && (!analise.ativo || !analise.ofertavel),
-  );
-  const pendencias = [
-    receitasSemInsumo.length,
-    insumosSemCusto.length,
-    insumosSemUnidade.length,
-    insumosSemFornecedor.length,
-    lotesSemValidade.length,
-    analisesIndisponiveisEmOrcamento.length,
-  ].reduce((total, quantidade) => total + quantidade, 0);
+  const {
+    receitasSemInsumo,
+    insumosSemCusto,
+    insumosSemUnidade,
+    insumosSemFornecedor,
+    lotesSemValidade,
+    analisesIndisponiveisEmOrcamento,
+    pendencias,
+    incompleto,
+  } = await lerQualidadeDosCadastros(supabase);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Cadastros", href: "/cadastros" }, { label: "Qualidade dos dados" }]} />
+        <Breadcrumbs items={[{ label: "Cadastros", href: "/cadastros" }, { label: "Qualidade dos cadastros" }]} />
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Qualidade dos cadastros</h1>
@@ -112,6 +45,12 @@ export default async function QualidadeCadastrosPage() {
             {pendencias} pendência(s)
           </span>
         </div>
+
+        {incompleto && (
+          <p role="alert" className="mt-4 rounded-md border border-warning-strong/30 bg-warning-soft px-3 py-2 text-sm text-warning-strong">
+            Parte dos dados não carregou. Os números abaixo podem estar incompletos; recarregue a página.
+          </p>
+        )}
 
         <section className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <Resumo titulo="Receitas sem insumo" valor={receitasSemInsumo.length} detalhe="consumo técnico sem item de estoque" href="#receitas" />

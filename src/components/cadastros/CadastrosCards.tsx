@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
 import type { CadastroConfig } from "@/lib/cadastros/config";
+import { GRUPOS_CADASTROS } from "@/lib/cadastros/grupos";
 import {
   Card,
   CardDescription,
@@ -12,13 +13,11 @@ import {
 } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-const GRUPOS = [
+// os mesmos 4 grupos da barra de Cadastros
+const GRUPOS: Array<{ value: string; label: string; slugs: readonly string[] }> = [
   { value: "todos", label: "Todos", slugs: [] },
-  { value: "comercial", label: "Comercial", slugs: ["clientes", "projetos"] },
-  { value: "custos", label: "Custos", slugs: ["equipamentos", "tecnicos", "overhead"] },
-  { value: "materiais", label: "Materiais", slugs: ["tipo_insumos", "insumos", "fornecedores", "locais"] },
-  { value: "compras", label: "Compras", slugs: ["coordenacoes", "responsaveis", "previsao_equipamentos"] },
-] as const;
+  ...GRUPOS_CADASTROS.map((grupo) => ({ value: grupo.id, label: grupo.label, slugs: grupo.slugs })),
+];
 
 export function CadastrosCards({ cadastros }: { cadastros: CadastroConfig[] }) {
   const cardsPorGrupo = (slugs: readonly string[]) =>

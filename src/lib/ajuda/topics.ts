@@ -189,7 +189,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Onde fica cada coisa",
         itens: [
           "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
-          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário, etiquetas e códigos não reconhecidos.",
+          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
           "Planejamento: reservas de insumo para as análises previstas.",
           "Pedidos: cada pedido e a etapa em que está. Compras formais e prazos de compra ficam no topo dessa página.",
           "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
@@ -693,7 +693,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Acesse o cadastro desejado pelo menu ou por 'Todos os cadastros', no fim do painel de insumos.",
+          "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos e fornecedores) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
+          "Os mesmos grupos aparecem em 'Todos os cadastros', no fim do painel de insumos, e a busca (Ctrl+K) abre qualquer cadastro pelo nome.",
           "Crie ou edite o registro com os campos solicitados.",
           "Revise periodicamente para corrigir duplicidades e dados desatualizados.",
         ],
@@ -735,7 +736,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Evite duplicar fornecedores, insumos ou clientes — isso polui relatórios.",
           "Mantenha as políticas de reposição dos insumos atualizadas para a sugestão de compra funcionar.",
-          "Confira Cadastros → Qualidade dos cadastros: lista o que falta e pode distorcer custo ou compra.",
+          "Confira Qualidade dos cadastros, no cartão do topo de Cadastros: ele mostra quantas pendências existem e a tela lista o que falta e pode distorcer custo ou compra.",
         ],
       },
     ],
@@ -871,7 +872,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Formalizar, autorizar (fonte e rubrica), pedir os 3 orçamentos, escolher, aprovação final e fechar a compra: o responsável do administrativo. Sem responsável indicado, o Administrador.",
           "Entrega registrada e pagamento/nota fiscal: o responsável do pagamento. Sem responsável indicado, o Administrador.",
           "O solicitante é avisado quando o pedido volta para ajuste, é aprovado para compra, está a caminho, é concluído ou cancelado.",
-          "Os responsáveis do administrativo e do pagamento (e os substitutos) são escolhidos pelo Administrador em Cadastros > Responsáveis do administrativo e do pagamento.",
+          "Os responsáveis do administrativo e do pagamento (e os substitutos) são escolhidos pelo Administrador em Cadastros > Pessoas e áreas > Responsáveis por etapa.",
           "'Aguardando você', no Início e no sino, mostra só o que cabe a você decidir.",
         ],
       },
