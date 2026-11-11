@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Auth e perfil são gravados em sistemas separados: cada falha no meio do
 // caminho precisa terminar em estado coerente ou em erro explícito (27/09).
@@ -55,7 +55,13 @@ function preAprovado() {
   };
 }
 
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
+
 beforeEach(() => {
+  // a CI roda com o mock de tela ligado; aqui vale o cliente administrativo simulado pelo teste
+  vi.stubEnv("PLAYWRIGHT_MOCK_SUPABASE", undefined);
   vi.clearAllMocks();
   temPapel.mockResolvedValue(true);
   usuarioAtual.mockResolvedValue({ id: "admin-atual" });
