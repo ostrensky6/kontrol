@@ -5,7 +5,6 @@ import { PENDENCIAS_DE_SUPRIMENTOS, pendenciasDe } from "@/components/dashboard/
 import { carregarPendencias } from "@/lib/pendencias/carregar";
 
 import { HelpTip } from "@/components/common/HelpTip";
-import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
 import { EstoqueDisponivelTable } from "@/components/suprimentos/EstoqueDisponivelTable";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { hojeIso } from "@/lib/estoque/baixa";
@@ -132,16 +131,14 @@ export default async function SuprimentosPage({
             </div>
             <p className="mt-1 text-sm text-muted-foreground">O que espera você e o que temos em estoque.</p>
           </div>
+          {/* um botão principal só; a reposição fica na Situação do estoque, junto dos alertas de repor (D6) */}
           {podeCriarPedido && (
-            <div className="flex flex-wrap items-center gap-2">
-              <GerarPedidoReposicaoButton />
-              <Link
-                href="/pedido?novo=1"
-                className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Novo pedido
-              </Link>
-            </div>
+            <Link
+              href="/pedido?novo=1"
+              className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              Novo pedido
+            </Link>
           )}
         </div>
 
@@ -194,9 +191,15 @@ export default async function SuprimentosPage({
               </div>
               <p className="text-sm text-muted-foreground">{linhas.length} insumos ativos</p>
             </div>
-            <Link href="/estoque" className="text-sm font-medium text-primary hover:underline">
-              Dar entrada ou baixa no Estoque
-            </Link>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              {/* os alertas completos ficam num painel só (D1) */}
+              <Link href="/estoque/situacao" className="text-sm font-medium text-primary hover:underline">
+                Ver a situação do estoque
+              </Link>
+              <Link href="/estoque" className="text-sm font-medium text-primary hover:underline">
+                Dar entrada ou baixa no Estoque
+              </Link>
+            </div>
           </div>
           <EstoqueDisponivelTable key={filtro} linhas={linhas} filtroInicial={filtro} />
         </section>

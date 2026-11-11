@@ -19,7 +19,9 @@ it("busca da Central ignora acentos e exige todas as palavras", () => {
 
 it("explica zero registrado, saldo não conferido e salvamento sem confirmação", () => {
   expect(texto("estoque")).toContain("Saldo registrado zero");
-  expect(texto("cadastros")).toContain("Saldo não conferido");
+  // o painel de alertas saiu de Cadastros e foi para Estoque → Situação (D1): a explicação foi junto
+  expect(texto("estoque")).toContain("Saldo não conferido");
+  expect(texto("cadastros")).toContain("Estoque → Situação");
   expect(texto("orcamento-demandas")).toContain("Alterações não enviadas");
   expect(texto("custeio")).toContain("Resolver custo pendente");
 });

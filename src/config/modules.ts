@@ -244,6 +244,13 @@ export const APP_MODULES: AppModule[] = [
         icon: "Wrench",
       },
       {
+        href: "/estoque/situacao",
+        label: "Situação do estoque",
+        desc: "painel de alertas: saldo, compra, validade e lotes",
+        icon: "SlidersHorizontal",
+        showInTopNav: false,
+      },
+      {
         href: "/estoque/controle",
         label: "Controle de Estoque",
         desc: "painel do estoque por insumo, por lote e em gráficos",
@@ -350,8 +357,8 @@ export const APP_MODULES: AppModule[] = [
     children: [
       {
         href: "/cadastros",
-        label: "Painel de insumos",
-        desc: "visão geral dos insumos, nível crítico e todos os cadastros",
+        label: "Visão geral",
+        desc: "todos os cadastros e o que falta preencher",
         icon: "LayoutGrid",
         shortcut: "D",
       },

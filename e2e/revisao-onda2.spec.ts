@@ -114,7 +114,7 @@ test("alerta de estoque do painel abre a ficha; a análise que usa o insumo apar
   const analises = page.getByRole("region", { name: "Análises que usam este insumo" });
   await expect(analises.getByRole("link").first()).toHaveAttribute("href", /^\/analises\/.+/);
 
-  await page.goto("/cadastros");
+  await page.goto("/estoque/situacao");
   const semDado = page.getByRole("region", { name: "Saldo não conferido" });
   const alerta = semDado.getByRole("link").first();
   await expect(alerta).toHaveAttribute("href", /^\/estoque\/insumos\/\d+$/);
@@ -171,4 +171,102 @@ test("leitor: código de um insumo abre a ficha dele (F5)", async ({ page }) => 
   await page.goto("/s/insumo/900");
   await expect(page).toHaveURL(/\/estoque\/insumos\/900$/);
   await expect(page.getByRole("heading", { level: 1, name: "Kit extração E2E" })).toBeVisible();
+});
+
+// Onda 2b: painel único de situação do estoque (D1, L1, L9, D6).
+
+const SECOES_DO_ESTOQUE = [
+  "Saldo e lotes",
+  "Situação",
+  "Controle de Estoque",
+  "Entrada e saída por leitura",
+  "Inventário",
+  "Etiquetas",
+];
+
+test("Situação é uma seção do Estoque e o único lugar dos alertas, do “a caminho” e da reposição (D1, L1, L9, D6)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/estoque/situacao");
+  await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
+  const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
+  await expect(secoes.getByRole("link")).toHaveText(SECOES_DO_ESTOQUE);
+  await expect(secoes.getByRole("link", { name: "Situação" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Estoque" })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("region", { name: "Alertas do estoque" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" })).toBeVisible();
+  // L9: as compras a caminho ficam junto dos alertas, e não mais em Cadastros
+  await expect(page.getByTestId("painel-a-caminho")).toBeVisible();
+
+  // prova negativa: o painel, o "a caminho" e o botão de reposição não se repetem em outras telas
+  await page.goto("/cadastros");
+  await expect(page.getByRole("heading", { level: 1, name: "Cadastros" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Alertas do estoque" })).toHaveCount(0);
+  await expect(page.getByRole("region", { name: "Saldo não conferido" })).toHaveCount(0);
+  await expect(page.getByTestId("painel-a-caminho")).toHaveCount(0);
+  for (const tela of ["/cadastros", "/suprimentos", "/compras", "/estoque/controle", "/estoque"]) {
+    await page.goto(tela);
+    await expect(page.getByRole("heading", { level: 1 }), tela).toBeVisible();
+    await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" }), tela).toHaveCount(0);
+  }
+  // a visão geral de Suprimentos leva ao painel
+  await page.goto("/suprimentos");
+  await page.getByRole("link", { name: "Ver a situação do estoque" }).click();
+  await expect(page).toHaveURL(/\/estoque\/situacao$/);
+});
+
+test("Cadastros e Início mostram a contagem do painel, com o mesmo número, e levam até ele (D1)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/estoque/situacao");
+  const resumo = ((await page.getByTestId("resumo-situacao").textContent()) ?? "").trim();
+  expect(resumo).toMatch(/^(\d+ urgentes? · \d+ de atenção|\d+ urgentes?|\d+ de atenção|nada urgente)$/);
+  const total = [...resumo.matchAll(/(\d+)/g)].reduce((soma, [n]) => soma + Number(n), 0);
+
+  await page.goto("/cadastros");
+  const cartao = page.getByTestId("cartao-situacao-estoque");
+  await expect(cartao).toContainText("Situação do estoque");
+  await expect(cartao).toContainText(resumo);
+  await cartao.click();
+  await expect(page).toHaveURL(/\/estoque\/situacao$/);
+
+  await page.goto("/");
+  const indicadores = page.getByRole("region", { name: "Indicadores" });
+  const situacao = indicadores.getByRole("link", { name: /^Situação do estoque:/ });
+  await expect(situacao).toHaveAttribute("href", "/estoque/situacao");
+  await expect(situacao).toContainText(String(total));
+  await expect(situacao).toContainText(resumo);
+  // os três números de estoque, cada um com uma regra própria, viraram um
+  await expect(indicadores.getByRole("link", { name: /^(Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
+  // cada linha de "Precisa de atenção hoje" abre a ficha do insumo ou o lote, nunca uma lista genérica
+  const linhas = page.getByRole("list", { name: "Precisa de atenção hoje" }).getByRole("link");
+  if (total > 0) await expect(linhas.first()).toBeVisible();
+  for (const linha of await linhas.all()) {
+    await expect(linha).toHaveAttribute("href", /^\/(estoque\/insumos|estoque\/lotes|cadastros\/insumos)/);
+  }
+  await situacao.click();
+  await expect(page).toHaveURL(/\/estoque\/situacao$/);
+});
+
+test("prova negativa: sem acesso ao Estoque e sem criar pedido, nem contagem nem botão de reposição", async ({ page }) => {
+  // categoria sem nenhuma permissão no banco de teste
+  await comoCategoria(page, "cadastro");
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^Situação do estoque:/ })).toHaveCount(0);
+  await page.goto("/cadastros");
+  await expect(page.getByRole("heading", { level: 1, name: "Cadastros" })).toBeVisible();
+  await expect(page.getByTestId("cartao-situacao-estoque")).toHaveCount(0);
+  await page.goto("/estoque/situacao");
+  await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" })).toHaveCount(0);
+  // sem acesso a Compras, o "a caminho" diz isso em vez de mostrar uma lista vazia
+  await expect(page.getByTestId("painel-a-caminho")).toContainText("Acessar Compras");
+  await expect(page.getByTestId("painel-a-caminho").locator('a[href^="/compras/"]')).toHaveCount(0);
+
+  // quem cria pedido vê o botão
+  await comoCategoria(page, "laboratorio");
+  await page.goto("/estoque/situacao");
+  await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" })).toBeVisible();
 });

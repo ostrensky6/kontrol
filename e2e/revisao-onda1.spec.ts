@@ -225,10 +225,10 @@ test("Cadastros: a barra tem 4 grupos e as abas levam a cada cadastro (8.8)", as
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/cadastros");
   const barra = page.getByRole("navigation", { name: "Navegação de Cadastros" });
-  await expect(barra.getByRole("link")).toHaveText(["Painel de insumos", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
+  await expect(barra.getByRole("link")).toHaveText(["Visão geral", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
   // antes eram 13 itens que rolavam para o lado: agora a barra cabe em 1366 px
   expect(await barra.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
-  await expect(barra.getByRole("link", { name: "Painel de insumos" })).toHaveAttribute("aria-current", "page");
+  await expect(barra.getByRole("link", { name: "Visão geral" })).toHaveAttribute("aria-current", "page");
 
   await barra.getByRole("link", { name: "Pessoas e áreas" }).click();
   await expect(page).toHaveURL(/\/cadastros\/tecnicos$/);
@@ -283,10 +283,10 @@ test("Qualidade dos cadastros é o primeiro cartão de Cadastros, com o número 
   await expect(cartao).toContainText(/\d+ pendências?|nada pendente/);
   const texto = (await cartao.innerText()).replace(/\s+/g, " ");
   const total = Number(/(\d+) pendência/.exec(texto)?.[1] ?? 0);
-  // vem antes dos gráficos do painel, e o botão do fim da página saiu
+  // vem antes da lista de cadastros, e o botão do fim da página saiu
   const yCartao = (await cartao.boundingBox())!.y;
-  const yPainel = (await page.getByRole("region", { name: "Painel de insumos" }).boundingBox())!.y;
-  expect(yCartao).toBeLessThan(yPainel);
+  const yLista = (await page.getByRole("heading", { name: "Todos os cadastros" }).boundingBox())!.y;
+  expect(yCartao).toBeLessThan(yLista);
   await expect(page.getByRole("link", { name: "Revisar qualidade dos cadastros" })).toHaveCount(0);
 
   // o número do cartão é o mesmo da tela
@@ -302,6 +302,7 @@ test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, co
   const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
   await expect(secoes.getByRole("link")).toHaveText([
     "Saldo e lotes",
+    "Situação",
     "Controle de Estoque",
     "Entrada e saída por leitura",
     "Inventário",

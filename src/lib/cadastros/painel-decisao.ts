@@ -325,11 +325,79 @@ export type Alerta = {
   descricao: string;
   tom: TomAlerta;
   itens: ItemAlerta[];
-  /** onde resolver */
+  /** onde resolver, quando é outra tela (repor fica no botão do topo da Situação: D6) */
   acao?: { rotulo: string; href: string };
 };
 
 const ORDEM_TOM: Record<TomAlerta, number> = { vermelho: 0, ambar: 1, azul: 2, cinza: 3 };
+
+export type ResumoAlertas = {
+  /** itens nos quadros vermelhos: pedem ação agora */
+  urgentes: number;
+  /** itens nos quadros âmbar */
+  atencao: number;
+  /** nomes dos quadros urgentes e de atenção com item, do mais grave para o menos */
+  quadros: string[];
+};
+
+/**
+ * Contagem do painel único que as outras telas mostram (D1 da revisão de
+ * 11/11). Conta itens de quadro: o mesmo insumo pode estar em dois quadros.
+ */
+export function resumirAlertas(alertas: readonly Alerta[]): ResumoAlertas {
+  const soma = (tons: TomAlerta[]) =>
+    alertas.filter((a) => tons.includes(a.tom)).reduce((total, a) => total + a.itens.length, 0);
+  return {
+    urgentes: soma(["vermelho"]),
+    atencao: soma(["ambar"]),
+    quadros: [...alertas]
+      .filter((a) => (a.tom === "vermelho" || a.tom === "ambar") && a.itens.length > 0)
+      .sort((x, y) => ORDEM_TOM[x.tom] - ORDEM_TOM[y.tom])
+      .map((a) => a.titulo),
+  };
+}
+
+/** Texto curto da contagem, igual em todas as telas que a mostram. */
+export function textoResumoAlertas(resumo: ResumoAlertas | null): string {
+  if (!resumo) return "sem dado";
+  if (resumo.urgentes === 0 && resumo.atencao === 0) return "nada urgente";
+  return [
+    resumo.urgentes > 0 ? `${resumo.urgentes} urgente${resumo.urgentes === 1 ? "" : "s"}` : null,
+    resumo.atencao > 0 ? `${resumo.atencao} de atenção` : null,
+  ].filter(Boolean).join(" · ");
+}
+
+export type LinhaAtencao = {
+  chave: string;
+  tom: "vermelho" | "ambar";
+  /** nome do quadro do painel de onde a linha veio */
+  quadro: string;
+  titulo: string;
+  detalhe: string;
+  href: string;
+};
+
+/**
+ * Primeiras linhas urgentes e de atenção do painel, na ordem do painel, para
+ * a lista "Precisa de atenção hoje" do Início: as mesmas regras, os mesmos
+ * nomes e o mesmo destino de cada item.
+ */
+export function linhasDeAtencao(alertas: readonly Alerta[]): LinhaAtencao[] {
+  return [...alertas]
+    .map((alerta, ordem) => ({ alerta, ordem }))
+    .filter(({ alerta }) => alerta.tom === "vermelho" || alerta.tom === "ambar")
+    .sort((x, y) => ORDEM_TOM[x.alerta.tom] - ORDEM_TOM[y.alerta.tom] || x.ordem - y.ordem)
+    .flatMap(({ alerta }) =>
+      alerta.itens.map((item) => ({
+        chave: `${alerta.chave}-${item.chave}`,
+        tom: alerta.tom as "vermelho" | "ambar",
+        quadro: alerta.titulo,
+        titulo: item.titulo,
+        detalhe: item.detalhe,
+        href: item.href,
+      })),
+    );
+}
 
 function dataBr(iso: string | null | undefined): string {
   if (!iso) return "—";
@@ -497,7 +565,6 @@ export function montarAlertas({
         detalhe: `mínimo ${formatar(i.minimo)} · ${pedido(i)}`,
         href: fichaInsumo(i.id),
       })),
-      acao: { rotulo: "Ver suprimentos", href: "/suprimentos" },
     },
     {
       chave: "acaba-antes",
@@ -510,7 +577,6 @@ export function montarAlertas({
         detalhe: `cobertura estimada: ${Math.floor(i.coberturaDias ?? 0)} dia(s) · prazo de referência: ${i.prazoDias} dia(s)`,
         href: fichaInsumo(i.id),
       })),
-      acao: { rotulo: "Repor", href: "/suprimentos" },
     },
     {
       chave: "vencidos",
@@ -584,7 +650,6 @@ export function montarAlertas({
         detalhe: `${saldo(i)} de mínimo ${formatar(i.minimo)}`,
         href: fichaInsumo(i.id),
       })),
-      acao: { rotulo: "Repor", href: "/suprimentos" },
     },
     {
       chave: "repor",
@@ -597,7 +662,6 @@ export function montarAlertas({
         detalhe: `comprar ${formatar(i.sugestaoCompra)} · disponível ${saldo(i)}`,
         href: fichaInsumo(i.id),
       })),
-      acao: { rotulo: "Repor", href: "/suprimentos" },
     },
     {
       chave: "quarentena",

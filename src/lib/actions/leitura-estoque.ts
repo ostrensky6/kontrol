@@ -106,6 +106,7 @@ function revalidarEstoque() {
   for (const path of [
     "/estoque",
     "/estoque/controle",
+    "/estoque/situacao",
     "/estoque/inventario",
     "/estoque/leitura",
     "/suprimentos",

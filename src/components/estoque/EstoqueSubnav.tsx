@@ -11,6 +11,8 @@ import { SubnavAbas } from "@/components/layout/SubnavAbas";
  */
 export const SECOES_ESTOQUE = [
   { href: "/estoque", label: "Saldo e lotes", desc: "saldo por insumo, entradas, baixas e lotes" },
+  // painel único de alertas (D1, L1): saiu de Cadastros
+  { href: "/estoque/situacao", label: "Situação", desc: "o que pede atenção: saldo, compra, validade e lotes" },
   { href: "/estoque/controle", label: "Controle de Estoque", desc: "painel por insumo, por lote e em gráficos" },
   {
     href: "/estoque/leitura",
