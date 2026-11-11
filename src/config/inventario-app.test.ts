@@ -161,6 +161,29 @@ function paginaExiste(href: string) {
   return existsSync(path.join(APP_DIR, ...segmentos, "page.tsx"));
 }
 
+/**
+ * Retirados COM o sim de Antonio (11/11/2026). A regra vale nos dois sentidos:
+ * o que ele mandou tirar também não volta sem um novo sim dele. Cada linha diz
+ * onde o item não pode reaparecer.
+ */
+type Retirado = { item: string; sim: string; arquivo: string; naoContem: string };
+
+const RETIRADOS: Retirado[] = [
+  { item: "Início: Jornadas", sim: "decisão 1, 11/11/2026 17:26 UTC (a barra lateral já segue a ordem do processo)", arquivo: "app/page.tsx", naoContem: "Jornadas" },
+  { item: "Início: Base de controle", sim: "decisão 2, 11/11/2026 17:26 UTC (os mesmos links já estão na barra)", arquivo: "app/page.tsx", naoContem: "Base de controle" },
+  { item: "Compras: compra sem pedido (Nova compra)", sim: "decisão 3, 11/11/2026 17:26 UTC (toda compra nasce de um pedido aprovado)", arquivo: "lib/actions/compras.ts", naoContem: "export async function criarPedido" },
+  { item: "Compras: formulário de compra sem pedido", sim: "decisão 3, 11/11/2026 17:26 UTC", arquivo: "app/compras/page.tsx", naoContem: "criarPedido" },
+];
+
+/** Por que o item retirado voltou; null quando continua fora. */
+function voltou(retirado: Retirado): string | null {
+  const arquivo = path.join(SRC, retirado.arquivo);
+  if (!existsSync(arquivo)) return null;
+  return readFileSync(arquivo, "utf8").includes(retirado.naoContem)
+    ? `${retirado.arquivo} voltou a ter ${retirado.naoContem}`
+    : null;
+}
+
 /** Por que o item não é alcançável; null quando é. */
 function falha(onde: Onde): string | null {
   if (onde.tipo === "tela") {
@@ -184,6 +207,12 @@ describe("inventário do app: tudo o que estava na seção 2 continua alcançáv
   for (const { area, item, onde } of INVENTARIO) {
     it(`${area}: ${item}`, () => {
       expect(onde.map(falha).filter(Boolean)).toEqual([]);
+    });
+  }
+
+  for (const retirado of RETIRADOS) {
+    it(`retirado com o sim de Antonio e que não volta: ${retirado.item}`, () => {
+      expect(voltou(retirado), retirado.sim).toBeNull();
     });
   }
 
@@ -229,6 +258,10 @@ describe("inventário do app: tudo o que estava na seção 2 continua alcançáv
     );
     expect(falha(barra("estoque", "/estoque/controle-que-nao-existe", "Controle"))).toBe(
       "a página /estoque/controle-que-nao-existe não existe",
+    );
+    // o que foi retirado volta a ser acusado quando reaparece na tela
+    expect(voltou({ item: "x", sim: "x", arquivo: "app/compras/page.tsx", naoContem: "Novo pedido" })).toBe(
+      "app/compras/page.tsx voltou a ter Novo pedido",
     );
   });
 });
