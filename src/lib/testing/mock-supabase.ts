@@ -188,6 +188,8 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "recebimento.ver": true,
       "recebimento.registrar": true,
       "orcamento.parametros.editar": true,
+      // padrão real do Gestor (permissions.ts): mantém modelos e o catálogo de custos
+      "orcamentos.modelos": true,
       "projetos.ver": true,
       "projetos.editar": true,
       "cadastros.ver": true,
@@ -1032,6 +1034,24 @@ function mockMinhasPermissoes(sessao: SessaoMock) {
   const categoria = ((store.permissoes_categorias ?? []).find((item) => item.papel === papel)?.permissoes ?? {}) as Row;
   const individuais = sessao.papel ? {} : ((perfil.permissoes ?? {}) as Row);
   return { admin: false, permissoes: { ...categoria, ...individuais } };
+}
+
+/** Mesma regra de kontrol_private.valor_cadastro_catalogo (0179). */
+function valorCadastroCatalogoMock(item: Row): number | null {
+  if (item.insumo_id != null) {
+    const insumo = (store.insumos ?? []).find((row) => Number(row.id) === Number(item.insumo_id));
+    const valor = item.vinculo_base === "embalagem" ? insumo?.custo_total_embalagem : insumo?.custo_unitario;
+    return valor == null ? null : Number(valor);
+  }
+  if (item.tecnico_id != null) {
+    const tecnico = (store.tecnicos ?? []).find((row) => Number(row.id) === Number(item.tecnico_id));
+    if (!tecnico) return null;
+    if (item.vinculo_base === "hora") {
+      return Number(tecnico.horas_mes_base) > 0 ? Math.round((Number(tecnico.valor_mes) / Number(tecnico.horas_mes_base)) * 100) / 100 : null;
+    }
+    return Number(tecnico.valor_mes);
+  }
+  return null;
 }
 
 function podeVerSalarioMock(sessao: SessaoMock) {
@@ -2688,6 +2708,11 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         if (args.p_id) {
           const item = catalogo.find((row) => row.id === args.p_id);
           if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+          // 0179: item ligado ao cadastro não muda valor nem rubrica pela tela
+          if ((item.insumo_id != null || item.tecnico_id != null)
+            && ((args.p_preco != null && Number(args.p_preco) !== Number(item.preco_unitario)) || args.p_rubrica !== item.rubrica)) {
+            return { data: null, error: { code: "22023", message: `O item ${String(item.id)} segue o cadastro; para mudar o valor, altere o cadastro ou desfaça o vínculo.` } };
+          }
           Object.assign(item, campos, args.p_preco == null ? {} : { preco_unitario: args.p_preco });
           return { data: item.id, error: null };
         }
@@ -2706,6 +2731,58 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
         Object.assign(item, { substituido_por: args.p_manter, ativo: false });
         return { data: null, error: null };
+      }
+      // 0179: catálogo ligado aos cadastros (versão simples; regras completas no teste SQL).
+      if (fn === "orcamento_projeto_catalogo_vinculos") {
+        const pode = podeVerPessoalOrcamentoMock(sessao);
+        const data = (store.orcamento_projeto_catalogo ?? [])
+          .filter((row) => row.insumo_id != null || row.tecnico_id != null)
+          .map((row) => {
+            const insumo = (store.insumos ?? []).find((item) => Number(item.id) === Number(row.insumo_id));
+            const tecnico = (store.tecnicos ?? []).find((item) => Number(item.id) === Number(row.tecnico_id));
+            const valor = valorCadastroCatalogoMock(row);
+            return {
+              catalogo_item_id: row.id,
+              insumo_id: row.insumo_id ?? null,
+              insumo_nome: insumo?.especificacao ?? null,
+              insumo_unidade: insumo?.unidade ?? null,
+              tecnico_id: row.tecnico_id ?? null,
+              tecnico_nome: tecnico?.nome ?? null,
+              vinculo_base: row.vinculo_base ?? null,
+              cadastro_sem_custo: row.tecnico_id != null && !pode ? null : !(Number(valor ?? 0) > 0),
+              vinculo_em: row.vinculo_em ?? null,
+            };
+          });
+        return { data, error: null };
+      }
+      if (fn === "catalogo_projeto_vincular") {
+        if (!mockTemPermissao("orcamentos.modelos", sessao)) {
+          return { data: null, error: { code: "42501", message: "Sem permissão: Modelos e catálogos." } };
+        }
+        const item = (store.orcamento_projeto_catalogo ?? []).find((row) => row.id === args.p_id);
+        if (!item) return { data: null, error: { code: "P0002", message: "Item do catálogo não encontrado." } };
+        const insumoId = args.p_insumo_id == null ? null : Number(args.p_insumo_id);
+        const tecnicoId = args.p_tecnico_id == null ? null : Number(args.p_tecnico_id);
+        if ((tecnicoId != null || item.tecnico_id != null) && !podeVerSalarioMock(sessao)) {
+          return { data: null, error: { code: "42501", message: 'Ligar pessoal ao cadastro de Técnicos exige a permissão "Ver salário dos técnicos".' } };
+        }
+        if (insumoId != null && item.rubrica !== "MC") {
+          return { data: null, error: { code: "22023", message: "Só itens de Material de consumo (MC) se ligam ao cadastro de Insumos." } };
+        }
+        if (tecnicoId != null && item.rubrica !== "PE") {
+          return { data: null, error: { code: "22023", message: "Só itens de Pessoal (PE) se ligam ao cadastro de Técnicos." } };
+        }
+        Object.assign(item, {
+          insumo_id: insumoId,
+          tecnico_id: tecnicoId,
+          vinculo_base: insumoId == null && tecnicoId == null ? null : args.p_base,
+          vinculo_em: new Date().toISOString(),
+        });
+        if (insumoId == null && tecnicoId == null) return { data: { ligado: false, aplicado: false, sem_custo: false }, error: null };
+        const valor = valorCadastroCatalogoMock(item);
+        const aplicado = valor != null && valor > 0 && valor !== Number(item.preco_unitario);
+        if (aplicado) Object.assign(item, { preco_unitario: valor, valor_atualizado_em: new Date().toISOString() });
+        return { data: { ligado: true, aplicado, sem_custo: !(Number(valor ?? 0) > 0) }, error: null };
       }
       // 0139: versões simples de reabrir, modelo, pendências e importação (regras completas no teste SQL).
       if (fn === "reabrir_revisao_custos_projeto") {
@@ -2769,7 +2846,8 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
             (row) => row.rubrica === linha.rubrica && chave(row.descricao) === chave(linha.descricao) && chave(row.unidade) === chave(linha.unidade),
           );
           const preco = typeof linha.preco === "number" ? linha.preco : null;
-          const acao = preco == null || !linha.descricao ? "erro" : !existente ? "novo" : Number(existente.preco_unitario) === preco ? "igual" : "atualizar";
+          const ligado = existente != null && (existente.insumo_id != null || existente.tecnico_id != null);
+          const acao = preco == null || !linha.descricao ? "erro" : !existente ? "novo" : Number(existente.preco_unitario) === preco ? "igual" : ligado ? "cadastro" : "atualizar";
           let itemId = existente?.id ?? null;
           if (args.p_aplicar === true && acao === "novo") {
             itemId = `${String(linha.rubrica)}-${900 + catalogo.length}`;
@@ -2787,7 +2865,7 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
             acao,
             catalogo_item_id: itemId,
             preco_atual: existente?.preco_unitario ?? null,
-            mensagem: acao === "erro" ? "Valor ausente ou negativo." : null,
+            mensagem: acao === "erro" ? "Valor ausente ou negativo." : acao === "cadastro" ? "Segue o cadastro; o valor da planilha não entra." : null,
           };
         });
         return { data, error: null };

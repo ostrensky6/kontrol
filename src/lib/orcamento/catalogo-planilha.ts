@@ -135,7 +135,8 @@ export function payloadImportacao(linhas: LinhaPlanilhaCatalogo[]) {
   }));
 }
 
-export type AcaoImportacao = "novo" | "atualizar" | "igual" | "repetido" | "sem_permissao" | "erro";
+/** "cadastro" (0179): item ligado a Insumos ou Técnicos; o valor da planilha não entra. */
+export type AcaoImportacao = "novo" | "atualizar" | "igual" | "cadastro" | "repetido" | "sem_permissao" | "erro";
 
 export type LinhaPreviaImportacao = {
   origem: string;
@@ -161,7 +162,7 @@ type RetornoRpcImportacao = {
   mensagem: string | null;
 };
 
-const ACOES_IMPORTACAO: AcaoImportacao[] = ["novo", "atualizar", "igual", "repetido", "sem_permissao", "erro"];
+const ACOES_IMPORTACAO: AcaoImportacao[] = ["novo", "atualizar", "igual", "cadastro", "repetido", "sem_permissao", "erro"];
 
 /** Junta o retorno da RPC (linha = posição no envio, começando em 1) com a origem na planilha. */
 export function lerPreviaImportacao(
@@ -199,6 +200,7 @@ export function mensagemImportacao(resumo: ResumoImportacao, aplicado: boolean) 
     plural(resumo.atualizar, aplicado ? "valor atualizado" : "valor a atualizar", aplicado ? "valores atualizados" : "valores a atualizar"),
     plural(resumo.igual, "sem mudança", "sem mudança"),
   ];
+  if (resumo.cadastro) partes.push(plural(resumo.cadastro, "segue o cadastro", "seguem o cadastro"));
   const fora = resumo.repetido + resumo.sem_permissao + resumo.erro;
   if (fora) partes.push(plural(fora, "linha fica de fora", "linhas ficam de fora"));
   if (aplicado) return `Planilha importada: ${partes.join(", ")}.`;
@@ -227,6 +229,7 @@ export const INSTRUCOES_CATALOGO = [
   "• Antes de gravar, o Kontrol mostra uma prévia: o que é novo, o que muda de valor e o que fica igual.",
   "• O item é reconhecido pela rubrica + descrição + unidade (maiúsculas, acentos e espaços não contam). Mudar a descrição ou a unidade cria um item novo.",
   "• Nada é apagado nem arquivado pela planilha. Para arquivar ou unificar itens, use a tela do catálogo.",
+  "• Item ligado ao cadastro de Insumos ou de Técnicos segue o valor do cadastro: o valor da planilha não entra.",
   "• Se o mesmo item aparecer duas vezes, vale a última linha.",
   "• Valores aceitam o formato brasileiro (1.234,56). A coluna Item e a data são só informativas.",
   `• Pessoal (PE) só é lido por quem tem a permissão "Valores de pessoal no orçamento"; sem ela, o valor sai como ${VALOR_MASCARADO} e fica como está.`,

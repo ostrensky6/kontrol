@@ -31,6 +31,7 @@ import { normalizarViagemInputs, type ViagemInputs } from "@/lib/project-budget/
 import type { ProjetoExportItem } from "@/lib/project-budget/exporters";
 import { formatCurrency as brl } from "@/lib/formatters";
 import { MESES_VALOR_VELHO, valorDesatualizado } from "@/lib/orcamento/catalogo-custos";
+import { mapaVinculos } from "@/lib/orcamento/catalogo-vinculos";
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { CLASSE_BOTAO_ICONE_PERIGO, IconeAcao } from "@/components/common/IconeAcao";
 import { StatusBadge } from "@/components/app/StatusBadge";
@@ -262,9 +263,14 @@ export async function EditorCustosProjeto({
   const estado = estadoEdicaoProjeto(orc.status);
   const editavel = estado.editavel;
   // Catálogo vivo (0137): o que a conclusão faria com cada linha. Só interessa em edição.
-  const { data: previaData } = editavel
-    ? await supabase.rpc("previa_catalogo_revisao_projeto", { p_orcamento_projeto_id: orcamentoProjetoId })
-    : { data: null };
+  // Itens ligados aos cadastros (0179): o adicionar mostra "Do cadastro de Insumos/Técnicos".
+  const [{ data: previaData }, { data: vinculosData }] = editavel
+    ? await Promise.all([
+        supabase.rpc("previa_catalogo_revisao_projeto", { p_orcamento_projeto_id: orcamentoProjetoId }),
+        supabase.rpc("orcamento_projeto_catalogo_vinculos"),
+      ])
+    : [{ data: null }, { data: null }];
+  const vinculos = mapaVinculos(vinculosData);
   const planoCatalogo = lerPlanoCatalogo(previaData);
   const planoPorLinha = new Map(planoCatalogo.map((linha) => [linha.linhaId, linha]));
   const frasesCatalogo = frasesPreviaCatalogo(resumirPlanoCatalogo(planoCatalogo));
@@ -377,7 +383,9 @@ export async function EditorCustosProjeto({
       <div className="mt-3 rounded-md border border-dashed border-foreground/20 p-3">
         <AdicionarItemProjeto
           rubrica={rubrica}
-          itens={catalogo.filter((item) => item.rubrica === rubrica)}
+          itens={catalogo
+            .filter((item) => item.rubrica === rubrica)
+            .map((item) => ({ ...item, cadastro: vinculos.get(item.id) ?? null }))}
           orcamentoProjetoId={orcamentoProjetoId}
           demandaId={demandaId}
           action={adicionarItemProjeto}

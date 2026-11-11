@@ -24,12 +24,13 @@ const ROTULO: Record<AcaoImportacao, { texto: string; classe: string }> = {
   novo: { texto: "Novo", classe: "bg-brand-100 text-brand-800 dark:bg-brand-900/40 dark:text-brand-200" },
   atualizar: { texto: "Muda valor", classe: "bg-warning-soft text-warning-strong" },
   igual: { texto: "Sem mudança", classe: "bg-muted text-muted-foreground" },
+  cadastro: { texto: "Segue o cadastro", classe: "bg-muted text-muted-foreground" },
   repetido: { texto: "Repetido", classe: "bg-muted text-muted-foreground" },
   sem_permissao: { texto: "Sem permissão", classe: "bg-muted text-muted-foreground" },
   erro: { texto: "Erro", classe: "bg-danger-soft text-danger-strong" },
 };
 
-const ORDEM: AcaoImportacao[] = ["erro", "novo", "atualizar", "sem_permissao", "repetido", "igual"];
+const ORDEM: AcaoImportacao[] = ["erro", "novo", "atualizar", "cadastro", "sem_permissao", "repetido", "igual"];
 
 function valor(v: number | null) {
   return v == null ? "—" : brl(v);

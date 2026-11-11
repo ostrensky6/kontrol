@@ -2222,16 +2222,21 @@ export type Database = {
           criado_em: string
           descricao: string
           id: string
+          insumo_id: number | null
           origem: string
           preco_unitario: number
           rubrica: string
           substituido_por: string | null
+          tecnico_id: number | null
           unidade: string | null
           valid_from: string | null
           valor_atualizado_em: string | null
           valor_atualizado_por: string | null
           valor_origem_demanda_id: number | null
           valor_origem_orcamento_projeto_id: number | null
+          vinculo_base: string | null
+          vinculo_em: string | null
+          vinculo_por: string | null
         }
         Insert: {
           ativo?: boolean
@@ -2242,16 +2247,21 @@ export type Database = {
           criado_em?: string
           descricao: string
           id: string
+          insumo_id?: number | null
           origem?: string
           preco_unitario?: number
           rubrica: string
           substituido_por?: string | null
+          tecnico_id?: number | null
           unidade?: string | null
           valid_from?: string | null
           valor_atualizado_em?: string | null
           valor_atualizado_por?: string | null
           valor_origem_demanda_id?: number | null
           valor_origem_orcamento_projeto_id?: number | null
+          vinculo_base?: string | null
+          vinculo_em?: string | null
+          vinculo_por?: string | null
         }
         Update: {
           ativo?: boolean
@@ -2262,16 +2272,21 @@ export type Database = {
           criado_em?: string
           descricao?: string
           id?: string
+          insumo_id?: number | null
           origem?: string
           preco_unitario?: number
           rubrica?: string
           substituido_por?: string | null
+          tecnico_id?: number | null
           unidade?: string | null
           valid_from?: string | null
           valor_atualizado_em?: string | null
           valor_atualizado_por?: string | null
           valor_origem_demanda_id?: number | null
           valor_origem_orcamento_projeto_id?: number | null
+          vinculo_base?: string | null
+          vinculo_em?: string | null
+          vinculo_por?: string | null
         }
         Relationships: []
       }
@@ -5127,6 +5142,15 @@ export type Database = {
         Args: { p_manter: string; p_remover: string }
         Returns: undefined
       }
+      catalogo_projeto_vincular: {
+        Args: {
+          p_base: string | null
+          p_id: string
+          p_insumo_id: number | null
+          p_tecnico_id: number | null
+        }
+        Returns: Json
+      }
       concluir_revisao_custos_projeto: {
         Args: { p_observacao?: string; p_orcamento_projeto_id: number }
         Returns: Json
@@ -5271,6 +5295,20 @@ export type Database = {
           valor_atualizado_por: string | null
           valor_origem_demanda_id: number | null
           valor_origem_demanda_titulo: string | null
+        }[]
+      }
+      orcamento_projeto_catalogo_vinculos: {
+        Args: never
+        Returns: {
+          cadastro_sem_custo: boolean | null
+          catalogo_item_id: string
+          insumo_id: number | null
+          insumo_nome: string | null
+          insumo_unidade: string | null
+          tecnico_id: number | null
+          tecnico_nome: string | null
+          vinculo_base: string | null
+          vinculo_em: string | null
         }[]
       }
       papel_minimo: { Args: { p_min: string }; Returns: boolean }

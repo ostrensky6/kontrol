@@ -42,7 +42,7 @@ describe("origemDoValor", () => {
 
 describe("ROTULO_EVENTO_CATALOGO", () => {
   it("tem rótulo para todos os eventos do histórico (0137)", () => {
-    for (const evento of ["carga_inicial", "item_novo", "valor_alterado", "edicao_catalogo", "unificacao", "pendente_permissao"]) {
+    for (const evento of ["carga_inicial", "item_novo", "valor_alterado", "edicao_catalogo", "unificacao", "pendente_permissao", "vinculo_cadastro", "valor_cadastro"]) {
       expect(ROTULO_EVENTO_CATALOGO[evento]).toBeTruthy();
     }
   });

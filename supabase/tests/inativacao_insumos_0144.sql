@@ -96,6 +96,8 @@ begin
   if v_familias is distinct from array[
     'consumo_manual_insumos',
     'estoque_movimentacoes','insumo_analise','inventario_contagens','lotes_estoque',
+    -- 0179: item do catálogo de custos ligado ao insumo (SET NULL; o item fica livre com o último valor)
+    'orcamento_projeto_catalogo',
     'pedidos_compra_item_recebimentos','pedidos_compra_itens','pedidos_internos_item_recebimentos',
     'pedidos_internos_itens','planejamento_lote_conferencias','reservas_disputas','reservas_estoque']::text[] then
     raise exception 'BLOCKERS: famílias FK divergentes: %', v_familias;
