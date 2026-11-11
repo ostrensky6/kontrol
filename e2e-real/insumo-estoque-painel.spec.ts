@@ -54,7 +54,8 @@ test("insumo sem estoque e com ponto de reposição entra nos alertas do painel"
   await form.getByRole("button", { name: "Salvar" }).click();
   await expect(form).toBeHidden();
 
-  // regra do painel: crítico = disponível < mínimo (ponto de reposição)
-  await page.goto("/cadastros");
+  // regra do painel: crítico = disponível < mínimo (ponto de reposição);
+  // o painel único de alertas fica na Situação do estoque (D1)
+  await page.goto("/estoque/situacao");
   await expect(page.getByText(nome).first()).toBeVisible();
 });
