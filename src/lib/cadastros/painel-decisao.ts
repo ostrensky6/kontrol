@@ -98,7 +98,8 @@ export function motivosDoInsumo(item: Omit<InsumoDecisao, "motivos">): Motivo[] 
   const motivos: Motivo[] = [];
   // saldo não lido: não se inventa falta nem cobertura
   const saldoConhecido = item.estadoSaldo === "saldo_sistema";
-  if (saldoConhecido && item.situacao === "em_falta") motivos.push("em_falta");
+  // uma regra só (decisão de 11/11/2026): disponível zerado é "Sem estoque", tenha ou não mínimo
+  if (saldoConhecido && (item.situacao === "em_falta" || zeroNoSistema(item))) motivos.push("em_falta");
   if (item.compraAtrasada) motivos.push("compra_atrasada");
   if (
     saldoConhecido &&
@@ -228,7 +229,8 @@ export function resumirDecisao(itens: readonly InsumoDecisao[]): ResumoDecisao {
     aCaminho: conta((i) => (i.pedidoAberto ?? 0) - i.pedidoAguardandoAprovacao > 0),
     lotesVencidos: itens.reduce((soma, i) => soma + i.lotesVencidos, 0),
     lotesVencendo: itens.reduce((soma, i) => soma + i.lotesVencendo, 0),
-    semMinimo: conta((i) => i.situacao === "sem_minimo"),
+    // o zerado sem mínimo já está em "Sem estoque": não conta duas vezes
+    semMinimo: conta((i) => i.situacao === "sem_minimo" && !zeroNoSistema(i)),
     naoConferido: conta((i) => i.estadoSaldo === "nao_conferido"),
     saldoIndisponivel: conta((i) => i.estadoSaldo === "saldo_indisponivel"),
   };
@@ -548,7 +550,7 @@ export function montarAlertas({
   const bloqueados = doRecorte.filter((l) => l.status === "bloqueado" && numero(l.quantidade_atual) > 0);
   const semValidade = doRecorte.filter((l) => comSaldo(l) && l.status !== "quarentena" && !validadeDoLote(l));
   const parados = movimentosCompletos ? estoqueParado(itens, movimentos, hojeIso) : [];
-  const semMinimo = itens.filter((i) => i.situacao === "sem_minimo");
+  const semMinimo = itens.filter((i) => i.situacao === "sem_minimo" && !zeroNoSistema(i));
   const indisponivel = itens.filter((i) => i.estadoSaldo === "saldo_indisponivel");
   const naoConferidos = itens.filter((i) => i.estadoSaldo === "nao_conferido");
 
@@ -575,7 +577,7 @@ export function montarAlertas({
       itens: emFalta.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: `mínimo ${formatar(i.minimo)} · ${pedido(i)}`,
+        detalhe: `${i.minimo > 0 ? `mínimo ${formatar(i.minimo)}` : "sem mínimo definido"} · ${pedido(i)}`,
         href: fichaInsumo(i.id),
         prazo: "hoje",
       })),
@@ -738,7 +740,7 @@ export function montarAlertas({
       itens: semMinimo.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: zeroNoSistema(i) ? "Sem estoque · confira antes de decidir" : `disponível ${saldo(i)}`,
+        detalhe: `disponível ${saldo(i)}`,
         href: cadastroInsumo(i.id),
       })),
     },

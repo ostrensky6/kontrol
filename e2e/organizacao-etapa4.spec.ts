@@ -154,6 +154,8 @@ test("no celular cada item vira um cartão com as mesmas informações, e a pág
   await page.setViewportSize({ width: 1366, height: 900 });
   await page.goto("/");
   const main = page.getByRole("main");
+  // o Início chega em partes: só se conta depois que a seção apareceu
+  await expect(main.getByRole("heading", { name: "Precisa de atenção hoje" })).toBeVisible();
   const naTabela = await main.getByRole("table", { name: /Precisa de atenção hoje/ }).locator("tbody tr").count();
   expect(naTabela).toBeGreaterThan(0);
 

@@ -32,24 +32,6 @@ function dataPrevistaPorPrazo(prazoDias: number | null): string | null {
   return new Date(Date.now() + prazoDias * 86400000).toISOString().slice(0, 10);
 }
 
-export async function criarPedido(_prev: FormState, formData: FormData): Promise<FormState> {
-  const u = await usuarioAtual();
-  const fornecedor_id = formData.get("fornecedor_id")
-    ? Number(formData.get("fornecedor_id"))
-    : null;
-  const projeto = (formData.get("projeto") as string)?.trim() || null;
-  const projeto_id = formData.get("projeto_id") ? Number(formData.get("projeto_id")) : null;
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("pedidos_compra")
-    .insert({ fornecedor_id, projeto, projeto_id, solicitante: u?.email ?? null, status: "solicitado" })
-    .select("id")
-    .single();
-  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível criar a solicitação.") };
-  revalidatePath("/compras");
-  redirect(`/compras/${data.id}`);
-}
-
 export async function gerarRascunhosReposicao(_prev: FormState): Promise<FormState> {
   void _prev;
   if (!(await pode("compras.solicitar"))) return SEM_PERMISSAO;

@@ -184,11 +184,36 @@ describe("painel de alertas", () => {
     expect(por["saldo-indisponivel"].itens.map((i) => i.chave)).toEqual(["i3"]);
     expect(por["em-falta"].titulo).toBe("Sem estoque");
     expect(por["em-falta"].descricao).toContain("Confira o estoque");
-    expect(por["em-falta"].itens.map((i) => i.detalhe)).toEqual(["mínimo 2 · previsão indisponível"]);
-    expect(por["sem-minimo"]).toMatchObject({ tom: "cinza", itens: [{ detalhe: "Sem estoque · confira antes de decidir", href: "/cadastros/insumos?focus=4" }] });
-    expect(decisao.insumos.find((i) => i.id === 4)?.motivos).not.toContain("em_falta");
+    // uma regra só: zerado é "Sem estoque" com ou sem mínimo; sem mínimo, a linha avisa
+    expect(por["em-falta"].itens.map((i) => i.detalhe)).toEqual([
+      "mínimo 2 · previsão indisponível",
+      "sem mínimo definido · previsão indisponível",
+    ]);
+    expect(por["em-falta"].itens.map((i) => i.chave)).toEqual(["i1", "i4"]);
+    // o zerado sem mínimo não aparece também em "Sem mínimo definido": cada insumo fica em um quadro só
+    expect(por["sem-minimo"]).toMatchObject({ tom: "cinza", itens: [] });
+    expect(decisao.insumos.find((i) => i.id === 4)?.motivos).toContain("em_falta");
     expect(faixasCobertura(decisao.insumos)[0]).toEqual({ faixa: "Sem estoque", insumos: 2, tom: "ambar" });
-    expect(resumirDecisao(decisao.insumos)).toMatchObject({ emFalta: 1, critico: 1, naoConferido: 1, saldoIndisponivel: 1 });
+    expect(resumirDecisao(decisao.insumos)).toMatchObject({ emFalta: 2, critico: 1, semMinimo: 0, naoConferido: 1, saldoIndisponivel: 1 });
+  });
+
+  it("sem mínimo e com saldo continua em \"Sem mínimo definido\"; só o zerado vai para \"Sem estoque\"", () => {
+    const base = montarInsumosPainel(insumos, [{ insumo_id: 4, disponivel: 3 }]);
+    const decisao = montarDecisao(base, [], [], []);
+    const alertas = montarAlertas({ itens: decisao.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    const por = Object.fromEntries(alertas.map((a) => [a.chave, a]));
+    expect(por["sem-minimo"].itens.map((i) => i.chave)).toEqual(["i4"]);
+    expect(por["em-falta"].itens.map((i) => i.chave)).not.toContain("i4");
+    expect(resumirDecisao(decisao.insumos)).toMatchObject({ semMinimo: 1 });
+  });
+
+  it("o número de Sem estoque e a linha da tabela do Início contam os mesmos insumos", () => {
+    const base = montarInsumosPainel(insumos, [saldos[0], { insumo_id: 4, disponivel: 0 }]);
+    const decisao = montarDecisao(base, [], [], []);
+    const alertas = montarAlertas({ itens: decisao.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    const zerados = base.filter((i) => i.estadoSaldo === "saldo_sistema" && i.disponivel === 0).map((i) => `i${i.id}`);
+    const linhas = linhasDeAtencao(alertas).filter((l) => l.alerta === "em-falta").map((l) => l.chave.replace("em-falta-", ""));
+    expect(linhas.sort()).toEqual(zerados.sort());
   });
 
   it("cada alerta lista os itens que o disparam; os vazios vão para o fim", () => {

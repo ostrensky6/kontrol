@@ -69,8 +69,9 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Compras", item: "Pedidos: quadro Aguardando você", onde: [tela("app/pedido/page.tsx", "<AguardandoVoce\n")] },
   { area: "Compras", item: "Novo pedido", onde: [tela("app/suprimentos/page.tsx", 'href="/pedido?novo=1"')] },
   { area: "Compras", item: "Compras com fornecedor", onde: [barra("compras", "/compras", "Compras com fornecedor")] },
-  { area: "Compras", item: "Nova compra (sem pedido)", onde: [tela("app/compras/page.tsx", 'rotulo="Nova compra"')] },
-  { area: "Compras", item: "Campo Projeto ou campanha em Nova compra", onde: [tela("app/compras/page.tsx", 'rotulo="Projeto ou campanha (texto livre)"')] },
+  // "Nova compra" (compra sem pedido) e o campo "Projeto ou campanha" dela saíram com o sim de Antonio em
+  // 11/11/2026 17:26 UTC: toda compra nasce de um pedido aprovado. As compras avulsas já feitas continuam na lista.
+  { area: "Compras", item: "Novo pedido a partir de Compras com fornecedor", onde: [tela("app/compras/page.tsx", 'href="/pedido?novo=1"')] },
   { area: "Compras", item: "Recebimento", onde: [barra("compras", "/recebimento", "Recebimento")] },
   { area: "Compras", item: "Prazos de compra", onde: [barra("compras", "/suprimentos/prazos", "Prazos de compra")] },
   // ── Estoque ──
@@ -109,6 +110,10 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Estoque", item: "Etiquetas", onde: [barra("estoque", "/etiquetas", "Etiquetas")] },
   { area: "Estoque", item: "Custo do estoque", onde: [barra("estoque", "/estoque/custos", "Custo do estoque")] },
   { area: "Estoque", item: "Equipamentos", onde: [barra("estoque", "/estoque/equipamentos", "Equipamentos")] },
+  // Equipamentos é uma tela só, em Estoque, com três abas (decisão de Antonio, 11/11/2026 17:26 UTC)
+  { area: "Estoque", item: "Equipamentos: aba Unidades", onde: [tela("components/estoque/AbasEquipamentos.tsx", 'href: "/estoque/equipamentos"')] },
+  { area: "Estoque", item: "Equipamentos: aba Tipos e custo (cadastro de equipamentos)", onde: [tela("components/estoque/AbasEquipamentos.tsx", 'href: "/estoque/equipamentos/tipos"')] },
+  { area: "Estoque", item: "Equipamentos: aba Previsão de compra", onde: [tela("components/estoque/AbasEquipamentos.tsx", 'href: "/estoque/equipamentos/previsao"')] },
   {
     area: "Estoque",
     item: "Ficha do insumo",

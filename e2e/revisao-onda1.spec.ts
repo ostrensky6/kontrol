@@ -335,11 +335,10 @@ test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, co
   await expect(page).toHaveURL(/\/estoque\/leitura$/);
 });
 
-test("criar fica atrás de um botão: Planejamento, Compras, Usuários e Inventário (L14)", async ({ page }) => {
+test("criar fica atrás de um botão: Planejamento, Usuários e Inventário (L14)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   const telas = [
     { url: "/planejamento", botao: "Novo plano", campo: () => page.getByLabel("Nome do plano") },
-    { url: "/compras", botao: "Nova compra", campo: () => page.getByLabel("Fornecedor", { exact: true }) },
     { url: "/usuarios", botao: "Novo usuário", campo: () => page.locator("#novo-usuario-nome") },
     { url: "/estoque/inventario", botao: "Nova contagem", campo: () => page.getByPlaceholder("Inventário semanal") },
   ];
@@ -468,7 +467,6 @@ test("campo padrão nos formulários de criação: rótulo de 12 px em frase nor
   await page.setViewportSize({ width: 1366, height: 850 });
   const formularios = [
     { url: "/planejamento", botao: "Novo plano", rotulo: "Nome do plano" },
-    { url: "/compras", botao: "Nova compra", rotulo: "Fornecedor" },
     { url: "/usuarios", botao: "Novo usuário", rotulo: "E-mail" },
     { url: "/estoque/inventario", botao: "Nova contagem", rotulo: "Contagem" },
   ];
