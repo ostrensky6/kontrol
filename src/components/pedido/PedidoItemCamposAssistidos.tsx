@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import type { EstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
 import { formatNumber } from "@/lib/formatters";
+import { acharPorCodigoFabricante, marcaComCodigo, rotuloCodigoFabricante } from "@/lib/pedido/codigo-fabricante";
 
 export type PedidoItemCatalogo = {
   id: number;
@@ -12,6 +13,10 @@ export type PedidoItemCatalogo = {
   categoriaCompra?: string | null;
   tipoInsumo?: string | null;
   unidade: string | null;
+  /** Marca do cadastro do insumo. */
+  fabricante?: string | null;
+  /** Número de catálogo / part number: identifica o produto sem ambiguidade. */
+  codigoFabricante?: string | null;
   custoUnitario?: number | null;
   /** Insumo contado em frascos fechados (0123): item em frascos, preço por frasco. */
   emFrascos?: boolean;
@@ -161,7 +166,9 @@ export function PedidoItemCamposAssistidos({
     setInsumoId(String(insumo.id));
     setInsumoBusca(rotuloInsumo(insumo));
     setEspecificacao(insumo.especificacao ?? insumo.nomeItem ?? "");
-    setModelo(insumo.modelos?.[0] ?? "");
+    // Com código do fabricante, o item leva marca e código: quem cota e quem
+    // recebe confere o produto exato, não só o nome.
+    setModelo(insumo.codigoFabricante ? marcaComCodigo(insumo.fabricante, insumo.codigoFabricante) : insumo.modelos?.[0] ?? "");
     setFornecedor(insumo.fornecedores?.[0] ?? "");
     if (insumo.emFrascos) {
       // O banco grava o item em frascos; quantidade e preço seguem o frasco.
@@ -186,9 +193,11 @@ export function PedidoItemCamposAssistidos({
     const normalizado = value.trim().toLowerCase();
     const insumo =
       catalogo.find((item) => rotuloInsumo(item).toLowerCase() === normalizado) ??
+      acharPorCodigoFabricante(catalogo, value) ??
       catalogo.find((item) => (item.especificacao ?? item.nomeItem ?? "").trim().toLowerCase() === normalizado);
     if (insumo) {
       preencherInsumo(insumo);
+      if (rotuloInsumo(insumo).toLowerCase() !== normalizado) setInsumoBusca(value);
       return;
     }
     setInsumoId("");
@@ -224,7 +233,7 @@ export function PedidoItemCamposAssistidos({
           list={ids.insumos}
           value={insumoBusca}
           onChange={(event) => buscarInsumo(event.target.value)}
-          placeholder="Buscar por produto, especificação, categoria..."
+          placeholder="Código do fabricante, produto ou categoria"
           className={inputCls}
         />
         <datalist id={ids.insumos}>
@@ -243,11 +252,14 @@ export function PedidoItemCamposAssistidos({
             <option value="">Selecionar na lista filtrada</option>
             {catalogoFiltrado.map((insumo) => (
               <option key={insumo.id} value={insumo.id}>
-                {insumo.especificacao ?? insumo.nomeItem ?? `Insumo #${insumo.id}`}
+                {[insumo.especificacao ?? insumo.nomeItem ?? `Insumo #${insumo.id}`, rotuloCodigoFabricante(insumo.codigoFabricante)]
+                  .filter(Boolean)
+                  .join(" · ")}
               </option>
             ))}
           </select>
         )}
+        {selecionado ? <CodigoDoInsumo insumo={selecionado} /> : null}
         {selecionado ? <EstoqueDoInsumo estoque={selecionado.estoque} /> : null}
       </div>
       <div className={span.especificacao}>
@@ -405,12 +417,33 @@ export function PedidoItemCamposAssistidos({
 function rotuloInsumo(insumo: PedidoItemCatalogo) {
   // Sinônimos entram no rótulo para a busca da lista achar "low binding" em
   // "baixa retenção" (a lista do navegador procura dentro do texto).
+  // O código do fabricante vem logo depois do nome: digitar o código acha o
+  // produto exato, sem confundir tamanho, cor ou embalagem.
   const base = uniq([
     insumo.especificacao ?? insumo.nomeItem ?? `Insumo #${insumo.id}`,
+    rotuloCodigoFabricante(insumo.codigoFabricante),
     insumo.tipoInsumo,
     insumo.categoriaCompra,
   ]).join(" | ");
   return insumo.sinonimos?.length ? `${base} | também: ${insumo.sinonimos.join(", ")}` : base;
+}
+
+/** Código do fabricante do insumo escolhido, para conferir que é o produto certo. */
+function CodigoDoInsumo({ insumo }: { insumo: PedidoItemCatalogo }) {
+  const codigo = insumo.codigoFabricante?.trim();
+  if (codigo) {
+    return (
+      <p data-testid="codigo-fabricante-escolhido" className="mt-2 text-xs">
+        <b>Código do fabricante:</b> <span className="font-mono">{codigo}</span>
+        {insumo.fabricante ? ` (${insumo.fabricante})` : ""}
+      </p>
+    );
+  }
+  return (
+    <p data-testid="codigo-fabricante-escolhido" className="mt-2 text-xs text-warning-strong">
+      Sem código do fabricante no cadastro: confira tamanho, cor e marca antes de pedir.
+    </p>
+  );
 }
 
 /**

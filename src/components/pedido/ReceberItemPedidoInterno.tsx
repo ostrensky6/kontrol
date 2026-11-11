@@ -20,12 +20,13 @@ import {
   type ResultadoScannerRecebimento,
 } from "@/lib/actions/scanner";
 import type { FormState } from "@/lib/actions/cadastros";
+import { rotuloCodigoFabricante } from "@/lib/pedido/codigo-fabricante";
 import {
   iniciarLeitorCamera,
   type ScannerCameraControls,
 } from "@/components/scanner/zxing-adapter";
 
-type Insumo = { id: number; especificacao: string | null; unidade: string | null };
+type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
 
 export type ItemRecebivel = {
   id: number;
@@ -367,7 +368,7 @@ export function ReceberItemPedidoInterno({
               <option value="">— selecione —</option>
               {insumosDisponiveis.map((insumo) => (
                 <option key={insumo.id} value={insumo.id}>
-                  {insumo.especificacao}
+                  {[insumo.especificacao, rotuloCodigoFabricante(insumo.codigo_fabricante)].filter(Boolean).join(" · ")}
                 </option>
               ))}
             </select>
