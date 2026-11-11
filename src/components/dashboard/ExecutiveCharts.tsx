@@ -6,14 +6,13 @@ import {
   BarChart,
   CartesianGrid,
   Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
 import { formatCompactCurrency, formatInteger } from "@/lib/formatters";
+import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 import { TabelaDoGrafico } from "@/components/common/TabelaDoGrafico";
 
 type GastoRow = {
@@ -66,10 +65,17 @@ export function ExecutiveCharts({
         <div className="mt-3 h-64 min-h-64 min-w-0">
           {mounted && temGastos ? (
             <ResponsiveContainer width="100%" height={256}>
-              <BarChart data={gastosPorMes}>
+              <BarChart data={gastosPorMes} margin={{ top: 8, right: 12, left: 4, bottom: 22 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="mes" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => formatCompactCurrency(Number(value))} width={78} />
+                <XAxis dataKey="mes" fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Mês")} />
+                <YAxis
+                  fontSize={12}
+                  tickLine={MARCA_EIXO}
+                  axisLine={LINHA_EIXO}
+                  tickFormatter={(value) => formatCompactCurrency(Number(value))}
+                  width={92}
+                  label={tituloEixoY("Gasto (R$)")}
+                />
                 <Tooltip formatter={(value) => formatCompactCurrency(Number(value))} cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
                 <Bar dataKey="gasto" radius={[4, 4, 0, 0]} fill="#01489d" />
               </BarChart>
@@ -98,14 +104,17 @@ export function ExecutiveCharts({
         <div className="mt-3 h-64 min-h-64 min-w-0">
           {mounted && temFunil ? (
             <ResponsiveContainer width="100%" height={256}>
-              <PieChart>
-                <Pie data={funil} dataKey="total" nameKey="status" innerRadius={56} outerRadius={88} paddingAngle={2}>
+              <BarChart data={funil} margin={{ top: 8, right: 12, left: 4, bottom: 22 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="status" fontSize={12} interval={0} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Situação")} />
+                <YAxis allowDecimals={false} fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} width={52} label={tituloEixoY("Orçamentos")} />
+                <Tooltip formatter={(value) => [formatInteger(Number(value)), "Orçamentos"]} cursor={{ fill: "rgba(148, 163, 184, 0.12)" }} />
+                <Bar dataKey="total" radius={[4, 4, 0, 0]}>
                   {funil.map((entry, index) => (
                     <Cell key={entry.status} fill={COLORS[index % COLORS.length]} />
                   ))}
-                </Pie>
-                <Tooltip formatter={(value) => formatInteger(Number(value))} />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           ) : (
             <div className="flex h-full items-center justify-center rounded-md bg-muted/50 text-xs text-muted-foreground">
