@@ -53,7 +53,6 @@ export async function GET(request: Request) {
   revalidatePath("/suprimentos");
   revalidatePath("/compras");
   revalidatePath("/estoque");
-  revalidatePath("/estoque/controle");
   revalidatePath("/estoque/situacao");
   revalidatePath("/notificacoes");
 

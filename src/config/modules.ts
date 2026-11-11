@@ -251,9 +251,9 @@ export const APP_MODULES: AppModule[] = [
         showInTopNav: false,
       },
       {
-        href: "/estoque/controle",
-        label: "Controle de Estoque",
-        desc: "painel do estoque por insumo, por lote e em gráficos",
+        href: "/estoque/custos",
+        label: "Custo do estoque",
+        desc: "relatório: custo do cadastro × custo dos lotes liberados",
         icon: "SlidersHorizontal",
         showInTopNav: false,
       },
@@ -468,7 +468,7 @@ export function getModuleForProfile(moduleId: AppModuleId, perfil: NavigationPro
 /**
  * Aba ativa da barra do módulo: o item cujo href é o prefixo mais longo da rota
  * atual. Evita duas abas ativas quando um href é prefixo de outro
- * (ex.: /estoque e /estoque/controle).
+ * (ex.: /estoque e /estoque/situacao).
  */
 export function hrefAtivoNaBarra(items: Pick<ModuleChild, "href" | "ativoTambem">[], pathname: string) {
   let melhor: { href: string; tamanho: number } | null = null;

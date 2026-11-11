@@ -65,7 +65,6 @@ export async function gerarRascunhosReposicao(_prev: FormState): Promise<FormSta
   revalidatePath("/compras");
   revalidatePath("/suprimentos");
   revalidatePath("/estoque");
-  revalidatePath("/estoque/controle");
   revalidatePath("/estoque/situacao");
   revalidatePath("/notificacoes");
   revalidatePath("/");

@@ -634,7 +634,7 @@ function CartaoIdentificado({
       ) : insumo.modelo === "LEGADO" ? (
         <>
           <p role="alert" className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-warning-strong">
-            Este insumo ainda é controlado por volume (modelo antigo). Registre a entrada pelo Controle de Estoque.
+            Este insumo ainda é controlado por volume (modelo antigo). Registre a entrada em Estoque → Saldo e lotes (+ Entrada).
           </p>
           <button type="button" autoFocus onClick={onCancelar} className={`${botaoSecundario} mt-3`}>
             Ler outro código

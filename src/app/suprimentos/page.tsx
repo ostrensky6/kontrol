@@ -184,7 +184,7 @@ export default async function SuprimentosPage({
                   </p>
                   <p>
                     <b>Repor</b> aparece quando o disponível mais o que está a caminho não cobre as saídas
-                    previstas até a próxima compra chegar. A mesma regra vale no Controle de Estoque.
+                    previstas até a próxima compra chegar. A mesma regra vale em Estoque → Saldo e lotes e na ficha do insumo.
                   </p>
                   <p>Para dar entrada, baixa ou ver os lotes, abra o <b>Estoque</b>.</p>
                 </HelpTip>

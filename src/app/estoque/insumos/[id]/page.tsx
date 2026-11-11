@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import { ConsumoMensalPainel } from "@/components/estoque/ConsumoMensalPainel";
+import { GerarPedidoInsumoButton } from "@/components/pedido/GerarPedidoInsumoButton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { lerConsumoMensal, lerPrevisaoInsumo } from "@/lib/estoque/consumo-mensal";
 import type { FichaInsumo } from "@/lib/estoque/ficha-insumo";
@@ -120,6 +121,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
   const verAndamento = pode.pedidos || pode.compras;
   const andamentoSemDado = (pode.pedidos && semDado.pedidos) || (pode.compras && semDado.compras);
   const aCaminhoFato = ficha.andamento.filter((linha) => linha.confirmado).length;
+  const podePedirReposicao = insumo.ativo && Boolean(estoque && estoque.sugerido > 0);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -163,13 +165,19 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
             </HelpTip>
           }
           actions={
-            pode.cadastro ? (
-              <Link
-                href={`/cadastros/insumos?focus=${insumo.id}`}
-                className="inline-flex min-h-10 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted"
-              >
-                Abrir cadastro
-              </Link>
+            pode.cadastro || (pode.criarPedido && podePedirReposicao) ? (
+              <>
+                {/* veio do cartão do Controle de Estoque: pedido de um insumo só, quando a previsão sugere repor */}
+                {pode.criarPedido && podePedirReposicao && <GerarPedidoInsumoButton insumoId={insumo.id} />}
+                {pode.cadastro && (
+                  <Link
+                    href={`/cadastros/insumos?focus=${insumo.id}`}
+                    className="inline-flex min-h-10 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted"
+                  >
+                    Abrir cadastro
+                  </Link>
+                )}
+              </>
             ) : undefined
           }
         />

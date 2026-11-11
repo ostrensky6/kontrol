@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 
@@ -9,43 +10,20 @@ import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { AjusteInventarioButton } from "@/components/estoque/ReceberLote";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
-import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
-import {
-  FILTROS_SALDO,
-  ROTULO_SALDO_EM_DIA,
-  ROTULO_SITUACAO_SALDO,
-  saldoAtendeFiltro,
-  type SituacaoSaldo,
-} from "@/lib/estoque/situacao-insumo";
+import { EstoqueDisponivelTable } from "@/components/suprimentos/EstoqueDisponivelTable";
+import type { FiltroEstoqueDisponivel, LinhaEstoqueDisponivel } from "@/lib/suprimentos/estoque-disponivel";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatNumber as fmt } from "@/lib/formatters";
 
-export type SaidasDiarias =
-  | { estado: "provisoria"; taxa: number; janelaDias: number; unidadeReferencia: string }
-  | { estado: "indisponivel" | "falha" | "parcial"; motivo: string };
-
-export type SaldoRow = {
-  insumoId: number;
-  especificacao: string;
-  /** unidade do saldo: "frasco(s) de 100 mL" para insumo contado em frascos */
-  unidade: string;
+/**
+ * Linha do Saldo por insumo: a mesma linha da visão geral de Suprimentos
+ * (montarEstoqueDisponivel, D1), mais o que a entrada e a baixa precisam.
+ */
+export type SaldoRow = LinhaEstoqueDisponivel & {
   /** unidade física do cadastro (mL, g…) */
-  unidadeFisica?: string;
+  unidadeFisica: string;
   /** insumo contado em frascos: a entrada avulsa é em frascos inteiros */
-  embalagemFechada?: boolean;
-  emMaos: number;
-  reservado: number;
-  disponivel: number;
-  pontoReposicao: number;
-  saidasDiarias: SaidasDiarias;
-  /** Preservado para ordenação; não representa evidência de exibição. */
-  consumoMedioDiario: number;
-  diasCobertura: number | null;
-  pontoSugerido: number;
-  /** todas as condições do insumo (vazio = em dia); o filtro Status casa por condição */
-  situacoes: SituacaoSaldo[];
-  /** texto da coluna Status, para busca e ordenação */
-  statusLabel: string;
+  embalagemFechada: boolean;
   /** lotes do insumo candidatos à baixa (o diálogo escolhe por FEFO) */
   lotesBaixa: LoteBaixa[];
 };
@@ -70,32 +48,6 @@ export type LoteRow = {
   aceiteBloqueadoMotivo?: string | null;
 };
 
-const SITUACAO_SALDO_CLASSE: Record<SituacaoSaldo, string> = {
-  sem_estoque: "bg-secondary text-secondary-foreground",
-  repor: "bg-warning-soft text-warning-strong",
-  reposicao_pendente: "bg-warning-soft text-warning-strong",
-};
-
-/** Um selo por condição (sem estoque e repor podem aparecer juntos); nenhuma = "Em dia". */
-function SaldoStatusBadge({ situacoes }: { situacoes: SituacaoSaldo[] }) {
-  if (situacoes.length === 0) {
-    return (
-      <Badge className="bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-        {ROTULO_SALDO_EM_DIA}
-      </Badge>
-    );
-  }
-  return (
-    <span className="inline-flex flex-wrap justify-center gap-1">
-      {situacoes.map((situacao) => (
-        <Badge key={situacao} className={SITUACAO_SALDO_CLASSE[situacao]}>
-          {ROTULO_SITUACAO_SALDO[situacao]}
-        </Badge>
-      ))}
-    </span>
-  );
-}
-
 function LoteStatusBadge({ status, label }: { status: string; label: string }) {
   const className =
     status === "quarentena"
@@ -111,115 +63,14 @@ function LoteStatusBadge({ status, label }: { status: string; label: string }) {
   return <Badge className={className}>{label}</Badge>;
 }
 
-function SaidasDiariasValor({ leitura }: { leitura: SaidasDiarias }) {
-  if (leitura.estado === "provisoria") {
-    return (
-      <>
-        <span className="block break-words font-medium text-foreground">
-          {leitura.taxa < 0.01 ? "< 0,01" : fmt(leitura.taxa)} {leitura.unidadeReferencia}/dia
-        </span>
-        <span className="block text-xs text-muted-foreground">Provisória · {leitura.janelaDias} dias</span>
-      </>
-    );
-  }
-  return (
-    <>
-      <span className="block text-sm text-foreground">
-        {leitura.estado === "parcial" ? "Leitura parcial" : leitura.estado === "falha" ? "Falha na leitura" : "Sem dado"}
-      </span>
-      <span className="block text-xs text-muted-foreground">{leitura.motivo}</span>
-    </>
-  );
-}
-
-const saldoColumns = (podeMovimentar: boolean, entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unknown>[] => [
-  {
-    accessorKey: "especificacao",
-    header: "Reagente",
-    meta: { className: "max-w-xs truncate" },
-    // F5: o nome abre a ficha do insumo
-    cell: ({ row }) => (
-      <Link
-        href={hrefFichaInsumo(row.original.insumoId) ?? "/estoque"}
-        className="font-medium text-foreground underline-offset-2 hover:underline"
-      >
-        {row.original.especificacao}
-      </Link>
-    ),
-  },
-  { accessorKey: "unidade", header: "Un." },
-  {
-    accessorKey: "emMaos",
-    header: "Em mãos",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => fmt(row.original.emMaos),
-  },
-  {
-    accessorKey: "reservado",
-    header: "Reservado",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => fmt(row.original.reservado),
-  },
-  {
-    accessorKey: "disponivel",
-    header: "Disponível",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => <span className="font-medium">{fmt(row.original.disponivel)}</span>,
-  },
-  {
-    accessorKey: "pontoReposicao",
-    header: "Ponto de reposição",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => (row.original.pontoReposicao > 0 ? fmt(row.original.pontoReposicao) : "—"),
-  },
-  {
-    accessorKey: "consumoMedioDiario",
-    header: "Saídas/dia · provisório",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => (
-      <div className="ml-auto max-w-40 whitespace-normal">
-        <SaidasDiariasValor leitura={row.original.saidasDiarias} />
-      </div>
-    ),
-  },
-  {
-    accessorKey: "diasCobertura",
-    header: "Cobertura",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => (row.original.diasCobertura != null ? `${fmt(row.original.diasCobertura)} d` : "—"),
-  },
-  {
-    accessorKey: "pontoSugerido",
-    header: "Ponto sugerido",
-    sortingFn: numericSort,
-    meta: { align: "right" },
-    cell: ({ row }) => (row.original.pontoSugerido > 0 ? fmt(row.original.pontoSugerido) : "—"),
-  },
-  {
-    accessorKey: "statusLabel",
-    header: "Status",
-    meta: { align: "center" },
-    // por condição: insumo sem estoque que também precisa repor aparece nos dois filtros
-    filterFn: (row, _columnId, filtro) => saldoAtendeFiltro(row.original.situacoes, filtro),
-    cell: ({ row }) => <SaldoStatusBadge situacoes={row.original.situacoes} />,
-  },
-  {
-    id: "acoes",
-    header: "Ações",
-    enableSorting: false,
-    enableGlobalFilter: false,
-    meta: { align: "right" },
-    cell: ({ row }) => (
-      <SaldoAcoes row={row.original} podeMovimentar={podeMovimentar} entradaInicialInsumoId={entradaInicialInsumoId} />
-    ),
-  },
-];
+const colunaAcoesSaldo = (entradaInicialInsumoId?: number): ColumnDef<SaldoRow, unknown> => ({
+  id: "acoes",
+  header: "Ações",
+  enableSorting: false,
+  enableGlobalFilter: false,
+  meta: { align: "right" },
+  cell: ({ row }) => <SaldoAcoes row={row.original} podeMovimentar entradaInicialInsumoId={entradaInicialInsumoId} />,
+});
 
 function SaldoAcoes({
   row,
@@ -237,14 +88,14 @@ function SaldoAcoes({
       <AjusteInventarioButton
         insumoId={row.insumoId}
         especificacao={row.especificacao}
-        unidade={row.unidade === "—" ? null : row.unidade}
+        unidade={row.unidade || null}
         abertoInicial={row.insumoId === entradaInicialInsumoId}
         embalagemFechada={row.lotesBaixa.some((lote) => lote.modeloQuantidade === "EMBALAGEM_FECHADA")}
         emFrascos={row.embalagemFechada}
       />
       <DarBaixaDialog
         lotes={row.lotesBaixa}
-        unidade={row.unidadeFisica ?? (row.unidade === "—" ? "" : row.unidade)}
+        unidade={row.unidadeFisica || row.unidade}
         especificacao={row.especificacao}
       />
     </span>
@@ -263,6 +114,7 @@ type PermissoesLote = {
 function LoteAcoesLinha({ row, podeAceitar, podeGerir, podeCorrigir, podeBaixar, responsavelPadrao }: { row: LoteRow } & PermissoesLote) {
   return (
     <LoteAcoes
+      compacto
       loteId={row.id}
       codigoLote={row.codigoLote}
       status={row.status}
@@ -285,7 +137,7 @@ function LoteAcoesLinha({ row, podeAceitar, podeGerir, podeCorrigir, podeBaixar,
 }
 
 const lotesColumns = (permissoes: PermissoesLote): ColumnDef<LoteRow, unknown>[] => [
-  { accessorKey: "especificacao", header: "Reagente", meta: { className: "max-w-xs truncate" } },
+  { accessorKey: "especificacao", header: "Insumo", meta: { className: "max-w-xs truncate" } },
   {
     accessorKey: "codigoLote",
     header: "Lote",
@@ -336,75 +188,44 @@ export function SaldoTable({
   rows,
   podeMovimentar,
   entradaInicialInsumoId,
+  filtroInicial = "todos",
 }: {
   rows: SaldoRow[];
   /** permissão "estoque.movimentar": mostra + Entrada e Dar baixa */
   podeMovimentar: boolean;
   entradaInicialInsumoId?: number;
+  filtroInicial?: FiltroEstoqueDisponivel;
 }) {
+  const colunaAcoes = useMemo(
+    () => (podeMovimentar ? colunaAcoesSaldo(entradaInicialInsumoId) : undefined),
+    [podeMovimentar, entradaInicialInsumoId],
+  );
   return (
     <div>
       <div className="mb-2 flex flex-wrap items-center gap-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Saldo por insumo</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">Saldo por insumo</h2>
         <HelpTip title="Como ler o saldo">
-          <div
-            role="region"
-            aria-label="Orientações de leitura do saldo"
-            tabIndex={0}
-            className="max-h-[min(36dvh,22rem)] space-y-2 overflow-y-auto rounded-sm pr-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-          >
-            <p>
-              <b>Saídas/dia</b> mostra o ritmo provisório de saídas registradas na previsão de suprimentos, na unidade e na janela nominal de cada insumo. Não comprova série mensal, cobertura histórica ou ausência de rupturas.
-            </p>
-            <p>
-              Insumo contado em frascos mostra o saldo em <b>frascos</b> (ex.: frasco(s) de 100 mL).
-            </p>
-            <p>
-              <b>Em mãos</b> soma os lotes guardados. <b>Disponível</b> é o
-              que sobra depois das reservas dos planos, sem contar vencidos.
-            </p>
-            <p>
-              <b>Cobertura</b> é quantos dias o disponível dura na previsão operacional.
-              O <b>ponto sugerido</b> é o maior entre o ponto cadastrado e as saídas previstas durante o prazo
-              da compra (tramitação na universidade + entrega do fornecedor), mais o estoque de segurança.
-              O insumo vira <b>Repor</b> quando o disponível mais o que já está a caminho fica abaixo dele.
-            </p>
-            <p>
-              <b>Reposição aguardando aprovação</b>: o que falta já foi pedido, mas o pedido ainda espera
-              aprovação. Um insumo pode ter mais de um status (ex.: sem estoque e repor).
-            </p>
-            <HelpExample>
-              10 em mãos, 4 reservados → 6 disponíveis. Consumo de 0,5/dia → cobertura de 12 dias.
-            </HelpExample>
-          </div>
+          <p>
+            <b>Disponível</b> é o que pode ser usado agora: os lotes guardados menos o que está reservado para
+            os planos, sem contar vencidos. <b>A caminho</b> é o que já foi comprado ou autorizado e ainda não
+            chegou; o que espera aprovação aparece à parte.
+          </p>
+          <p>
+            <b>Situação</b> segue as mesmas regras da visão geral de Suprimentos e da ficha do insumo. Clique no
+            nome para ver em mãos, cobertura, prazo de compra, lotes e consumo.
+          </p>
+          <HelpExample>10 em mãos, 4 reservados → 6 disponíveis.</HelpExample>
         </HelpTip>
       </div>
-      <DataTable
-        data={rows}
-        columns={saldoColumns(podeMovimentar, entradaInicialInsumoId)}
-        searchPlaceholder="Buscar reagente..."
-        emptyText="Nenhum saldo encontrado."
-        filters={[
-          {
-            columnId: "statusLabel",
-            label: "Status",
-            options: [...FILTROS_SALDO],
-          },
-        ]}
-        getMobileTitle={(row) => row.especificacao}
-        getMobileDescription={(row) => (
-          <>
-            {`${fmt(row.disponivel)} ${row.unidade} disponível · cobertura ${row.diasCobertura != null ? `${fmt(row.diasCobertura)} d` : "—"} · ponto sugerido ${row.pontoSugerido ? fmt(row.pontoSugerido) : "—"}`}
-            <div className="mt-2">
-              <span className="block text-xs">Saídas/dia</span>
-              <SaidasDiariasValor leitura={row.saidasDiarias} />
-            </div>
-          </>
-        )}
-        getMobileMeta={(row) => <SaldoStatusBadge situacoes={row.situacoes} />}
-        getMobileActions={
+      <EstoqueDisponivelTable
+        linhas={rows}
+        filtroInicial={filtroInicial}
+        filtroPadrao="todos"
+        comValidade={false}
+        colunaAcoes={colunaAcoes}
+        acoesNoCelular={
           podeMovimentar
-            ? (row) => <SaldoAcoes row={row} podeMovimentar={podeMovimentar} entradaInicialInsumoId={entradaInicialInsumoId} />
+            ? (row) => <SaldoAcoes row={row} podeMovimentar entradaInicialInsumoId={entradaInicialInsumoId} />
             : undefined
         }
       />
@@ -422,7 +243,7 @@ export function LotesTable({
     <DataTable
       data={rows}
       columns={lotesColumns(permissoes)}
-      searchPlaceholder="Buscar reagente ou lote..."
+      searchPlaceholder="Buscar insumo ou lote..."
       emptyText="Nenhum lote em estoque. Use + Entrada em Saldo por insumo para receber."
       filters={[
         {
