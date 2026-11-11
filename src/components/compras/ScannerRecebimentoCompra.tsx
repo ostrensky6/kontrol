@@ -220,7 +220,7 @@ export function ScannerRecebimentoCompra({
           className="inline-flex items-center gap-1.5 rounded bg-brand-600 px-2 py-1 text-xs font-medium text-white hover:bg-brand-500"
         >
           <ScanLine className="h-3.5 w-3.5" />
-          Receber
+          Registrar chegada
         </button>
       </DialogTrigger>
 
@@ -230,11 +230,11 @@ export function ScannerRecebimentoCompra({
       >
         <DialogHeader className="gap-0 pr-6">
           <div className="flex items-center gap-1">
-            <DialogTitle>Receber item de compra</DialogTitle>
+            <DialogTitle>Registrar chegada do item</DialogTitle>
             <HelpTip title="Recebimento com leitor">
               <p>
                 A leitura do código só preenche ou confere os campos. O item é recebido quando você
-                clica em <b>Confirmar recebimento</b>.
+                clica em <b>Confirmar chegada</b>.
               </p>
               <p>Ao confirmar, o lote já fica disponível no estoque.</p>
             </HelpTip>
@@ -470,7 +470,7 @@ export function ScannerRecebimentoCompra({
               className="inline-flex items-center gap-1.5 rounded-md bg-brand-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
             >
               {recebimentoPending && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
-              {recebimentoPending ? "Registrando…" : "Confirmar recebimento"}
+              {recebimentoPending ? "Registrando…" : "Confirmar chegada"}
             </button>
           </div>
         </form>

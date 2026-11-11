@@ -61,7 +61,7 @@ function juntar(partes: string[]) {
 export function textoReenvio(s: SituacaoReenvio | null): string | null {
   if (!s) return null;
   if (s.motivo === "sem_validacao") {
-    return "Ao reenviar, o pedido vai para a validação do coordenador.";
+    return "Ao reenviar, o pedido vai para a aprovação do coordenador.";
   }
   if (s.mantem) {
     return `Itens, valor, justificativa e projeto estão iguais aos da aprovação: ao reenviar, as aprovações continuam valendo e o pedido volta direto para ${

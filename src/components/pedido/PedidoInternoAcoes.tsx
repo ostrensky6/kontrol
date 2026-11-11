@@ -203,7 +203,7 @@ export function PedidoInternoAcoes({
         <Botao
           pedidoId={pedidoId}
           action={formalizarPedidoInterno}
-          label={temCompraFormal ? "Retomar compra formal" : "Formalizar em compras"}
+          label={temCompraFormal ? "Retomar a compra" : "Formalizar em compras"}
           disabled={aguardandoLaboratorio || Boolean(motivoCicloTravado)}
           disabledReason={
             aguardandoLaboratorio

@@ -88,7 +88,7 @@ export async function criarCicloInventario(
   if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidatePath("/estoque/inventario");
-  return { ok: true, message: "Campanha de inventário criada." };
+  return { ok: true, message: "Contagem criada." };
 }
 
 export async function registrarContagemInventario(
@@ -115,7 +115,7 @@ export async function registrarContagemInventario(
   if (porInsumo && !Number.isInteger(parsed.data.quantidade_contada)) {
     return {
       ok: false,
-      message: "Na contagem por insumo, informe o número de embalagens fechadas (inteiro).",
+      message: "Contando por insumo, informe o número de embalagens fechadas (inteiro).",
       errors: { quantidade_contada: "Número inteiro de embalagens" },
     };
   }
@@ -145,7 +145,7 @@ export async function registrarContagemInventario(
   ]);
 
   if (!ciclo?.id || ciclo.status !== "aberto") {
-    return { ok: false, message: "Campanha de inventário não está aberta." };
+    return { ok: false, message: "Esta contagem não está aberta." };
   }
   if (!porInsumo && !lote?.id) return { ok: false, message: "Lote não encontrado." };
 
@@ -189,8 +189,8 @@ export async function registrarContagemInventario(
   return {
     ok: true,
     message: divergencia.temDivergencia
-      ? `Contagem registrada com diferença. ${descreverDiferencaInventario(quantidadeSistema, parsed.data.quantidade_contada).frase} O saldo só muda quando alguém aplicar o ajuste.`
-      : "Contagem registrada: confere com o sistema.",
+      ? `Item contado com diferença. ${descreverDiferencaInventario(quantidadeSistema, parsed.data.quantidade_contada).frase} O saldo só muda quando alguém aplicar o ajuste.`
+      : "Item contado: confere com o sistema.",
   };
 }
 
@@ -207,7 +207,7 @@ export async function aplicarAjusteContagemInventario(
     contagem_id: formData.get("contagem_id"),
   });
   if (!parsed.success) {
-    return { ok: false, message: "Contagem inválida.", errors: formErrors(parsed.error) };
+    return { ok: false, message: "Item contado inválido.", errors: formErrors(parsed.error) };
   }
 
   const supabase = await createClientUntyped();
@@ -226,15 +226,15 @@ const fecharCicloSchema = z.object({
 });
 
 /**
- * Fecha a campanha (D7, 0136). O banco recusa se ainda houver contagem com
- * diferença sem ajuste; campanha fechada não recebe contagem nova.
+ * Fecha a contagem (D7, 0136; no banco, "ciclo"). O banco recusa se ainda houver
+ * item contado com diferença sem ajuste; contagem fechada não recebe item novo.
  */
 export async function fecharCicloInventario(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("estoque.lote.gerir"))) {
-    return { ok: false, message: "Fechar campanha exige a permissão “Corrigir estoque”." };
+    return { ok: false, message: "Fechar a contagem exige a permissão “Corrigir estoque”." };
   }
   const parsed = fecharCicloSchema.safeParse({ ciclo_id: formData.get("ciclo_id") });
-  if (!parsed.success) return { ok: false, message: "Campanha inválida." };
+  if (!parsed.success) return { ok: false, message: "Contagem inválida." };
 
   const supabase = await createClientUntyped();
   const { data, error } = await supabase.rpc("fechar_ciclo_inventario" as never, {
@@ -246,6 +246,6 @@ export async function fecharCicloInventario(_prev: FormState, formData: FormData
   revalidatePath("/estoque/inventario");
   return {
     ok: true,
-    message: `Campanha fechada: ${resumo.contagens ?? 0} contagem(ns), ${resumo.ajustes ?? 0} ajuste(s) aplicado(s).`,
+    message: `Contagem fechada: ${resumo.contagens ?? 0} item(ns) contado(s), ${resumo.ajustes ?? 0} ajuste(s) aplicado(s).`,
   };
 }

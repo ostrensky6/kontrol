@@ -182,12 +182,12 @@ describe("painel de alertas", () => {
     expect(por["saldo-nao-conferido"].itens.map((i) => i.chave)).toEqual(["i2"]);
     expect(por["saldo-nao-conferido"].itens[0].detalhe).toBe("Sem dado de saldo nesta leitura");
     expect(por["saldo-indisponivel"].itens.map((i) => i.chave)).toEqual(["i3"]);
-    expect(por["em-falta"].titulo).toBe("Zero no sistema");
+    expect(por["em-falta"].titulo).toBe("Sem estoque");
     expect(por["em-falta"].descricao).toContain("Confira o estoque");
     expect(por["em-falta"].itens.map((i) => i.detalhe)).toEqual(["mínimo 2 · previsão indisponível"]);
-    expect(por["sem-minimo"]).toMatchObject({ tom: "cinza", itens: [{ detalhe: "Zero no sistema · confira antes de decidir", href: "/cadastros/insumos?focus=4" }] });
+    expect(por["sem-minimo"]).toMatchObject({ tom: "cinza", itens: [{ detalhe: "Sem estoque · confira antes de decidir", href: "/cadastros/insumos?focus=4" }] });
     expect(decisao.insumos.find((i) => i.id === 4)?.motivos).not.toContain("em_falta");
-    expect(faixasCobertura(decisao.insumos)[0]).toEqual({ faixa: "Zero no sistema", insumos: 2, tom: "ambar" });
+    expect(faixasCobertura(decisao.insumos)[0]).toEqual({ faixa: "Sem estoque", insumos: 2, tom: "ambar" });
     expect(resumirDecisao(decisao.insumos)).toMatchObject({ emFalta: 1, critico: 1, naoConferido: 1, saldoIndisponivel: 1 });
   });
 
@@ -221,7 +221,7 @@ describe("painel de alertas", () => {
       // atenção: Beads aberto fora da ordem, Ponteira com dois abertos, Tubo vencendo
       expect(resumo.atencao).toBe(3);
       expect(resumo.quadros).toEqual([
-        "Zero no sistema",
+        "Sem estoque",
         "Risco de falta sem pedido aberto",
         "Lotes vencidos com saldo",
         "Compras atrasadas",
@@ -252,7 +252,7 @@ describe("painel de alertas", () => {
       const linhas = linhasDeAtencao(alertas);
       expect(linhas).toHaveLength(7);
       expect(linhas.map((l) => l.tom)).toEqual(["vermelho", "vermelho", "vermelho", "vermelho", "ambar", "ambar", "ambar"]);
-      expect(linhas[0]).toMatchObject({ quadro: "Zero no sistema", titulo: "Ladder", href: "/estoque/insumos/1" });
+      expect(linhas[0]).toMatchObject({ quadro: "Sem estoque", titulo: "Ladder", href: "/estoque/insumos/1" });
       // lote vencido abre a página do lote; insumo abre a ficha
       expect(linhas.find((l) => l.quadro === "Lotes vencidos com saldo")?.href).toBe("/estoque/lotes/7");
       expect(new Set(linhas.map((l) => l.chave)).size).toBe(linhas.length);

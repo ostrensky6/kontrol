@@ -23,8 +23,8 @@ const TIPO_LABEL: Record<string, string> = {
   equipamento: "Equipamento",
   equipamento_unidade: "Unidade de equipamento",
   local: "Local",
-  pedido_compra: "Pedido de compra",
-  pedido_interno: "Pedido interno",
+  pedido_compra: "Compra",
+  pedido_interno: "Pedido",
   planejamento: "Planejamento",
 };
 

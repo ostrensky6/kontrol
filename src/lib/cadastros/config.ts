@@ -146,7 +146,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "coordenador_usuario", label: "Coordenador" },
       { key: "data_inicio", label: "Início", tipo: "date" },
       { key: "data_fim", label: "Fim", tipo: "date" },
-      { key: "status", label: "Status" },
+      { key: "status", label: "Situação" },
     ],
     campos: [
       { name: "nome", label: "Nome do projeto", tipo: "text", obrigatorio: true, colSpan: 2, grupo: "Identificação" },
@@ -156,7 +156,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Coordenador do projeto",
         tipo: "select",
         opcoesDe: "perfis",
-        ajuda: "Usuário que aprova os pedidos de compra do projeto. Sem coordenador, o pedido não segue.",
+        ajuda: "Usuário que aprova os pedidos do projeto. Sem coordenador, o pedido não segue.",
       },
       {
         name: "responsavel",
@@ -166,7 +166,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       },
       {
         name: "status",
-        label: "Status",
+        label: "Situação",
+        rotulosAntigos: ["Status"],
         tipo: "select",
         opcoes: [
           { value: "proposto", label: "Proposto" },
@@ -312,7 +313,8 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       },
       {
         name: "pedido_interno_id",
-        label: "Nº do pedido interno",
+        label: "Nº do pedido",
+        rotulosAntigos: ["Nº do pedido interno"],
         tipo: "number",
         min: 1,
         step: "1",
@@ -405,7 +407,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "quantidade", label: "Quantidade", tipo: "number", alinhar: "right", largura: "sm", calculada: true },
       { key: "custo_unitario", label: "Custo un.", tipo: "currency", alinhar: "right", largura: "sm", calculada: true },
       { key: "validade_lotes", label: "Validade", tipo: "date", largura: "sm", calculada: true },
-      { key: "ponto_reposicao", label: "Repos.", tipo: "number", alinhar: "right", largura: "xs" },
+      { key: "ponto_reposicao", label: "Mínimo", tipo: "number", alinhar: "right", largura: "xs" },
       { key: "laboratorio_nome", label: "Laboratório", largura: "sm", calculada: true },
       { key: "ativo", label: "Ativo", tipo: "checkbox", largura: "xs" },
     ],
@@ -529,7 +531,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         ajuda: "Prazo aceito no contrato. A previsão de reposição usa o **Prazo de entrega do fornecedor**.",
       },
 
-      { name: "ponto_reposicao", label: "Ponto de reposição", tipo: "number", min: 0, ajuda: "Mínimo que você quer manter. Se o **disponível** mais o que já está a caminho ficar abaixo dele (ou abaixo das saídas previstas no prazo da compra), o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Ponto 5, disponível 2 e nada a caminho: o sistema sugere pedir 3.", grupo: "Estoque e reposição" },
+      { name: "ponto_reposicao", label: "Mínimo", tipo: "number", min: 0, rotulosAntigos: ["Ponto de reposição", "Repos."], ajuda: "Mínimo que você quer manter. Se o **disponível** mais o que já está a caminho ficar abaixo dele (ou abaixo das saídas previstas no prazo da compra), o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Mínimo 5, disponível 2 e nada a caminho: o sistema sugere pedir 3.", grupo: "Estoque e reposição" },
       {
         name: "estoque_seguranca",
         label: "Estoque de segurança",
@@ -691,7 +693,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     singular: "fornecedor",
     resumo: "Empresas que vendem ao laboratório.",
     subtitulo:
-      "Empresas que vendem ao laboratório, com dados fiscais, contato e prazos. Usados nos insumos, nas compras e no **ponto de reposição**.",
+      "Empresas que vendem ao laboratório, com dados fiscais, contato e prazos. Usados nos insumos, nas compras e no prazo para **repor**.",
     rotulo: "nome",
     colunas: [
       { key: "nome", label: "Fornecedor" },

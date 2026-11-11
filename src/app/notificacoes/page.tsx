@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/app/PageHeader";
 import { PageShell } from "@/components/app/PageShell";
+import { noGlossario } from "@/lib/glossario";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   arquivarNotificacao,
@@ -57,7 +58,8 @@ export default async function NotificacoesPage() {
     .order("criado_em", { ascending: false })
     .limit(80);
 
-  const notificacoes = (data ?? []) as Notificacao[];
+  // avisos gravados pelo banco ainda trazem palavras antigas: o glossário (10.5) vale aqui também
+  const notificacoes = ((data ?? []) as Notificacao[]).map((n) => ({ ...n, titulo: noGlossario(n.titulo), corpo: noGlossario(n.corpo) }));
   const naoLidas = notificacoes.filter((item) => item.status === "nao_lida").length;
   const aguardandoAcao = notificacoes.filter(
     (item) => item.tipo === "aprovacao_pendente" && item.status === "nao_lida",

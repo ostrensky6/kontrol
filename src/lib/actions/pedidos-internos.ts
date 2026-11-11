@@ -152,7 +152,7 @@ async function podeAprovarComoCoordenadorProjeto(pedidoId: number) {
   if (!(await pode("pedido.aprovar"))) {
     return {
       ok: false as const,
-      message: "Sem permissão: peça ao administrador a permissão “Aprovar pedidos internos” em Usuários.",
+      message: "Sem permissão: peça ao administrador a permissão “Aprovar pedidos” em Usuários.",
     };
   }
 
@@ -232,7 +232,7 @@ async function mudarStatus({
 
 export async function criarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const u = await usuarioAtual();
-  const titulo = texto(formData, "titulo") ?? "Pedido interno sem título";
+  const titulo = texto(formData, "titulo") ?? "Pedido sem título";
   const projeto_id = numero(formData, "projeto_id");
   const data_necessidade = texto(formData, "data_necessidade");
   const justificativa = texto(formData, "justificativa");
@@ -293,7 +293,7 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     error = retry.error;
   }
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível criar o pedido.") };
-  if (!data) return { ok: false, message: "Não foi possível criar o pedido interno." };
+  if (!data) return { ok: false, message: "Não foi possível criar o pedido." };
   await registrarEvento("pedido_interno", data.id, null, "rascunho", "Pedido registrado.");
   revalidatePath("/pedido");
   redirect(`/pedido/${data.id}`);
@@ -388,7 +388,7 @@ export async function gerarPedidoReposicaoInsumo(
   return criarPedidoReposicao(
     [previsao],
     `Reposição de estoque · ${previsao.especificacao ?? `Insumo #${insumoId}`}`,
-    `Pedido gerado pela ficha do insumo porque o insumo #${insumoId} está abaixo do ponto de reposição sugerido.`,
+    `Pedido gerado pela ficha do insumo porque o insumo #${insumoId} está abaixo do mínimo sugerido.`,
   );
 }
 
@@ -410,7 +410,7 @@ export async function gerarPedidosReposicaoEstoque(
   return criarPedidoReposicao(
     (data ?? []) as PrevisaoReposicao[],
     `Reposição automática de estoque · ${hojeData()}`,
-    "Pedido gerado pela Situação do estoque com os insumos abaixo do ponto de reposição sugerido. Revisar itens, projeto, fonte de recurso e justificativa antes de enviar para validação.",
+    "Pedido gerado pela Situação do estoque com os insumos abaixo do mínimo sugerido. Revisar itens, projeto, fonte de recurso e justificativa antes de enviar para aprovação.",
   );
 }
 
@@ -470,7 +470,7 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
 
 export async function excluirPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) {
-    return { ok: false, message: "Seu perfil não tem permissão para excluir pedidos internos." };
+    return { ok: false, message: "Seu perfil não tem permissão para excluir pedidos." };
   }
   const pedidoId = numero(formData, "pedido_interno_id");
   if (!pedidoId) return { ok: false, message: "Pedido não informado." };
@@ -484,7 +484,7 @@ export async function excluirPedidoInterno(_prev: FormState, formData: FormData)
   if (!pedido || pedido.status !== "rascunho" || pedido.pedido_compra_id) {
     return {
       ok: false,
-      message: "Só é possível excluir rascunhos sem compra formal. Para pedidos em andamento, use Cancelar.",
+      message: "Só é possível excluir rascunhos sem compra. Para pedidos em andamento, use Cancelar.",
     };
   }
   const { data: excluidos, error } = await supabase
@@ -496,7 +496,7 @@ export async function excluirPedidoInterno(_prev: FormState, formData: FormData)
     .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível excluir.") };
   if (!excluidos?.length) {
-    return { ok: false, message: "Pedido não excluído. Atualize a lista e confira o status, a compra formal e sua permissão." };
+    return { ok: false, message: "Pedido não excluído. Atualize a lista e confira a situação, a compra e sua permissão." };
   }
   revalidatePath("/pedido");
   redirect("/pedido");

@@ -294,7 +294,7 @@ export const APP_MODULES: AppModule[] = [
       },
       {
         href: "/compras",
-        label: "Compras formais",
+        label: "Compras",
         desc: "registro das compras com fornecedor, ligadas aos pedidos",
         icon: "ShoppingCart",
         showInTopNav: false,

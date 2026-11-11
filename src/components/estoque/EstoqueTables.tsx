@@ -169,7 +169,7 @@ const lotesColumns = (permissoes: PermissoesLote): ColumnDef<LoteRow, unknown>[]
   },
   {
     accessorKey: "statusLabel",
-    header: "Estado",
+    header: "Situação",
     meta: { align: "center" },
     filterFn: "equalsString",
     cell: ({ row }) => <LoteStatusBadge status={row.original.status} label={row.original.statusLabel} />,
@@ -244,11 +244,11 @@ export function LotesTable({
       data={rows}
       columns={lotesColumns(permissoes)}
       searchPlaceholder="Buscar insumo ou lote..."
-      emptyText="Nenhum lote em estoque. Use + Entrada em Saldo por insumo para receber."
+      emptyText="Nenhum lote em estoque. Use Registrar chegada em Saldo por insumo."
       filters={[
         {
           columnId: "statusLabel",
-          label: "Estado",
+          label: "Situação",
           options: [
             { value: "Disponível", label: "Disponível" },
             { value: "Em uso", label: "Em uso" },

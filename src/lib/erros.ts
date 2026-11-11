@@ -1,3 +1,5 @@
+import { noGlossario } from "@/lib/glossario";
+
 /**
  * Retorno padrão das server actions ligadas a formulário. Erro de validação ou
  * recusa do banco volta como `{ ok: false, message }` — nunca como `throw`, que
@@ -55,10 +57,15 @@ const CONCORRENCIA = new Set(["40001", "40P01", "55P03"]);
 
 /**
  * Traduz uma recusa do banco para o usuário. As exceções escritas nas RPCs do
- * Kontrol já estão em português e são mantidas; as mensagens técnicas do
- * Postgres viram um texto curto conforme o código do erro.
+ * Kontrol já estão em português e são mantidas, só com as palavras do
+ * glossário (10.5); as mensagens técnicas do Postgres viram um texto curto
+ * conforme o código do erro.
  */
 export function mensagemDoBanco(error: unknown, padrao: string = PADRAO): string {
+  return noGlossario(traduzirRecusa(error, padrao));
+}
+
+function traduzirRecusa(error: unknown, padrao: string): string {
   if (!error) return padrao;
   if (typeof error === "string") {
     if (!TECNICA.test(error)) return error;

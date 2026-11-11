@@ -73,7 +73,7 @@ function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
     },
     {
       accessorKey: "statusLabel",
-      header: "Estágio",
+      header: "Etapa",
       meta: { align: "center" },
       cell: ({ row }) => <StatusBadge status={row.original.status} />,
       filterFn: "equalsString",
@@ -122,7 +122,7 @@ export function RecebimentoItensTable({
       filters={[
         {
           columnId: "statusLabel",
-          label: "Estágio",
+          label: "Etapa",
           options: [...new Set(rows.map((row) => row.statusLabel))].map((value) => ({ value, label: value })),
         },
         {

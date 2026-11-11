@@ -216,7 +216,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
             podeBaixar={podeBaixar}
             exclusaoBloqueadaMotivo={
               recebimentoValendo
-                ? "Lote de compra ou pedido interno: estorne o recebimento antes de excluir."
+                ? "Lote de compra ou de pedido: estorne a chegada antes de excluir."
                 : null
             }
           />

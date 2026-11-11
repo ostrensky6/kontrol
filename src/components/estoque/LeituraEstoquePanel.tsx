@@ -634,7 +634,7 @@ function CartaoIdentificado({
       ) : insumo.modelo === "LEGADO" ? (
         <>
           <p role="alert" className="mt-3 rounded-md bg-warning-soft px-3 py-2 text-warning-strong">
-            Este insumo ainda é controlado por volume (modelo antigo). Registre a entrada em Estoque → Saldo e lotes (+ Entrada).
+            Este insumo ainda é controlado por volume (modelo antigo). Registre a chegada em Estoque → Saldo e lotes (Registrar chegada).
           </p>
           <button type="button" autoFocus onClick={onCancelar} className={`${botaoSecundario} mt-3`}>
             Ler outro código
@@ -650,7 +650,7 @@ function CartaoIdentificado({
         >
           {pedidos.length > 0 && podeReceber && (
             <fieldset className="rounded-md border border-border p-3">
-              <legend className="px-1 text-xs font-medium text-muted-foreground">Há pedido de compra em aberto</legend>
+              <legend className="px-1 text-xs font-medium text-muted-foreground">Há compra em aberto</legend>
               <div className="grid gap-1.5">
                 {pedidos.map((p) => (
                   <label key={`${p.pedidoId}:${p.itemId}`} className="flex items-center gap-2">
@@ -660,7 +660,7 @@ function CartaoIdentificado({
                       checked={pedidoEscolhido === `${p.pedidoId}:${p.itemId}`}
                       onChange={() => setPedidoEscolhido(`${p.pedidoId}:${p.itemId}`)}
                     />
-                    Receber pelo pedido #{p.pedidoId}
+                    Registrar a chegada pela compra #{p.pedidoId}
                     {p.fornecedor ? ` (${p.fornecedor})` : ""} · faltam {p.pendente}
                   </label>
                 ))}

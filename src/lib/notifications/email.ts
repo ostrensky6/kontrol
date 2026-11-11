@@ -1,4 +1,5 @@
 import { caminhoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
+import { noGlossario } from "@/lib/glossario";
 
 type Resultado<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
 
@@ -86,8 +87,8 @@ function emailHtml(row: NotificationEmailRow) {
   return `
     <div style="font-family:Arial,sans-serif;line-height:1.5;color:#18181b">
       <p style="font-size:12px;text-transform:uppercase;color:#71717a;margin:0 0 8px">Kontrol · ${escapeHtml(rotuloTipoNotificacao(row.tipo))}</p>
-      <h1 style="font-size:18px;margin:0 0 12px">${escapeHtml(row.titulo)}</h1>
-      ${row.corpo ? `<p style="font-size:14px;margin:0 0 16px">${escapeHtml(row.corpo)}</p>` : ""}
+      <h1 style="font-size:18px;margin:0 0 12px">${escapeHtml(noGlossario(row.titulo))}</h1>
+      ${row.corpo ? `<p style="font-size:14px;margin:0 0 16px">${escapeHtml(noGlossario(row.corpo))}</p>` : ""}
       <p style="font-size:14px;margin:0 0 16px">
         <a href="${url}" style="color:#047857;font-weight:700">Abrir no Kontrol</a>
       </p>
@@ -116,7 +117,7 @@ async function sendWithResend(row: NotificationEmailRow, to: string[]) {
     body: JSON.stringify({
       from: process.env.RESEND_FROM ?? "Kontrol <onboarding@resend.dev>",
       to,
-      subject: `[Kontrol] ${row.titulo}`,
+      subject: `[Kontrol] ${noGlossario(row.titulo)}`,
       html: emailHtml(row),
     }),
   });

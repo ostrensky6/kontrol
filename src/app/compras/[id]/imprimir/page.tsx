@@ -81,7 +81,7 @@ export default async function PedidoCompraImprimivel({ params }: { params: Promi
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-300">Kontrol</p>
-                <h1 className="mt-2 text-2xl font-semibold">Pedido de compra</h1>
+                <h1 className="mt-2 text-2xl font-semibold">Compra</h1>
                 <p className="mt-1 text-sm text-zinc-300">Documento para cotação, confirmação e fornecimento.</p>
               </div>
               <div className="text-right">

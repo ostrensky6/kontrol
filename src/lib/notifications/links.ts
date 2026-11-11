@@ -52,7 +52,7 @@ export function destinoNotificacao(item: {
 }
 
 const TIPOS: Record<string, string> = {
-  reposicao: "Reposição",
+  reposicao: "Repor",
   vencimento: "Vencimento",
   falta_plano: "Falta no plano",
   aprovacao_pendente: "Aguardando ação",

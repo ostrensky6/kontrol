@@ -14,6 +14,7 @@ import {
 } from "@/lib/planejamento/gestao";
 import type { FormState } from "./cadastros";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
+import { noGlossario } from "@/lib/glossario";
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>;
 type SupabaseUntyped = Awaited<ReturnType<typeof createClientUntyped>>;
@@ -623,7 +624,7 @@ function mensagemErroGestao(error: { message?: string; code?: string }, acao: "e
   if (error.code === "42501" && message.includes("Sem permiss")) {
     return `Seu perfil não tem permissão para ${acao} planos. Peça ao administrador para liberar em Usuários.`;
   }
-  return message || `Não foi possível ${acao} o plano.`;
+  return noGlossario(message) || `Não foi possível ${acao} o plano.`;
 }
 
 /**

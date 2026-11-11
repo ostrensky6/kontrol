@@ -8,7 +8,7 @@ import { minhasPermissoes } from "@/lib/auth/permissao-efetiva";
  */
 export const SECOES_PEDIDOS = [
   { href: "/pedido", label: "Pedidos", desc: "cada pedido e a etapa em que está" },
-  { href: "/compras", label: "Compras formais", desc: "registro das compras com fornecedor, ligadas aos pedidos" },
+  { href: "/compras", label: "Compras", desc: "registro das compras com fornecedor, ligadas aos pedidos" },
   { href: "/suprimentos/prazos", label: "Prazos de compra", desc: "quanto tempo as compras levaram, do pedido à chegada" },
 ];
 

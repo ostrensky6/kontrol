@@ -103,7 +103,7 @@ export function avaliarGestaoPlano({
   if (pedidosAtivos.length > 0) {
     return {
       podeEditar, motivoSemEdicao, houveBaixa, acao: "excluir", acaoBloqueada: true,
-      motivoAcao: `Cancele antes os pedidos internos vinculados: ${pedidosAtivos.join(", ")}.`,
+      motivoAcao: `Cancele antes os pedidos vinculados: ${pedidosAtivos.join(", ")}.`,
     };
   }
   return { podeEditar, motivoSemEdicao, houveBaixa, acao: "excluir", acaoBloqueada: false, motivoAcao: null };

@@ -483,7 +483,8 @@ describe("recebimento de pedido formal de compra", () => {
 
     await expect(comprarFaltasDoPlano({ ok: false }, formData)).resolves.toEqual({
       ok: false,
-      message: "As faltas deste planejamento já estão em pedido interno aberto (#77). Acompanhe por lá.",
+      // a recusa do banco chega com as palavras do glossário (10.5)
+      message: "As faltas deste planejamento já estão em pedido aberto (#77). Acompanhe por lá.",
     });
     expect(redirect).not.toHaveBeenCalled();
   });

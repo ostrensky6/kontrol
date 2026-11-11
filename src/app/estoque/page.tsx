@@ -262,7 +262,7 @@ export default async function EstoquePage({
                 sai primeiro.
               </p>
               <p>
-                <b>+ Entrada</b> registra um lote com o número do fabricante. <b>Dar baixa</b> retira material
+                <b>Registrar chegada</b> cria um lote com o número do fabricante. <b>Dar baixa</b> retira material
                 com motivo (consumo, perda, vencimento ou outro).
               </p>
               <p>

@@ -417,7 +417,7 @@ function movimento(tipo: "entrada" | "saida", operacaoId: string, r: RespostaRpc
   const message = r.repetido
     ? "Esta leitura já estava registrada; nada foi lançado de novo."
     : tipo === "entrada"
-      ? `Entrada registrada: ${embalagens} de ${especificacao}${r.pedido_id ? ` pelo pedido de compra #${r.pedido_id}` : ""}.`
+      ? `Chegada registrada: ${embalagens} de ${especificacao}${r.pedido_id ? ` pela compra #${r.pedido_id}` : ""}.`
       : `Abertura registrada: 1 embalagem de ${especificacao} saiu do estoque.`;
   return {
     ok: true,

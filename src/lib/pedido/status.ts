@@ -6,7 +6,7 @@ export const PEDIDO_INTERNO_STATUS = {
   },
   em_validacao: {
     label: "Aguardando coordenador",
-    etapa: "Validação pelo coordenador do projeto",
+    etapa: "Aprovação pelo coordenador do projeto",
     className: "bg-warning-soft text-warning-strong",
   },
   ajuste_solicitante: {

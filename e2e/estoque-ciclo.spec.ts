@@ -5,19 +5,19 @@ test("ciclo de estoque: receber lote (entra disponível), ajustar consumo e bloq
 
   await page.goto("/estoque");
 
-  await page.getByRole("row").filter({ hasText: "Mix PCR" }).getByRole("button", { name: "+ Entrada" }).click();
-  await expect(page.getByRole("heading", { name: "Entrada de inventário" })).toBeVisible();
+  await page.getByRole("row").filter({ hasText: "Mix PCR" }).getByRole("button", { name: "Registrar chegada" }).click();
+  await expect(page.getByRole("heading", { name: "Registrar chegada sem pedido" })).toBeVisible();
   await page.locator('input[name="quantidade"]').fill("25");
   await page.locator('input[name="validade"]').fill("2026-12-31");
   await page.locator('input[name="codigo"]').fill(loteCodigo);
   await page.locator('input[name="fornecedor"]').fill("Fornecedor E2E");
   await page.locator('input[name="motivo"]').fill("Entrada E2E");
-  await page.getByRole("button", { name: "Registrar entrada" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Registrar chegada" }).click();
   // a entrada confirma na própria janela e a pessoa fecha quando quiser
-  const entrada = page.getByRole("dialog", { name: "Entrada de inventário" });
-  await expect(entrada.getByRole("status")).toContainText("Entrada registrada: o lote já está disponível no estoque.");
+  const entrada = page.getByRole("dialog", { name: "Registrar chegada sem pedido" });
+  await expect(entrada.getByRole("status")).toContainText("Chegada registrada: o lote já está disponível no estoque.");
   await entrada.getByRole("button", { name: "Fechar" }).click();
-  await expect(page.getByRole("heading", { name: "Entrada de inventário" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Registrar chegada sem pedido" })).toHaveCount(0);
 
   // os lotes ficam na visão própria da página do Estoque
   await page.getByRole("navigation", { name: "O que mostrar do estoque" }).getByRole("link", { name: /Lotes em estoque/ }).click();

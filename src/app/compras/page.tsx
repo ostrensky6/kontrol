@@ -9,7 +9,6 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { Campo } from "@/components/common/Campo";
-import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
@@ -78,8 +77,8 @@ export default async function ComprasPage() {
               <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
               <HelpTip title="Compras">
                 <p>
-                  Cada compra segue os status abaixo. Quem registra a chegada cadastra o lote e ele já fica
-                  <b>disponível no estoque</b>. Compra que nasceu de pedido interno é aprovada junto com o
+                  Cada compra segue as situações abaixo. Quem registra a chegada cadastra o lote e ele já fica
+                  <b>disponível no estoque</b>. Compra que nasceu de um pedido é aprovada junto com o
                   pedido, quando ele chega a “Aprovado para compra”.
                 </p>
                 <HelpLegend
@@ -111,9 +110,6 @@ export default async function ComprasPage() {
                   <option key={p.id} value={p.id}>{p.nome}</option>
                 ))}
               </Select>
-            </Campo>
-            <Campo rotulo="Campanha (texto livre)" htmlFor="nova-compra-campanha" className="min-w-40 flex-1">
-              <Input id="nova-compra-campanha" name="projeto" />
             </Campo>
             <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
               Criar compra
@@ -165,11 +161,11 @@ export default async function ComprasPage() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold text-info-strong">Reposição via pedido interno</h2>
-                <HelpTip title="Reposição via pedido interno">
+                <h2 className="text-sm font-semibold text-info-strong">Repor pelo pedido</h2>
+                <HelpTip title="Repor pelo pedido">
                   <p>
-                    A reposição começa como um <b>pedido interno</b> com os itens em falta. Depois de
-                    validado, ele vira a compra formal e segue para o recebimento.
+                    A reposição começa como um <b>pedido</b> com os itens em falta. Depois de
+                    aprovado, ele vira a compra e segue até a chegada.
                   </p>
                 </HelpTip>
               </div>

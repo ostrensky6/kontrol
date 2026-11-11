@@ -1308,11 +1308,11 @@ function LotesInsumoResumo({
           <h3 className="text-sm font-semibold">Lotes em estoque</h3>
           <HelpTip title="Lotes do insumo">
             <p>
-              Cada entrada vira um lote, com número, validade e saldo próprios. O uso segue{" "}
+              Cada chegada vira um lote, com número, validade e saldo próprios. O uso segue{" "}
               <b>FEFO</b>: o lote que vence primeiro sai primeiro.
             </p>
             <p>
-              <b>+ Entrada</b> registra um lote novo. <b>Dar baixa</b> retira material com motivo,
+              <b>Registrar chegada</b> cria um lote novo. <b>Dar baixa</b> retira material com motivo,
               que fica no histórico do lote.
             </p>
           </HelpTip>
@@ -1321,7 +1321,7 @@ function LotesInsumoResumo({
           {podeMovimentar && (
             <>
               <Button asChild size="sm" variant="outline">
-                <a href={`/estoque?entrada=${insumoId}`}>+ Entrada</a>
+                <a href={`/estoque?entrada=${insumoId}`}>Registrar chegada</a>
               </Button>
               <DarBaixaDialog
                 lotes={lotes}

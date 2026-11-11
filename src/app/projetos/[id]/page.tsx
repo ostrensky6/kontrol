@@ -275,7 +275,7 @@ export default async function ProjetoHubPage({
                   ? `O coordenador ${coordenador.nome} está com o usuário suspenso.`
                   : "Este projeto está sem coordenador."}
               </b>{" "}
-              Os pedidos de compra do projeto não seguem para aprovação.
+              Os pedidos do projeto não seguem para aprovação.
               {coordenador.situacao === "falta" && coordenador.escrito
                 ? ` O nome “${coordenador.escrito}” está só escrito no cadastro: para aprovar, a pessoa precisa ser indicada como coordenador.`
                 : ""}
@@ -304,7 +304,7 @@ export default async function ProjetoHubPage({
             hint={`${comprasLinhas.length} pedido(s)`}
             ajuda={
               <HelpTip title="Comprometido em compras">
-                <p>Valor <b>estimado</b> dos pedidos de compra ligados ao projeto, exceto os cancelados.</p>
+                <p>Valor <b>estimado</b> dos pedidos ligados ao projeto, exceto os cancelados.</p>
               </HelpTip>
             }
           />
@@ -399,7 +399,7 @@ export default async function ProjetoHubPage({
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
             {comprasLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido de compra vinculado a este projeto.</p>
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido ligado a este projeto.</p>
             ) : (
               <table className="min-w-full">
                 <thead className="border-b border-border/70">

@@ -30,8 +30,8 @@ describe("entrada inicial de estoque", () => {
   });
 
   it("orienta antes e depois da entrada sem prometer permissao", () => {
-    expect(button).toContain("O lote entra disponível para uso assim que a entrada é registrada.");
-    expect(button).toContain("Material comprado deve ser recebido");
+    expect(button).toContain("O lote entra disponível para uso assim que a chegada é registrada.");
+    expect(button).toContain("Material comprado deve ter a chegada");
     expect(button).not.toContain("Falta aceitar o lote");
     expect(button).toContain('href="/estoque"');
     expect(button).toContain("Revisar no Estoque");

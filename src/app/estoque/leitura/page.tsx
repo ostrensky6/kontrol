@@ -38,8 +38,8 @@ export default async function LeituraEstoquePage({
             <HelpTip title="Leitura de código de barras">
               <p>
                 <b>Entrada</b>: leia o código do fabricante, confira a quantidade de embalagens (1 por
-                padrão) e a validade e confirme. O lote é criado sozinho. Se houver pedido de compra em
-                aberto, a entrada pode ser feita pelo pedido, sem lançar em dobro.
+                padrão) e a validade e confirme. O lote é criado sozinho. Se houver compra em
+                aberto, a chegada pode ser registrada pela compra, sem lançar em dobro.
               </p>
               <p>
                 <b>Saída</b>: cada leitura registra a abertura de 1 embalagem fechada. Sai primeiro o

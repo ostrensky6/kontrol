@@ -77,12 +77,12 @@ const PASSOS: Record<string, ProximoPasso> = {
     depois: "o Recebimento registra a chegada dos itens.",
   },
   compra_fechada: {
-    acao: "Receber os itens (ou confirmar o serviço)",
+    acao: "Registrar a chegada dos itens (ou confirmar o serviço)",
     responsavel: "Recebimento",
     depois: "com tudo entregue, o pedido segue para o pagamento.",
   },
   encaminhado_instituicao: {
-    acao: "Acompanhar a instituição e receber os itens",
+    acao: "Acompanhar a instituição e registrar a chegada dos itens",
     responsavel: "Administrativo e Recebimento",
     depois: "com tudo entregue, o pedido segue para o pagamento.",
   },

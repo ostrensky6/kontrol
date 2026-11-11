@@ -175,7 +175,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Compras formais", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
+        <Breadcrumbs items={[{ label: "Compras", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-semibold tracking-tight">Compra #{pedido.id}</h1>
@@ -210,10 +210,10 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
         )}
 
         <section aria-labelledby="prazo-recebimento" className="mt-4 rounded-lg border border-border bg-card px-4 py-3 text-sm">
-          <h2 id="prazo-recebimento" className="font-semibold">Da compra formal ao recebimento integral</h2>
+          <h2 id="prazo-recebimento" className="font-semibold">Da compra à chegada completa</h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Da criação da compra formal ao registro do recebimento integral no livro. A chegada física, a tramitação do
-            pedido interno ou da Funpar e o prazo total do processo ficam fora deste intervalo.
+            Da criação da compra ao registro da chegada completa no livro. A chegada física, a tramitação do
+            pedido ou da Funpar e o prazo total do processo ficam fora deste intervalo.
           </p>
           {prazo.estado === "observado" ? (
             <>
@@ -328,7 +328,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                       <td className="px-4 py-2.5 text-muted-foreground">
                         {it.pedidos_internos_itens?.pedido_interno_id ? (
                           <Link href={`/pedido/${it.pedidos_internos_itens.pedido_interno_id}`} className="text-primary hover:underline">
-                            Pedido interno #{it.pedidos_internos_itens.pedido_interno_id}
+                            Pedido #{it.pedidos_internos_itens.pedido_interno_id}
                           </Link>
                         ) : "—"}
                       </td>

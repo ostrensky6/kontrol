@@ -218,7 +218,7 @@ export function InventarioScannerPanel({
         <div className="flex items-center gap-1">
           <h2 className="inline-flex items-center gap-2 text-sm font-semibold">
             <ScanLine className="h-4 w-4 text-brand-600 dark:text-brand-300" />
-            Contagem por scanner
+            Contar por scanner
           </h2>
           <HelpTip title="Como contar">
             <p>
@@ -227,10 +227,10 @@ export function InventarioScannerPanel({
             </p>
             <p>
               Sem lote: leia o <b>código de barras do fabricante</b> e digite quantas embalagens
-              fechadas há do insumo. A contagem vale para o total do insumo.
+              fechadas há do insumo. A quantidade contada vale para o total do insumo.
             </p>
             <p>
-              Código não reconhecido vai para a triagem. Se a contagem diferir do sistema, a
+              Código não reconhecido vai para a triagem. Se a quantidade contada diferir do sistema, a
               justificativa é obrigatória.
             </p>
           </HelpTip>
@@ -341,7 +341,7 @@ export function InventarioScannerPanel({
 
         <form onSubmit={enviarSemReset(salvarContagem)} className="grid gap-3">
           <div>
-            <label htmlFor={`${uid}-ciclo_id`} className="block text-xs font-medium text-muted-foreground">Campanha</label>
+            <label htmlFor={`${uid}-ciclo_id`} className="block text-xs font-medium text-muted-foreground">Contagem</label>
             <select
               id={`${uid}-ciclo_id`}
               name="ciclo_id"
@@ -525,7 +525,7 @@ export function InventarioScannerPanel({
             className="inline-flex items-center justify-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:opacity-50"
           >
             {submitPending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Registrar contagem
+            Registrar item contado
           </button>
         </form>
       </div>

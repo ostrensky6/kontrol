@@ -14,7 +14,7 @@ describe("ajuda contextual", () => {
 
   it("explica as ações novas do estoque", () => {
     const estoque = ajudaParaRota("/estoque").checks.join(" ");
-    expect(estoque).toContain("+ Entrada");
+    expect(estoque).toContain("Registrar chegada");
     expect(estoque).toMatch(/número do lote/);
     expect(estoque).toMatch(/Dar baixa.*motivo.*perda.*vencimento/);
     expect(estoque).toMatch(/lote que vence antes/);

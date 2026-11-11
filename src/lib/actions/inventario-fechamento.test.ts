@@ -33,7 +33,7 @@ describe("fecharCicloInventario", () => {
     const resultado = await fecharCicloInventario({ ok: false }, formulario());
 
     expect(rpc).toHaveBeenCalledWith("fechar_ciclo_inventario", { p_ciclo_id: 7 });
-    expect(resultado).toEqual({ ok: true, message: "Campanha fechada: 5 contagem(ns), 2 ajuste(s) aplicado(s)." });
+    expect(resultado).toEqual({ ok: true, message: "Contagem fechada: 5 item(ns) contado(s), 2 ajuste(s) aplicado(s)." });
     expect(revalidatePath).toHaveBeenCalledWith("/estoque/inventario");
   });
 
@@ -48,6 +48,10 @@ describe("fecharCicloInventario", () => {
 
     expect(resultado.ok).toBe(false);
     expect(resultado.message).toContain("sem ajuste aplicado");
+    // a regra é do banco; na tela, as palavras do glossário (10.5): Contagem e item contado
+    expect(resultado.message).toContain("Há 1 item(ns) contado(s) com diferença");
+    expect(resultado.message).toContain("antes de fechar a contagem");
+    expect(resultado.message).not.toMatch(/campanha/i);
     expect(revalidatePath).not.toHaveBeenCalled();
   });
 
@@ -61,7 +65,7 @@ describe("fecharCicloInventario", () => {
     expect(rpc).not.toHaveBeenCalled();
   });
 
-  it("recusa campanha inválida sem chamar o banco", async () => {
+  it("recusa contagem inválida sem chamar o banco", async () => {
     const { fecharCicloInventario } = await import("./inventario");
 
     const resultado = await fecharCicloInventario({ ok: false }, formulario("abc"));

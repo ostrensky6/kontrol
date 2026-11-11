@@ -52,7 +52,7 @@ export function VinculosProjeto({ projetoId, pessoas }: { projetoId: number; pes
         <h2 id="vinculos-projeto-titulo" className="text-lg font-semibold tracking-tight">Quem atua neste projeto</h2>
         <HelpTip title="Quem atua neste projeto">
           <p>
-            Coordenador e Gestor só alteram o projeto e validam pedidos internos dele se estiverem ligados aqui ou se
+            Coordenador e Gestor só alteram o projeto e aprovam os pedidos dele se estiverem ligados aqui ou se
             forem o coordenador cadastrado. As outras funções seguem pelas permissões.
           </p>
           <p>Só o Administrador vê e altera esta lista.</p>

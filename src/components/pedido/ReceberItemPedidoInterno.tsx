@@ -214,7 +214,7 @@ export function ReceberItemPedidoInterno({
           className="inline-flex items-center gap-1.5 rounded-md bg-leaf-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-leaf-500"
         >
           <PackageCheck className="h-3.5 w-3.5" />
-          Receber
+          Registrar chegada
         </button>
       </DialogTrigger>
 
@@ -224,8 +224,8 @@ export function ReceberItemPedidoInterno({
       >
         <DialogHeader className="gap-0 pr-6">
           <div className="flex items-center gap-1">
-            <DialogTitle>Receber item</DialogTitle>
-            <HelpTip title="Recebimento do item">
+            <DialogTitle>Registrar chegada</DialogTitle>
+            <HelpTip title="Chegada do item">
               <p>
                 Ao confirmar, a quantidade entra no estoque como um <b>lote</b> do insumo escolhido.
               </p>
@@ -476,7 +476,7 @@ export function ReceberItemPedidoInterno({
               disabled={recebimentoPending || scanPending}
               className="rounded-md bg-leaf-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-leaf-500 disabled:opacity-50"
             >
-              {recebimentoPending ? "Recebendo…" : "Confirmar recebimento"}
+              {recebimentoPending ? "Registrando…" : "Confirmar chegada"}
             </button>
           </div>
         </form>

@@ -45,7 +45,7 @@ export default async function ProjetosPage() {
             <HelpTip title="Projetos">
               <p>Orçamentos, planejamentos e compras de cada projeto num só lugar.</p>
               <p>
-                O <b>coordenador</b> é o usuário que aprova os pedidos de compra do projeto. Projeto sem
+                O <b>coordenador</b> é o usuário que aprova os pedidos do projeto. Projeto sem
                 coordenador não consegue enviar pedido para aprovação. O nome escrito no campo
                 “Responsável técnico” é só informativo.
               </p>
@@ -68,7 +68,7 @@ export default async function ProjetosPage() {
               <b>
                 {semCoordenador} {semCoordenador === 1 ? "projeto em aberto está" : "projetos em aberto estão"} sem coordenador.
               </b>{" "}
-              Os pedidos de compra {semCoordenador === 1 ? "dele" : "deles"} não seguem para aprovação.
+              Os pedidos {semCoordenador === 1 ? "dele" : "deles"} não seguem para aprovação.
             </p>
             <Link href="/cadastros/projetos" className="font-semibold underline">
               Indicar coordenador

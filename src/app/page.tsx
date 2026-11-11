@@ -18,6 +18,7 @@ import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoqu
 import { textoResumoAlertas } from "@/lib/cadastros/painel-decisao";
 import { hojeIso } from "@/lib/estoque/baixa";
 import { contarSituacaoEstoque } from "@/lib/estoque/situacao-dados";
+import { noGlossario } from "@/lib/glossario";
 
 export const dynamic = "force-dynamic";
 
@@ -157,7 +158,8 @@ export default async function Home() {
   const previsao = ((previsaoRaw ?? []) as Previsao[]).filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0);
   const pedidos = (pedidosRaw ?? []) as PedidoCompra[];
   const dashboard = dashboardRaw as DashboardExecutivo | null;
-  const notificacoes = (notificacoesRaw ?? []) as Notificacao[];
+  // avisos gravados pelo banco ainda trazem palavras antigas: o glossário (10.5) vale aqui também
+  const notificacoes = ((notificacoesRaw ?? []) as Notificacao[]).map((n) => ({ ...n, titulo: noGlossario(n.titulo), corpo: noGlossario(n.corpo) }));
 
   const comprarAgora = previsao
     .map((p) => ({
@@ -197,7 +199,7 @@ export default async function Home() {
   } else if (verCompras) {
     indicadores.push({
       href: "/compras",
-      label: "Comprar agora",
+      label: "Repor",
       value: comprarAgora.length,
       detail: "insumos com compra sugerida pela previsão",
       tone: comprarAgora.length ? "warning" : "neutral",
@@ -237,7 +239,7 @@ export default async function Home() {
       }))
     : comprarAgora.map((c, i) => ({
         chave: `comprar-${i}-${c.titulo}`,
-        selo: "Comprar agora",
+        selo: "Repor",
         tom: "atencao",
         titulo: c.titulo,
         meta: c.meta,

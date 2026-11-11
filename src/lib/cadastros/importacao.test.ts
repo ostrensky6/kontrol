@@ -74,6 +74,19 @@ describe("mapeamento de cabecalhos", () => {
     expect(mapa.has("unidades fechadas (calculado)")).toBe(false);
   });
 
+  it("o rótulo novo \"Mínimo\" e os antigos importam no mesmo campo (glossário 10.5)", () => {
+    const insumos = mapaCabecalhos(CADASTROS.insumos);
+    expect(insumos.get(normalizarChave("Mínimo"))).toBe("ponto_reposicao");
+    // planilhas exportadas antes da troca continuam valendo
+    expect(insumos.get(normalizarChave("Ponto de reposição"))).toBe("ponto_reposicao");
+    expect(insumos.get(normalizarChave("Repos."))).toBe("ponto_reposicao");
+    const projetos = mapaCabecalhos(CADASTROS.projetos);
+    expect(projetos.get(normalizarChave("Situação"))).toBe("status");
+    expect(projetos.get(normalizarChave("Status"))).toBe("status");
+    // prova negativa: um cabeçalho qualquer não vira o mínimo
+    expect(insumos.get(normalizarChave("Reposição"))).toBeUndefined();
+  });
+
   it("le a aba com pt-BR e mensagens por rotulo e linha", () => {
     const sheet = abaInsumos(
       [
