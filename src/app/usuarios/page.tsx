@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { createClient } from "@/lib/supabase/server";
 import { HelpTip } from "@/components/common/HelpTip";
+import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { temPapel } from "@/lib/auth/roles";
 import { PAPEIS } from "@/lib/auth/permissions";
 import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
@@ -72,18 +73,24 @@ export default async function UsuariosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Usuários</h1>
-          <HelpTip title="Usuários">
-            <p>
-              Acessos, pré-aprovados, funções, assinaturas e senhas. O que cada função pode fazer fica em{" "}
-              <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>; em
-              Editar, ajuste uma pessoa sem mudar a função dela.
-            </p>
-          </HelpTip>
-        </div>
-
-        <CriarUsuarioForm />
+        {/* a lista vem primeiro; o formulário de novo usuário abre pelo botão (L14) */}
+        <CriarPorBotao
+          rotulo="Novo usuário"
+          cabecalho={
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold tracking-tight">Usuários</h1>
+              <HelpTip title="Usuários">
+                <p>
+                  Acessos, pré-aprovados, funções, assinaturas e senhas. O que cada função pode fazer fica em{" "}
+                  <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>; em
+                  Editar, ajuste uma pessoa sem mudar a função dela.
+                </p>
+              </HelpTip>
+            </div>
+          }
+        >
+          <CriarUsuarioForm />
+        </CriarPorBotao>
 
         <div className="mt-6">
           <UsuariosTable rows={linhas} />

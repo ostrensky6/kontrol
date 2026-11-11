@@ -2,8 +2,11 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function criarPlano(page: Page, nome: string) {
   await page.goto("/planejamento");
-  await page.locator('input[name="nome"]').fill(nome);
+  // o formulário de criação fica atrás do botão (revisão de 11/11, L14)
   await page.getByRole("button", { name: "Novo plano" }).click();
+  await expect(page.getByLabel("Nome do plano")).toBeFocused();
+  await page.getByLabel("Nome do plano").fill(nome);
+  await page.getByRole("button", { name: "Criar plano" }).click();
   await expect(page).toHaveURL(/\/planejamento\/\d+$/);
   await expect(page.getByRole("heading", { level: 1, name: nome })).toBeVisible();
 }
@@ -57,7 +60,10 @@ test("exclui plano sem baixa pela ação da lista", async ({ page }) => {
   await page.goto("/planejamento");
 
   await expect(page.getByRole("link", { name: `Editar ${nome}` })).toHaveAttribute("href", /#editar$/);
-  await page.getByRole("button", { name: `Excluir ${nome}` }).click();
+  // Excluir saiu do lado de "Ver": fica no menu "…" da linha (revisão de 11/11, L15)
+  await expect(page.getByRole("button", { name: `Excluir ${nome}` })).toHaveCount(0);
+  await page.getByRole("button", { name: `Mais ações de ${nome}` }).click();
+  await page.getByRole("menuitem", { name: "Excluir plano" }).click();
   const dialogo = page.getByRole("dialog");
   await expect(dialogo).toContainText("Reservas ativas são liberadas");
   await dialogo.getByLabel("Motivo").fill("Duplicado");

@@ -321,3 +321,79 @@ test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, co
   await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Entrada e saída por leitura" }).click();
   await expect(page).toHaveURL(/\/estoque\/leitura$/);
 });
+
+test("criar fica atrás de um botão: Planejamento, Compras, Usuários e Inventário (L14)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  const telas = [
+    { url: "/planejamento", botao: "Novo plano", campo: () => page.getByLabel("Nome do plano") },
+    { url: "/compras", botao: "Nova compra", campo: () => page.getByLabel("Fornecedor", { exact: true }) },
+    { url: "/usuarios", botao: "Novo usuário", campo: () => page.locator("#novo-usuario-nome") },
+    { url: "/estoque/inventario", botao: "Nova campanha", campo: () => page.getByPlaceholder("Inventário semanal") },
+  ];
+  for (const tela of telas) {
+    await page.goto(tela.url);
+    const botao = page.getByRole("button", { name: tela.botao, exact: true });
+    await expect(botao, tela.url).toHaveAttribute("aria-expanded", "false");
+    // a lista aparece sem o formulário na frente
+    await expect(tela.campo(), tela.url).toBeHidden();
+    await botao.click();
+    await expect(tela.campo(), tela.url).toBeVisible();
+    await expect(tela.campo(), tela.url).toBeFocused();
+    const fechar = page.getByRole("button", { name: `Fechar: ${tela.botao}` });
+    await expect(fechar).toHaveAttribute("aria-expanded", "true");
+    await fechar.click();
+    await expect(tela.campo(), tela.url).toBeHidden();
+  }
+});
+
+test("Excluir e Cancelar do plano saem da linha e vão para o menu (L15)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/planejamento");
+  const tabela = page.getByRole("table").first();
+  await expect(tabela).toBeVisible();
+  await expect(tabela.getByRole("link", { name: /^Ver / }).first()).toBeVisible();
+  // nenhuma ação destrutiva à vista na linha
+  await expect(tabela.getByRole("button", { name: /^(Excluir|Cancelar) / })).toHaveCount(0);
+  const menu = tabela.getByRole("button", { name: /^Mais ações de / }).first();
+  await menu.click();
+  await expect(page.getByRole("menuitem", { name: /^(Excluir|Cancelar) plano$/ })).toBeVisible();
+  // negativa: abrir o menu e sair não muda nada
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("Planejamento e Pedidos ganham abas; na página de um registro elas não aparecem (L12, L13)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/planejamento");
+  const planejamento = page.getByRole("navigation", { name: "Seções do planejamento" });
+  await expect(planejamento.getByRole("link")).toHaveText(["Planos", /^Disputas de reserva/]);
+  await expect(planejamento.locator("a[aria-current]")).toHaveText(["Planos"]);
+  await planejamento.getByRole("link", { name: /Disputas de reserva/ }).click();
+  await expect(page.getByRole("heading", { level: 1, name: /Disputas de reserva/ })).toBeVisible();
+  await expect(planejamento.locator("a[aria-current]")).toHaveText([/^Disputas de reserva/]);
+  await page.goto("/planejamento/900");
+  await expect(page.getByRole("heading", { level: 1, name: "Plano com baixa E2E" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Seções do planejamento" })).toHaveCount(0);
+
+  await page.goto("/pedido");
+  const pedidos = page.getByRole("navigation", { name: "Seções de pedidos" });
+  await expect(pedidos.getByRole("link")).toHaveText(["Pedidos", "Compras formais", "Prazos de compra"]);
+  // os links de texto sob o título saíram
+  await expect(page.getByRole("navigation", { name: "Compras e prazos" })).toHaveCount(0);
+  await pedidos.getByRole("link", { name: "Prazos de compra" }).click();
+  await expect(page).toHaveURL(/\/suprimentos\/prazos$/);
+  await expect(pedidos.locator("a[aria-current]")).toHaveText(["Prazos de compra"]);
+  await expect(
+    page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Pedidos" }),
+  ).toHaveAttribute("aria-current", "page");
+  await page.goto("/pedido/502");
+  await expect(page.getByRole("navigation", { name: "Seções de pedidos" })).toHaveCount(0);
+});
+
+test("abas de Pedidos mostram só as telas que a pessoa pode abrir (L13, prova negativa)", async ({ page }) => {
+  // Cadastro não acessa Pedidos nem Compras: sem duas telas para alternar, não há abas
+  await comoCategoria(page, "cadastro");
+  await page.goto("/pedido");
+  await expect(page.getByRole("heading", { level: 1, name: "Pedidos" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Seções de pedidos" })).toHaveCount(0);
+});

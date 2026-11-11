@@ -60,7 +60,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Inventário",
       description: "Contagem física por insumo (sem lote) ou por lote, com ajuste das diferenças.",
       checks: [
-        "Abra uma campanha e leia o código de barras do insumo, ou o local e o lote.",
+        "Abra uma campanha em Nova campanha e leia o código de barras do insumo, ou o local e o lote.",
         "Informe a quantidade contada; a diferença aparece na hora.",
         "Ajustes precisam de justificativa e ficam na auditoria.",
       ],
@@ -122,6 +122,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       description: "Do pedido interno ao recebimento no estoque.",
       checks: [
         "Faltas de estoque viram pedido interno, que segue para aprovação e compra.",
+        "Pedidos, Compras formais e Prazos de compra são abas da mesma tela.",
         "Receba os itens pelo próprio pedido de compra.",
         "Ao registrar a chegada, o lote já fica disponível no estoque; compra de pedido interno é aprovada junto com o pedido, em “Aprovado para compra”.",
       ],
@@ -133,7 +134,8 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Planejamento",
       description: "Organiza a execução: análises, datas, lotes reservados e faltas.",
       checks: [
-        "Informe projeto e período antes de reservar insumos.",
+        "Novo plano abre o formulário; informe projeto e período antes de reservar insumos.",
+        "A aba Disputas de reserva mostra o que espera decisão.",
         "Reservar separa os lotes; a baixa só acontece em Iniciar.",
         "Faltas geram pedido interno de compra.",
       ],

@@ -3,6 +3,7 @@ import { criarPlano } from "@/lib/actions/planejamento";
 import { PlanosTable, type PlanoRow } from "@/components/planejamento/PlanosTable";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { avaliarGestaoPlano } from "@/lib/planejamento/gestao";
 import { formatDate, formatPeriodo } from "@/lib/formatters";
 
@@ -103,76 +104,82 @@ export default async function PlanejamentoPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Planejamento</h1>
-          <HelpTip title="Planejamento">
-            <p>
-              Cada plano organiza a execução das análises: projeto, período, <b>reserva de lotes</b>,
-              pedidos para o que falta e a baixa no estoque.
-            </p>
-            <HelpLegend
-              items={[
-                { tom: "atencao", rotulo: "Rascunho", texto: "ainda sem reserva de insumos." },
-                { tom: "info", rotulo: "Reservado", texto: "lotes separados, ainda sem baixa." },
-                { tom: "info", rotulo: "Em execução", texto: "iniciado; os lotes reservados já foram baixados." },
-                { tom: "ok", rotulo: "Concluído", texto: "execução encerrada." },
-                { tom: "neutro", rotulo: "Liberado", texto: "reservas desfeitas ou plano cancelado." },
-              ]}
-            />
-          </HelpTip>
-        </div>
+        {/* a lista vem primeiro; o formulário de novo plano abre pelo botão (L14) */}
+        <CriarPorBotao
+          rotulo="Novo plano"
+          cabecalho={
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold tracking-tight">Planejamento</h1>
+              <HelpTip title="Planejamento">
+                <p>
+                  Cada plano organiza a execução das análises: projeto, período, <b>reserva de lotes</b>,
+                  pedidos para o que falta e a baixa no estoque.
+                </p>
+                <HelpLegend
+                  items={[
+                    { tom: "atencao", rotulo: "Rascunho", texto: "ainda sem reserva de insumos." },
+                    { tom: "info", rotulo: "Reservado", texto: "lotes separados, ainda sem baixa." },
+                    { tom: "info", rotulo: "Em execução", texto: "iniciado; os lotes reservados já foram baixados." },
+                    { tom: "ok", rotulo: "Concluído", texto: "execução encerrada." },
+                    { tom: "neutro", rotulo: "Liberado", texto: "reservas desfeitas ou plano cancelado." },
+                  ]}
+                />
+              </HelpTip>
+            </div>
+          }
+        >
+          <form
+            action={criarPlano}
+            aria-label="Novo plano"
+            className="grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
+          >
+            <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
+              <label htmlFor="novo-plano-nome" className="block text-xs font-medium text-muted-foreground">Nome do plano</label>
+              <input id="novo-plano-nome" name="nome" placeholder="Ex.: Lote junho, sequenciamento" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label htmlFor="novo-plano-inicio" className="block text-xs font-medium text-muted-foreground">Início previsto</label>
+              <input id="novo-plano-inicio" name="data_inicio_prevista" type="date" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label htmlFor="novo-plano-fim" className="block text-xs font-medium text-muted-foreground">Fim previsto</label>
+              <input id="novo-plano-fim" name="data_fim_prevista" type="date" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
+            </div>
+            <div>
+              <label htmlFor="novo-plano-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
+              <select id="novo-plano-projeto" name="projeto_id" defaultValue="" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
+                <option value="">—</option>
+                {(projetos ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label htmlFor="novo-plano-prioridade" className="block text-xs font-medium text-muted-foreground">Prioridade</label>
+              <select id="novo-plano-prioridade" name="prioridade" defaultValue="normal" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
+                <option value="baixa">Baixa</option>
+                <option value="normal">Normal</option>
+                <option value="alta">Alta</option>
+                <option value="urgente">Urgente</option>
+              </select>
+            </div>
+            <div className="sm:col-span-2 xl:col-span-5">
+              <label htmlFor="novo-plano-responsavel" className="block text-xs font-medium text-muted-foreground">Responsável operacional</label>
+              <input id="novo-plano-responsavel" name="responsavel" placeholder="Pessoa ou equipe que executa" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
+            </div>
+            <div className="flex items-end justify-start">
+              <button className="app-action-compact bg-brand-600 text-white hover:bg-brand-500">
+                Criar plano
+              </button>
+            </div>
+          </form>
+        </CriarPorBotao>
         {planoExcluido && (
           <p role="status" className="mt-3 rounded-lg border border-brand-300 bg-brand-50 px-4 py-2 text-sm text-brand-800 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-300">
             Plano #{planoExcluido} excluído. O motivo ficou registrado na trilha de auditoria.
           </p>
         )}
 
-        {/* novo plano */}
-        <form
-          action={criarPlano}
-          aria-label="Novo plano"
-          className="mt-6 grid gap-3 rounded-xl border border-border bg-card p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6"
-        >
-          <div className="sm:col-span-2 lg:col-span-3 xl:col-span-2">
-            <label htmlFor="novo-plano-nome" className="block text-xs font-medium text-muted-foreground">Nome do plano</label>
-            <input id="novo-plano-nome" name="nome" placeholder="Ex.: Lote junho, sequenciamento" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label htmlFor="novo-plano-inicio" className="block text-xs font-medium text-muted-foreground">Início previsto</label>
-            <input id="novo-plano-inicio" name="data_inicio_prevista" type="date" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label htmlFor="novo-plano-fim" className="block text-xs font-medium text-muted-foreground">Fim previsto</label>
-            <input id="novo-plano-fim" name="data_fim_prevista" type="date" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
-          </div>
-          <div>
-            <label htmlFor="novo-plano-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
-            <select id="novo-plano-projeto" name="projeto_id" defaultValue="" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
-              <option value="">—</option>
-              {(projetos ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="novo-plano-prioridade" className="block text-xs font-medium text-muted-foreground">Prioridade</label>
-            <select id="novo-plano-prioridade" name="prioridade" defaultValue="normal" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm">
-              <option value="baixa">Baixa</option>
-              <option value="normal">Normal</option>
-              <option value="alta">Alta</option>
-              <option value="urgente">Urgente</option>
-            </select>
-          </div>
-          <div className="sm:col-span-2 xl:col-span-5">
-            <label htmlFor="novo-plano-responsavel" className="block text-xs font-medium text-muted-foreground">Responsável operacional</label>
-            <input id="novo-plano-responsavel" name="responsavel" placeholder="Pessoa ou equipe que executa" className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm" />
-          </div>
-          <div className="flex items-end justify-start">
-            <button className="app-action-compact bg-brand-600 text-white hover:bg-brand-500">
-              Novo plano
-            </button>
-          </div>
-        </form>
 
         <div className="mt-6">
           <PlanosTable rows={linhas} />

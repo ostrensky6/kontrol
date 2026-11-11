@@ -114,7 +114,7 @@ export function PlanosTable({ rows }: { rows: PlanoRow[] }) {
       data={rows}
       columns={columns}
       searchPlaceholder="Buscar plano, projeto ou status..."
-      emptyText="Nenhum plano ainda. Crie o primeiro acima."
+      emptyText="Nenhum plano ainda. Crie o primeiro em Novo plano."
       filters={[
         {
           columnId: "statusLabel",

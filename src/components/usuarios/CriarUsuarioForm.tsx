@@ -21,7 +21,7 @@ export function CriarUsuarioForm() {
     <form
       action={action}
       {...formularioSemPerda(state)}
-      className="mt-6 rounded-lg border border-info-strong/30 bg-info-soft p-4"
+      className="rounded-lg border border-info-strong/30 bg-info-soft p-4"
     >
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-52 flex-1">
