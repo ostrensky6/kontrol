@@ -134,19 +134,29 @@ export const PERMISSOES: Array<{
   label: string;
   descricao: string;
 }> = [
-  // ---- Cadastros ----
-  { key: "cadastros.ver", modulo: "Cadastros", label: "Acessar Cadastros", descricao: "Ver o módulo Cadastros (clientes, fornecedores, equipamentos, locais…)." },
-  { key: "cadastros.editar", modulo: "Cadastros", label: "Editar cadastros", descricao: "Criar, editar e excluir registros dos cadastros." },
-  { key: "projetos.ver", modulo: "Cadastros", label: "Acessar Projetos", descricao: "Ver a visão por projeto." },
-  { key: "projetos.editar", modulo: "Cadastros", label: "Editar projetos", descricao: "Criar e editar projetos." },
-  {
-    // Padrão: somente admin. O banco aplica a mesma regra (migration 0112).
-    key: "tecnicos.salario.ver",
-    modulo: "Cadastros",
-    label: "Ver salário dos técnicos",
-    descricao:
-      "Ver e alterar o salário dos técnicos. Também mostra os valores de pessoal (PE) do catálogo de custos. Sem ela, o salário aparece como XXX.",
-  },
+  // ---- Projetos (o Planejamento fica com Projetos desde a organização de 11/11/2026) ----
+  { key: "projetos.ver", modulo: "Projetos", label: "Acessar Projetos", descricao: "Ver a visão por projeto." },
+  { key: "projetos.editar", modulo: "Projetos", label: "Editar projetos", descricao: "Criar e editar projetos." },
+  { key: "planejamento.ver", modulo: "Projetos", label: "Acessar Planejamento", descricao: "Ver planos, reservas e faltas." },
+  { key: "planejamento.editar", modulo: "Projetos", label: "Montar planejamento", descricao: "Criar e editar planos; liberar, cancelar e excluir." },
+  { key: "planejamento.executar", modulo: "Projetos", label: "Executar planejamento", descricao: "Reservar insumos e equipamentos, retirar e concluir análises." },
+  // ---- Compras: do pedido ao recebimento (antes, parte de "Suprimentos") ----
+  { key: "pedido.ver", modulo: "Compras", label: "Acessar Pedidos", descricao: "Ver a visão geral de Compras, os pedidos e suas etapas." },
+  { key: "pedido.criar", modulo: "Compras", label: "Criar pedidos", descricao: "Abrir pedidos, anexar documentos e enviar para aprovação." },
+  { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Aprovar, devolver, formalizar e conduzir as etapas de compra." },
+  { key: "compras.ver", modulo: "Compras", label: "Acessar Compras", descricao: "Ver as compras com fornecedor e os prazos de compra." },
+  { key: "compras.solicitar", modulo: "Compras", label: "Solicitar compras", descricao: "Criar compras, incluir itens e gerar reposição." },
+  { key: "compras.aprovar", modulo: "Compras", label: "Aprovar compras", descricao: "Aprovar, enviar ao fornecedor e encerrar compras com pendência." },
+  { key: "compras.receber", modulo: "Compras", label: "Registrar chegada de compras", descricao: "Registrar a chegada dos itens de uma compra." },
+  { key: "compras.cancelar", modulo: "Compras", label: "Cancelar compras e pedidos", descricao: "Cancelar compras e pedidos." },
+  { key: "recebimento.ver", modulo: "Compras", label: "Acessar Recebimento", descricao: "Ver o que falta chegar." },
+  { key: "recebimento.registrar", modulo: "Compras", label: "Registrar chegada de pedidos", descricao: "Registrar a chegada de itens de pedido sem compra." },
+  // ---- Estoque (antes, parte de "Suprimentos") ----
+  { key: "estoque.ver", modulo: "Estoque", label: "Acessar Estoque", descricao: "Ver saldos, lotes, inventário, etiquetas e equipamentos." },
+  { key: "estoque.movimentar", modulo: "Estoque", label: "Dar baixa e registrar entradas", descricao: "Retirar material, abrir frascos, dar baixa e lançar entradas manuais." },
+  { key: "estoque.lote.aceitar", modulo: "Estoque", label: "Aceitar lotes", descricao: "Sem uso desde 27/09/2026: o lote entra disponível ao registrar a chegada, sem quarentena." },
+  { key: "estoque.lote.gerir", modulo: "Estoque", label: "Corrigir estoque", descricao: "Ajustar saldos, inventário, estornar recebimentos e excluir lotes lançados por engano." },
+  { key: "estoque.descartar_bloquear", modulo: "Estoque", label: "Bloquear e descartar lotes", descricao: "Bloquear, desbloquear e descartar lotes." },
   // ---- Análises e custeio (antes "Operação") ----
   { key: "analises.ver", modulo: "Análises e custeio", label: "Acessar Análises", descricao: "Ver o catálogo de análises, etapas e receitas." },
   { key: "analises.editar", modulo: "Análises e custeio", label: "Editar análises", descricao: "Criar, duplicar, editar e excluir análises e receitas." },
@@ -154,25 +164,6 @@ export const PERMISSOES: Array<{
   { key: "insumos.editar", modulo: "Análises e custeio", label: "Editar insumos", descricao: "Criar, editar e excluir insumos do cadastro, inclusive junto com o histórico (lotes e movimentações)." },
   { key: "custeio.ver", modulo: "Análises e custeio", label: "Acessar Custeio", descricao: "Ver o custo técnico das análises." },
   { key: "configuracoes.ver", modulo: "Análises e custeio", label: "Acessar Parâmetros de custeio", descricao: "Ver os parâmetros de custeio (horas, rateios, percentuais)." },
-  // ---- Suprimentos ----
-  { key: "estoque.ver", modulo: "Suprimentos", label: "Acessar Estoque", descricao: "Ver saldos, lotes, inventário, etiquetas e equipamentos." },
-  { key: "estoque.movimentar", modulo: "Suprimentos", label: "Dar baixa e registrar entradas", descricao: "Retirar material, abrir frascos, dar baixa e lançar entradas manuais." },
-  { key: "estoque.lote.aceitar", modulo: "Suprimentos", label: "Aceitar lotes", descricao: "Sem uso desde 27/09/2026: o lote entra disponível ao registrar a chegada, sem quarentena." },
-  { key: "estoque.lote.gerir", modulo: "Suprimentos", label: "Corrigir estoque", descricao: "Ajustar saldos, inventário, estornar recebimentos e excluir lotes lançados por engano." },
-  { key: "estoque.descartar_bloquear", modulo: "Suprimentos", label: "Bloquear e descartar lotes", descricao: "Bloquear, desbloquear e descartar lotes." },
-  { key: "planejamento.ver", modulo: "Suprimentos", label: "Acessar Planejamento", descricao: "Ver planos, reservas e faltas." },
-  { key: "planejamento.editar", modulo: "Suprimentos", label: "Montar planejamento", descricao: "Criar e editar planos; liberar, cancelar e excluir." },
-  { key: "planejamento.executar", modulo: "Suprimentos", label: "Executar planejamento", descricao: "Reservar insumos e equipamentos, retirar e concluir análises." },
-  { key: "pedido.ver", modulo: "Suprimentos", label: "Acessar Pedidos", descricao: "Ver pedidos e suas etapas." },
-  { key: "pedido.criar", modulo: "Suprimentos", label: "Criar pedidos", descricao: "Abrir pedidos, anexar documentos e enviar para aprovação." },
-  { key: "pedido.aprovar", modulo: "Suprimentos", label: "Aprovar pedidos", descricao: "Aprovar, devolver, formalizar e conduzir as etapas de compra." },
-  { key: "compras.ver", modulo: "Suprimentos", label: "Acessar Compras", descricao: "Ver compras e o painel de Suprimentos." },
-  { key: "compras.solicitar", modulo: "Suprimentos", label: "Solicitar compras", descricao: "Criar compras, incluir itens e gerar reposição." },
-  { key: "compras.aprovar", modulo: "Suprimentos", label: "Aprovar compras", descricao: "Aprovar, enviar ao fornecedor e encerrar compras com pendência." },
-  { key: "compras.receber", modulo: "Suprimentos", label: "Registrar chegada de compras", descricao: "Registrar a chegada dos itens de uma compra." },
-  { key: "compras.cancelar", modulo: "Suprimentos", label: "Cancelar compras e pedidos", descricao: "Cancelar compras e pedidos." },
-  { key: "recebimento.ver", modulo: "Suprimentos", label: "Acessar Recebimento", descricao: "Ver o que falta chegar." },
-  { key: "recebimento.registrar", modulo: "Suprimentos", label: "Registrar chegada de pedidos", descricao: "Registrar a chegada de itens de pedido sem compra." },
   // ---- Orçamentos ----
   { key: "orcamentos.visualizar", modulo: "Orçamentos", label: "Acessar Orçamentos", descricao: "Ver orçamentos, propostas e valores." },
   { key: "orcamentos.criar_editar", modulo: "Orçamentos", label: "Criar e editar orçamentos", descricao: "Criar orçamentos e preencher análises e custos." },
@@ -189,6 +180,17 @@ export const PERMISSOES: Array<{
     label: "Valores de pessoal no orçamento",
     descricao:
       "Ver e lançar os valores de pessoal (PE) no orçamento de projeto e no catálogo de custos. Sem ela, o valor aparece como XXX.",
+  },
+  // ---- Cadastros ----
+  { key: "cadastros.ver", modulo: "Cadastros", label: "Acessar Cadastros", descricao: "Ver o módulo Cadastros (clientes, fornecedores, equipamentos, locais…)." },
+  { key: "cadastros.editar", modulo: "Cadastros", label: "Editar cadastros", descricao: "Criar, editar e excluir registros dos cadastros." },
+  {
+    // Padrão: somente admin. O banco aplica a mesma regra (migration 0112).
+    key: "tecnicos.salario.ver",
+    modulo: "Cadastros",
+    label: "Ver salário dos técnicos",
+    descricao:
+      "Ver e alterar o salário dos técnicos. Também mostra os valores de pessoal (PE) do catálogo de custos. Sem ela, o salário aparece como XXX.",
   },
   // ---- Governança ----
   { key: "auditoria.visualizar", modulo: "Governança", label: "Ver auditoria", descricao: "Ver a trilha de auditoria e as regras do orçamento." },

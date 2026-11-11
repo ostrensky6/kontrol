@@ -16,7 +16,7 @@ import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { formatNumber as fmt } from "@/lib/formatters";
 
 /**
- * Linha do Saldo por insumo: a mesma linha da visão geral de Suprimentos
+ * Linha do Saldo por insumo: a mesma linha que a visão geral de Suprimentos mostrava
  * (montarEstoqueDisponivel, D1), mais o que a entrada e a baixa precisam.
  */
 export type SaldoRow = LinhaEstoqueDisponivel & {
@@ -211,7 +211,7 @@ export function SaldoTable({
             chegou; o que espera aprovação aparece à parte.
           </p>
           <p>
-            <b>Situação</b> segue as mesmas regras da visão geral de Suprimentos e da ficha do insumo. Clique no
+            <b>Situação</b> segue as mesmas regras da Situação do estoque e da ficha do insumo. Clique no
             nome para ver em mãos, cobertura, prazo de compra, lotes e consumo.
           </p>
           <HelpExample>10 em mãos, 4 reservados → 6 disponíveis.</HelpExample>
@@ -221,7 +221,6 @@ export function SaldoTable({
         linhas={rows}
         filtroInicial={filtroInicial}
         filtroPadrao="todos"
-        comValidade={false}
         colunaAcoes={colunaAcoes}
         acoesNoCelular={
           podeMovimentar

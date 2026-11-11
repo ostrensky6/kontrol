@@ -16,6 +16,8 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 vi.mock("@/lib/auth/permissao-efetiva", () => ({ pode: async () => false }));
 vi.mock("@/lib/auth/roles", () => ({ usuarioAtual: async () => null }));
+// a linha "Sua vez" do Estoque tem testes próprios; aqui não há nada esperando a pessoa
+vi.mock("@/lib/pendencias/carregar", () => ({ carregarPendencias: async () => [] }));
 vi.mock("@/components/common/HelpTip", () => ({
   HelpTip: ({ children }: { children: React.ReactNode }) => children, HelpLegend: () => null, HelpExample: () => null,
 }));
@@ -101,7 +103,7 @@ describe("consumidor de estimativa manual no saldo", () => {
     // a visão do consumo não desenha a tabela de saldo; o saldo segue igual na visão dele
     expect(io.saldo).not.toHaveBeenCalled();
     await render();
-    // D1: a linha do saldo é a mesma da visão geral de Suprimentos (6 colunas; o resto fica na ficha)
+    // D1: a linha do saldo segue as regras da Situação do estoque e da ficha (o resto fica na ficha)
     expect(io.saldo.mock.calls[0][0].rows[0]).toMatchObject({
       insumoId: 12, disponivel: 10, reservado: 4, aCaminho: 3, aguardandoAprovacao: 2, minimo: 2, sugerido: 3,
       situacao: "Repor", sinais: ["reposicao"], unidadeFisica: "mL",

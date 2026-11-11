@@ -175,51 +175,53 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     termos: ["custo", "preço", "margem", "overhead", "simulação", "salário", "remuneração", "parâmetros de custeio"],
   },
 
-  // ──────────────────────────── Suprimentos ────────────────────────────
+  // ──────────────────────── Compras e Estoque ────────────────────────
   {
+    // o id continua "suprimentos" para os links antigos da Ajuda não quebrarem
     id: "suprimentos",
-    titulo: "Suprimentos: visão geral",
-    grupo: "Suprimentos",
+    titulo: "Compras: visão geral",
+    grupo: "Compras",
     href: "/suprimentos",
-    resumo: "O que espera você e o que temos em estoque.",
+    resumo: "O que espera você e o andamento dos pedidos, do pedido ao recebimento.",
     intro:
-      "A visão geral de Suprimentos responde duas perguntas: o que espera a sua ação e o que temos disponível em estoque. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento e Equipamentos.",
+      "Compras vai do pedido ao recebimento, e o recebimento lança o lote no Estoque. A visão geral mostra o que espera a sua ação e em que etapa está cada pedido. A barra de cima segue a ordem do trabalho: Visão geral, Pedidos, Compras com fornecedor, Recebimento e Prazos de compra.",
     secoes: [
       {
         titulo: "Onde fica cada coisa",
         itens: [
-          "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
-          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Saldo e lotes, Situação (o painel de alertas), entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
-          "Planejamento: reservas de insumo para as análises previstas.",
-          "Pedidos: cada pedido e a etapa em que está. Compras e Prazos de compra são abas dessa tela, logo abaixo da barra.",
-          "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
-          "Notificações saíram desta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",
+          "Visão geral: o quadro 'Aguardando você' e o quadro 'Andamento dos pedidos', com as seis etapas.",
+          "Pedidos: cada pedido e a etapa em que está, da solicitação ao pagamento.",
+          "Compras com fornecedor: as compras fechadas, cada uma ligada ao seu pedido, e o botão 'Nova compra'.",
+          "Recebimento: registrar o que chegou. A chegada cria o lote no Estoque.",
+          "Prazos de compra: quanto tempo cada compra levou, do pedido à chegada.",
+          "O Estoque é um módulo próprio na barra lateral, logo abaixo de Compras. O Planejamento fica em Projetos, porque o plano vem antes da compra.",
+          "Notificações não ficam nesta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",
         ],
       },
       {
-        titulo: "Sua vez e pedidos em andamento",
+        titulo: "Aguardando você e andamento dos pedidos",
         itens: [
-          "A linha 'Sua vez' aparece só quando algo de Suprimentos depende de você: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras com chegada a registrar, planos em rascunho, lotes em quarentena, disputas de reserva, códigos lidos sem cadastro e manutenção vencida. Clique para abrir o registro ou a lista. O quadro completo, 'Aguardando você', fica no Início e no sino.",
-          "O total de pedidos em andamento leva a Pedidos, onde cada uma das seis etapas (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) abre a sua lista.",
+          "O quadro 'Aguardando você' mostra o que depende de você em Compras: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar e compras para aprovar ou com chegada a registrar. Clique no nome para abrir o registro; o número abre a lista.",
+          "O quadro 'Andamento dos pedidos' tem uma caixa por etapa (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) com a contagem de pedidos. Cada caixa abre os pedidos daquela etapa. A caixa 'A receber' conta os itens comprados que ainda não chegaram.",
           "As seis etapas são as mesmas na lista de Pedidos e na página de cada pedido.",
+          "O que espera você no Estoque (lotes em quarentena, códigos lidos sem cadastro, manutenção vencida) aparece em Estoque → Saldo e lotes; planos em rascunho e disputas de reserva, em Projetos → Planejamento. Tudo junto continua no Início e no sino.",
         ],
       },
       {
-        titulo: "Estoque disponível",
+        titulo: "Onde foi parar o estoque disponível",
         itens: [
-          "Uma linha por insumo ativo: disponível (em mãos menos o reservado), reservado, a caminho, mínimo, validade mais próxima e situação.",
-          "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia. As regras são as mesmas de Estoque → Saldo e lotes e da ficha do insumo.",
-          "O número em cada botão diz quantos insumos estão naquela situação; o aviso de reposição da página inicial já abre a tabela filtrada.",
-          "Para dar entrada, baixa ou ver os lotes, use o Estoque.",
+          "A tabela 'Estoque disponível', que ficava nesta visão geral, é a mesma de Estoque → Saldo e lotes. Ela mora só lá agora, com a coluna 'Validade mais próxima'.",
+          "Um link antigo para a tabela filtrada (por exemplo, só o que precisa repor) abre Saldo e lotes já com o filtro.",
+          "O que precisa repor, com o botão de gerar os pedidos de reposição, fica em Estoque → Situação do estoque.",
         ],
       },
     ],
-    termos: ["visão geral", "disponível", "a caminho", "mínimo", "repor", "onde fica", "navegação", "menu", "aguardando você", "andamento", "etapas"],
+    termos: ["visão geral", "suprimentos", "onde fica", "navegação", "menu", "aguardando você", "andamento", "etapas", "a receber", "compras", "pedidos"],
   },
   {
     id: "estoque",
     titulo: "Estoque",
-    grupo: "Suprimentos",
+    grupo: "Estoque",
     href: "/estoque",
     resumo: "Saldos, lotes, validade e reposição.",
     intro:
@@ -248,7 +250,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Ficha do insumo",
         itens: [
-          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
+          "Clique no nome de um insumo em Estoque → Saldo e lotes ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
           "A ficha junta o que antes ficava em seis telas: disponível, reservado, a caminho e mínimo; os lotes, na ordem em que vencem; os pedidos e compras em andamento; as reservas em planos; o consumo mensal; as análises que usam o insumo; e as últimas movimentações.",
           "'A caminho' conta só o que já foi comprado ou autorizado e ainda não chegou. Pedido em aprovação ou cotação aparece na lista como 'Ainda não comprado' e não entra nesse número.",
           "Pedidos, compras e análises só aparecem para quem tem acesso a essas áreas. 'Abrir cadastro' aparece para quem acessa Cadastros.",
@@ -292,7 +294,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Equipamentos: calibração e manutenção",
         itens: [
-          "Em Suprimentos → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
+          "Em Estoque → Equipamentos, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
           "Na ficha da unidade, 'Definir frequência e aviso' diz de quantos em quantos dias a calibração ou manutenção é feita e com quantos dias de antecedência avisar.",
           "Depois de cada serviço, use 'Registrar manutenção ou calibração'. Se o certificado traz a próxima data, informe-a; senão o Kontrol soma a frequência.",
           "Os avisos aparecem no topo da página quando o vencimento se aproxima e ficam lá até alguém agendar o serviço ou clicar em 'Encaminhar' e dizer o que foi decidido.",
@@ -313,7 +315,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Saldo e lotes e custo do estoque",
         itens: [
-          "Saldo e lotes mostra cada insumo com Disponível, Reservado, A caminho, Mínimo e Situação, com as mesmas regras e palavras da visão geral de Suprimentos. Os filtros acima da tabela separam o que precisa de atenção.",
+          "Saldo e lotes mostra cada insumo com Disponível, Reservado, A caminho, Mínimo, com as mesmas regras e palavras da Situação do estoque e da ficha do insumo. Os filtros acima da tabela separam o que precisa de atenção.",
           "Em mãos, cobertura, prazo de compra, lotes e consumo de cada insumo ficam na ficha dele. Na ficha, 'Pedir reposição' abre um pedido em rascunho só daquele insumo, quando a previsão sugere comprar.",
           "Custo do estoque (botão no topo do Estoque) é o relatório dos insumos em que o custo do cadastro e o dos lotes liberados divergem.",
         ],
@@ -322,7 +324,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Conferir saldo e estoque físico",
         itens: [
           "Saldo registrado zero significa que o sistema mostra zero naquele registro. Saldo não conferido ou indisponível significa que ainda não dá para afirmar a quantidade. Nenhum dos dois substitui a contagem do estoque físico.",
-          "Para conferir o material no local, vá a Suprimentos → Estoque → Inventário. Registre a contagem do item ou lote e compare com o saldo do sistema, conforme seu acesso.",
+          "Para conferir o material no local, vá a Estoque → Inventário. Registre a contagem do item ou lote e compare com o saldo do sistema, conforme seu acesso.",
         ],
       },
     ],
@@ -331,7 +333,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   {
     id: "planejamento",
     titulo: "Planejamento",
-    grupo: "Suprimentos",
+    grupo: "Projetos",
     href: "/planejamento",
     resumo: "Consumo previsto, reservas e faltas de insumos.",
     intro:
@@ -379,7 +381,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   {
     id: "pedido",
     titulo: "Pedidos",
-    grupo: "Suprimentos",
+    grupo: "Compras",
     href: "/pedido",
     resumo: "Do pedido ao pagamento, num acompanhamento só.",
     intro:
@@ -411,7 +413,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Onde o coordenador aprova",
         itens: [
-          "O pedido enviado aparece para quem aprova em 'Aguardando você', no Início e no sino do topo, e na linha 'Sua vez' da visão geral de Suprimentos e de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
+          "O pedido enviado aparece para quem aprova em 'Aguardando você', no Início e no sino do topo, no quadro 'Aguardando você' da visão geral de Compras e na linha 'Sua vez' de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
           "Clique no nome do pedido para abrir. Logo abaixo do cabeçalho ficam a trilha das seis etapas e o quadro 'O que falta agora', com o próximo passo, com quem está e o que vem depois.",
           "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
           "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",
@@ -473,12 +475,12 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   },
   {
     id: "compras",
-    titulo: "Compras",
-    grupo: "Suprimentos",
+    titulo: "Compras com fornecedor",
+    grupo: "Compras",
     href: "/compras",
     resumo: "A compra de cada pedido: fornecedor, envio e chegada.",
     intro:
-      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra a chegada, que põe o material no Estoque. Fica em Suprimentos → Pedidos → Compras.",
+      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra a chegada, que põe o material no Estoque. Fica em Compras → Compras com fornecedor.",
     secoes: [
       {
         titulo: "Para que serve",
@@ -492,7 +494,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou na aba 'Compras' de Pedidos. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
+          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
           "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
@@ -511,7 +513,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Prazos de compra (ATGC, Funpar e outros caminhos)",
         itens: [
-          "Na aba 'Prazos de compra' de Pedidos, veja quanto tempo as compras levaram, do envio do pedido para aprovação até a chegada.",
+          "Em Compras → Prazos de compra, veja quanto tempo as compras levaram, do envio do pedido para aprovação até a chegada.",
           "O prazo aparece por caminho (Funpar, compra direta ATGC, universidade...), por categoria e por insumo, com o número de compras medidas e a confiança.",
           "Curto: metade das compras chegou até ali. Intermediário: 3 de cada 4. Conservador: 9 de cada 10. Para insumo crítico, planeje pelo conservador.",
           "Pedido aberto, atrasado ou cancelado não entra na conta. Informe a instituição ou a modalidade no pedido para o caminho sair certo.",
@@ -715,7 +717,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Visão geral dos cadastros",
         itens: [
           "A primeira tela de Cadastros mostra o que falta preencher (Qualidade dos cadastros) e a lista de todos os cadastros, por grupo.",
-          "Os alertas de estoque saíram daqui: ficam em Suprimentos → Estoque → Situação. Quem acessa o Estoque vê em Cadastros um cartão com a contagem, que abre o painel.",
+          "Os alertas de estoque saíram daqui: ficam em Estoque → Situação do estoque. Quem acessa o Estoque vê em Cadastros um cartão com a contagem, que abre o painel.",
         ],
       },
       {
@@ -951,7 +953,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/governanca/privilegios",
     resumo: "O que cada uma das seis funções pode ver e fazer, módulo por módulo.",
     intro:
-      "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Cadastros, Análises e custeio, Suprimentos, Orçamentos e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
+      "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
     secoes: [
       {
         titulo: "Como usar",
@@ -986,8 +988,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Recursos de navegação",
         itens: [
-          "Menu lateral: Início, Orçamentos, Projetos, Suprimentos, Análises e custeio, Cadastros, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
-          "Projetos reúne os orçamentos, planejamentos e compras de cada projeto.",
+          "Menu lateral, na ordem do trabalho: Início, Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
+          "Projetos reúne os orçamentos, planejamentos e compras de cada projeto, e o Planejamento do que cada um vai usar.",
+          "Compras vai do pedido ao recebimento; o recebimento lança o lote no Estoque. O custo dos insumos forma o custo das análises, e só então sai o Orçamento ao cliente.",
           "Barra do topo: à esquerda, os lugares do módulo aberto; à direita, a busca, o sino e a ajuda.",
           "Busca rápida: Ctrl K (ou a lupa) encontra qualquer tela, como Inventário, Etiquetas ou Parâmetros de custeio.",
           "Sino: o que está aguardando você e os avisos não lidos, de todos os módulos.",
@@ -1027,9 +1030,11 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
 ];
 
 export const AJUDA_GRUPOS = [
-  "Orçamentos",
-  "Suprimentos",
+  "Projetos",
+  "Compras",
+  "Estoque",
   "Análises e custeio",
+  "Orçamentos",
   "Cadastros",
   "Governança",
   "Geral",

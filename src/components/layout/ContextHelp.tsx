@@ -108,12 +108,12 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
   {
     match: (path) => path === "/suprimentos",
     content: {
-      title: "Suprimentos",
-      description: "O que espera você e o que temos em estoque. Cada assunto tem um lugar só na barra de cima.",
+      title: "Compras: visão geral",
+      description: "O que espera você e o andamento dos pedidos, do pedido ao recebimento.",
       checks: [
-        "A linha Sua vez aparece quando algo de Suprimentos depende de você; o quadro completo fica no Início e no sino do topo.",
-        "O total de pedidos em andamento leva a Pedidos, onde cada etapa abre a sua lista.",
-        "A tabela Estoque disponível mostra, por insumo, o que dá para usar, o reservado, o que está a caminho e a validade mais próxima; os botões acima filtram por situação.",
+        "O quadro Aguardando você mostra o que depende de você em Compras. Clique no nome para abrir o registro.",
+        "O quadro Andamento dos pedidos tem uma caixa por etapa; cada caixa abre os pedidos daquela etapa.",
+        "A barra de cima segue a ordem do trabalho: Pedidos, Compras com fornecedor, Recebimento e Prazos de compra. O que chega pelo Recebimento entra no Estoque.",
       ],
     },
   },
@@ -148,7 +148,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       description: "Do pedido à chegada no estoque.",
       checks: [
         "Faltas de estoque viram pedido, que segue para aprovação e compra.",
-        "Pedidos, Compras e Prazos de compra são abas da mesma tela.",
+        "Pedidos, Compras com fornecedor, Recebimento e Prazos de compra ficam na barra de cima, na ordem do trabalho.",
         "Registre a chegada dos itens pela própria compra.",
         "Ao registrar a chegada, o lote já fica disponível no estoque; a compra de um pedido é aprovada junto com ele, em “Aprovado para compra”.",
       ],

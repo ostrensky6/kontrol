@@ -24,7 +24,7 @@ import { lerTudo } from "@/lib/supabase/ler-tudo";
 
 /**
  * Leitura do painel único de situação do estoque (revisão de 11/11, D1 e L1).
- * A tela Situação (Suprimentos › Estoque) mostra o painel inteiro; o Início e
+ * A tela Situação do estoque (Estoque) mostra o painel inteiro; o Início e
  * Cadastros mostram só a contagem, feita com as mesmas regras, para o número
  * de um lugar nunca discordar do outro.
  */

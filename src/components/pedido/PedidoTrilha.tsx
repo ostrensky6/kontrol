@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 /**
  * Trilha das seis etapas na página do pedido: as cumpridas levam um visto, a
  * atual fica em destaque e as seguintes ficam apagadas. São as mesmas seis
- * etapas da lista de pedidos e da visão geral de Suprimentos.
+ * etapas da lista de pedidos e da visão geral de Compras.
  */
 export function PedidoTrilha({ etapa, className }: { etapa: EtapaPedidoId; className?: string }) {
   const posicao = posicaoEtapa(etapa);

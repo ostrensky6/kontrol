@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  PENDENCIAS_DE_COMPRAS,
+  PENDENCIAS_DE_ESTOQUE,
   PENDENCIAS_DE_PEDIDOS,
-  PENDENCIAS_DE_SUPRIMENTOS,
+  PENDENCIAS_DE_PLANEJAMENTO,
+  PENDENCIAS_DO_APP,
   destinoDaPendencia,
   montarPendenciaDoApp,
   montarPendencias,
@@ -77,13 +80,26 @@ describe("montarPendencias", () => {
       ["pedidos_laboratorio", "/pedido?etapa=aprovacao"],
       ["pedidos_administrativo", "/pedido?etapa=administrativo"],
     ]);
-    expect(pendenciasDe(pendencias, PENDENCIAS_DE_SUPRIMENTOS).map((p) => p.chave)).toEqual([
+    expect(pendenciasDe(pendencias, PENDENCIAS_DE_COMPRAS).map((p) => p.chave)).toEqual([
       "pedidos_validacao",
       "pedidos_laboratorio",
       "pedidos_administrativo",
       "compras_receber",
-      "planos_rascunho",
     ]);
+    expect(pendenciasDe(pendencias, PENDENCIAS_DE_PLANEJAMENTO).map((p) => p.chave)).toEqual(["planos_rascunho"]);
+  });
+
+  it("organização de 11/11: toda pendência que era de Suprimentos tem um módulo só, e nenhuma se perde", () => {
+    const antes = [
+      ...PENDENCIAS_DE_PEDIDOS,
+      "compras_aprovar",
+      "compras_receber",
+      "planos_rascunho",
+      ...PENDENCIAS_DO_APP,
+    ];
+    const agora = [...PENDENCIAS_DE_COMPRAS, ...PENDENCIAS_DE_ESTOQUE, ...PENDENCIAS_DE_PLANEJAMENTO];
+    expect([...agora].sort()).toEqual([...antes].sort());
+    expect(new Set(agora).size).toBe(agora.length);
   });
 });
 
@@ -112,9 +128,10 @@ describe("pendências lidas pelo app (revisão de 11/11, F8)", () => {
     });
   });
 
-  it("entram em Suprimentos, não em Pedidos", () => {
+  it("entram no Estoque, não em Compras nem em Pedidos", () => {
     const triagem = montarPendenciaDoApp("codigos_triagem", [{ id: 1, rotulo: "Código 789" }])!;
-    expect(pendenciasDe([triagem], PENDENCIAS_DE_SUPRIMENTOS)).toHaveLength(1);
+    expect(pendenciasDe([triagem], PENDENCIAS_DE_ESTOQUE)).toHaveLength(1);
+    expect(pendenciasDe([triagem], PENDENCIAS_DE_COMPRAS)).toHaveLength(0);
     expect(pendenciasDe([triagem], PENDENCIAS_DE_PEDIDOS)).toHaveLength(0);
   });
 });

@@ -1,73 +1,110 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Suprimentos reorganizado (1.7.1): uma barra só, sem link repetido; a visão
- * geral mostra o estoque disponível; Pedidos mostra cada pedido pela etapa.
+ * Organização de 11/11/2026: Compras e Estoque são módulos próprios. A barra de
+ * Compras vai do pedido ao recebimento; a visão geral mostra o que espera você
+ * e o andamento dos pedidos; a tabela do estoque disponível é a de Saldo e lotes.
  */
-test("barra de Suprimentos tem um link por tarefa e a visão geral mostra o estoque disponível", async ({ page }) => {
+const BARRA_DE_COMPRAS = ["Visão geral", "Pedidos", "Compras com fornecedor", "Recebimento", "Prazos de compra"];
+const BARRA_DO_ESTOQUE = [
+  "Saldo e lotes",
+  "Situação do estoque",
+  "Entrada e saída por leitura",
+  "Inventário",
+  "Etiquetas",
+  "Custo do estoque",
+  "Equipamentos",
+];
+
+test("barra de Compras tem um link por tarefa e a visão geral mostra o que espera você e o andamento", async ({ page }) => {
   const erros: string[] = [];
   page.on("pageerror", (erro) => erros.push(erro.message));
   await page.goto("/suprimentos");
 
-  const barra = page.getByRole("navigation", { name: "Navegação de Suprimentos" });
-  await expect(barra.getByRole("link")).toHaveText([
-    "Visão geral",
-    "Estoque",
-    "Planejamento",
-    "Pedidos",
-    "Recebimento",
-    "Equipamentos",
-  ]);
+  await expect(page.getByRole("heading", { level: 1, name: "Compras" })).toBeVisible();
+  const barra = page.getByRole("navigation", { name: "Navegação de Compras" });
+  await expect(barra.getByRole("link")).toHaveText(BARRA_DE_COMPRAS);
   await expect(barra.getByRole("link", { name: "Visão geral" })).toHaveAttribute("aria-current", "page");
-  // nada de segunda fileira de abas ou de "Ferramentas" repetindo a barra
-  await expect(page.getByRole("navigation", { name: "Seções de suprimentos" })).toHaveCount(0);
-  await expect(page.getByRole("navigation", { name: "Ferramentas de estoque" })).toHaveCount(0);
+  // uma barra só: nada de segunda fileira de abas repetindo os mesmos links
+  for (const fileira of ["Seções de suprimentos", "Seções de pedidos", "Ferramentas de estoque", "Navegação de Suprimentos"]) {
+    await expect(page.getByRole("navigation", { name: fileira }), fileira).toHaveCount(0);
+  }
 
-  const secao = page.getByRole("region", { name: "Estoque disponível" });
-  const linhas = secao.locator("tbody tr");
-  // a tabela abre só com o que precisa de atenção; a lista inteira aparece quando pedida
-  await expect(secao.getByRole("button", { name: /^Precisa de atenção/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(page).not.toHaveURL(/situacao=/);
-  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => !t.includes("Em dia"))).toBe(true);
-  await secao.getByRole("button", { name: /^Todos/ }).click();
-  await expect(page).toHaveURL(/situacao=todos/);
+  // os dois quadros da visão geral, inteiros
+  await expect(page.getByRole("heading", { name: "Aguardando você" })).toBeVisible();
+  await expect(page.getByRole("region", { name: "Andamento dos pedidos" })).toBeVisible();
+
+  // a tabela do estoque não se repete aqui: a visão geral leva ao Estoque
+  await expect(page.getByPlaceholder("Buscar insumo...")).toHaveCount(0);
+  const paraEstoque = page.getByTestId("compras-para-estoque");
+  await expect(paraEstoque.getByRole("link", { name: "Ver o saldo e os lotes" })).toHaveAttribute("href", "/estoque");
+  await expect(paraEstoque.getByRole("link", { name: "Ver o que precisa repor" })).toHaveAttribute("href", "/estoque/situacao");
+  expect(erros).toEqual([]);
+});
+
+test("o estoque disponível fica em Saldo e lotes, com filtro por situação e a validade mais próxima", async ({ page }) => {
+  const erros: string[] = [];
+  page.on("pageerror", (erro) => erros.push(erro.message));
+  await page.goto("/estoque");
+  await expect(page.getByRole("heading", { level: 1, name: "Saldo e lotes" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Saldo por insumo" })).toBeVisible();
+
+  const filtros = page.getByRole("group", { name: "Filtrar por situação" });
+  const linhas = page.locator("main tbody tr");
+  // a lista abre inteira; a coluna que só a visão geral mostrava veio junto
+  await expect(filtros.getByRole("button", { name: /^Todos/ })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("columnheader", { name: /Validade mais próxima/ })).toBeVisible();
   // a lista abre curta (10 linhas): a busca acha o insumo
-  const busca = secao.getByPlaceholder("Buscar insumo...");
+  const busca = page.getByPlaceholder("Buscar insumo...");
   await busca.fill("Kit extração E2E");
-  await expect(secao.getByRole("row", { name: /Kit extração E2E/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Kit extração E2E/ })).toBeVisible();
   await busca.fill("Mix PCR");
-  await expect(secao.getByRole("row", { name: /Mix PCR/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: /Mix PCR/ })).toBeVisible();
   await busca.fill("");
 
   // cada filtro mostra só as linhas daquela situação (outros testes mexem no saldo do mock)
-  await secao.getByRole("button", { name: /^Em dia/ }).click();
-  await expect(secao.getByRole("button", { name: /^Em dia/ })).toHaveAttribute("aria-pressed", "true");
+  await filtros.getByRole("button", { name: /^Em dia/ }).click();
+  await expect(filtros.getByRole("button", { name: /^Em dia/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page).toHaveURL(/situacao=ok/);
   await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => t.includes("Em dia") || t.includes("Nenhum insumo"))).toBe(true);
-
-  // o filtro também vem pela URL (avisos da visão geral e da página inicial)
-  await page.goto("/suprimentos?situacao=sem_disponivel#estoque-disponivel");
-  await expect(secao.getByRole("button", { name: /^Sem estoque/ })).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => t.includes("Sem estoque") || t.includes("Nenhum insumo"))).toBe(true);
-  await secao.getByRole("button", { name: /^Precisa de atenção/ }).click();
+  await filtros.getByRole("button", { name: /^Precisa de atenção/ }).click();
+  await expect(page).toHaveURL(/situacao=atencao/);
+  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => !t.includes("Em dia"))).toBe(true);
+  await filtros.getByRole("button", { name: /^Todos/ }).click();
   await expect(page).not.toHaveURL(/situacao=/);
+
+  // o endereço antigo da visão geral, com filtro, leva à mesma tabela já filtrada
+  await page.goto("/suprimentos?situacao=sem_disponivel#estoque-disponivel");
+  await expect(page).toHaveURL(/\/estoque\?situacao=sem_disponivel/);
+  await expect(filtros.getByRole("button", { name: /^Sem estoque/ })).toHaveAttribute("aria-pressed", "true");
+  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => t.includes("Sem estoque") || t.includes("Nenhum insumo"))).toBe(true);
   expect(erros).toEqual([]);
 });
 
 test("ferramentas do estoque ficam na barra do Estoque, marcando a seção certa", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/estoque/inventario");
-  const barra = page.getByRole("navigation", { name: "Navegação de Suprimentos" });
-  await expect(barra.getByRole("link", { name: "Estoque" })).toHaveAttribute("aria-current", "page");
-  const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
-  await expect(secoes.getByRole("link", { name: "Inventário" })).toHaveAttribute("aria-current", "page");
-  await secoes.getByRole("link", { name: "Situação" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
-  await expect(barra.getByRole("link", { name: "Estoque" })).toHaveAttribute("aria-current", "page");
-
-  // Equipamentos tem item próprio: a barra do Estoque some
-  await page.goto("/estoque/equipamentos");
-  await expect(barra.getByRole("link", { name: "Equipamentos" })).toHaveAttribute("aria-current", "page");
+  const barra = page.getByRole("navigation", { name: "Navegação de Estoque" });
+  await expect(barra.getByRole("link")).toHaveText(BARRA_DO_ESTOQUE);
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Inventário"]);
+  // os sete lugares aparecem inteiros, sem rolagem escondendo o último
+  for (const lugar of BARRA_DO_ESTOQUE) {
+    await expect(barra.getByRole("link", { name: lugar, exact: true }), lugar).toBeInViewport({ ratio: 1 });
+  }
   await expect(page.getByRole("navigation", { name: "Seções do estoque" })).toHaveCount(0);
+
+  await barra.getByRole("link", { name: "Situação do estoque" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Situação do estoque"]);
+
+  // Equipamentos é um lugar do Estoque
+  await page.goto("/estoque/equipamentos");
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Equipamentos"]);
+  // etiquetas e a triagem dos códigos lidos também ficam no Estoque
+  await page.goto("/etiquetas");
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Etiquetas"]);
+  await page.goto("/scanner/triagem");
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Entrada e saída por leitura"]);
 });
 
 test("pedidos aparecem pela etapa, da solicitação ao pagamento", async ({ page }) => {
@@ -82,13 +119,17 @@ test("pedidos aparecem pela etapa, da solicitação ao pagamento", async ({ page
   await expect(linha.getByRole("img", { name: "Etapa 3 de 6: Administrativo" })).toBeVisible();
   await expect(linha).toContainText("Aguardar o ciclo");
 
-  // compras formais e prazos ficam dentro de Pedidos, em abas
+  // compras com fornecedor, recebimento e prazos são lugares da barra de Compras
   await page.goto("/pedido");
-  await page.getByRole("navigation", { name: "Seções de pedidos" }).getByRole("link", { name: "Compras", exact: true }).click();
+  const barra = page.getByRole("navigation", { name: "Navegação de Compras" });
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Pedidos"]);
+  await barra.getByRole("link", { name: "Compras com fornecedor" }).click();
   await expect(page).toHaveURL(/\/compras$/);
-  await expect(
-    page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Pedidos" }),
-  ).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { level: 1, name: "Compras com fornecedor" })).toBeVisible();
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Compras com fornecedor"]);
+  await barra.getByRole("link", { name: "Recebimento" }).click();
+  await expect(page).toHaveURL(/\/recebimento$/);
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Recebimento"]);
 });
 
 test("Novo pedido da visão geral abre o formulário em Pedidos", async ({ page }) => {
@@ -99,27 +140,32 @@ test("Novo pedido da visão geral abre o formulário em Pedidos", async ({ page 
 });
 
 /**
- * 1.7.2: o caminho da aprovação fica evidente. Desde a revisão de 11/11 (D4 e
- * D5) o quadro completo de "Aguardando você" fica só no Início e no sino: a
- * visão geral e Pedidos mostram a linha "Sua vez", que leva direto ao pedido,
- * e as caixas das seis etapas ficam só em Pedidos. Na página do pedido o
- * botão de aprovar fica no topo, no quadro "O que falta agora".
+ * 1.7.2: o caminho da aprovação fica evidente. Na organização de 11/11/2026 a
+ * visão geral de Compras voltou a ter o quadro "Aguardando você" e as caixas
+ * das seis etapas; Pedidos mostra a linha "Sua vez", que leva direto ao pedido.
+ * Na página do pedido o botão de aprovar fica no topo, em "O que falta agora".
  */
 test("coordenador acha o pedido para aprovar e o botão fica no topo da página", async ({ page }) => {
   await page.goto("/suprimentos");
-  const suaVez = page.getByRole("status", { name: "Sua vez" });
-  await expect(suaVez.getByRole("link", { name: "1 pedido espera a sua aprovação" })).toHaveAttribute("href", "/pedido/502");
-  // o quadro inteiro e as caixas das etapas não se repetem aqui
-  await expect(page.getByRole("heading", { name: "Aguardando você" })).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "Andamento dos pedidos" })).toHaveCount(0);
-  await expect(page.getByTestId("andamento-resumo").getByRole("link", { name: /^\d+ pedidos? em andamento$/ })).toHaveAttribute(
+  const aguardando = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
+  await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
     "href",
-    "/pedido",
+    "/pedido?etapa=aprovacao",
   );
+  await expect(aguardando.getByRole("link", { name: /Primers para aprovar E2E/ })).toHaveAttribute("href", "/pedido/502");
 
-  // a lista de Pedidos tem as etapas e a mesma linha, que leva direto ao pedido
+  // andamento: as seis etapas, na ordem, cada uma abrindo a lista filtrada
+  const andamento = page.getByRole("region", { name: "Andamento dos pedidos" });
+  await expect(andamento.getByRole("link", { name: /^Etapa \d/ })).toHaveCount(6);
+  await expect(andamento.getByRole("link", { name: /^Etapa 2, Aprovação: \d+ pedidos?$/ })).toHaveAttribute(
+    "href",
+    "/pedido?etapa=aprovacao",
+  );
+  await expect(andamento.getByRole("link", { name: /^A receber: / })).toHaveAttribute("href", "/recebimento");
+  await expect(andamento.getByRole("link", { name: "Ver todos os pedidos" })).toHaveAttribute("href", "/pedido");
+
+  // a lista de Pedidos tem as etapas e a linha "Sua vez", que leva direto ao pedido
   await page.goto("/pedido");
-  await expect(page.getByRole("heading", { name: "Aguardando você" })).toHaveCount(0);
   await page.getByRole("status", { name: "Sua vez" }).getByRole("link", { name: "1 pedido espera a sua aprovação" }).click();
   await expect(page).toHaveURL(/\/pedido\/502$/);
 
@@ -162,8 +208,8 @@ test("Estoque mostra uma visão por vez: saldo ou lotes; alertas, consumo e cust
   await expect(page.getByRole("heading", { name: "Lotes em estoque" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Saldo por insumo" })).toHaveCount(0);
 
-  // custo é relatório próprio; endereços antigos levam ao novo lugar
-  await page.getByRole("link", { name: "Custo do estoque" }).click();
+  // custo é relatório próprio, na barra do Estoque; endereços antigos levam ao novo lugar
+  await page.getByRole("navigation", { name: "Navegação de Estoque" }).getByRole("link", { name: "Custo do estoque" }).click();
   await expect(page).toHaveURL(/\/estoque\/custos$/);
   await expect(page.getByRole("heading", { level: 1, name: "Custo do estoque" })).toBeVisible();
   await page.goto("/estoque?ver=custos");

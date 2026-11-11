@@ -33,8 +33,8 @@ describe("ajuda contextual", () => {
     expect(ajudaParaRota("/pedido/12").title).toBe("Pedido");
     expect(ajudaParaRota("/compras/12").title).toBe("Compras");
     expect(ajudaParaRota("/pedido").title).toBe("Pedidos");
-    expect(ajudaParaRota("/suprimentos").title).toBe("Suprimentos");
-    expect(ajudaParaRota("/suprimentos/prazos").title).not.toBe("Suprimentos");
+    expect(ajudaParaRota("/suprimentos").title).toBe("Compras: visão geral");
+    expect(ajudaParaRota("/suprimentos/prazos").title).not.toBe("Compras: visão geral");
     expect(ajudaParaRota("/qualquer-coisa").title).toBe("Kontrol");
   });
 });

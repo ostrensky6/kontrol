@@ -144,16 +144,16 @@ const colunas: ColumnDef<LinhaEstoqueDisponivel, unknown>[] = [
 ];
 
 /**
- * A mesma tabela serve à visão geral de Suprimentos e ao Saldo e lotes do
- * Estoque (D1 da revisão de 11/11): mesmas colunas, mesmas palavras, mesmos
- * filtros. O Estoque abre em "Todos", sem a validade (que fica na ficha) e
+ * Tabela do Saldo e lotes do Estoque. Era também a tabela "Estoque
+ * disponível" da visão geral de Suprimentos; na organização de 11/11/2026 a
+ * visão geral virou a de Compras e a tabela ficou só no Estoque, com a coluna
+ * "Validade mais próxima" que só a visão geral mostrava. Abre em "Todos",
  * com as ações de entrada e baixa.
  */
 export function EstoqueDisponivelTable<L extends LinhaEstoqueDisponivel>({
   linhas,
   filtroInicial,
   filtroPadrao = FILTRO_ESTOQUE_PADRAO,
-  comValidade = true,
   colunaAcoes,
   acoesNoCelular,
 }: {
@@ -161,16 +161,13 @@ export function EstoqueDisponivelTable<L extends LinhaEstoqueDisponivel>({
   filtroInicial: FiltroEstoqueDisponivel;
   /** filtro que não vai para a URL (o da abertura da tela) */
   filtroPadrao?: FiltroEstoqueDisponivel;
-  comValidade?: boolean;
   colunaAcoes?: ColumnDef<L, unknown>;
   acoesNoCelular?: (linha: L) => React.ReactNode;
 }) {
   const columns = useMemo(() => {
-    const base = (colunas as ColumnDef<L, unknown>[]).filter(
-      (coluna) => comValidade || (coluna as { accessorKey?: string }).accessorKey !== "validade",
-    );
+    const base = colunas as ColumnDef<L, unknown>[];
     return colunaAcoes ? [...base, colunaAcoes] : base;
-  }, [comValidade, colunaAcoes]);
+  }, [colunaAcoes]);
   const [filtro, setFiltro] = useState<FiltroEstoqueDisponivel>(filtroInicial);
   const opcoes = useMemo(
     () =>

@@ -13,7 +13,6 @@ import {
 } from "@/lib/estoque/baixa";
 import { janelaVencimentoDias } from "@/lib/estoque/situacao-insumo";
 import {
-  HREF_CUSTOS_ESTOQUE,
   VISOES_ESTOQUE,
   destinoAntigoDoEstoque,
   hrefVisaoEstoque,
@@ -27,8 +26,10 @@ import {
   type PrevisaoDisponivelDb,
   type SaldoDisponivelDb,
 } from "@/lib/suprimentos/estoque-disponivel";
-import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoque";
 import { PageHeader } from "@/components/app/PageHeader";
+import { AguardandoVoceLinha } from "@/components/dashboard/AguardandoVoceLinha";
+import { PENDENCIAS_DE_ESTOQUE, pendenciasDe } from "@/components/dashboard/aguardando";
+import { carregarPendencias } from "@/lib/pendencias/carregar";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/formatters";
@@ -134,7 +135,7 @@ export default async function EstoquePage({
         .order("id")
         .range(de, ate),
     ),
-    // a mesma previsão da visão geral de Suprimentos: a caminho, aguardando aprovação e repor
+    // a mesma previsão da Situação do estoque: a caminho, aguardando aprovação e repor
     supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente"),
     // janela do "vence em breve": a mesma de v_alertas_estoque (padrão 60 dias)
     supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
@@ -154,13 +155,16 @@ export default async function EstoquePage({
   if (saldoError || lotesError) throw new Error(`Não foi possível ler o saldo do estoque: ${(saldoError ?? lotesError)!.message}`);
   if (reservasError) throw new Error(`Não foi possível ler as reservas do estoque: ${reservasError.message}`);
   const reservadoPorLote = somarReservasPorLote(reservasRaw ?? []);
-  const [podeAceitar, podeGerir, podeCorrigir, podeBaixar, usuario] = await Promise.all([
+  const [podeAceitar, podeGerir, podeCorrigir, podeBaixar, usuario, aguardando] = await Promise.all([
     pode("estoque.lote.aceitar"),
     pode("estoque.descartar_bloquear"),
     pode("estoque.lote.gerir"),
     pode("estoque.movimentar"),
     usuarioAtual(),
+    // o que espera a pessoa no Estoque: lotes em quarentena, códigos lidos sem cadastro e manutenção vencida
+    carregarPendencias(),
   ]);
+  const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_ESTOQUE);
 
   const hoje = hojeIso();
   const origemEstornoComprovada = !vinculosCompraError && !vinculosInternosError;
@@ -175,7 +179,7 @@ export default async function EstoquePage({
     lista.push(loteBaixaDeDb(l, reservadoPorLote));
     lotesBaixaPorInsumo.set(Number(l.insumo_id), lista);
   }
-  // D1: as mesmas linhas, regras e palavras da visão geral de Suprimentos e da ficha do insumo
+  // D1: as mesmas linhas, regras e palavras da Situação do estoque e da ficha do insumo
   const linhas = montarEstoqueDisponivel({
     saldo: (saldo ?? []) as SaldoDisponivelDb[],
     previsao: (previsao ?? []) as PrevisaoDisponivelDb[],
@@ -253,10 +257,10 @@ export default async function EstoquePage({
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <PageHeader
-          title="Estoque"
+          title="Saldo e lotes"
           description="Saldo por insumo e lotes, com entrada e baixa."
           help={
-            <HelpTip title="Estoque">
+            <HelpTip title="Saldo e lotes">
               <p>
                 Escolha o que ver: saldo por insumo ou lotes. O uso segue <b>FEFO</b>: o lote que vence primeiro
                 sai primeiro.
@@ -266,25 +270,21 @@ export default async function EstoquePage({
                 com motivo (consumo, perda, vencimento ou outro).
               </p>
               <p>
-                O que pede atenção (falta, validade, compra atrasada) fica em <b>Situação</b>. Consumo, prazo e
+                O que pede atenção (falta, validade, compra atrasada) fica em <b>Situação do estoque</b>, na barra acima. Consumo, prazo e
                 histórico de cada insumo ficam na ficha dele: clique no nome.
               </p>
             </HelpTip>
           }
+          // Situação do estoque e Custo do estoque são itens da barra do Estoque, logo acima:
+          // os dois botões que repetiam esses links saíram daqui (duplicidade)
           actions={
-            <>
-              <Link href={HREF_SITUACAO_ESTOQUE} className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">
-                Ver a situação
-              </Link>
-              <Link href={HREF_CUSTOS_ESTOQUE} className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">
-                Custo do estoque
-              </Link>
-              <DownloadButton href="/cadastros/insumos/export" fileName="insumos.xlsx">
-                Planilha de insumos
-              </DownloadButton>
-            </>
+            <DownloadButton href="/cadastros/insumos/export" fileName="insumos.xlsx">
+              Planilha de insumos
+            </DownloadButton>
           }
         />
+
+        <AguardandoVoceLinha pendencias={pendencias} className="mt-3" />
 
         {visao !== "consumo" && (
         <nav aria-label="O que mostrar do estoque" className="mt-2 flex flex-wrap gap-2 border-b border-border pb-3">

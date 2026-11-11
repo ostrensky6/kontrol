@@ -14,7 +14,8 @@ test("edição de usuário agrupa permissões e mantém ações acessíveis", as
   await expect(dialog.getByLabel("Função")).toHaveValue("admin");
   // 38 desde a 0137 ("Valores de pessoal no orçamento").
   await expect(dialog.locator('input[name="permissoes"]')).toHaveCount(38);
-  await expect(dialog.locator("details")).toHaveCount(5); // Cadastros, Operação, Suprimentos, Orçamentos, Governança
+  // um grupo por módulo, na ordem da barra lateral
+  await expect(dialog.locator("details")).toHaveCount(7); // Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros, Governança
   await expect(dialog.getByRole("button", { name: "Salvar" })).toBeVisible();
 
   const box = await dialog.boundingBox();

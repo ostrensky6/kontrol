@@ -162,7 +162,11 @@ export function montarPendenciaDoApp(
   };
 }
 
-/** Chaves que dizem respeito aos pedidos (lista de Pedidos) e a Suprimentos inteiro (visão geral). */
+/**
+ * Onde cada pendência aparece fora do Início (organização de 11/11/2026):
+ * Suprimentos virou Compras e Estoque, e o Planejamento ficou com Projetos.
+ * Cada chave tem um módulo só; o Início e o sino mostram todas.
+ */
 export const PENDENCIAS_DE_PEDIDOS: readonly PendenciaChave[] = [
   "pedidos_validacao",
   "pedidos_laboratorio",
@@ -170,13 +174,20 @@ export const PENDENCIAS_DE_PEDIDOS: readonly PendenciaChave[] = [
   "pedidos_compras",
   "pedidos_pagamento",
 ];
-export const PENDENCIAS_DE_SUPRIMENTOS: readonly PendenciaChave[] = [
+/** Visão geral de Compras: do pedido ao recebimento. */
+export const PENDENCIAS_DE_COMPRAS: readonly PendenciaChave[] = [
   ...PENDENCIAS_DE_PEDIDOS,
   "compras_aprovar",
   "compras_receber",
-  "planos_rascunho",
-  ...PENDENCIAS_DO_APP,
 ];
+/** Estoque: lotes, códigos lidos e equipamentos. */
+export const PENDENCIAS_DE_ESTOQUE: readonly PendenciaChave[] = [
+  "lotes_quarentena",
+  "codigos_triagem",
+  "equipamentos_vencidos",
+];
+/** Planejamento (em Projetos): planos e disputas de reserva. */
+export const PENDENCIAS_DE_PLANEJAMENTO: readonly PendenciaChave[] = ["planos_rascunho", "disputas_decidir"];
 
 /** Total de itens esperando a pessoa. */
 export function totalPendencias(pendencias: readonly Pendencia[]) {
