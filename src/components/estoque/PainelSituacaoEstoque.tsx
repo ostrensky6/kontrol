@@ -58,7 +58,7 @@ const ITENS_POR_ALERTA = 5;
 
 /**
  * Painel único de situação do estoque (D1 e L1 da revisão de 11/11): os 14
- * quadros de alerta e os gráficos. Fica em Suprimentos › Estoque › Situação;
+ * quadros de alerta e os gráficos. Fica em Estoque › Situação do estoque;
  * o Início e Cadastros mostram só a contagem e levam até aqui.
  */
 export function PainelSituacaoEstoque({

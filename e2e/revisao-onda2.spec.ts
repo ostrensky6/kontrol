@@ -36,7 +36,7 @@ test("ficha do insumo: saldo, lotes, pedidos, reservas, consumo, análises e mov
 
   // a ficha fica dentro do Estoque e tem caminho de volta
   await expect(page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Estoque" })).toHaveAttribute("href", "/estoque");
-  await expect(page.getByRole("navigation", { name: "Seções do estoque" }).locator("a[aria-current]")).toHaveText(["Saldo e lotes"]);
+  await expect(page.getByRole("navigation", { name: "Navegação de Estoque" }).locator("a[aria-current]")).toHaveText(["Saldo e lotes"]);
 
   await expect(page.getByTestId("ficha-numeros").locator("dt")).toHaveText(["Disponível", "Reservado", "A caminho", "Mínimo"]);
   await expect(page.locator("main").getByRole("heading", { level: 2 })).toHaveText(BLOCOS_DA_FICHA);
@@ -69,11 +69,14 @@ test("ficha do insumo: saldo, lotes, pedidos, reservas, consumo, análises e mov
 
 test("o nome do insumo abre a ficha, com o mesmo disponível e a mesma situação da lista (F5, D1)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
+  // o endereço antigo da visão geral leva à mesma lista, em Saldo e lotes
   await page.goto("/suprimentos?situacao=todos");
+  await expect(page).toHaveURL(/\/estoque\?situacao=todos$/);
   const linha = page.getByRole("row").filter({ has: page.getByRole("link", { name: "Kit extração E2E" }) });
   await expect(linha).toBeVisible();
   const disponivel = ((await linha.getByRole("cell").nth(1).textContent()) ?? "").match(/[\d.,]+/)?.[0];
-  const situacao = ((await linha.getByRole("cell").last().locator("span").first().textContent()) ?? "").trim();
+  // colunas: Insumo, Disponível, Reservado, A caminho, Mínimo, Validade mais próxima, Situação, Ações
+  const situacao = ((await linha.getByRole("cell").nth(6).locator("span").first().textContent()) ?? "").trim();
   expect(disponivel).toBeTruthy();
   expect(situacao).not.toBe("");
 
@@ -103,7 +106,7 @@ test("nome em Saldo e lotes e a página do lote levam à ficha; o endereço do C
   // Controle de Estoque e Saldo e lotes viraram uma tela: o endereço antigo continua valendo
   await page.goto("/estoque/controle");
   await expect(page).toHaveURL(/\/estoque$/);
-  await expect(page.getByRole("heading", { level: 1, name: "Estoque" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Saldo e lotes" })).toBeVisible();
 });
 
 test("alerta de estoque do painel abre a ficha; a análise que usa o insumo aparece na ficha (F5)", async ({ page }) => {
@@ -175,23 +178,22 @@ test("leitor: código de um insumo abre a ficha dele (F5)", async ({ page }) => 
 
 const SECOES_DO_ESTOQUE = [
   "Saldo e lotes",
-  "Situação",
+  "Situação do estoque",
   "Entrada e saída por leitura",
   "Inventário",
   "Etiquetas",
+  "Custo do estoque",
+  "Equipamentos",
 ];
 
-test("Situação é uma seção do Estoque e o único lugar dos alertas, do “a caminho” e da reposição (D1, L1, L9, D6)", async ({ page }) => {
+test("Situação é um lugar do Estoque e o único lugar dos alertas, do “a caminho” e da reposição (D1, L1, L9, D6)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/estoque/situacao");
   await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
-  const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
+  const secoes = page.getByRole("navigation", { name: "Navegação de Estoque" });
   await expect(secoes.getByRole("link")).toHaveText(SECOES_DO_ESTOQUE);
-  await expect(secoes.getByRole("link", { name: "Situação" })).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Estoque" })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  await expect(secoes.locator("a[aria-current]")).toHaveText(["Situação do estoque"]);
+  await expect(page.getByRole("navigation", { name: "Navegação principal" }).locator("a[aria-current]")).toHaveText(["Estoque"]);
   await expect(page.getByRole("region", { name: "Alertas do estoque" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" })).toBeVisible();
   // L9: as compras a caminho ficam junto dos alertas, e não mais em Cadastros
@@ -208,9 +210,9 @@ test("Situação é uma seção do Estoque e o único lugar dos alertas, do “a
     await expect(page.getByRole("heading", { level: 1 }), tela).toBeVisible();
     await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" }), tela).toHaveCount(0);
   }
-  // a visão geral de Suprimentos leva ao painel
+  // a visão geral de Compras leva ao painel
   await page.goto("/suprimentos");
-  await page.getByRole("link", { name: "Ver a situação do estoque" }).click();
+  await page.getByRole("link", { name: "Ver o que precisa repor" }).click();
   await expect(page).toHaveURL(/\/estoque\/situacao$/);
 });
 

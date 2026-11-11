@@ -1,4 +1,7 @@
 import { createClientUntyped } from "@/lib/supabase/server";
+import { AguardandoVoceLinha } from "@/components/dashboard/AguardandoVoceLinha";
+import { PENDENCIAS_DE_PLANEJAMENTO, pendenciasDe } from "@/components/dashboard/aguardando";
+import { carregarPendencias } from "@/lib/pendencias/carregar";
 import { criarPlano } from "@/lib/actions/planejamento";
 import { PlanosTable, type PlanoRow } from "@/components/planejamento/PlanosTable";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -69,13 +72,16 @@ export default async function PlanejamentoPage({
   const planoExcluido = Number(excluido) > 0 ? Number(excluido) : null;
   const supabase = await createClientUntyped();
   const planejamentoQuery = supabase.from("planejamento") as unknown as PlanejamentoQuery;
-  const [planosResult, { data: projetos }, podeGerir] = await Promise.all([
+  const [planosResult, { data: projetos }, podeGerir, aguardando] = await Promise.all([
     planejamentoQuery
       .select("id, nome, data_alvo, data_inicio_prevista, data_fim_prevista, prioridade, responsavel, planejado_por, reservado_por, criado_em, projeto_id, status_operacional, planejamento_itens(count), reservas_estoque(status, quantidade_consumida)")
       .order("criado_em", { ascending: false }),
     supabase.from("projetos").select("id, nome").order("nome"),
     pode("planejamento.editar"),
+    // o que espera a pessoa no Planejamento: planos em rascunho e disputas de reserva
+    carregarPendencias(),
   ]);
+  const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PLANEJAMENTO);
   const { data: planos } = erroSchemaCache(planosResult.error)
     ? await planejamentoQuery
         .select("id, nome, data_alvo, responsavel, criado_em, projeto_id, status_operacional, planejamento_itens(count), reservas_estoque(status, quantidade_consumida)")
@@ -171,6 +177,7 @@ export default async function PlanejamentoPage({
             </div>
           </form>
         </CriarPorBotao>
+        <AguardandoVoceLinha pendencias={pendencias} className="mt-3" />
         {planoExcluido && (
           <p role="status" className="mt-3 rounded-lg border border-brand-300 bg-brand-50 px-4 py-2 text-sm text-brand-800 dark:border-brand-800 dark:bg-brand-950/30 dark:text-brand-300">
             Plano #{planoExcluido} excluído. O motivo ficou registrado na trilha de auditoria.

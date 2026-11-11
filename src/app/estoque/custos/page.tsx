@@ -35,7 +35,6 @@ export default async function CustoDoEstoquePage() {
       <main className="app-page-container space-y-4">
         <PageHeader
           breadcrumbs={[
-            { label: "Suprimentos", href: "/suprimentos" },
             { label: "Estoque", href: "/estoque" },
             { label: "Custo do estoque" },
           ]}

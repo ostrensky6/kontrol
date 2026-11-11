@@ -10,7 +10,7 @@ export type OpcaoChip<T extends string> = {
   tom?: "red" | "amber" | "neutro";
 };
 
-/** Botões de filtro com contagem (um só ativo), usados nas listas de Suprimentos. */
+/** Botões de filtro com contagem (um só ativo), usados nas listas de Compras e do Estoque. */
 export function FiltroChips<T extends string>({
   opcoes,
   valor,

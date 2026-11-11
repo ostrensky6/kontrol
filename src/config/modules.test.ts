@@ -57,10 +57,12 @@ describe("APP_MODULES", () => {
     expect(moduleIsActive(modulo("projetos"), "/projetos/7")).toBe(true);
     expect(moduleIsActive(modulo("orcamentos"), "/projetos/7")).toBe(false);
     expect(moduleIsActive(modulo("operacao"), "/parametros")).toBe(true);
-    expect(moduleIsActive(modulo("suprimentos"), "/estoque/inventario")).toBe(true);
-    expect(moduleIsActive(modulo("suprimentos"), "/estoque/leitura")).toBe(true);
-    expect(moduleIsActive(modulo("suprimentos"), "/etiquetas")).toBe(true);
-    expect(moduleIsActive(modulo("suprimentos"), "/scanner/triagem")).toBe(true);
+    expect(moduleIsActive(modulo("estoque"), "/estoque/inventario")).toBe(true);
+    expect(moduleIsActive(modulo("estoque"), "/estoque/leitura")).toBe(true);
+    expect(moduleIsActive(modulo("estoque"), "/etiquetas")).toBe(true);
+    expect(moduleIsActive(modulo("estoque"), "/scanner/triagem")).toBe(true);
+    expect(moduleIsActive(modulo("projetos"), "/planejamento/12")).toBe(true);
+    expect(moduleIsActive(modulo("compras"), "/recebimento")).toBe(true);
     expect(moduleIsActive(modulo("projetos"), "/projetosx")).toBe(false);
   });
 
@@ -125,29 +127,60 @@ describe("hrefAtivoNaBarra", () => {
     expect(orcamentos.children.some((c) => c.href === "/orcamento")).toBe(false);
   });
 
-  it("Suprimentos: uma barra só, sem link repetido, com as ferramentas do estoque fora dela", () => {
-    const suprimentos = APP_MODULES.find((m) => m.id === "suprimentos")!;
-    const visiveis = suprimentos.children.filter((c) => c.showInTopNav !== false);
+  it("Compras: do pedido ao recebimento, um item da barra para cada passo", () => {
+    const compras = APP_MODULES.find((m) => m.id === "compras")!;
+    const visiveis = compras.children.filter((c) => c.showInTopNav !== false);
     expect(visiveis.map((c) => c.label)).toEqual([
       "Visão geral",
-      "Estoque",
-      "Planejamento",
       "Pedidos",
+      "Compras com fornecedor",
       "Recebimento",
-      "Equipamentos",
+      "Prazos de compra",
     ]);
-    // os avisos vêm de todos os módulos: saíram da barra de Suprimentos e abrem pelo sino (L2)
-    expect(suprimentos.children.map((c) => c.href)).not.toContain("/notificacoes");
-    expect(moduleIsActive(suprimentos, "/notificacoes")).toBe(false);
+    // nada escondido: tudo o que é de Compras está na barra
+    expect(compras.children).toHaveLength(visiveis.length);
+    // os avisos vêm de todos os módulos: abrem pelo sino (L2)
+    expect(compras.children.map((c) => c.href)).not.toContain("/notificacoes");
+    expect(moduleIsActive(compras, "/notificacoes")).toBe(false);
     // cada rota marca exatamente o item da tarefa
     expect(hrefAtivoNaBarra(visiveis, "/suprimentos")).toBe("/suprimentos");
-    expect(hrefAtivoNaBarra(visiveis, "/suprimentos/prazos")).toBe("/pedido");
-    expect(hrefAtivoNaBarra(visiveis, "/compras/12")).toBe("/pedido");
-    expect(hrefAtivoNaBarra(visiveis, "/estoque/controle")).toBe("/estoque");
-    expect(hrefAtivoNaBarra(visiveis, "/estoque/inventario")).toBe("/estoque");
-    expect(hrefAtivoNaBarra(visiveis, "/etiquetas")).toBe("/estoque");
-    expect(hrefAtivoNaBarra(visiveis, "/scanner/triagem")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/suprimentos/prazos")).toBe("/suprimentos/prazos");
+    expect(hrefAtivoNaBarra(visiveis, "/pedido/7")).toBe("/pedido");
+    expect(hrefAtivoNaBarra(visiveis, "/compras")).toBe("/compras");
+    expect(hrefAtivoNaBarra(visiveis, "/compras/12")).toBe("/compras");
+    expect(hrefAtivoNaBarra(visiveis, "/recebimento")).toBe("/recebimento");
+  });
+
+  it("Estoque: módulo próprio, com cada seção na barra e Equipamentos dentro dele", () => {
+    const estoque = APP_MODULES.find((m) => m.id === "estoque")!;
+    const visiveis = estoque.children.filter((c) => c.showInTopNav !== false);
+    expect(visiveis.map((c) => c.label)).toEqual([
+      "Saldo e lotes",
+      "Situação do estoque",
+      "Entrada e saída por leitura",
+      "Inventário",
+      "Etiquetas",
+      "Custo do estoque",
+      "Equipamentos",
+    ]);
+    expect(hrefAtivoNaBarra(visiveis, "/estoque")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/lotes/9")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/insumos/900")).toBe("/estoque");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/situacao")).toBe("/estoque/situacao");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/inventario")).toBe("/estoque/inventario");
+    expect(hrefAtivoNaBarra(visiveis, "/estoque/custos")).toBe("/estoque/custos");
+    expect(hrefAtivoNaBarra(visiveis, "/etiquetas")).toBe("/etiquetas");
+    // os códigos não reconhecidos ficam dentro de Entrada e saída por leitura
+    expect(hrefAtivoNaBarra(visiveis, "/scanner/triagem")).toBe("/estoque/leitura");
     expect(hrefAtivoNaBarra(visiveis, "/estoque/equipamentos/3")).toBe("/estoque/equipamentos");
+  });
+
+  it("Projetos: o Planejamento fica com Projetos, e as disputas marcam Planejamento", () => {
+    const projetos = APP_MODULES.find((m) => m.id === "projetos")!;
+    const visiveis = projetos.children.filter((c) => c.showInTopNav !== false);
+    expect(visiveis.map((c) => c.label)).toEqual(["Projetos", "Planejamento"]);
+    expect(hrefAtivoNaBarra(visiveis, "/projetos/3")).toBe("/projetos");
+    expect(hrefAtivoNaBarra(visiveis, "/planejamento/5")).toBe("/planejamento");
     expect(hrefAtivoNaBarra(visiveis, "/planejamento/disputas")).toBe("/planejamento");
   });
 
@@ -161,18 +194,21 @@ describe("hrefAtivoNaBarra", () => {
 describe("revisão de 11/11: barra lateral e lugares", () => {
   const admin = { papel: "admin", permissoes: { admin: true, permissoes: {} } };
 
-  it("barra lateral começa em Início, tem Projetos e chama Operação de Análises e custeio", async () => {
+  it("barra lateral na ordem do processo: Orçamentos depois de Análises e custeio, Cadastros embaixo (11/11)", async () => {
     const { getSidebarGroups } = await import("./modules");
     expect(getSidebarGroups(admin).map((g) => g.title)).toEqual([
       "Início",
-      "Orçamentos",
       "Projetos",
-      "Suprimentos",
+      "Compras",
+      "Estoque",
       "Análises e custeio",
+      "Orçamentos",
       "Cadastros",
       "Governança",
       "Ajuda",
     ]);
+    // Suprimentos deixou de existir como módulo: virou Compras e Estoque
+    expect(APP_MODULES.map((m) => m.label)).not.toContain("Suprimentos");
   });
 
   it("Início só fica ativo na página inicial e em Notificações, que continua na busca", () => {
@@ -185,7 +221,11 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
   });
 
   it("uma rota marca um único item da barra lateral", () => {
-    const rotas = ["/", "/notificacoes", "/projetos/3", "/orcamento/parametros", "/governanca/regras", "/estoque", "/custeio", "/cadastros/insumos", "/ajuda"];
+    const rotas = [
+      "/", "/notificacoes", "/projetos/3", "/planejamento", "/planejamento/disputas", "/suprimentos", "/suprimentos/prazos",
+      "/pedido/4", "/compras/2", "/recebimento", "/estoque", "/estoque/situacao", "/estoque/equipamentos", "/etiquetas",
+      "/scanner/triagem", "/orcamento/parametros", "/governanca/regras", "/custeio", "/cadastros/insumos", "/ajuda",
+    ];
     for (const rota of rotas) {
       expect(APP_MODULES.filter((m) => moduleIsActive(m, rota)).map((m) => m.id), rota).toHaveLength(1);
     }
@@ -237,13 +277,20 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
 });
 
 describe("menu lateral", () => {
-  it("sem acesso à visão geral de Suprimentos, o menu abre o primeiro item permitido", async () => {
+  it("sem acesso à visão geral de Compras, o menu abre o primeiro item permitido", async () => {
     const { getSidebarGroups } = await import("./modules");
-    const perfil = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true } } };
-    const grupo = getSidebarGroups(perfil).find((g) => g.title === "Suprimentos");
-    expect(grupo?.href).toBe("/pedido");
-    const comEstoque = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true, "estoque.ver": true } } };
-    expect(getSidebarGroups(comEstoque).find((g) => g.title === "Suprimentos")?.href).toBe("/suprimentos");
+    const soCompras = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "compras.ver": true } } };
+    expect(getSidebarGroups(soCompras).find((g) => g.title === "Compras")?.href).toBe("/compras");
+    const comPedidos = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true, "compras.ver": true } } };
+    expect(getSidebarGroups(comPedidos).find((g) => g.title === "Compras")?.href).toBe("/suprimentos");
+    // quem só vê o Estoque não vê Compras, e vice-versa
+    const soEstoque = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "estoque.ver": true } } };
+    expect(getSidebarGroups(soEstoque).map((g) => g.title)).toEqual(expect.arrayContaining(["Estoque"]));
+    expect(getSidebarGroups(soEstoque).map((g) => g.title)).not.toContain("Compras");
+    expect(getSidebarGroups(soCompras).map((g) => g.title)).not.toContain("Estoque");
+    // quem só vê o Planejamento entra em Projetos pelo Planejamento
+    const soPlano = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "planejamento.ver": true } } };
+    expect(getSidebarGroups(soPlano).find((g) => g.title === "Projetos")?.href).toBe("/planejamento");
   });
 });
 
@@ -255,5 +302,13 @@ describe("acesso por rota", () => {
     // as outras telas da Governança seguem sem caixinha de rota (incidentes é de todos)
     expect(acessoDaRota("/governanca/incidentes")).toBeNull();
     expect(acessoDaRota("/orcamento/configuracoes")?.chave).toBe("orcamentos.visualizar");
+  });
+
+  it("visão geral de Compras é de quem vê pedidos; prazos, de quem vê compras; o estoque segue com a permissão dele", async () => {
+    const { acessoDaRota } = await import("./acesso-modulos");
+    expect(acessoDaRota("/suprimentos")).toEqual({ chave: "pedido.ver", area: "Compras" });
+    expect(acessoDaRota("/suprimentos/prazos")?.chave).toBe("compras.ver");
+    expect(acessoDaRota("/estoque/situacao")?.chave).toBe("estoque.ver");
+    expect(acessoDaRota("/planejamento/disputas")?.chave).toBe("planejamento.ver");
   });
 });

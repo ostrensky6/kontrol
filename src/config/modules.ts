@@ -14,8 +14,9 @@ export type NavigationProfile = {
 export type AppModuleId =
   | "inicio"
   | "projetos"
+  | "compras"
+  | "estoque"
   | "operacao"
-  | "suprimentos"
   | "orcamentos"
   | "cadastros"
   | "ajuda"
@@ -96,6 +97,183 @@ export const APP_MODULES: AppModule[] = [
     ],
   },
   {
+    // o projeto planeja o que vai usar, e o plano vem antes da compra (organização de 11/11, seção 4)
+    id: "projetos",
+    label: "Projetos",
+    href: "/projetos",
+    desc: "cada projeto e o planejamento do que ele vai usar",
+    icon: "FolderKanban",
+    accent: "amber",
+    activePaths: ["/projetos", "/planejamento"],
+    children: [
+      {
+        href: "/projetos",
+        label: "Projetos",
+        desc: "orçamentos, planejamentos e compras de cada projeto",
+        icon: "FolderKanban",
+      },
+      {
+        href: "/planejamento",
+        label: "Planejamento",
+        desc: "reservas de insumo para as análises previstas",
+        icon: "CalendarClock",
+        shortcut: "P",
+      },
+      {
+        href: "/planejamento/disputas",
+        label: "Disputas de reserva",
+        desc: "pedir e decidir reserva de outro plano quando falta insumo",
+        icon: "ClipboardCheck",
+        showInTopNav: false,
+      },
+    ],
+  },
+  {
+    // Compras vai do pedido ao recebimento; o recebimento lança o lote no Estoque
+    // (pedido de Antonio em 11/11: Compras como módulo próprio, na ordem do processo)
+    id: "compras",
+    label: "Compras",
+    href: "/suprimentos",
+    desc: "do pedido ao recebimento",
+    icon: "ShoppingCart",
+    accent: "blue",
+    activePaths: ["/suprimentos", "/pedido", "/compras", "/recebimento"],
+    children: [
+      {
+        href: "/suprimentos",
+        label: "Visão geral",
+        desc: "o que espera você e o andamento dos pedidos",
+        icon: "LayoutGrid",
+      },
+      {
+        href: "/pedido",
+        label: "Pedidos",
+        desc: "cada pedido e a etapa em que está, da solicitação ao pagamento",
+        icon: "ClipboardList",
+      },
+      {
+        href: "/compras",
+        label: "Compras com fornecedor",
+        desc: "as compras fechadas com fornecedor, cada uma ligada ao seu pedido",
+        icon: "ShoppingCart",
+      },
+      {
+        href: "/recebimento",
+        label: "Recebimento",
+        desc: "registrar a chegada do que foi comprado; a chegada cria o lote no Estoque",
+        icon: "PackageCheck",
+      },
+      {
+        href: "/suprimentos/prazos",
+        label: "Prazos de compra",
+        desc: "quanto tempo as compras levaram, do pedido à chegada",
+        icon: "CalendarClock",
+      },
+    ],
+  },
+  {
+    // o Estoque começa quando o recebimento lança o lote; cada seção é um item da barra
+    id: "estoque",
+    label: "Estoque",
+    href: "/estoque",
+    desc: "saldo, lotes, situação, inventário e equipamentos",
+    icon: "Boxes",
+    accent: "brand",
+    activePaths: ["/estoque", "/etiquetas", "/scanner"],
+    children: [
+      {
+        href: "/estoque",
+        label: "Saldo e lotes",
+        desc: "disponível, reservado, a caminho, mínimo e situação de cada insumo; lotes e ficha",
+        icon: "Boxes",
+        shortcut: "E",
+      },
+      {
+        href: "/estoque/situacao",
+        label: "Situação do estoque",
+        desc: "painel de alertas: saldo, compra, validade e lotes",
+        icon: "SlidersHorizontal",
+      },
+      {
+        href: "/estoque/leitura",
+        label: "Entrada e saída por leitura",
+        desc: "código de barras do fabricante e códigos não reconhecidos",
+        icon: "ScanLine",
+        ativoTambem: ["/scanner"],
+      },
+      {
+        href: "/estoque/inventario",
+        label: "Inventário",
+        desc: "contagem por insumo ou por lote, com ajuste das diferenças",
+        icon: "ClipboardCheck",
+      },
+      {
+        href: "/etiquetas",
+        label: "Etiquetas",
+        desc: "etiquetas com QR code para lotes e equipamentos",
+        icon: "Tag",
+      },
+      {
+        href: "/estoque/custos",
+        label: "Custo do estoque",
+        desc: "relatório: custo do cadastro × custo dos lotes liberados",
+        icon: "DollarSign",
+      },
+      {
+        href: "/estoque/equipamentos",
+        label: "Equipamentos",
+        desc: "unidades físicas, calibrações e manutenções",
+        icon: "Wrench",
+      },
+      {
+        href: "/scanner/triagem",
+        label: "Códigos não reconhecidos",
+        desc: "triagem de códigos lidos que ainda não têm cadastro",
+        icon: "ScanLine",
+        showInTopNav: false,
+      },
+    ],
+  },
+  {
+    id: "operacao",
+    label: "Análises e custeio",
+    href: "/operacao",
+    desc: "análises, receitas e custo técnico",
+    icon: "Activity",
+    accent: "brand",
+    activePaths: ["/operacao", "/analises", "/insumos", "/custeio", "/parametros"],
+    children: [
+      {
+        href: "/analises",
+        label: "Análises",
+        desc: "catálogo técnico, finalidade e matriz",
+        icon: "FlaskConical",
+        shortcut: "A",
+      },
+      {
+        href: "/insumos",
+        label: "Insumos por análise",
+        desc: "reagentes, controles e perdas",
+        icon: "TestTube2",
+      },
+      {
+        href: "/custeio",
+        label: "Custeio",
+        desc: "custo técnico, overhead e preço base",
+        icon: "Calculator",
+        shortcut: "C",
+      },
+      {
+        href: "/parametros",
+        label: "Parâmetros de custeio",
+        desc: "margem, impostos, taxas e fundos do preço",
+        icon: "Percent",
+        showInTopNav: false,
+      },
+    ],
+  },
+  {
+    // o orçamento ao cliente depende do custo das análises: vem depois delas (11/11)
     id: "orcamentos",
     label: "Orçamentos",
     href: "/orcamento/demandas",
@@ -159,189 +337,6 @@ export const APP_MODULES: AppModule[] = [
         label: "Modelos e catálogo",
         desc: "templates comerciais e modelos de proposta",
         icon: "LayoutGrid",
-        showInTopNav: false,
-      },
-    ],
-  },
-  {
-    // o projeto liga orçamento, plano, pedido e custo: não é de um módulo só (L4)
-    id: "projetos",
-    label: "Projetos",
-    href: "/projetos",
-    desc: "orçamentos, planejamentos e compras de cada projeto",
-    icon: "FolderKanban",
-    accent: "amber",
-    activePaths: ["/projetos"],
-    children: [
-      {
-        href: "/projetos",
-        label: "Projetos",
-        desc: "orçamentos, planejamentos e compras de cada projeto",
-        icon: "FolderKanban",
-      },
-    ],
-  },
-  {
-    id: "suprimentos",
-    label: "Suprimentos",
-    href: "/suprimentos",
-    desc: "estoque, pedidos e recebimento",
-    icon: "PackageSearch",
-    accent: "blue",
-    activePaths: [
-      "/suprimentos",
-      "/estoque",
-      "/planejamento",
-      "/pedido",
-      "/compras",
-      "/recebimento",
-      "/etiquetas",
-      "/scanner",
-    ],
-    // Uma barra só, um link por tarefa. As ferramentas do estoque (leitura,
-    // inventário, etiquetas, triagem) ficam na barra própria do Estoque; as
-    // compras formais e os prazos ficam dentro de Pedidos. Os itens ocultos
-    // continuam na busca (Ctrl+K).
-    children: [
-      {
-        href: "/suprimentos",
-        label: "Visão geral",
-        desc: "o que temos em estoque e o que precisa de atenção",
-        icon: "LayoutGrid",
-      },
-      {
-        href: "/estoque",
-        label: "Estoque",
-        desc: "saldos, lotes, entradas, baixas e validade",
-        icon: "Boxes",
-        shortcut: "E",
-        ativoTambem: ["/etiquetas", "/scanner"],
-      },
-      {
-        href: "/planejamento",
-        label: "Planejamento",
-        desc: "reservas de insumo para as análises previstas",
-        icon: "CalendarClock",
-        shortcut: "P",
-      },
-      {
-        href: "/pedido",
-        label: "Pedidos",
-        desc: "cada pedido e a etapa em que está, da solicitação ao pagamento",
-        icon: "ClipboardList",
-        ativoTambem: ["/compras", "/suprimentos/prazos"],
-      },
-      {
-        href: "/recebimento",
-        label: "Recebimento",
-        desc: "registrar a chegada do que foi comprado",
-        icon: "PackageCheck",
-      },
-      {
-        href: "/estoque/equipamentos",
-        label: "Equipamentos",
-        desc: "unidades físicas, calibrações e manutenções",
-        icon: "Wrench",
-      },
-      {
-        href: "/estoque/situacao",
-        label: "Situação do estoque",
-        desc: "painel de alertas: saldo, compra, validade e lotes",
-        icon: "SlidersHorizontal",
-        showInTopNav: false,
-      },
-      {
-        href: "/estoque/custos",
-        label: "Custo do estoque",
-        desc: "relatório: custo do cadastro × custo dos lotes liberados",
-        icon: "SlidersHorizontal",
-        showInTopNav: false,
-      },
-      {
-        href: "/estoque/leitura",
-        label: "Entrada e saída por leitura",
-        desc: "código de barras do fabricante: entrada e abertura de embalagem",
-        icon: "ScanLine",
-        showInTopNav: false,
-      },
-      {
-        href: "/estoque/inventario",
-        label: "Inventário",
-        desc: "contagem por insumo ou por lote, com ajuste de divergências",
-        icon: "ClipboardCheck",
-        showInTopNav: false,
-      },
-      {
-        href: "/etiquetas",
-        label: "Etiquetas",
-        desc: "etiquetas com QR code para lotes e equipamentos",
-        icon: "Tag",
-        showInTopNav: false,
-      },
-      {
-        href: "/scanner/triagem",
-        label: "Códigos não reconhecidos",
-        desc: "triagem de códigos lidos que ainda não têm cadastro",
-        icon: "ScanLine",
-        showInTopNav: false,
-      },
-      {
-        href: "/planejamento/disputas",
-        label: "Disputas de reserva",
-        desc: "pedir e decidir reserva de outro plano quando falta insumo",
-        icon: "ClipboardCheck",
-        showInTopNav: false,
-      },
-      {
-        href: "/compras",
-        label: "Compras",
-        desc: "registro das compras com fornecedor, ligadas aos pedidos",
-        icon: "ShoppingCart",
-        showInTopNav: false,
-      },
-      {
-        href: "/suprimentos/prazos",
-        label: "Prazos de compra",
-        desc: "quanto tempo as compras levaram, do pedido à chegada",
-        icon: "CalendarClock",
-        showInTopNav: false,
-      },
-    ],
-  },
-  {
-    id: "operacao",
-    label: "Análises e custeio",
-    href: "/operacao",
-    desc: "análises, receitas e custo técnico",
-    icon: "Activity",
-    accent: "brand",
-    activePaths: ["/operacao", "/analises", "/insumos", "/custeio", "/parametros"],
-    children: [
-      {
-        href: "/analises",
-        label: "Análises",
-        desc: "catálogo técnico, finalidade e matriz",
-        icon: "FlaskConical",
-        shortcut: "A",
-      },
-      {
-        href: "/insumos",
-        label: "Insumos por análise",
-        desc: "reagentes, controles e perdas",
-        icon: "TestTube2",
-      },
-      {
-        href: "/custeio",
-        label: "Custeio",
-        desc: "custo técnico, overhead e preço base",
-        icon: "Calculator",
-        shortcut: "C",
-      },
-      {
-        href: "/parametros",
-        label: "Parâmetros de custeio",
-        desc: "margem, impostos, taxas e fundos do preço",
-        icon: "Percent",
         showInTopNav: false,
       },
     ],

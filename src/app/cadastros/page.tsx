@@ -28,7 +28,7 @@ export default async function CadastrosIndex() {
     pode("insumos.editar"),
     pode("projetos.editar"),
   ]);
-  // o painel de alertas saiu daqui (L1): fica em Suprimentos › Estoque › Situação; aqui, só a contagem
+  // o painel de alertas saiu daqui (L1): fica em Estoque › Situação do estoque; aqui, só a contagem
   const situacao = podeVerEstoque ? await contarSituacaoEstoque(supabase, hojeIso()) : null;
   const podeImportar = permissoes.some(Boolean);
   const podeCadastrarInsumo = permissoes[1];
@@ -48,7 +48,7 @@ export default async function CadastrosIndex() {
                 </p>
                 <p>
                   <b>Qualidade dos cadastros</b> mostra o que falta preencher. <b>Situação do estoque</b> abre o
-                  painel de alertas, que agora fica em Suprimentos › Estoque.
+                  painel de alertas, que agora fica em Estoque › Situação do estoque.
                 </p>
               </HelpTip>
             }

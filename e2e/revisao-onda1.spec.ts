@@ -13,22 +13,33 @@ test.afterEach(async ({ page }) => {
   await page.context().clearCookies();
 });
 
-test("barra lateral: Início primeiro, Projetos com item próprio e Análises e custeio (L3, L4, decisões 3 e 4)", async ({ page }) => {
+test("barra lateral na ordem do processo: Projetos, Compras, Estoque, Análises e custeio e só então Orçamentos (L3, L4; organização de 11/11)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/");
   const principal = page.getByRole("navigation", { name: "Navegação principal" });
   await expect(principal.getByRole("link")).toHaveText([
     "Início",
-    "Orçamentos",
     "Projetos",
-    "Suprimentos",
+    "Compras",
+    "Estoque",
     "Análises e custeio",
+    "Orçamentos",
     "Cadastros",
     "Governança",
     "Ajuda",
   ]);
   await expect(principal.getByRole("link", { name: "Início" })).toHaveAttribute("aria-current", "page");
   await expect(principal.getByRole("link", { name: "Operação" })).toHaveCount(0);
+  await expect(principal.getByRole("link", { name: "Suprimentos" })).toHaveCount(0);
+  // Compras e Estoque abrem a sua tela e marcam o seu item
+  await principal.getByRole("link", { name: "Compras" }).click();
+  await expect(page).toHaveURL(/\/suprimentos$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Compras" })).toBeVisible();
+  await expect(principal.locator("a[aria-current]")).toHaveText(["Compras"]);
+  await principal.getByRole("link", { name: "Estoque" }).click();
+  await expect(page).toHaveURL(/\/estoque$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Saldo e lotes" })).toBeVisible();
+  await expect(principal.locator("a[aria-current]")).toHaveText(["Estoque"]);
 
   await principal.getByRole("link", { name: "Projetos" }).click();
   await expect(page).toHaveURL(/\/projetos$/);
@@ -138,7 +149,7 @@ test("botão flutuante de ajuda não existe mais; a ajuda abre pelo ? da barra (
   await expect(page.getByRole("dialog").getByRole("link", { name: "Ver tudo sobre esta tela na Ajuda" })).toBeVisible();
 });
 
-test("sino junta Aguardando você e Notificações e aparece fora de Suprimentos (L2, F8, F9)", async ({ page }) => {
+test("sino junta Aguardando você e Notificações e aparece em qualquer módulo (L2, F8, F9)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   // o estado das notificações é compartilhado entre os testes: o sino tem de bater com a tela de Notificações
   await page.goto("/notificacoes");
@@ -179,10 +190,10 @@ test("sino junta Aguardando você e Notificações e aparece fora de Suprimentos
   await expect(page).toHaveURL(/\/pedido\/502$/);
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // Notificações saiu da barra de Suprimentos; a tela continua e marca Início na barra lateral
+  // Notificações não é lugar de barra de módulo; a tela continua e marca Início na barra lateral
   await page.goto("/notificacoes");
   await expect(page.getByRole("heading", { level: 1, name: "Notificações" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Navegação de Suprimentos" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: /^Navegação de (Compras|Estoque)$/ })).toHaveCount(0);
   await expect(page.getByRole("navigation", { name: "Navegação principal" }).locator("a[aria-current]")).toHaveText(["Início"]);
 
   // aviso marcado como lido some do sino sem recarregar a página (o sino relê ao abrir)
@@ -299,13 +310,15 @@ test("Qualidade dos cadastros é o primeiro cartão de Cadastros, com o número 
 test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, com contador (L11)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/estoque/leitura");
-  const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
+  const secoes = page.getByRole("navigation", { name: "Navegação de Estoque" });
   await expect(secoes.getByRole("link")).toHaveText([
     "Saldo e lotes",
-    "Situação",
+    "Situação do estoque",
     "Entrada e saída por leitura",
     "Inventário",
     "Etiquetas",
+    "Custo do estoque",
+    "Equipamentos",
   ]);
   const atalho = page.getByTestId("link-codigos-nao-reconhecidos");
   await expect(atalho).toHaveText(/^Códigos não reconhecidos\s*\d+$/);
@@ -362,40 +375,67 @@ test("Excluir e Cancelar do plano saem da linha e vão para o menu (L15)", async
   await expect(page.getByRole("dialog")).toHaveCount(0);
 });
 
-test("Planejamento e Pedidos ganham abas; na página de um registro elas não aparecem (L12, L13)", async ({ page }) => {
+test("Planejamento tem abas próprias; Pedidos, Compras com fornecedor e Prazos são lugares da barra de Compras (L12, L13)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/planejamento");
+  // Planejamento fica com Projetos
+  const projetos = page.getByRole("navigation", { name: "Navegação de Projetos" });
+  await expect(projetos.getByRole("link")).toHaveText(["Projetos", "Planejamento"]);
+  await expect(projetos.locator("a[aria-current]")).toHaveText(["Planejamento"]);
+  await expect(page.getByRole("navigation", { name: "Navegação principal" }).locator("a[aria-current]")).toHaveText(["Projetos"]);
   const planejamento = page.getByRole("navigation", { name: "Seções do planejamento" });
   await expect(planejamento.getByRole("link")).toHaveText(["Planos", /^Disputas de reserva/]);
   await expect(planejamento.locator("a[aria-current]")).toHaveText(["Planos"]);
   await planejamento.getByRole("link", { name: /Disputas de reserva/ }).click();
   await expect(page.getByRole("heading", { level: 1, name: /Disputas de reserva/ })).toBeVisible();
   await expect(planejamento.locator("a[aria-current]")).toHaveText([/^Disputas de reserva/]);
+  await expect(projetos.locator("a[aria-current]")).toHaveText(["Planejamento"]);
   await page.goto("/planejamento/900");
   await expect(page.getByRole("heading", { level: 1, name: "Plano com baixa E2E" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Seções do planejamento" })).toHaveCount(0);
 
   await page.goto("/pedido");
-  const pedidos = page.getByRole("navigation", { name: "Seções de pedidos" });
-  await expect(pedidos.getByRole("link")).toHaveText(["Pedidos", "Compras", "Prazos de compra"]);
-  // os links de texto sob o título saíram
-  await expect(page.getByRole("navigation", { name: "Compras e prazos" })).toHaveCount(0);
-  await pedidos.getByRole("link", { name: "Prazos de compra" }).click();
-  await expect(page).toHaveURL(/\/suprimentos\/prazos$/);
-  await expect(pedidos.locator("a[aria-current]")).toHaveText(["Prazos de compra"]);
-  await expect(
-    page.getByRole("navigation", { name: "Navegação de Suprimentos" }).getByRole("link", { name: "Pedidos" }),
-  ).toHaveAttribute("aria-current", "page");
-  await page.goto("/pedido/502");
+  const compras = page.getByRole("navigation", { name: "Navegação de Compras" });
+  await expect(compras.getByRole("link")).toHaveText(["Visão geral", "Pedidos", "Compras com fornecedor", "Recebimento", "Prazos de compra"]);
+  await expect(compras.locator("a[aria-current]")).toHaveText(["Pedidos"]);
+  // a fileira de abas que repetia a barra saiu, e os links de texto sob o título também
   await expect(page.getByRole("navigation", { name: "Seções de pedidos" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Compras e prazos" })).toHaveCount(0);
+  await compras.getByRole("link", { name: "Prazos de compra" }).click();
+  await expect(page).toHaveURL(/\/suprimentos\/prazos$/);
+  await expect(compras.locator("a[aria-current]")).toHaveText(["Prazos de compra"]);
+  // na página de um pedido a barra continua, marcando Pedidos
+  await page.goto("/pedido/502");
+  await expect(compras.locator("a[aria-current]")).toHaveText(["Pedidos"]);
 });
 
-test("abas de Pedidos mostram só as telas que a pessoa pode abrir (L13, prova negativa)", async ({ page }) => {
-  // Cadastro não acessa Pedidos nem Compras: sem duas telas para alternar, não há abas
+test("Compras e Estoque só aparecem na barra lateral e no topo para quem pode abrir (L13, prova negativa)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  // no modo de teste a função Cadastro não tem pedidos, compras, recebimento nem estoque
   await comoCategoria(page, "cadastro");
   await page.goto("/pedido");
-  await expect(page.getByRole("heading", { level: 1, name: "Pedidos" })).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Seções de pedidos" })).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  const principal = page.getByRole("navigation", { name: "Navegação principal" });
+  await expect(principal.getByRole("link", { name: "Início" })).toBeVisible();
+  await expect(principal.getByRole("link", { name: "Compras" })).toHaveCount(0);
+  await expect(principal.getByRole("link", { name: "Estoque" })).toHaveCount(0);
+  await expect(page.getByRole("navigation", { name: "Navegação de Compras" })).toHaveCount(0);
+  await page.goto("/estoque");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação de Estoque" })).toHaveCount(0);
+
+  // Laboratório vê os dois módulos, com todos os lugares que pode abrir
+  await comoCategoria(page, "laboratorio");
+  await page.goto("/pedido");
+  await expect(principal.locator("a[aria-current]")).toHaveText(["Compras"]);
+  await expect(principal.getByRole("link", { name: "Estoque" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Navegação de Compras" }).getByRole("link")).toHaveText([
+    "Visão geral",
+    "Pedidos",
+    "Compras com fornecedor",
+    "Recebimento",
+    "Prazos de compra",
+  ]);
 });
 
 test("cabeçalho padrão: título de 20 px e mesma margem nas telas que fugiam do padrão (10.2)", async ({ page }) => {

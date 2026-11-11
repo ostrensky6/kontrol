@@ -44,7 +44,7 @@ test("ajuda: link direto abre o tópico, com índice e regras em destaque", asyn
   await expect(regras.getByText(/3 orçamentos de fornecedores diferentes/)).toBeVisible();
 
   // escolher outro tópico guarda o link na URL
-  await lista.getByRole("button", { name: "Compras", exact: true }).click();
+  await lista.getByRole("button", { name: "Compras com fornecedor", exact: true }).click();
   await expect(page).toHaveURL(/topico=compras/);
   const passos = page.getByRole("region", { name: "Passo a passo" });
   await expect(passos.locator("ol > li")).toHaveCount(4);

@@ -75,8 +75,8 @@ export default async function ComprasPage() {
           rotulo="Nova compra"
           cabecalho={
             <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
-              <HelpTip title="Compras">
+              <h1 className="text-xl font-semibold tracking-tight">Compras com fornecedor</h1>
+              <HelpTip title="Compras com fornecedor">
                 <p>
                   Cada compra segue as situações abaixo. Quem registra a chegada cadastra o lote e ele já fica
                   <b>disponível no estoque</b>. Compra que nasceu de um pedido é aprovada junto com o

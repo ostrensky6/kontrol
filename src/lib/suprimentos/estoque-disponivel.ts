@@ -9,7 +9,7 @@ import {
 import { separarPedidoAberto } from "@/lib/suprimentos/pedido-aberto";
 
 /**
- * "Estoque disponível" da visão geral de Suprimentos: uma linha por insumo
+ * Saldo por insumo (Estoque → Saldo e lotes; antes, também a visão geral de Suprimentos): uma linha por insumo
  * ativo, com o que há para usar, o que está reservado, o que está a caminho
  * (comprado ou autorizado, ainda não recebido; o que só espera aprovação fica
  * à parte e nada disso é somado ao disponível) e a validade mais próxima. A
@@ -154,7 +154,7 @@ export function montarEstoqueDisponivel({
 }
 
 /**
- * Filtros da tabela, os mesmos em Suprimentos e em Estoque → Saldo e lotes. A tela
+ * Filtros da tabela de Estoque → Saldo e lotes. A tela
  * abre em "Precisa de atenção": a lista inteira só aparece quando pedida.
  */
 export const FILTROS_ESTOQUE_DISPONIVEL = [

@@ -128,7 +128,6 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
       <main className="app-page-container space-y-5">
         <PageHeader
           breadcrumbs={[
-            { label: "Suprimentos", href: "/suprimentos" },
             { label: "Estoque", href: "/estoque" },
             { label: insumo.especificacao },
           ]}

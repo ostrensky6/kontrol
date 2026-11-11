@@ -44,7 +44,12 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
     >
       <div className="app-topnav-container flex items-center gap-3">
         {modulo && itens.length > 0 ? (
-          <nav aria-label={`Navegação de ${modulo.label}`} className="flex min-w-0 flex-1 gap-2 overflow-x-auto">
+          // no computador os lugares quebram em duas linhas quando não cabem (o Estoque tem sete):
+          // nenhum fica escondido atrás de rolagem. No celular a barra rola para o lado.
+          <nav
+            aria-label={`Navegação de ${modulo.label}`}
+            className="flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:overflow-visible"
+          >
             {itens.map((item) => {
               const ativo = item.href === hrefAtivo;
               const Icon = item.icon ? NAV_ICONS[item.icon] : undefined;

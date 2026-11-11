@@ -24,8 +24,8 @@ test("admin acessa itens de Governança incluindo Privilégios", async ({ page }
   await expect(page.getByRole("checkbox", { name: "Administrador: Ver auditoria" })).toBeChecked();
   await expect(page.getByRole("checkbox", { name: "Administrador: Ver auditoria" })).toBeDisabled();
   await expect(page.getByText(/^(Sim|Não)$/)).toHaveCount(0);
-  // módulos em faixas: um bloco por módulo
-  await expect(page.locator("tbody[data-modulo]")).toHaveCount(5);
+  // módulos em faixas: um bloco por módulo, na ordem da barra lateral
+  await expect(page.locator("tbody[data-modulo]")).toHaveCount(7);
   // UI2-13: a tabela de engenharia "Papéis antigos" saiu da tela.
   await expect(page.getByRole("heading", { name: /Papéis antigos/ })).toHaveCount(0);
 

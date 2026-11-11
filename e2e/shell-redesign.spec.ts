@@ -28,7 +28,7 @@ test("shell modular preserva sidebar, top-nav, collapse e temas nas telas princi
     await expect(page.getByRole("heading", { name: /Demandas|Propostas|Orçamentos/i })).toBeVisible();
 
     await page.goto("/pedido");
-    await expect(page.getByRole("navigation", { name: "Navegação de Suprimentos" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Navegação de Compras" })).toBeVisible();
     await expect(page.getByRole("heading", { level: 1, name: "Pedidos" })).toBeVisible();
   }
 });
@@ -45,6 +45,7 @@ test("drawer mobile abre navegação modular sem perder ações do shell", async
   await page.getByRole("button", { name: "Abrir menu" }).click();
   await expect(page.getByRole("heading", { name: "Menu de navegação" })).toBeAttached();
   await expect(page.getByRole("button", { name: "Alternar tema claro/escuro" })).toBeVisible();
-  await page.getByRole("link", { name: "Suprimentos" }).click();
+  await page.getByRole("link", { name: "Compras", exact: true }).click();
   await expect(page).toHaveURL(/\/suprimentos$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Compras" })).toBeVisible();
 });
