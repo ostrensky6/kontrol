@@ -40,6 +40,12 @@ export type Campo = {
    */
   novaPessoaPapel?: "laboratorio" | "compra" | "cadastro" | "coordenador" | "gestor";
   /**
+   * Campos de usuário: outro campo do registro com um nome escrito à mão (ex.:
+   * "Responsável técnico" do projeto). Com o campo de usuário vazio, o
+   * formulário oferece indicar quem tem esse nome ou cadastrá-lo já preenchido.
+   */
+  nomeSugeridoDe?: string;
+  /**
    * fora do formulário (sem uso demonstrado), mas mantido na planilha de
    * exportação/importação; a edição pelo formulário não altera o valor gravado.
    */
@@ -161,6 +167,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Coordenador do projeto",
         tipo: "select",
         opcoesDe: "perfis",
+        nomeSugeridoDe: "responsavel",
         ajuda: "Usuário que aprova os pedidos do projeto. Sem coordenador, o pedido não segue. Pessoa que não está na lista: use “Cadastrar nova pessoa”, logo abaixo do campo.",
       },
       {

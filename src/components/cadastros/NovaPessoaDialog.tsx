@@ -32,11 +32,20 @@ const ESTADO_INICIAL: UsuarioFormState = { ok: false, message: "" };
 export function NovaPessoaDialog({
   rotuloCampo,
   papelPadrao,
+  nomeInicial,
+  emailInicial,
+  preAprovado = false,
   aoFechar,
 }: {
   /** nome do campo que pediu o cadastro, para o botão final */
   rotuloCampo: string;
   papelPadrao: PapelUsuario;
+  /** nome já conhecido (escrito no projeto ou da pré-aprovação) */
+  nomeInicial?: string;
+  /** e-mail da pré-aprovação */
+  emailInicial?: string;
+  /** a pessoa foi pré-aprovada e ainda não entrou: a conta nasce agora */
+  preAprovado?: boolean;
   /** `usuario` só vem quando a conta foi criada: o formulário a escolhe no campo */
   aoFechar: (usuario?: { id: string; nome: string }) => void;
 }) {
@@ -49,8 +58,10 @@ export function NovaPessoaDialog({
         <DialogHeader>
           <DialogTitle>Cadastrar nova pessoa</DialogTitle>
           <DialogDescription>
-            Quem aprova pedidos precisa de usuário no Kontrol. A conta nasce com uma senha provisória e a pessoa
-            define a senha dela no primeiro acesso.
+            {preAprovado
+              ? "Pessoa pré-aprovada que ainda não entrou: a conta é criada agora, com a função escolhida aqui. "
+              : "Quem aprova pedidos precisa de usuário no Kontrol. "}
+            A conta nasce com uma senha provisória e a pessoa define a senha dela no primeiro acesso.
           </DialogDescription>
         </DialogHeader>
 
@@ -69,10 +80,10 @@ export function NovaPessoaDialog({
         ) : (
           <form action={acao} {...formularioSemPerda(estado)} className="space-y-3">
             <Campo rotulo="Nome" htmlFor="nova-pessoa-nome">
-              <Input id="nova-pessoa-nome" name="nome" required autoComplete="off" />
+              <Input id="nova-pessoa-nome" name="nome" required autoComplete="off" defaultValue={nomeInicial} />
             </Campo>
             <Campo rotulo="E-mail" htmlFor="nova-pessoa-email">
-              <Input id="nova-pessoa-email" name="email" type="email" required autoComplete="off" />
+              <Input id="nova-pessoa-email" name="email" type="email" required autoComplete="off" defaultValue={emailInicial} />
             </Campo>
             <Campo rotulo="Função" htmlFor="nova-pessoa-papel">
               <Select id="nova-pessoa-papel" name="papel" defaultValue={papelPadrao}>

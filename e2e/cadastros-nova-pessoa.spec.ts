@@ -81,3 +81,69 @@ test("responsáveis por etapa: a pessoa nova sugere a função Compra", async ({
   await gaveta.getByRole("button", { name: /Cadastrar nova pessoa/ }).first().click();
   await expect(page.getByRole("dialog", { name: "Cadastrar nova pessoa" }).getByLabel("Função")).toHaveValue("compra");
 });
+
+/**
+ * 2.0.2: quem foi pré-aprovado e ainda não entrou não tem conta, então não podia
+ * ser coordenador. O Administrador corrige nome e função da pré-aprovação, e o
+ * campo de usuário mostra os pré-aprovados: escolher abre o cadastro preenchido.
+ */
+test("pré-aprovado: o Administrador corrige a função antes de a pessoa entrar", async ({ page }) => {
+  await page.goto("/usuarios");
+  const linha = page.getByRole("row", { name: /Pré-aprovada E2E/ });
+  await expect(linha).toContainText("Pré-aprovado");
+  await expect(linha).toContainText("Laboratório");
+  await linha.getByRole("button", { name: "Ações de Pré-aprovada E2E" }).click();
+  await page.getByRole("menuitem", { name: "Editar" }).click();
+  const dialogo = page.getByRole("dialog", { name: "Editar pré-aprovado" });
+  await expect(dialogo.getByLabel("Nome")).toHaveValue("Pré-aprovada E2E");
+  await expect(dialogo.getByLabel("Função")).toHaveValue("laboratorio");
+  await dialogo.getByLabel("Função").selectOption("coordenador");
+  await dialogo.getByRole("button", { name: "Salvar" }).click();
+  await expect(dialogo).toHaveCount(0);
+  await expect(linha).toContainText("Coordenador");
+  // continua pré-aprovado: a conta só nasce em "Cadastrar acesso" ou no campo de coordenador
+  await expect(linha).toContainText("Pré-aprovado");
+});
+
+test("projeto: pré-aprovado aparece no campo de coordenador e o nome escrito vira botão", async ({ page }) => {
+  await page.goto("/cadastros/projetos?focus=3");
+  const gaveta = page.getByRole("dialog", { name: /Editar projeto/ });
+  const coordenador = gaveta.getByLabel("Coordenador do projeto", { exact: true });
+  const sugestao = gaveta.getByTestId("sugestao-coordenador_id");
+  await expect(sugestao).toContainText("“Pré-aprovada E2E” está em Responsável técnico, pré-aprovado e ainda sem conta.");
+
+  // escolher o pré-aprovado na lista abre o cadastro preenchido; desistir não deixa nada no campo
+  await coordenador.selectOption({ label: "Pré-aprovada E2E (pré-aprovado)" });
+  const dialogo = page.getByRole("dialog", { name: "Cadastrar nova pessoa" });
+  await expect(dialogo.getByLabel("Nome")).toHaveValue("Pré-aprovada E2E");
+  await expect(dialogo.getByLabel("E-mail")).toHaveValue("pre.aprovada.e2e@example.com");
+  await expect(dialogo.getByLabel("Função")).toHaveValue("coordenador");
+  await dialogo.getByRole("button", { name: "Voltar" }).click();
+  await expect(dialogo).toHaveCount(0);
+  await expect(coordenador.locator("option:checked")).toHaveText("—");
+
+  // o botão do nome escrito faz o mesmo e, criada a conta, a pessoa fica no campo
+  await sugestao.getByRole("button", { name: "Criar a conta de Pré-aprovada E2E e indicar" }).click();
+  await expect(dialogo.getByLabel("E-mail")).toHaveValue("pre.aprovada.e2e@example.com");
+  // função Laboratório só para não entrar em "Quem atua neste projeto" dos outros testes
+  await dialogo.getByLabel("Função").selectOption("laboratorio");
+  await dialogo.getByRole("button", { name: "Cadastrar pessoa" }).click();
+  await expect(dialogo.getByTestId("senha-provisoria-gerada")).toBeVisible();
+  await dialogo.getByRole("button", { name: /Usar em/ }).click();
+  await expect(coordenador.locator("option:checked")).toHaveText("Pré-aprovada E2E");
+  await expect(coordenador.locator("option", { hasText: "(pré-aprovado)" })).toHaveCount(0);
+  await expect(sugestao).toHaveCount(0);
+
+  // sair sem salvar; ao voltar, ela já tem conta e o nome escrito oferece só indicar
+  await page.keyboard.press("Escape");
+  await page.goto("/cadastros/projetos?focus=3");
+  await expect(sugestao).toContainText("“Pré-aprovada E2E” está em Responsável técnico e já tem usuário.");
+  await sugestao.getByRole("button", { name: "Indicar Pré-aprovada E2E" }).click();
+  await expect(coordenador.locator("option:checked")).toHaveText("Pré-aprovada E2E");
+  await expect(sugestao).toHaveCount(0);
+  await page.keyboard.press("Escape");
+
+  // a pré-aprovação some de Usuários: a pessoa agora tem conta
+  await page.goto("/usuarios");
+  await expect(page.getByRole("row", { name: /Pré-aprovada E2E/ })).not.toContainText("Pré-aprovado");
+});

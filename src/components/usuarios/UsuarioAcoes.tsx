@@ -7,6 +7,7 @@ import {
   alterarSenhaUsuario,
   alternarSuspensao,
   criarUsuarioPreAprovado,
+  editarPreAprovado,
   editarUsuario,
   excluirUsuario,
   gerarNovaSenhaProvisoria,
@@ -51,7 +52,7 @@ for (const permissao of PERMISSOES) {
 }
 const GRUPOS_PERMISSOES = Array.from(permissoesPorModulo.entries());
 
-type DialogAberto = "editar" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | null;
+type DialogAberto = "editar" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | "editar_pre" | null;
 
 function permissoesEfetivasDaLinha(row: UsuarioRow, papel: string) {
   const base = row.categorias?.[papel] ?? normalizePermissions(papel, {});
@@ -240,6 +241,86 @@ export function UploadAssinaturaButton({ row }: { row: UsuarioRow }) {
       </Button>
       <AssinaturaDialog row={row} open={open} onOpenChange={setOpen} />
     </>
+  );
+}
+
+/**
+ * Pré-aprovado ainda sem conta: o Administrador corrige nome e função antes de
+ * a pessoa entrar (ex.: pré-aprovada como Laboratório que vai coordenar um
+ * projeto). "Cadastrar acesso" cria a conta já com o que ficar aqui.
+ */
+function EditarPreAprovadoDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: UsuarioRow;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [erro, setErro] = useState("");
+  const [pending, startTransition] = useTransition();
+
+  function handle(formData: FormData) {
+    startTransition(async () => {
+      const res = await editarPreAprovado(initial, formData);
+      if (res.ok) {
+        setErro("");
+        toast.success(res.message);
+        onOpenChange(false);
+      } else {
+        setErro(res.message ?? "Não foi possível salvar.");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar pré-aprovado</DialogTitle>
+          <DialogDescription>
+            {row.email} ainda não entrou no Kontrol. A conta será criada com este nome e esta função.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={enviarSemReset(handle)} className="space-y-3">
+          <input type="hidden" name="pre_aprovado_id" value={row.preAprovadoId ?? ""} />
+          <div>
+            <label htmlFor={`editar-pre-nome-${row.id}`} className="block text-xs font-medium text-muted-foreground">
+              Nome
+            </label>
+            <Input
+              id={`editar-pre-nome-${row.id}`}
+              name="nome"
+              required
+              defaultValue={row.nome === "—" ? "" : row.nome}
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <label htmlFor={`editar-pre-papel-${row.id}`} className="block text-xs font-medium text-muted-foreground">
+              Função
+            </label>
+            <Select id={`editar-pre-papel-${row.id}`} name="papel" defaultValue={row.papel} className="mt-1 h-9">
+              {PAPEIS.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          {erro && <p className="text-xs text-danger-strong">{erro}</p>}
+          <DialogFooter>
+            <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={pending}>
+              {pending ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -472,7 +553,10 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           {!row.temAcesso ? (
-            <DropdownMenuItem onSelect={() => setDialog("pre_aprovar")}>Cadastrar acesso</DropdownMenuItem>
+            <>
+              <DropdownMenuItem onSelect={() => setDialog("editar_pre")}>Editar</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setDialog("pre_aprovar")}>Cadastrar acesso</DropdownMenuItem>
+            </>
           ) : (
             <>
               <DropdownMenuItem onSelect={() => setDialog("editar")}>Editar</DropdownMenuItem>
@@ -510,7 +594,10 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
         </>
       )}
       {!row.temAcesso && (
-        <PreAprovarDialog row={row} open={dialog === "pre_aprovar"} onOpenChange={(v) => setDialog(v ? "pre_aprovar" : null)} />
+        <>
+          <EditarPreAprovadoDialog row={row} open={dialog === "editar_pre"} onOpenChange={(v) => setDialog(v ? "editar_pre" : null)} />
+          <PreAprovarDialog row={row} open={dialog === "pre_aprovar"} onOpenChange={(v) => setDialog(v ? "pre_aprovar" : null)} />
+        </>
       )}
     </div>
   );
