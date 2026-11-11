@@ -145,12 +145,15 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Cadastros", item: "Grupo Custos", onde: [barra("cadastros", "/cadastros/grupo/custos", "Custos")] },
   { area: "Cadastros", item: "Qualidade dos cadastros", onde: [tela("app/cadastros/page.tsx", 'href="/cadastros/qualidade"')] },
   { area: "Cadastros", item: "Cadastrar nova pessoa no campo de coordenador", onde: [tela("components/cadastros/CrudShell.tsx", "Cadastrar nova pessoa")] },
+  { area: "Cadastros", item: "Pré-aprovados no campo de coordenador", onde: [tela("components/cadastros/CrudShell.tsx", "Pré-aprovados, ainda sem conta")] },
+  { area: "Cadastros", item: "Indicar ou cadastrar o nome escrito no projeto", onde: [tela("components/cadastros/CrudShell.tsx", "sugestao-")] },
   // ── Governança ──
   { area: "Governança", item: "Auditoria", onde: [barra("governanca", "/auditoria", "Auditoria")] },
   { area: "Governança", item: "Incidentes", onde: [barra("governanca", "/governanca/incidentes", "Incidentes")] },
   { area: "Governança", item: "Backups", onde: [barra("governanca", "/governanca/backups", "Backups")] },
   { area: "Governança", item: "Erros do app", onde: [barra("governanca", "/governanca/erros", "Erros do app")] },
   { area: "Governança", item: "Usuários", onde: [barra("governanca", "/usuarios", "Usuários")] },
+  { area: "Governança", item: "Usuários: editar pré-aprovado", onde: [tela("components/usuarios/UsuarioAcoes.tsx", "Editar pré-aprovado")] },
   { area: "Governança", item: "Privilégios", onde: [barra("governanca", "/governanca/privilegios", "Privilégios")] },
   { area: "Governança", item: "Regras do orçamento", onde: [barra("governanca", "/governanca/regras", "Regras do orçamento")] },
   // ── Ajuda ──

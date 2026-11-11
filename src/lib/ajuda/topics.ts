@@ -431,6 +431,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
           "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",
           "Coordenador que ainda não tem usuário: em Cadastros, no projeto ou em Laboratórios e áreas, use 'Cadastrar nova pessoa' logo abaixo do campo. A pessoa é criada com uma senha provisória e já vem escolhida no campo. Só o Administrador cadastra.",
+          "Pessoa pré-aprovada que ainda não entrou: ela aparece no fim da lista do campo, como '(pré-aprovado)'. Ao escolher, o Kontrol abre o cadastro com nome e e-mail preenchidos; confirmado, a conta é criada e a pessoa fica no campo. Se o projeto tem o nome escrito em 'Responsável técnico', o formulário oferece um botão para indicar ou cadastrar essa pessoa.",
+          "Para trocar o nome ou a função de quem está pré-aprovado antes de entrar: Governança > Usuários, ⋯ na linha da pessoa, Editar.",
         ],
       },
       {

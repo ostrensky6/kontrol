@@ -34,10 +34,18 @@ import {
   mostraRodapeDePaginas,
   opcoesDeLinhas,
 } from "@/lib/tabela-linhas";
-import { ChevronDown, ChevronUp, ChevronsUpDown, Lock, MoreHorizontal, Plus, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, ChevronsUpDown, Lock, MoreHorizontal, Plus, Search, UserCheck, UserPlus } from "lucide-react";
 import { contemBusca } from "@/lib/busca";
 import type { Campo, Coluna } from "@/lib/cadastros/config";
-import { comPessoasNovas, papelDaNovaPessoa, type OpcaoPessoa } from "@/lib/cadastros/pessoas";
+import {
+  comPessoasNovas,
+  papelDaNovaPessoa,
+  preAprovadoDoValor,
+  sugestaoDePessoa,
+  valorPreAprovado,
+  type OpcaoPessoa,
+  type PreAprovadoOpcao,
+} from "@/lib/cadastros/pessoas";
 import { NovaPessoaDialog } from "@/components/cadastros/NovaPessoaDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -200,6 +208,7 @@ export function CrudShell({
   abrirNovo,
   apenasEditar = false,
   podeCadastrarPessoa = false,
+  preAprovados = [],
 }: {
   slug: string;
   singular: string;
@@ -224,6 +233,8 @@ export function CrudShell({
   apenasEditar?: boolean;
   /** só o Administrador cadastra usuário: os campos de usuário oferecem "Cadastrar nova pessoa" */
   podeCadastrarPessoa?: boolean;
+  /** pré-aprovados sem conta (só o Administrador os vê): aparecem nos campos de usuário */
+  preAprovados?: PreAprovadoOpcao[];
 }) {
   const [aberto, setAberto] = useState(false);
   const [codigosNovo, setCodigosNovo] = useState<string[]>([]);
@@ -715,6 +726,7 @@ export function CrudShell({
           podeMovimentarEstoque={podeMovimentarEstoque}
           podeCorrigirEstoque={podeCorrigirEstoque}
           podeCadastrarPessoa={podeCadastrarPessoa}
+          preAprovados={podeCadastrarPessoa ? preAprovados : []}
           codigosNovo={codigosNovo}
         />
       )}
@@ -1110,6 +1122,7 @@ function CadastroDrawer({
   podeMovimentarEstoque,
   podeCorrigirEstoque,
   podeCadastrarPessoa,
+  preAprovados,
   codigosNovo = [],
 }: {
   open: boolean;
@@ -1123,11 +1136,15 @@ function CadastroDrawer({
   podeMovimentarEstoque: boolean;
   podeCorrigirEstoque: boolean;
   podeCadastrarPessoa: boolean;
+  preAprovados: PreAprovadoOpcao[];
   codigosNovo?: string[];
 }) {
   const router = useRouter();
   // pessoa cadastrada sem sair do formulário: entra nas listas de usuário e já vem escolhida no campo
-  const [campoNovaPessoa, setCampoNovaPessoa] = useState<Campo | null>(null);
+  const [novaPessoa, setNovaPessoa] = useState<{ campo: Campo; nome?: string; email?: string } | null>(null);
+  // pré-aprovado que ganhou conta aqui: sai das opções de pré-aprovados
+  const [emailsComContaAgora, setEmailsComContaAgora] = useState<string[]>([]);
+  const preAprovadosAbertos = preAprovados.filter((pre) => !emailsComContaAgora.includes(pre.email));
   const [pessoasNovas, setPessoasNovas] = useState<OpcaoPessoa[]>([]);
   const [escolhas, setEscolhas] = useState<Record<string, string>>({});
   const [state, action] = useActionState<FormState, FormData>(
@@ -1190,7 +1207,11 @@ function CadastroDrawer({
                 erro={state.errors?.[c.name]}
                 escolhida={escolhas[c.name]}
                 podeCadastrarPessoa={podeCadastrarPessoa}
-                aoCadastrarPessoa={() => setCampoNovaPessoa(c)}
+                aoCadastrarPessoa={(preenchido) => setNovaPessoa({ campo: c, ...preenchido })}
+                registro={registro}
+                rotuloOrigem={rotuloDoCampo(campos, c.nomeSugeridoDe)}
+                preAprovados={c.opcoesDe === "perfis" ? preAprovadosAbertos : []}
+                aoEscolherPessoa={(id) => setEscolhas((atuais) => ({ ...atuais, [c.name]: id }))}
               />
             </Fragment>
           ))}
@@ -1283,16 +1304,20 @@ function CadastroDrawer({
           </DrawerFooter>
         </form>
 
-        {campoNovaPessoa && (
+        {novaPessoa && (
           <NovaPessoaDialog
-            rotuloCampo={campoNovaPessoa.label}
-            papelPadrao={papelDaNovaPessoa(campoNovaPessoa)}
+            rotuloCampo={novaPessoa.campo.label}
+            papelPadrao={papelDaNovaPessoa(novaPessoa.campo)}
+            nomeInicial={novaPessoa.nome}
+            emailInicial={novaPessoa.email}
+            preAprovado={Boolean(novaPessoa.email)}
             aoFechar={(usuario) => {
               if (usuario) {
                 setPessoasNovas((atuais) => [...atuais, { value: usuario.id, label: usuario.nome }]);
-                setEscolhas((atuais) => ({ ...atuais, [campoNovaPessoa.name]: usuario.id }));
+                setEscolhas((atuais) => ({ ...atuais, [novaPessoa.campo.name]: usuario.id }));
+                if (novaPessoa.email) setEmailsComContaAgora((atuais) => [...atuais, novaPessoa.email as string]);
               }
-              setCampoNovaPessoa(null);
+              setNovaPessoa(null);
             }}
           />
         )}
@@ -1508,6 +1533,12 @@ function CorrigirQuantidadeDialog({
   );
 }
 
+/** Rótulo de outro campo do formulário, sem o "(opcional)". */
+function rotuloDoCampo(campos: readonly Campo[], nome: string | undefined): string | undefined {
+  if (!nome) return undefined;
+  return campos.find((campo) => campo.name === nome)?.label.replace(/\s*\(opcional\)\s*$/i, "");
+}
+
 function CampoInput({
   campo,
   valor,
@@ -1515,6 +1546,10 @@ function CampoInput({
   escolhida,
   podeCadastrarPessoa = false,
   aoCadastrarPessoa,
+  registro,
+  rotuloOrigem,
+  preAprovados = [],
+  aoEscolherPessoa,
 }: {
   campo: Campo;
   valor: unknown;
@@ -1522,7 +1557,16 @@ function CampoInput({
   /** pessoa cadastrada agora para este campo: vira o valor escolhido */
   escolhida?: string;
   podeCadastrarPessoa?: boolean;
-  aoCadastrarPessoa?: () => void;
+  /** abre "Cadastrar nova pessoa", já preenchido quando se sabe o nome ou o e-mail */
+  aoCadastrarPessoa?: (preenchido?: { nome?: string; email?: string }) => void;
+  /** registro aberto: de onde vem o nome escrito à mão (campo.nomeSugeridoDe) */
+  registro?: Registro | null;
+  /** rótulo do campo que tem o nome escrito à mão */
+  rotuloOrigem?: string;
+  /** pré-aprovados sem conta (só para o Administrador) */
+  preAprovados?: PreAprovadoOpcao[];
+  /** indica no campo um usuário que já existe */
+  aoEscolherPessoa?: (id: string) => void;
 }) {
   const base =
     "mt-1 " +
@@ -1533,6 +1577,10 @@ function CampoInput({
   const valorInicial = valor == null ? campo.valorPadrao : valor;
   const v = escolhida ?? (valorInicial == null ? "" : String(valorInicial));
   const idBase = useId();
+  // escolha feita à mão no select (não controlado), para esconder a sugestão
+  const [manual, setManual] = useState<{ base: string | undefined; valor: string } | null>(null);
+  const valorEfetivo = manual && manual.base === escolhida ? manual.valor : v;
+  const sugestao = sugestaoDePessoa(campo, registro, valorEfetivo, preAprovados);
   const inputId = `campo-${campo.name}`;
   const erroId = erro ? `${inputId}-erro` : undefined;
   const avisoId = campo.aviso ? `${inputId}-aviso` : undefined;
@@ -1637,6 +1685,16 @@ function CampoInput({
           aria-describedby={descritoPor}
           name={campo.name}
           defaultValue={v}
+          onChange={(event) => {
+            const pre = preAprovadoDoValor(event.target.value, preAprovados);
+            if (pre) {
+              // pré-aprovado não tem conta: o campo não fica com ele; o cadastro abre preenchido
+              event.target.value = valorEfetivo;
+              aoCadastrarPessoa?.({ nome: pre.nome, email: pre.email });
+              return;
+            }
+            setManual({ base: escolhida, valor: event.target.value });
+          }}
           className={cn(
             "mt-1",
             erro && "border-destructive focus-visible:ring-destructive",
@@ -1648,6 +1706,15 @@ function CampoInput({
               {o.inativo ? `${o.label} (inativo)` : o.label}
             </option>
           ))}
+          {preAprovados.length > 0 && (
+            <optgroup label="Pré-aprovados, ainda sem conta (escolher cria a conta)">
+              {preAprovados.map((pre) => (
+                <option key={pre.id} value={valorPreAprovado(pre)}>
+                  {pre.nome} (pré-aprovado)
+                </option>
+              ))}
+            </optgroup>
+          )}
         </Select>
       ) : campo.tipo === "checkbox" ? (
         <div className="mt-2">
@@ -1691,11 +1758,45 @@ function CampoInput({
           {campo.aviso}
         </p>
       )}
+      {sugestao && (sugestao.tipo === "existente" || podeCadastrarPessoa) && (
+        <div
+          data-testid={`sugestao-${campo.name}`}
+          className="mt-2 rounded-md border border-brand-200 bg-brand-50 px-3 py-2 text-xs text-brand-800 dark:border-brand-900/40 dark:bg-brand-950/20 dark:text-brand-200"
+        >
+          <p>
+            “{sugestao.nome}” está em {rotuloOrigem ?? "outro campo"}
+            {sugestao.tipo === "existente"
+              ? " e já tem usuário."
+              : sugestao.tipo === "pre_aprovado"
+                ? ", pré-aprovado e ainda sem conta."
+                : " e ainda não tem usuário."}
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            className="mt-1.5"
+            onClick={() =>
+              sugestao.tipo === "existente"
+                ? aoEscolherPessoa?.(sugestao.id)
+                : aoCadastrarPessoa?.(
+                    sugestao.tipo === "pre_aprovado" ? { nome: sugestao.nome, email: sugestao.email } : { nome: sugestao.nome },
+                  )
+            }
+          >
+            {sugestao.tipo === "existente" ? <UserCheck aria-hidden="true" /> : <UserPlus aria-hidden="true" />}
+            {sugestao.tipo === "existente"
+              ? `Indicar ${sugestao.nome}`
+              : sugestao.tipo === "pre_aprovado"
+                ? `Criar a conta de ${sugestao.nome} e indicar`
+                : `Cadastrar ${sugestao.nome} e indicar`}
+          </Button>
+        </div>
+      )}
       {campo.opcoesDe === "perfis" &&
         (podeCadastrarPessoa ? (
           <button
             type="button"
-            onClick={aoCadastrarPessoa}
+            onClick={() => aoCadastrarPessoa?.()}
             className="mt-1 min-h-8 rounded-sm text-xs font-medium text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             A pessoa não está na lista? Cadastrar nova pessoa

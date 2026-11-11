@@ -305,6 +305,8 @@ const baseStore = (): Store => {
     { id: 1, nome: "Projeto E2E" },
     // 1.7.2: projeto com coordenador ativo, para o pedido que espera aprovação
     { id: 2, nome: "Projeto com coordenação E2E", coordenador_id: "00000000-0000-4000-8000-0000000000c1", coordenador_nome: "Coordenação E2E" },
+    // 2.0.2: sem coordenador, com o nome de uma pessoa pré-aprovada escrito em Responsável técnico
+    { id: 3, nome: "Projeto com nome escrito E2E", responsavel: "Pré-aprovada E2E", status: "ativo" },
   ],
   // 0176: pedido validado depois do prazo do dia 10, no ciclo seguinte (travado)
   pedidos_internos: [
@@ -613,6 +615,10 @@ const baseStore = (): Store => {
     { id: "00000000-0000-4000-8000-0000000000c1", nome: "Coordenação E2E", email: "coord.e2e@example.com", papel: "coordenador", suspenso: false },
   ],
   projetos_vinculos: [],
+  // 2.0.2: pessoa pré-aprovada que ainda não entrou (a conta não existe)
+  usuarios_pre_aprovados: [
+    { id: 1, nome: "Pré-aprovada E2E", email: "pre.aprovada.e2e@example.com", papel: "laboratorio", permissoes: {}, observacao: null },
+  ],
   // 0169: laboratórios e áreas com a coordenação que aprova
   coordenacoes_area: [
     { id: 1, nome: "Genética", ativo: true, coordenador_id: "00000000-0000-4000-8000-0000000000c1", substituto_id: null, observacoes: null },

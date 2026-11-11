@@ -22,6 +22,7 @@ import {
   type LoteValidade,
 } from "@/lib/cadastros/insumos";
 import { nomesDosPais } from "@/lib/cadastros/locais";
+import { preAprovadosSemConta, type PreAprovadoOpcao } from "@/lib/cadastros/pessoas";
 import {
   camposTecnicosParaUsuario,
   colunasCalculadasTecnico,
@@ -254,10 +255,12 @@ export async function CadastroPagina({
   // inativos vêm marcados: o formulário só os oferece quando já são o valor atual.
   const fontes = [...new Set(cfg.campos.map((c) => c.opcoesDe).filter(Boolean))] as string[];
   const opcoesPorFonte: Record<string, { value: string; label: string; inativo?: boolean }[]> = {};
+  let emailsComConta: (string | null)[] = [];
   for (const fonte of fontes) {
     if (fonte === "perfis") {
       // usuários: nome (ou e-mail); suspenso só aparece quando já é o valor atual
       const { data } = await supabase.from("perfis").select("id, nome, email, suspenso").order("nome");
+      emailsComConta = (data ?? []).map((r) => r.email);
       opcoesPorFonte[fonte] = ((data ?? []) as { id: string; nome: string | null; email: string | null; suspenso: boolean | null }[]).map(
         (r) => ({
           value: r.id,
@@ -374,6 +377,13 @@ export async function CadastroPagina({
     }));
   }
 
+  // pré-aprovados que ainda não entraram: só o Administrador lê (RLS) e só ele cria a conta
+  let preAprovados: PreAprovadoOpcao[] = [];
+  if (podeCadastrarPessoa) {
+    const { data } = await supabase.from("usuarios_pre_aprovados").select("id, nome, email").order("nome");
+    preAprovados = preAprovadosSemConta(data ?? [], emailsComConta);
+  }
+
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
@@ -415,6 +425,7 @@ export async function CadastroPagina({
             abrirNovo={!cfg.apenasEditar && query.novo === "1"}
             apenasEditar={cfg.apenasEditar}
             podeCadastrarPessoa={podeCadastrarPessoa}
+            preAprovados={preAprovados}
           />
         </div>
       </main>

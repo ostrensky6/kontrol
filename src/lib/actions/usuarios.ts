@@ -409,6 +409,45 @@ export async function criarUsuarioPreAprovado(
 }
 
 /**
+ * Corrige o nome e a função de quem foi pré-aprovado e ainda não entrou. A
+ * conta não existe ainda: muda só a pré-aprovação, e é com ela que "Cadastrar
+ * acesso" cria a conta. Trocar a função volta as permissões ao padrão da nova
+ * função (as exceções da antiga não servem para a nova).
+ */
+export async function editarPreAprovado(_prev: FormState, formData: FormData): Promise<FormState> {
+  try {
+    if (!(await temPapel("admin"))) {
+      return { ok: false, message: "Sem permissão para editar usuários." };
+    }
+    const id = Number(formData.get("pre_aprovado_id") ?? 0);
+    const nome = String(formData.get("nome") ?? "").replace(/\s+/g, " ").trim();
+    const papel = String(formData.get("papel") ?? "");
+    if (!id) return { ok: false, message: "Pré-aprovação inválida." };
+    if (!nome) return { ok: false, message: "Informe o nome.", errors: { nome: "Informe o nome." } };
+    if (!isPapelValido(papel)) return { ok: false, message: "Função inválida." };
+
+    const supabase = await createClient();
+    const { data: atual, error: leituraError } = await supabase
+      .from("usuarios_pre_aprovados")
+      .select("id, papel")
+      .eq("id", id)
+      .maybeSingle();
+    if (leituraError || !atual) return { ok: false, message: "Pré-aprovação não encontrada." };
+
+    const mudancas: { nome: string; papel: string; permissoes?: Record<string, boolean> } = { nome, papel };
+    if (atual.papel !== papel) mudancas.permissoes = {};
+    const { data, error } = await supabase.from("usuarios_pre_aprovados").update(mudancas).eq("id", id).select("id");
+    if (error) return { ok: false, message: error.message };
+    if ((data?.length ?? 0) === 0) return { ok: false, message: "Pré-aprovação não encontrada." };
+
+    revalidatePath("/usuarios");
+    return { ok: true, message: `Pré-aprovação de ${nome} atualizada.` };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/**
  * Suspende (bloqueia login) ou reativa um usuário. O bloqueio no Auth e a
  * marca no perfil andam juntos: se o perfil falhar, o Auth volta ao que era.
  */
