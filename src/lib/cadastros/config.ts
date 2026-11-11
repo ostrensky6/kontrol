@@ -35,6 +35,11 @@ export type Campo = {
   /** preenche as opções dinamicamente no servidor (ex.: lista de fornecedores) */
   opcoesDe?: "fornecedores" | "clientes" | "projetos" | "tipo_insumos" | "locais" | "perfis" | "coordenacoes_area";
   /**
+   * Campos de usuário (`opcoesDe: "perfis"`): função que o formulário sugere ao
+   * cadastrar uma pessoa nova ali mesmo. Sem isso, a sugestão é Coordenador.
+   */
+  novaPessoaPapel?: "laboratorio" | "compra" | "cadastro" | "coordenador" | "gestor";
+  /**
    * fora do formulário (sem uso demonstrado), mas mantido na planilha de
    * exportação/importação; a edição pelo formulário não altera o valor gravado.
    */
@@ -156,7 +161,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Coordenador do projeto",
         tipo: "select",
         opcoesDe: "perfis",
-        ajuda: "Usuário que aprova os pedidos do projeto. Sem coordenador, o pedido não segue.",
+        ajuda: "Usuário que aprova os pedidos do projeto. Sem coordenador, o pedido não segue. Pessoa que não está na lista: use “Cadastrar nova pessoa”, logo abaixo do campo.",
       },
       {
         name: "responsavel",
@@ -208,7 +213,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoesDe: "perfis",
         grupo: "Quem aprova",
-        ajuda: "Recebe o aviso e aprova os pedidos de material de consumo de laboratório deste laboratório.",
+        ajuda: "Recebe o aviso e aprova os pedidos de material de consumo de laboratório deste laboratório. Pessoa que não está na lista: use “Cadastrar nova pessoa”, logo abaixo do campo.",
       },
       {
         name: "substituto_id",
@@ -244,6 +249,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoesDe: "perfis",
         grupo: "Quem recebe os avisos",
+        novaPessoaPapel: "compra",
         ajuda: "Recebe o aviso e o e-mail de cada pedido que chega a esta etapa.",
       },
       {
@@ -251,6 +257,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Substituto (usuário)",
         tipo: "select",
         opcoesDe: "perfis",
+        novaPessoaPapel: "compra",
         ajuda: "Recebe os avisos quando o responsável está suspenso ou não foi indicado.",
       },
       { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },

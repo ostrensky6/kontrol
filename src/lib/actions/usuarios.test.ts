@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const revalidatePath = vi.fn();
 const temPapel = vi.fn();
@@ -38,7 +38,13 @@ function formulario(id = "usuario-alvo", email = "alvo@kontrol.test") {
 }
 
 describe("excluirUsuario", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
   beforeEach(() => {
+    // a CI roda com o mock de tela ligado; aqui vale o cliente administrativo simulado pelo teste
+    vi.stubEnv("PLAYWRIGHT_MOCK_SUPABASE", undefined);
     revalidatePath.mockReset();
     temPapel.mockReset();
     usuarioAtual.mockReset();

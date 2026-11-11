@@ -136,6 +136,7 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Cadastros", item: "Grupo Comercial", onde: [barra("cadastros", "/cadastros/grupo/comercial", "Comercial")] },
   { area: "Cadastros", item: "Grupo Custos", onde: [barra("cadastros", "/cadastros/grupo/custos", "Custos")] },
   { area: "Cadastros", item: "Qualidade dos cadastros", onde: [tela("app/cadastros/page.tsx", 'href="/cadastros/qualidade"')] },
+  { area: "Cadastros", item: "Cadastrar nova pessoa no campo de coordenador", onde: [tela("components/cadastros/CrudShell.tsx", "Cadastrar nova pessoa")] },
   // ── Governança ──
   { area: "Governança", item: "Auditoria", onde: [barra("governanca", "/auditoria", "Auditoria")] },
   { area: "Governança", item: "Incidentes", onde: [barra("governanca", "/governanca/incidentes", "Incidentes")] },

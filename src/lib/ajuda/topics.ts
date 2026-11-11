@@ -429,6 +429,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Clique no nome do pedido para abrir. Logo abaixo do cabeçalho ficam a trilha das seis etapas e o quadro 'O que falta agora', com o próximo passo, com quem está e o que vem depois.",
           "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
           "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",
+          "Coordenador que ainda não tem usuário: em Cadastros, no projeto ou em Laboratórios e áreas, use 'Cadastrar nova pessoa' logo abaixo do campo. A pessoa é criada com uma senha provisória e já vem escolhida no campo. Só o Administrador cadastra.",
         ],
       },
       {
