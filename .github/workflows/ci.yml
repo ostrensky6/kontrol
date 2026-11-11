@@ -221,9 +221,11 @@ jobs:
         # A imagem ubuntu-24.04 do GitHub já traz o Google Chrome. Reinstalar passa
         # pelo espelho do apt, que em 11/11/2026 ficou fora do ar e derrubou a CI
         # antes de qualquer teste rodar; por isso só instala quando falta o Chrome.
+        # O ffmpeg (vídeo dos testes que falham) vem do servidor do Playwright.
         run: |
           if command -v google-chrome >/dev/null; then
             google-chrome --version
+            npx playwright install ffmpeg
           else
             npx playwright install --with-deps chrome
           fi
@@ -293,9 +295,11 @@ jobs:
         # A imagem ubuntu-24.04 do GitHub já traz o Google Chrome. Reinstalar passa
         # pelo espelho do apt, que em 11/11/2026 ficou fora do ar e derrubou a CI
         # antes de qualquer teste rodar; por isso só instala quando falta o Chrome.
+        # O ffmpeg (vídeo dos testes que falham) vem do servidor do Playwright.
         run: |
           if command -v google-chrome >/dev/null; then
             google-chrome --version
+            npx playwright install ffmpeg
           else
             npx playwright install --with-deps chrome
           fi
