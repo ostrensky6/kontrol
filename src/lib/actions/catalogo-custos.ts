@@ -6,6 +6,7 @@ import { unstable_rethrow } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { lerItemCatalogo } from "@/lib/orcamento/catalogo-custos";
+import { lerVinculo, mensagemVinculo } from "@/lib/orcamento/catalogo-vinculos";
 import {
   lerPlanilhaCatalogo,
   lerPreviaImportacao,
@@ -71,6 +72,33 @@ export async function definirAtivoItemCatalogo(formData: FormData): Promise<void
   });
   if (error) throw new Error(mensagemDoBanco(error));
   revalidatePath(CAMINHO_CATALOGO);
+}
+
+/**
+ * Liga um item do catálogo a um insumo (MC) ou técnico (PE), ou desfaz (0179).
+ * Ligado, o valor do catálogo vem do cadastro; cadastro sem custo não substitui.
+ * Pessoal exige também "Ver salário dos técnicos" (o banco confere).
+ */
+export async function vincularItemCatalogo(formData: FormData): Promise<EstadoAcao> {
+  try {
+    await exigirPapelOrcamento("gerir_modelos");
+    const lido = lerVinculo(formData);
+    if (!lido.ok) return falha(lido.message);
+    const { vinculo } = lido;
+    const supabase = await createClient();
+    const { data, error } = await supabase.rpc("catalogo_projeto_vincular", {
+      p_id: vinculo.id,
+      p_insumo_id: vinculo.insumoId,
+      p_tecnico_id: vinculo.tecnicoId,
+      p_base: vinculo.base,
+    });
+    if (error) return falha(mensagemDoBanco(error));
+    revalidatePath(CAMINHO_CATALOGO);
+    return sucesso(mensagemVinculo(data, vinculo));
+  } catch (erro) {
+    unstable_rethrow(erro);
+    return falha(mensagemDoBanco(erro instanceof Error ? erro.message : erro));
+  }
 }
 
 /** Junta dois itens da mesma rubrica: `remover` passa a apontar para `manter`. */

@@ -38,6 +38,9 @@ export const ROTULO_EVENTO_CATALOGO: Record<string, string> = {
   edicao_catalogo: "Editado no catálogo",
   unificacao: "Unificado",
   pendente_permissao: "Pessoal pendente",
+  // 0179: ligar e desfazer o vínculo com o cadastro; valor trazido do cadastro
+  vinculo_cadastro: "Vínculo com o cadastro",
+  valor_cadastro: "Valor do cadastro",
 };
 
 export type EntradaItemCatalogo = {

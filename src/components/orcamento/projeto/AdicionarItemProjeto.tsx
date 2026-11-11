@@ -6,6 +6,13 @@ import { useFormStatus } from "react-dom";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { MESES_VALOR_VELHO, origemDoValor, valorDesatualizado } from "@/lib/orcamento/catalogo-custos";
 import { VALOR_MASCARADO } from "@/lib/cadastros/mascara";
+import {
+  avisoSemCusto,
+  avisoValorAlterado,
+  nomeCadastro,
+  seloCadastro,
+  type VinculoCatalogo,
+} from "@/lib/orcamento/catalogo-vinculos";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
 
 export type ItemCatalogo = {
@@ -21,6 +28,8 @@ export type ItemCatalogo = {
   valor_atualizado_por?: string | null;
   valor_origem_demanda_titulo?: string | null;
   origem?: string | null;
+  /** Item ligado ao cadastro de Insumos ou Técnicos (0179): o valor vem de lá. */
+  cadastro?: VinculoCatalogo | null;
 };
 
 const MAX_SUGESTOES = 8;
@@ -186,6 +195,11 @@ export function AdicionarItemProjeto({
                 <span className="min-w-0 truncate">
                   {item.descricao}
                   <span className="ml-1 text-xs text-muted-foreground">({item.unidade ?? "un"})</span>
+                  {item.cadastro && (
+                    <span className="ml-1 text-[10px] font-medium text-brand-700 dark:text-brand-300">
+                      · {nomeCadastro(item.cadastro)}
+                    </span>
+                  )}
                 </span>
                 <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
                   {item.preco_mascarado ? VALOR_MASCARADO : brl(item.preco_unitario)}
@@ -241,12 +255,23 @@ export function AdicionarItemProjeto({
       <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-5" aria-live="polite">
         {escolhido ? (
           <>
-            Do catálogo ({escolhido.id}): {brl(escolhido.preco_unitario)}
-            {escolhido.valor_atualizado_em && <> de {formatDate(escolhido.valor_atualizado_em)}, {origemDoValor(escolhido)}</>}.
+            {escolhido.cadastro ? (
+              <>
+                <span className="font-medium text-brand-700 dark:text-brand-300">{seloCadastro(escolhido.cadastro)}</span> (
+                {escolhido.id}): {brl(escolhido.preco_unitario)}
+                {escolhido.valor_atualizado_em && <> de {formatDate(escolhido.valor_atualizado_em)}</>}.
+                {avisoSemCusto(escolhido.cadastro) && (
+                  <span className="ml-1 font-medium text-warning-strong">{avisoSemCusto(escolhido.cadastro)}</span>
+                )}
+              </>
+            ) : (
+              <>
+                Do catálogo ({escolhido.id}): {brl(escolhido.preco_unitario)}
+                {escolhido.valor_atualizado_em && <> de {formatDate(escolhido.valor_atualizado_em)}, {origemDoValor(escolhido)}</>}.
+              </>
+            )}
             {Number(valor) !== escolhido.preco_unitario && valor !== "" && (
-              <span className="ml-1 font-medium text-foreground">
-                Valor alterado: vale para este orçamento e, ao concluir a revisão, atualiza o catálogo.
-              </span>
+              <span className="ml-1 font-medium text-foreground">{avisoValorAlterado(escolhido.cadastro)}</span>
             )}
             {valorDesatualizado(escolhido.valor_atualizado_em) && (
               <span className="ml-1 font-medium text-warning-strong">

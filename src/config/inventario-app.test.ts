@@ -134,6 +134,9 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Orçamentos", item: "Parâmetros econômicos", onde: [busca("/orcamento/parametros")] },
   { area: "Orçamentos", item: "Documento da proposta", onde: [busca("/orcamento/documento-proposta")] },
   { area: "Orçamentos", item: "Modelos e catálogo", onde: [busca("/orcamento/modelos")] },
+  // decisão 5 de 11/11 (0179): ligar item do catálogo a Insumos ou Técnicos, e desfazer
+  { area: "Orçamentos", item: "Catálogo: Ligar ao cadastro", onde: [tela("app/orcamento/modelos/page.tsx", "<VincularCadastroDialog"), tela("components/orcamento/catalogo/VincularCadastroDialog.tsx", "Desfazer vínculo")] },
+  { area: "Orçamentos", item: "Custos do projeto: selo Do cadastro", onde: [tela("components/orcamento/projeto/AdicionarItemProjeto.tsx", "seloCadastro(escolhido.cadastro)")] },
   // ── Cadastros ──
   { area: "Cadastros", item: "Visão geral", onde: [barra("cadastros", "/cadastros", "Visão geral")] },
   { area: "Cadastros", item: "Grupo Materiais", onde: [barra("cadastros", "/cadastros/grupo/materiais", "Materiais")] },

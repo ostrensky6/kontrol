@@ -642,8 +642,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Nas viagens, salvar as entradas recalcula as quantidades automáticas e substitui ajustes manuais dessas linhas.",
         ],
       },
+      {
+        titulo: "Catálogo ligado a Insumos e Técnicos",
+        itens: [
+          "Em Orçamentos → Modelos e catálogo, o botão de corrente (\"Ligar ao cadastro\") liga um item de Material de consumo a um insumo, ou um item de Pessoal a um técnico. A lista sugere os nomes parecidos; você escolhe um a um e pode desfazer.",
+          "Diga se o valor do insumo é por embalagem (caixa, fardo, frasco) ou por unidade; no técnico, por mês ou por hora.",
+          "Ligado, o valor do catálogo vem do cadastro e acompanha as mudanças dele. Insumo ou técnico sem custo no cadastro não substitui o valor do catálogo; a tela avisa.",
+          "No orçamento, o item ligado aparece com \"Do cadastro de Insumos\" ou \"Do cadastro de Técnicos\". Mudar o valor na linha vale só para aquela proposta: o catálogo continua com o valor do cadastro, e a planilha do catálogo também não muda esse valor.",
+          "Orçamentos já feitos não mudam. Ligar pessoal exige \"Ver salário dos técnicos\"; sem \"Valores de pessoal no orçamento\", o valor continua XXX.",
+        ],
+      },
     ],
-    termos: ["projeto", "rubrica", "pessoal", "meses", "viagens", "diárias", "catálogo", "revisão"],
+    termos: ["projeto", "rubrica", "pessoal", "meses", "viagens", "diárias", "catálogo", "revisão", "ligar ao cadastro", "vínculo", "insumo", "técnico", "embalagem"],
   },
   {
     id: "orcamento-historico",

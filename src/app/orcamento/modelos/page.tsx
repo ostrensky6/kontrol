@@ -10,6 +10,7 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { ItemCatalogoDialog } from "@/components/orcamento/catalogo/ItemCatalogoDialog";
 import { UnificarItemDialog } from "@/components/orcamento/catalogo/UnificarItemDialog";
 import { ImportarPlanilhaDialog } from "@/components/orcamento/catalogo/ImportarPlanilhaDialog";
+import { VincularCadastroDialog, type OpcaoCadastro } from "@/components/orcamento/catalogo/VincularCadastroDialog";
 import { FormAcao } from "@/components/orcamento/projeto/FormAcao";
 import { buttonVariants } from "@/components/ui/button";
 import { duplicarTemplateProjeto, excluirTemplate } from "@/lib/actions/orcamento-projetos";
@@ -19,6 +20,7 @@ import {
   resolverPendenciaCatalogo,
   salvarItemCatalogo,
   unificarItensCatalogo,
+  vincularItemCatalogo,
 } from "@/lib/actions/catalogo-custos";
 import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
@@ -28,6 +30,14 @@ import {
   ROTULO_EVENTO_CATALOGO,
   valorDesatualizado,
 } from "@/lib/orcamento/catalogo-custos";
+import {
+  avisoSemCusto,
+  cadastroDaRubrica,
+  descreverVinculo,
+  mapaVinculos,
+  nomeCadastro,
+  seloCadastro,
+} from "@/lib/orcamento/catalogo-vinculos";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { precoCatalogoMascarado } from "@/lib/cadastros/salario";
@@ -124,6 +134,7 @@ export default async function OrcamentoModelosPage({
     podeEditarCatalogo,
     podePessoal,
     podeSalario,
+    { data: vinculosData },
   ] = await Promise.all([
     supabase
       .from("orcamento_projeto_templates")
@@ -136,8 +147,34 @@ export default async function OrcamentoModelosPage({
     podeOrcamento("gerir_modelos"),
     temPermissao("orcamentos.pessoal"),
     temPermissao("tecnicos.salario.ver"),
+    // Itens ligados aos cadastros de Insumos e Técnicos (0179), sem valores.
+    supabase.rpc("orcamento_projeto_catalogo_vinculos"),
   ]);
   const podeVerPessoal = podePessoal || podeSalario;
+  const vinculos = mapaVinculos(vinculosData);
+  // Opções para ligar: só para quem edita o catálogo; técnicos só para quem vê salário.
+  const [{ data: insumosData }, { data: tecnicosData }] = podeEditarCatalogo
+    ? await Promise.all([
+        supabase
+          .from("insumos")
+          .select("id, especificacao, unidade, custo_total_embalagem, custo_unitario")
+          .eq("ativo", true)
+          .order("especificacao"),
+        podeSalario
+          ? supabase.from("tecnicos").select("id, nome, processo").eq("ativo", true).order("nome")
+          : Promise.resolve({ data: null }),
+      ])
+    : [{ data: null }, { data: null }];
+  const opcoesInsumo: OpcaoCadastro[] = (insumosData ?? []).map((insumo) => ({
+    id: Number(insumo.id),
+    nome: insumo.especificacao,
+    detalhe: detalheInsumo(insumo),
+  }));
+  const opcoesTecnico: OpcaoCadastro[] = (tecnicosData ?? []).map((tecnico) => ({
+    id: Number(tecnico.id),
+    nome: tecnico.nome,
+    detalhe: tecnico.processo ?? null,
+  }));
   const catalogo = ((catalogoCompleto ?? []) as CatalogoItem[]).slice(0, 400);
   const itemHistorico = filtros.historico ? catalogo.find((item) => item.id === filtros.historico) : undefined;
   const { data: historicoData } = itemHistorico
@@ -172,6 +209,9 @@ export default async function OrcamentoModelosPage({
       .filter((outro) => outro.id !== item.id && outro.rubrica === item.rubrica && outro.ativo && !outro.substituido_por)
       .map((outro) => ({ id: outro.id, descricao: outro.descricao, unidade: outro.unidade }));
   const mostrarRubrica = !filtros.rubrica;
+  /** MC liga a Insumos; PE liga a Técnicos só para quem vê salário (o banco confere de novo). */
+  const podeLigar = (item: CatalogoItem) =>
+    item.rubrica === "MC" || (item.rubrica === "PE" && podeSalario);
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -476,7 +516,7 @@ export default async function OrcamentoModelosPage({
                 <col className="w-[7.5rem]" />
                 <col className="w-[6rem]" />
                 <col className="w-[7.5rem]" />
-                <col className="w-[8.75rem]" />
+                <col className="w-[10.5rem]" />
               </colgroup>
               <thead className={cabecalhoTabela}>
                 <tr>
@@ -501,6 +541,17 @@ export default async function OrcamentoModelosPage({
                       {item.descricao}
                       {item.substituido_por && (
                         <span className="block text-[11px] text-muted-foreground">Unificado em {item.substituido_por}</span>
+                      )}
+                      {vinculos.get(item.id) && (
+                        <span
+                          className="block truncate text-[11px] text-brand-700 dark:text-brand-300"
+                          title={descreverVinculo(vinculos.get(item.id)!)}
+                        >
+                          {seloCadastro(vinculos.get(item.id))}: {descreverVinculo(vinculos.get(item.id)!)}
+                          {avisoSemCusto(vinculos.get(item.id)) && (
+                            <span className="block text-warning-strong">{avisoSemCusto(vinculos.get(item.id))}</span>
+                          )}
+                        </span>
                       )}
                     </td>
                     <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.unidade ?? "un"}>{item.unidade ?? "un"}</td>
@@ -540,7 +591,17 @@ export default async function OrcamentoModelosPage({
                               preco_mascarado: precoCatalogoMascarado(item),
                             }}
                             podeVerPessoal={podeVerPessoal}
+                            cadastro={nomeCadastro(vinculos.get(item.id))}
                             action={salvarItemCatalogo}
+                          />
+                        )}
+                        {podeEditarCatalogo && !item.substituido_por && podeLigar(item) && (
+                          <VincularCadastroDialog
+                            item={item}
+                            tipo={cadastroDaRubrica(item.rubrica)!}
+                            vinculo={vinculos.get(item.id) ?? null}
+                            opcoes={item.rubrica === "PE" ? opcoesTecnico : opcoesInsumo}
+                            action={vincularItemCatalogo}
                           />
                         )}
                         <Link href={hrefHistorico(filtros, item.id)} scroll={false} className={CLASSE_BOTAO_ICONE}>
@@ -617,6 +678,21 @@ function hrefHistorico(filtros: SearchParams, id: string | undefined) {
 }
 
 /** Data do valor atual: a da última atualização (0137) ou a da carga. */
+/** "cx · embalagem R$ 90,00 · unidade R$ 0,90" ou "sem custo no cadastro" (custo do insumo é aberto). */
+function detalheInsumo(insumo: {
+  unidade: string | null;
+  custo_total_embalagem: number | null;
+  custo_unitario: number | null;
+}) {
+  const embalagem = Number(insumo.custo_total_embalagem ?? 0);
+  const unidade = Number(insumo.custo_unitario ?? 0);
+  const partes = [insumo.unidade ?? "un"];
+  if (embalagem > 0) partes.push(`embalagem ${brl(embalagem)}`);
+  if (unidade > 0) partes.push(`unidade ${brl(unidade)}`);
+  if (embalagem <= 0 && unidade <= 0) partes.push("sem custo no cadastro");
+  return partes.join(" · ");
+}
+
 function dataDoValor(item: CatalogoItem) {
   return item.valor_atualizado_em ?? item.valid_from;
 }

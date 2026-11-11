@@ -60,11 +60,14 @@ export function ItemCatalogoDialog({
   item,
   rubricaPadrao = "MC",
   podeVerPessoal,
+  cadastro = null,
   action,
 }: {
   item?: ItemCatalogoEditavel;
   rubricaPadrao?: string;
   podeVerPessoal: boolean;
+  /** Item ligado ao cadastro (0179): o valor e a rubrica seguem o cadastro e não são enviados. */
+  cadastro?: "Insumos" | "Técnicos" | null;
   action: AcaoFormulario;
 }) {
   const [aberto, setAberto] = useState(false);
@@ -114,14 +117,16 @@ export function ItemCatalogoDialog({
           aria-label={novo ? "Novo item do catálogo" : `Editar ${item.descricao}`}
         >
           {item && <input type="hidden" name="id" value={item.id} />}
+          {cadastro && <input type="hidden" name="rubrica" value={rubrica} />}
           <div>
             <Label htmlFor={`${id}-rubrica`}>Rubrica</Label>
             <select
               id={`${id}-rubrica`}
-              name="rubrica"
+              name={cadastro ? undefined : "rubrica"}
               value={rubrica}
+              disabled={Boolean(cadastro)}
               onChange={(evento) => setRubrica(evento.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm disabled:opacity-70"
             >
               {RUBRICAS.map(([valor, rotulo]) => (
                 <option key={valor} value={valor}>
@@ -151,10 +156,10 @@ export function ItemCatalogoDialog({
           </div>
           <div>
             <Label htmlFor={`${id}-preco`}>{rubrica === "PE" ? "Valor mensal (R$)" : "Valor unitário (R$)"}</Label>
-            {valorOculto ? (
+            {valorOculto || cadastro ? (
               <Input
                 id={`${id}-preco`}
-                value={VALOR_MASCARADO}
+                value={valorOculto ? VALOR_MASCARADO : precoInicial}
                 readOnly
                 disabled
                 aria-describedby={`${id}-preco-nota`}
@@ -173,11 +178,15 @@ export function ItemCatalogoDialog({
               />
             )}
           </div>
-          {valorOculto && (
+          {cadastro ? (
+            <p id={`${id}-preco-nota`} className="text-xs text-muted-foreground sm:col-span-2">
+              Valor e rubrica seguem o cadastro de {cadastro}. Para mudar o valor, altere o cadastro ou desfaça o vínculo.
+            </p>
+          ) : valorOculto ? (
             <p id={`${id}-preco-nota`} className="text-xs text-warning-strong sm:col-span-2">
               Valor de pessoal: só quem tem “Valores de pessoal no orçamento” vê, cria e altera.
             </p>
-          )}
+          ) : null}
           <p className="text-xs text-muted-foreground sm:col-span-2">
             O mesmo item (rubrica, descrição e unidade) não pode existir duas vezes; maiúsculas, acentos e “un/unid” contam como iguais.
           </p>
