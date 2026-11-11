@@ -142,7 +142,8 @@ test("Novo pedido da visão geral abre o formulário em Pedidos", async ({ page 
 /**
  * 1.7.2: o caminho da aprovação fica evidente. Na organização de 11/11/2026 a
  * visão geral de Compras voltou a ter o quadro "Aguardando você" e as caixas
- * das seis etapas; Pedidos mostra a linha "Sua vez", que leva direto ao pedido.
+ * das seis etapas; em Pedidos o quadro "Aguardando você" voltou inteiro (etapa 3)
+ * e leva direto ao pedido.
  * Na página do pedido o botão de aprovar fica no topo, em "O que falta agora".
  */
 test("coordenador acha o pedido para aprovar e o botão fica no topo da página", async ({ page }) => {
@@ -164,9 +165,18 @@ test("coordenador acha o pedido para aprovar e o botão fica no topo da página"
   await expect(andamento.getByRole("link", { name: /^A receber: / })).toHaveAttribute("href", "/recebimento");
   await expect(andamento.getByRole("link", { name: "Ver todos os pedidos" })).toHaveAttribute("href", "/pedido");
 
-  // a lista de Pedidos tem as etapas e a linha "Sua vez", que leva direto ao pedido
+  // a lista de Pedidos tem as etapas e o quadro "Aguardando você", que leva direto ao pedido
   await page.goto("/pedido");
-  await page.getByRole("status", { name: "Sua vez" }).getByRole("link", { name: "1 pedido espera a sua aprovação" }).click();
+  const emPedidos = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
+  await expect(emPedidos.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
+    "href",
+    "/pedido?etapa=aprovacao",
+  );
+  // o quadro de Pedidos só traz pendências de pedidos: lote em quarentena e manutenção ficam no Início
+  await expect(emPedidos.locator('a[href^="/estoque"], a[href^="/equipamentos"], a[href^="/planejamento"]')).toHaveCount(0);
+  // a linha resumida "Sua vez" deu lugar ao quadro: não ficam os dois
+  await expect(page.getByRole("status", { name: "Sua vez" })).toHaveCount(0);
+  await emPedidos.getByRole("link", { name: /Primers para aprovar E2E/ }).click();
   await expect(page).toHaveURL(/\/pedido\/502$/);
 
   // trilha das seis etapas, com a atual marcada

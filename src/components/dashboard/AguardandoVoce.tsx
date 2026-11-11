@@ -6,9 +6,10 @@ import { cn } from "@/lib/utils";
 import type { Pendencia } from "./aguardando";
 
 /**
- * O que espera a ação do usuário (PER2-10). O quadro completo aparece só no
- * Início; o sino do topo mostra o mesmo conteúdo em qualquer tela e as outras
- * telas mostram uma linha (AguardandoVoceLinha, D4 da revisão de 11/11). Com
+ * O que espera a ação do usuário (PER2-10). O quadro completo aparece no
+ * Início, na visão geral de Compras e em Pedidos (voltou na organização de
+ * 11/11/2026); o sino do topo mostra o mesmo conteúdo em qualquer tela;
+ * Saldo e lotes e Planejamento mostram uma linha (AguardandoVoceLinha). Com
  * `destaque`, o quadro ganha contorno quando há algo esperando.
  */
 export function AguardandoVoce({

@@ -248,6 +248,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "As três visões da Situação: por insumo, por lote e gráficos",
+        itens: [
+          "No topo ficam cinco números: Sem estoque, Repor, Vencidos ou vencendo, Compra atrasada e Saúde do estoque. Cada número abre a lista por insumo já filtrada. Um insumo com dois sinais conta nos dois números.",
+          "Saúde do estoque é o percentual de insumos em dia, sem nenhum sinal. Exemplo: 40 insumos, 30 em dia, saúde de 75%.",
+          "Por insumo: os quadros de alerta e, logo abaixo, 'Tratar por insumo'. Cada insumo aparece com os seus sinais, o disponível comparado ao mínimo e os avisos que o sistema gerou para ele. A lista abre em 'Precisa de atenção'.",
+          "Filtros de 'Tratar por insumo': busca, situação, criticidade (crítico, operacional ou eventual, do cadastro do insumo) e avisos do sistema (com aviso pendente, com avisos tratados ou sem aviso).",
+          "'Tratar alerta' marca o aviso como lido para você; 'Arquivar' tira o aviso da sua lista. Nenhum dos dois muda o estoque. Para agir no estoque use 'Dar baixa' e 'Pedir reposição', no mesmo cartão.",
+          "Por lote: os lotes com saldo que estão vencidos, vencem em breve ou não têm validade, com as ações de cada lote (dar baixa, bloquear, descartar). 'Todos' mostra a lista inteira.",
+          "Gráficos: cobertura, situação por categoria, valor em estoque, entradas e saídas por mês e 'Insumos por situação', em que cada insumo entra uma vez, na situação mais grave. Ao lado ficam as notas de controle e a saúde do estoque.",
+        ],
+      },
+      {
         titulo: "Ficha do insumo",
         itens: [
           "Clique no nome de um insumo em Estoque → Saldo e lotes ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
@@ -413,7 +425,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Onde o coordenador aprova",
         itens: [
-          "O pedido enviado aparece para quem aprova em 'Aguardando você', no Início e no sino do topo, no quadro 'Aguardando você' da visão geral de Compras e na linha 'Sua vez' de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
+          "O pedido enviado aparece para quem aprova em 'Aguardando você', no Início e no sino do topo, e no quadro 'Aguardando você' da visão geral de Compras e de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
           "Clique no nome do pedido para abrir. Logo abaixo do cabeçalho ficam a trilha das seis etapas e o quadro 'O que falta agora', com o próximo passo, com quem está e o que vem depois.",
           "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
           "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",

@@ -12,6 +12,8 @@ import { mensagemDoBanco } from "@/lib/erros";
 function refreshNotifications() {
   revalidatePath("/");
   revalidatePath("/notificacoes");
+  // a Situação do estoque mostra os avisos de cada insumo, com "Tratar alerta" e "Arquivar"
+  revalidatePath("/estoque/situacao");
 }
 
 async function gravarLeitura(id: number, campos: { lida_em?: string; arquivada_em?: string }) {

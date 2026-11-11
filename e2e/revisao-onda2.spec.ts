@@ -216,12 +216,32 @@ test("Situação é um lugar do Estoque e o único lugar dos alertas, do “a ca
   await expect(page).toHaveURL(/\/estoque\/situacao$/);
 });
 
-test("Cadastros e Início mostram a contagem do painel, com o mesmo número, e levam até ele (D1)", async ({ page }) => {
+/**
+ * Organização de 11/11/2026, etapa 3: "Sem estoque", "Vencidos ou vencendo" e
+ * "Repor" são problemas diferentes, com ações diferentes, e voltaram a ser
+ * números separados no Início. Saem da mesma conta dos números do topo da
+ * Situação do estoque, e cada um abre a lista por insumo já filtrada.
+ */
+const NUMEROS_DO_ESTOQUE = [
+  ["Sem estoque", "sem_disponivel"],
+  ["Vencidos ou vencendo", "vencido_vencendo"],
+  ["Repor", "reposicao"],
+] as const;
+
+test("Cadastros mostra a contagem do painel; o Início mostra os números do estoque separados, iguais aos da Situação (D1)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/estoque/situacao");
   const resumo = ((await page.getByTestId("resumo-situacao").textContent()) ?? "").trim();
   expect(resumo).toMatch(/^(\d+ urgentes? · \d+ de atenção|\d+ urgentes?|\d+ de atenção|nada urgente)$/);
   const total = [...resumo.matchAll(/(\d+)/g)].reduce((soma, [n]) => soma + Number(n), 0);
+  // os números do topo da Situação, lidos do nome de cada cartão ("Sem estoque: 2. …")
+  const numeros = page.getByRole("region", { name: "Números do estoque" });
+  const naSituacao: Record<string, number> = {};
+  for (const [rotulo] of NUMEROS_DO_ESTOQUE) {
+    const nome = (await numeros.getByRole("link", { name: new RegExp(`^${rotulo}: \\d+\\.`) }).getAttribute("aria-label")) ?? "";
+    naSituacao[rotulo] = Number(/: (\d+)\./.exec(nome)?.[1]);
+    expect(Number.isInteger(naSituacao[rotulo]), rotulo).toBe(true);
+  }
 
   await page.goto("/cadastros");
   const cartao = page.getByTestId("cartao-situacao-estoque");
@@ -232,20 +252,28 @@ test("Cadastros e Início mostram a contagem do painel, com o mesmo número, e l
 
   await page.goto("/");
   const indicadores = page.getByRole("region", { name: "Indicadores" });
-  const situacao = indicadores.getByRole("link", { name: /^Situação do estoque:/ });
-  await expect(situacao).toHaveAttribute("href", "/estoque/situacao");
-  await expect(situacao).toContainText(String(total));
-  await expect(situacao).toContainText(resumo);
-  // os três números de estoque, cada um com uma regra própria, viraram um
-  await expect(indicadores.getByRole("link", { name: /^(Repor|Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
+  for (const [rotulo, filtro] of NUMEROS_DO_ESTOQUE) {
+    // mesmo número da Situação, e o link abre a lista por insumo com o filtro daquele número
+    await expect(
+      indicadores.getByRole("link", { name: new RegExp(`^${rotulo}: ${naSituacao[rotulo]}\\.`) }),
+      rotulo,
+    ).toHaveAttribute("href", `/estoque/situacao?alerta=${filtro}#controle-por-insumo`);
+  }
+  // prova negativa: o número único que juntava tudo e as palavras antigas não voltam
+  await expect(indicadores.getByRole("link", { name: /^(Situação do estoque|Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
   // cada linha de "Precisa de atenção hoje" abre a ficha do insumo ou o lote, nunca uma lista genérica
   const linhas = page.getByRole("list", { name: "Precisa de atenção hoje" }).getByRole("link");
   if (total > 0) await expect(linhas.first()).toBeVisible();
   for (const linha of await linhas.all()) {
     await expect(linha).toHaveAttribute("href", /^\/(estoque\/insumos|estoque\/lotes|cadastros\/insumos)/);
   }
-  await situacao.click();
-  await expect(page).toHaveURL(/\/estoque\/situacao$/);
+
+  // o número abre a lista já filtrada, e a lista tem exatamente aquele tanto de insumos
+  await indicadores.getByRole("link", { name: /^Sem estoque: / }).click();
+  await expect(page).toHaveURL(/\/estoque\/situacao\?alerta=sem_disponivel#controle-por-insumo$/);
+  const lista = page.getByRole("region", { name: "Tratar por insumo" });
+  await expect(lista.getByLabel("Situação")).toHaveValue("sem_disponivel");
+  await expect(lista.getByTestId("controle-contagem")).toHaveText(new RegExp(`^${naSituacao["Sem estoque"]} de \\d+ insumos$`));
 });
 
 test("prova negativa: sem acesso ao Estoque e sem criar pedido, nem contagem nem botão de reposição", async ({ page }) => {
@@ -253,7 +281,7 @@ test("prova negativa: sem acesso ao Estoque e sem criar pedido, nem contagem nem
   await comoCategoria(page, "cadastro");
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
-  await expect(page.getByRole("link", { name: /^Situação do estoque:/ })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: /^(Situação do estoque|Sem estoque|Vencidos ou vencendo|Repor):/ })).toHaveCount(0);
   await page.goto("/cadastros");
   await expect(page.getByRole("heading", { level: 1, name: "Cadastros" })).toBeVisible();
   await expect(page.getByTestId("cartao-situacao-estoque")).toHaveCount(0);

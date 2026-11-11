@@ -25,6 +25,9 @@ const PAGINAS: { nome: string; url: string }[] = [
   { nome: "Estoque", url: "/estoque" },
   // revisão de 11/11, Onda 2: painel único e ficha do insumo
   { nome: "Situação do estoque", url: "/estoque/situacao" },
+  // organização de 11/11, etapa 3: as outras duas visões da Situação
+  { nome: "Situação do estoque (por lote)", url: "/estoque/situacao?ver=lote" },
+  { nome: "Situação do estoque (gráficos)", url: "/estoque/situacao?ver=graficos" },
   { nome: "Ficha do insumo", url: "/estoque/insumos/900" },
   { nome: "Custo do estoque", url: "/estoque/custos" },
   { nome: "Pedidos", url: "/pedido" },
