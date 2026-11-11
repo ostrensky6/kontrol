@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
@@ -17,13 +18,16 @@ export default async function LeituraEstoquePage({
   const { modo } = await searchParams;
   const modoInicial: ModoLeitura = modo === "saida" ? "saida" : "entrada";
   const supabase = await createClientUntyped();
-  const [podeMovimentar, podeReceber, podeVincular, { data: insumos }, { data: locais }] = await Promise.all([
+  const [podeMovimentar, podeReceber, podeVincular, { data: insumos }, { data: locais }, triagem] = await Promise.all([
     pode("estoque.movimentar"),
     pode("compras.receber"),
     pode("insumos.editar"),
     supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
     supabase.from("locais").select("id, nome").order("nome"),
+    // códigos lidos que ainda não têm cadastro: a triagem mora aqui dentro (revisão de 11/11, L11)
+    supabase.from("cadastros_triagem").select("id").in("status", ["pendente", "em_analise"]),
   ]);
+  const codigosSemCadastro = triagem.error ? null : (triagem.data ?? []).length;
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -43,11 +47,26 @@ export default async function LeituraEstoquePage({
               </p>
               <p>
                 Código desconhecido: vincule a um insumo existente ou cadastre um novo; a próxima
-                leitura já é reconhecida.
+                leitura já é reconhecida. O que ficar para depois aparece em <b>Códigos não reconhecidos</b>,
+                no botão ao lado do título.
               </p>
               <HelpExample>Leu a caixa de ponteiras: “Abrir 1 embalagem do lote LEIT-…” e confirmar.</HelpExample>
             </HelpTip>
           </div>
+          <Link
+            href="/scanner/triagem"
+            data-testid="link-codigos-nao-reconhecidos"
+            className="inline-flex min-h-9 items-center gap-2 rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
+          >
+            Códigos não reconhecidos
+            {codigosSemCadastro === null ? (
+              <span className="text-xs font-normal text-muted-foreground">sem dado</span>
+            ) : codigosSemCadastro > 0 ? (
+              <span className="rounded-full bg-warning-soft px-1.5 text-xs font-semibold text-warning-strong">
+                {codigosSemCadastro}
+              </span>
+            ) : null}
+          </Link>
         </div>
 
         <div className="mt-6">

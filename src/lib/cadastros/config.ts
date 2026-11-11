@@ -223,7 +223,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
   responsaveis: {
     slug: "responsaveis",
     tabela: "responsaveis_compras",
-    titulo: "Responsáveis do administrativo e do pagamento",
+    titulo: "Responsáveis por etapa",
     singular: "responsável",
     resumo: "Quem autoriza a compra e quem paga.",
     subtitulo:

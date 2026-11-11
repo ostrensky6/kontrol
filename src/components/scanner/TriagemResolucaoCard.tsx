@@ -59,7 +59,7 @@ export function TriagemResolucaoCard({
   );
 
   return (
-    <article className="rounded-lg border border-border bg-card p-5 shadow-sm">
+    <article data-testid="triagem-codigo" className="rounded-lg border border-border bg-card p-5 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="font-mono text-sm font-semibold text-foreground">

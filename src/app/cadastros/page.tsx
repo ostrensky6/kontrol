@@ -15,6 +15,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { hojeIso } from "@/lib/estoque/baixa";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
+import { contarPendenciasDeQualidade } from "@/lib/cadastros/qualidade";
 import {
   inicioJanelaMeses,
   montarInsumosPainel,
@@ -113,9 +114,10 @@ export default async function CadastrosIndex() {
   const hoje = hojeIso();
   const supabase = await createClientUntyped();
   // a importação grava em vários cadastros; cada linha ainda passa pelo RLS da tabela
-  const [painel, aCaminho, ...permissoes] = await Promise.all([
+  const [painel, aCaminho, pendenciasDeQualidade, ...permissoes] = await Promise.all([
     carregarPainel(supabase, hoje),
     pode("compras.ver").then((ok) => (ok ? lerACaminho(supabase, hoje) : null)),
+    contarPendenciasDeQualidade(supabase),
     pode("cadastros.editar"),
     pode("insumos.editar"),
     pode("projetos.editar"),
@@ -176,6 +178,36 @@ export default async function CadastrosIndex() {
 
         <ResultadoImportacaoCadastros />
 
+        {/* L8: o que falta preencher vem antes dos gráficos, com o número */}
+        <Link
+          href="/cadastros/qualidade"
+          data-testid="cartao-qualidade"
+          className="group mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-border bg-card px-4 py-3 outline-none transition-colors hover:border-primary/60 focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <span className="text-sm font-semibold text-foreground">Qualidade dos cadastros</span>
+          <span
+            className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
+              pendenciasDeQualidade === null
+                ? "bg-muted text-muted-foreground"
+                : pendenciasDeQualidade > 0
+                  ? "bg-warning-soft text-warning-strong"
+                  : "bg-success-soft text-success-strong"
+            }`}
+          >
+            {pendenciasDeQualidade === null
+              ? "sem dado"
+              : pendenciasDeQualidade === 0
+                ? "nada pendente"
+                : pendenciasDeQualidade === 1
+                  ? "1 pendência"
+                  : `${pendenciasDeQualidade} pendências`}
+          </span>
+          <span className="text-sm text-muted-foreground">
+            O que falta preencher e pode distorcer custo, compra ou proposta.
+          </span>
+          <span className="ml-auto text-sm font-medium text-primary group-hover:underline">Revisar</span>
+        </Link>
+
         <PainelInsumos
           insumos={painel.insumos}
           lotesVencendo={painel.lotesVencendo}
@@ -190,14 +222,9 @@ export default async function CadastrosIndex() {
         <ACaminhoInsumos itens={aCaminho?.itens ?? []} erro={aCaminho?.erro} semAcesso={!aCaminho} />
 
         <section id="todos-os-cadastros" aria-labelledby="todos-os-cadastros-titulo" className="mt-10 scroll-mt-20 border-t border-border pt-6">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <h2 id="todos-os-cadastros-titulo" className="text-lg font-semibold tracking-tight">
-              Todos os cadastros
-            </h2>
-            <Link href="/cadastros/qualidade" className="inline-flex rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted">
-              Revisar qualidade dos cadastros
-            </Link>
-          </div>
+          <h2 id="todos-os-cadastros-titulo" className="text-lg font-semibold tracking-tight">
+            Todos os cadastros
+          </h2>
           <CadastrosCards cadastros={cadastros} />
         </section>
         </ImportacaoCadastrosProvider>

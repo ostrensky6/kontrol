@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   TriagemResolucaoCard,
@@ -73,11 +74,18 @@ export default async function ScannerTriagemPage({
 
   return (
     <main className="app-page-container">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+      <Breadcrumbs
+        items={[
+          { label: "Estoque", href: "/estoque" },
+          { label: "Entrada e saída por leitura", href: "/estoque/leitura" },
+          { label: "Códigos não reconhecidos" },
+        ]}
+      />
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Triagem de códigos desconhecidos</h1>
-            <HelpTip title="Triagem de códigos">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Códigos não reconhecidos</h1>
+            <HelpTip title="Códigos não reconhecidos">
               <p>
                 Códigos lidos que o Kontrol não reconheceu. Para cada um: <b>vincule</b> a um insumo,
                 lote ou local já cadastrado, crie um insumo básico ou arquive.
@@ -112,7 +120,7 @@ export default async function ScannerTriagemPage({
         ))}
         {triagens.length === 0 && (
           <p className="rounded-lg border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
-            Nenhuma triagem pendente.
+            Nenhum código esperando cadastro.
           </p>
         )}
       </div>

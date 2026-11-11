@@ -1,5 +1,6 @@
 import type { Accent, NavGroup, NavIcon, NavLink } from "@/components/layout/SideNav";
 import { getCadastrosOrdenados } from "@/lib/cadastros/config";
+import { GRUPOS_CADASTROS, rotaDoGrupo } from "@/lib/cadastros/grupos";
 import { acessoDaRota } from "@/config/acesso-modulos";
 import { nivelPapel, papelAlcanca, type PapelUsuario } from "@/lib/auth/permissions";
 
@@ -50,11 +51,22 @@ export function permiteMinRole(perfil: NavigationProfile, minRole?: Role) {
   return papelAlcanca(perfil?.papel, minRole);
 }
 
-const cadastroChildren = getCadastrosOrdenados().map((cadastro) => ({
+// cada cadastro continua na busca (Ctrl+K); na barra aparecem os 4 grupos (revisão de 11/11, 8.8)
+const cadastroChildren: ModuleChild[] = getCadastrosOrdenados().map((cadastro) => ({
   href: `/cadastros/${cadastro.slug}`,
   label: cadastro.titulo,
   desc: cadastro.subtitulo,
   icon: "Database" as const,
+  showInTopNav: false,
+}));
+
+const grupoCadastroChildren: ModuleChild[] = GRUPOS_CADASTROS.map((grupo) => ({
+  href: rotaDoGrupo(grupo.id),
+  label: grupo.label,
+  desc: grupo.desc,
+  icon: "Database" as const,
+  ativoTambem: grupo.slugs.map((slug) => `/cadastros/${slug}`),
+  showInCommand: false,
 }));
 
 export const APP_MODULES: AppModule[] = [
@@ -343,6 +355,7 @@ export const APP_MODULES: AppModule[] = [
         icon: "LayoutGrid",
         shortcut: "D",
       },
+      ...grupoCadastroChildren,
       ...cadastroChildren,
     ],
   },

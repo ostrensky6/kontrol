@@ -160,7 +160,7 @@ test("sino junta Aguardando você e Notificações e aparece fora de Suprimentos
     "/pedido?etapa=aprovacao",
   );
   // F8: pendência que a função do banco não cobria
-  await expect(aguardando.getByRole("link", { name: /Códigos lidos sem cadastro: 1\. Ver a lista/ })).toHaveAttribute(
+  await expect(aguardando.getByRole("link", { name: /Códigos não reconhecidos: 1\. Ver a lista/ })).toHaveAttribute(
     "href",
     "/scanner/triagem",
   );
@@ -202,7 +202,7 @@ test("sino mostra só o que a pessoa pode resolver (F8, prova negativa)", async 
   const aguardando = page.getByRole("dialog").getByRole("region", { name: "Aguardando você" });
   // Laboratório não aprova pedido nem cadastra insumo: nenhuma das duas pendências é dele
   await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar/ })).toHaveCount(0);
-  await expect(aguardando.getByRole("link", { name: /Códigos lidos sem cadastro/ })).toHaveCount(0);
+  await expect(aguardando.getByRole("link", { name: /Códigos não reconhecidos/ })).toHaveCount(0);
 });
 
 test("no celular o sino, a ajuda e a busca ficam na barra do logotipo (10.6)", async ({ page }) => {
@@ -219,4 +219,105 @@ test("no celular o sino, a ajuda e a busca ficam na barra do logotipo (10.6)", a
   await page.keyboard.press("Escape");
   // sem rolagem lateral da página por causa da barra
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+});
+
+test("Cadastros: a barra tem 4 grupos e as abas levam a cada cadastro (8.8)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/cadastros");
+  const barra = page.getByRole("navigation", { name: "Navegação de Cadastros" });
+  await expect(barra.getByRole("link")).toHaveText(["Painel de insumos", "Materiais", "Pessoas e áreas", "Comercial", "Custos"]);
+  // antes eram 13 itens que rolavam para o lado: agora a barra cabe em 1366 px
+  expect(await barra.evaluate((el) => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
+  await expect(barra.getByRole("link", { name: "Painel de insumos" })).toHaveAttribute("aria-current", "page");
+
+  await barra.getByRole("link", { name: "Pessoas e áreas" }).click();
+  await expect(page).toHaveURL(/\/cadastros\/tecnicos$/);
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Pessoas e áreas"]);
+  const abas = page.getByRole("navigation", { name: "Cadastros de Pessoas e áreas" });
+  await expect(abas.getByRole("link")).toHaveText(["Técnicos", "Laboratórios e áreas", "Responsáveis por etapa"]);
+  await expect(abas.locator("a[aria-current]")).toHaveText(["Técnicos"]);
+
+  await abas.getByRole("link", { name: "Responsáveis por etapa" }).click();
+  await expect(page).toHaveURL(/\/cadastros\/responsaveis$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Responsáveis por etapa" })).toBeVisible();
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Pessoas e áreas"]);
+
+  await barra.getByRole("link", { name: "Materiais" }).click();
+  await expect(page).toHaveURL(/\/cadastros\/insumos$/);
+  await expect(page.getByRole("navigation", { name: "Cadastros de Materiais" }).getByRole("link")).toHaveText([
+    "Insumos",
+    "Tipos técnicos",
+    "Equipamentos",
+    "Previsão de equipamentos",
+    "Locais",
+  ]);
+
+  // grupo de um cadastro só não ganha abas; a página inicial também não
+  await page.goto("/cadastros/overhead");
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Custos"]);
+  await expect(page.getByRole("navigation", { name: /^Cadastros de / })).toHaveCount(0);
+  await page.goto("/cadastros");
+  await expect(page.getByRole("navigation", { name: /^Cadastros de / })).toHaveCount(0);
+
+  // a busca continua abrindo cada cadastro pelo nome
+  await page.getByRole("button", { name: "Buscar ou executar" }).click();
+  await page.getByRole("combobox").fill("Fornecedores");
+  await page.getByRole("option", { name: /Fornecedores/ }).first().click();
+  await expect(page).toHaveURL(/\/cadastros\/fornecedores$/);
+  await expect(barra.locator("a[aria-current]")).toHaveText(["Comercial"]);
+});
+
+test("grupo de cadastros que não existe não abre nada (8.8, prova negativa)", async ({ page }) => {
+  await page.goto("/cadastros/grupo/inexistente");
+  await expect(page.getByRole("heading", { level: 1, name: "Página não encontrada" })).toBeVisible();
+  await expect(page).toHaveURL(/\/cadastros\/grupo\/inexistente$/);
+  await expect(page.getByRole("navigation", { name: /^Cadastros de / })).toHaveCount(0);
+});
+
+test("Qualidade dos cadastros é o primeiro cartão de Cadastros, com o número de pendências (L8)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/cadastros");
+  const cartao = page.getByTestId("cartao-qualidade");
+  await expect(cartao).toBeVisible();
+  await expect(cartao).toContainText("Qualidade dos cadastros");
+  await expect(cartao).toContainText(/\d+ pendências?|nada pendente/);
+  const texto = (await cartao.innerText()).replace(/\s+/g, " ");
+  const total = Number(/(\d+) pendência/.exec(texto)?.[1] ?? 0);
+  // vem antes dos gráficos do painel, e o botão do fim da página saiu
+  const yCartao = (await cartao.boundingBox())!.y;
+  const yPainel = (await page.getByRole("region", { name: "Painel de insumos" }).boundingBox())!.y;
+  expect(yCartao).toBeLessThan(yPainel);
+  await expect(page.getByRole("link", { name: "Revisar qualidade dos cadastros" })).toHaveCount(0);
+
+  // o número do cartão é o mesmo da tela
+  await cartao.click();
+  await expect(page).toHaveURL(/\/cadastros\/qualidade$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Qualidade dos cadastros" })).toBeVisible();
+  await expect(page.getByText(`${total} pendência(s)`, { exact: true })).toBeVisible();
+});
+
+test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, com contador (L11)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/estoque/leitura");
+  const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
+  await expect(secoes.getByRole("link")).toHaveText([
+    "Saldo e lotes",
+    "Controle de Estoque",
+    "Entrada e saída por leitura",
+    "Inventário",
+    "Etiquetas",
+  ]);
+  const atalho = page.getByTestId("link-codigos-nao-reconhecidos");
+  await expect(atalho).toHaveText(/^Códigos não reconhecidos\s*\d+$/);
+  const esperando = Number(/(\d+)$/.exec((await atalho.innerText()).trim())?.[1]);
+  expect(esperando).toBeGreaterThan(0);
+
+  await atalho.click();
+  await expect(page).toHaveURL(/\/scanner\/triagem$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Códigos não reconhecidos" })).toBeVisible();
+  // a tela continua dentro de Leitura na barra do Estoque, e o número bate com a lista
+  await expect(secoes.locator("a[aria-current]")).toHaveText(["Entrada e saída por leitura"]);
+  await expect(page.getByTestId("triagem-codigo")).toHaveCount(esperando);
+  await page.getByRole("navigation", { name: "Breadcrumb" }).getByRole("link", { name: "Entrada e saída por leitura" }).click();
+  await expect(page).toHaveURL(/\/estoque\/leitura$/);
 });

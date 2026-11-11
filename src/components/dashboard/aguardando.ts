@@ -118,7 +118,7 @@ const CATALOGO: Record<
     item: (id) => `/planejamento/disputas#disputa-${id}`,
   },
   codigos_triagem: {
-    titulo: "Códigos lidos sem cadastro",
+    titulo: "Códigos não reconhecidos",
     acao: "vincular a um insumo ou cadastrar",
     frase: ["código lido ainda não tem cadastro", "códigos lidos ainda não têm cadastro"],
     lista: "/scanner/triagem",
