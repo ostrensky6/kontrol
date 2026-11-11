@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PageHeader } from "@/components/app/PageHeader";
 import { PageShell } from "@/components/app/PageShell";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
@@ -67,27 +68,27 @@ export default async function NotificacoesPage() {
 
   return (
     <PageShell>
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-1">
-            <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
-            <HelpTip title="Notificações">
-              <p>Avisos para você, de todos os módulos: etapas que esperam sua ação, faltas, reposições, vencimentos e incidentes.</p>
-              <p>O sino no topo de qualquer tela mostra os avisos não lidos e o que está aguardando você.</p>
-            </HelpTip>
-          </div>
-        </div>
-        {naoLidas > 0 && (
-          <form action={marcarTodasNotificacoesLidas}>
-            <button
-              type="submit"
-              className="rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted/50"
-            >
-              Marcar todas como lidas
-            </button>
-          </form>
-        )}
-      </div>
+      <PageHeader
+        title="Notificações"
+        help={
+          <HelpTip title="Notificações">
+            <p>Avisos para você, de todos os módulos: etapas que esperam sua ação, faltas, reposições, vencimentos e incidentes.</p>
+            <p>O sino no topo de qualquer tela mostra os avisos não lidos e o que está aguardando você.</p>
+          </HelpTip>
+        }
+        actions={
+          naoLidas > 0 ? (
+            <form action={marcarTodasNotificacoesLidas}>
+              <button
+                type="submit"
+                className="rounded-md border border-border bg-card px-3 py-2 text-sm font-semibold text-foreground shadow-sm hover:bg-muted/50"
+              >
+                Marcar todas como lidas
+              </button>
+            </form>
+          ) : undefined
+        }
+      />
 
       <div className="grid gap-3 sm:grid-cols-3 2xl:grid-cols-4">
         <div className="rounded-md border border-border bg-card p-4">

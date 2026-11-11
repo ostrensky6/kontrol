@@ -105,12 +105,25 @@ function uniqueFilterOptions(options: DataTableFilter["options"]) {
   });
 }
 
+/** Lista vazia: uma linha. O título, quando a tela informa um, vem na frente do texto. */
+function EstadoVazio({ titulo, texto, acao }: { titulo?: string; texto: string; acao?: React.ReactNode }) {
+  return (
+    <>
+      <p>
+        {titulo && <span className="font-medium text-foreground">{titulo}. </span>}
+        {texto}
+      </p>
+      {acao && <div className="mt-2 flex justify-center">{acao}</div>}
+    </>
+  );
+}
+
 export function DataTable<TData>({
   columns,
   data,
   searchPlaceholder = "Buscar...",
   emptyText = "Nenhum registro encontrado.",
-  emptyTitle = "Nada para mostrar",
+  emptyTitle,
   emptyAction,
   filters = [],
   filtrosVisiveis,
@@ -126,6 +139,8 @@ export function DataTable<TData>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [density, setDensity] = React.useState<"comfortable" | "compact">("comfortable");
+  // a primeira coluna (o nome) fica fixa ao rolar para o lado; a sombra só aparece rolando (10.3)
+  const [roladoParaOLado, setRoladoParaOLado] = React.useState(false);
 
   React.useEffect(() => {
     try {
@@ -315,7 +330,7 @@ export function DataTable<TData>({
                     <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
                     Mais filtros
                     {ativosExtras > 0 && (
-                      <span className="rounded-full bg-primary px-1.5 text-[11px] font-semibold tabular-nums text-primary-foreground">
+                      <span className="rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">
                         {ativosExtras}
                       </span>
                     )}
@@ -361,6 +376,11 @@ export function DataTable<TData>({
       </div>
 
       <div
+        data-rolado={roladoParaOLado ? "true" : undefined}
+        onScroll={(evento) => {
+          const rolado = evento.currentTarget.scrollLeft > 0;
+          if (rolado !== roladoParaOLado) setRoladoParaOLado(rolado);
+        }}
         className={cn(
           "mt-4 hidden overflow-x-auto border border-border bg-card shadow-sm md:block",
           semLinhas ? "rounded-t-lg border-b-0" : "rounded-lg",
@@ -370,7 +390,7 @@ export function DataTable<TData>({
           <TableHeader className="bg-muted/60">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id} className="hover:bg-transparent">
-                {headerGroup.headers.map((header) => {
+                {headerGroup.headers.map((header, indice) => {
                   const meta = header.column.columnDef.meta as DataTableMeta | undefined;
                   const align = meta?.align ?? "left";
                   const sorted = header.column.getIsSorted();
@@ -391,6 +411,7 @@ export function DataTable<TData>({
                         compact && "h-8 px-3",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
+                        indice === 0 && "app-coluna-fixa",
                         meta?.className,
                       )}
                     >
@@ -426,7 +447,7 @@ export function DataTable<TData>({
           <TableBody>
             {table.getRowModel().rows.map((row) => (
               <TableRow key={row.id}>
-                {row.getVisibleCells().map((cell) => {
+                {row.getVisibleCells().map((cell, indice) => {
                   const meta = cell.column.columnDef.meta as DataTableMeta | undefined;
                   return (
                     <TableCell
@@ -435,6 +456,7 @@ export function DataTable<TData>({
                         compact && "px-3 py-1.5",
                         meta?.align === "right" && "text-right tabular-nums",
                         meta?.align === "center" && "text-center",
+                        indice === 0 && "app-coluna-fixa",
                         meta?.className,
                       )}
                     >
@@ -449,15 +471,9 @@ export function DataTable<TData>({
       </div>
       {/* Fora da área rolável: em tabelas largas a mensagem centralizada ficava cortada. */}
       {semLinhas && (
-        <div className="hidden rounded-b-lg border border-t-0 border-border bg-card px-4 py-6 text-center text-muted-foreground shadow-sm md:block">
-          <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
-            <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-              <Search className="h-4 w-4" aria-hidden="true" />
-            </div>
-            <p className="font-medium text-foreground">{emptyTitle}</p>
-            <p className="text-sm">{emptyText}</p>
-            {emptyAction}
-          </div>
+        <div className="hidden rounded-b-lg border border-t-0 border-border bg-card px-4 py-4 text-center text-sm text-muted-foreground shadow-sm md:block">
+          {/* estado vazio em uma linha, sem ícone grande nem cartão alto (revisão de 11/11, 10.4) */}
+          <EstadoVazio titulo={emptyTitle} texto={emptyText} acao={emptyAction} />
         </div>
       )}
 
@@ -498,15 +514,8 @@ export function DataTable<TData>({
           </div>
         ))}
         {table.getRowModel().rows.length === 0 && (
-          <div className="rounded-lg border border-border bg-card p-5 text-center text-sm text-muted-foreground">
-            <div className="mx-auto flex max-w-sm flex-col items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-md bg-muted text-muted-foreground">
-                <Search className="h-4 w-4" aria-hidden="true" />
-              </div>
-              <p className="font-medium text-foreground">{emptyTitle}</p>
-              <p>{emptyText}</p>
-              {emptyAction}
-            </div>
+          <div className="rounded-lg border border-border bg-card p-4 text-center text-sm text-muted-foreground">
+            <EstadoVazio titulo={emptyTitle} texto={emptyText} acao={emptyAction} />
           </div>
         )}
       </div>

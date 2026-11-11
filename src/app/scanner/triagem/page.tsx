@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   TriagemResolucaoCard,
@@ -74,33 +74,31 @@ export default async function ScannerTriagemPage({
 
   return (
     <main className="app-page-container">
-      <Breadcrumbs
-        items={[
+      <PageHeader
+        breadcrumbs={[
           { label: "Estoque", href: "/estoque" },
           { label: "Entrada e saída por leitura", href: "/estoque/leitura" },
           { label: "Códigos não reconhecidos" },
         ]}
+        title="Códigos não reconhecidos"
+        help={
+          <HelpTip title="Códigos não reconhecidos">
+            <p>
+              Códigos lidos que o Kontrol não reconheceu. Para cada um: <b>vincule</b> a um insumo,
+              lote ou local já cadastrado, crie um insumo básico ou arquive.
+            </p>
+            <p>Nada aqui dá entrada no estoque nem recebe lote.</p>
+          </HelpTip>
+        }
+        actions={
+          <Link
+            href="/scanner/desconhecido"
+            className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
+          >
+            Digitar código
+          </Link>
+        }
       />
-      <div className="mt-3 flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">Códigos não reconhecidos</h1>
-            <HelpTip title="Códigos não reconhecidos">
-              <p>
-                Códigos lidos que o Kontrol não reconheceu. Para cada um: <b>vincule</b> a um insumo,
-                lote ou local já cadastrado, crie um insumo básico ou arquive.
-              </p>
-              <p>Nada aqui dá entrada no estoque nem recebe lote.</p>
-            </HelpTip>
-          </div>
-        </div>
-        <Link
-          href="/scanner/desconhecido"
-          className="rounded-md border border-border px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-muted/50"
-        >
-          Digitar código
-        </Link>
-      </div>
 
       {mensagem && (
         <p className="mt-6 rounded-md border border-success-strong/30 bg-success-soft px-3 py-2 text-sm text-success-strong">

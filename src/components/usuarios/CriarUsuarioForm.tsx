@@ -6,6 +6,7 @@ import { criarUsuario, type UsuarioFormState } from "@/lib/actions/usuarios";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { PAPEIS, PAPEL_PADRAO } from "@/lib/auth/permissions";
+import { Campo } from "@/components/common/Campo";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -21,30 +22,27 @@ export function CriarUsuarioForm() {
     <form
       action={action}
       {...formularioSemPerda(state)}
-      className="rounded-lg border border-info-strong/30 bg-info-soft p-4"
+      className="rounded-xl border border-border bg-card p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-end gap-3">
-        <div className="min-w-52 flex-1">
-          <label htmlFor="novo-usuario-nome" className="block text-xs font-medium text-info-strong">Nome</label>
-          <Input id="novo-usuario-nome" name="nome" className="mt-1 bg-card" />
-        </div>
-        <div className="min-w-56 flex-1">
-          <label htmlFor="novo-usuario-email" className="block text-xs font-medium text-info-strong">E-mail</label>
-          <Input id="novo-usuario-email" name="email" type="email" required className="mt-1 bg-card" />
-        </div>
-        <div>
-          <label htmlFor="novo-usuario-papel" className="block text-xs font-medium text-info-strong">Função</label>
-          <Select id="novo-usuario-papel" name="papel" defaultValue={PAPEL_PADRAO} className="mt-1 h-9 bg-card">
+        <Campo rotulo="Nome" htmlFor="novo-usuario-nome" className="min-w-52 flex-1">
+          <Input id="novo-usuario-nome" name="nome" />
+        </Campo>
+        <Campo rotulo="E-mail" htmlFor="novo-usuario-email" className="min-w-56 flex-1">
+          <Input id="novo-usuario-email" name="email" type="email" required />
+        </Campo>
+        <Campo rotulo="Função" htmlFor="novo-usuario-papel">
+          <Select id="novo-usuario-papel" name="papel" defaultValue={PAPEL_PADRAO}>
             {PAPEIS.map((papel) => (
               <option key={papel.value} value={papel.value}>
                 {papel.label}
               </option>
             ))}
           </Select>
-        </div>
+        </Campo>
         <SubmitButton pendingLabel="Cadastrando…">Cadastrar usuário</SubmitButton>
       </div>
-      <p className="mt-2 flex items-center gap-1 text-xs leading-5 text-info-strong/80">
+      <p className="mt-2 flex items-center gap-1 text-xs leading-5 text-muted-foreground">
         O Kontrol gera uma senha provisória só para esta pessoa; ela troca no primeiro acesso.
         <HelpTip title="Novo usuário">
           <p>

@@ -7,6 +7,9 @@ import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { CriarPorBotao } from "@/components/common/CriarPorBotao";
+import { Campo } from "@/components/common/Campo";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +65,6 @@ export default async function ComprasPage() {
     }));
   const sugestoesRender = sugestoes.slice(0, 8);
 
-  const inp = "rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -93,28 +95,25 @@ export default async function ComprasPage() {
           }
         >
           <FormComMensagem action={criarPedido} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground">Fornecedor</label>
-              <select aria-label="Fornecedor" name="fornecedor_id" className={`${inp} mt-1`} defaultValue="">
+            <Campo rotulo="Fornecedor" htmlFor="nova-compra-fornecedor" className="min-w-48">
+              <Select id="nova-compra-fornecedor" name="fornecedor_id" defaultValue="">
                 <option value="">—</option>
                 {(fornecedores ?? []).map((f) => (
                   <option key={f.id} value={f.id}>{f.nome}</option>
                 ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
-              <select aria-label="Projeto" name="projeto_id" className={`${inp} mt-1`} defaultValue="">
+              </Select>
+            </Campo>
+            <Campo rotulo="Projeto" htmlFor="nova-compra-projeto" className="min-w-48">
+              <Select id="nova-compra-projeto" name="projeto_id" defaultValue="">
                 <option value="">—</option>
                 {(projetos ?? []).map((p) => (
                   <option key={p.id} value={p.id}>{p.nome}</option>
                 ))}
-              </select>
-            </div>
-            <div className="flex-1 min-w-40">
-              <label className="block text-xs font-medium text-muted-foreground">Campanha (texto livre)</label>
-              <input aria-label="Campanha (texto livre)" name="projeto" className={`${inp} mt-1 w-full`} />
-            </div>
+              </Select>
+            </Campo>
+            <Campo rotulo="Campanha (texto livre)" htmlFor="nova-compra-campanha" className="min-w-40 flex-1">
+              <Input id="nova-compra-campanha" name="projeto" />
+            </Campo>
             <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
               Criar compra
             </SubmitButton>

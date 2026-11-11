@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import { DecidirDisputaForm, type PlanoCandidato } from "@/components/planejamento/DisputaReservaForms";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -63,24 +63,28 @@ export default async function DisputasReservaPage() {
   const pendentes = disputas.filter((d) => d.status === "pendente").length;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6">
-      <Breadcrumbs items={[{ label: "Planejamento", href: "/planejamento" }, { label: "Disputas de reserva" }]} />
-      <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        Disputas de reserva
-        <HelpTip title="Como funciona">
-          <p>Quando um plano reservado fica com falta de um insumo que outro plano reservado segura, quem executa pode pedir a reserva do outro plano.</p>
-          <p>O Gestor identifica a falta e pede, mas não decide.</p>
-          <p>Coordenador, Supervisor ou Administrador decide: <b>transferir</b> (a reserva passa de um plano para o outro, lote por lote, validade mais curta primeiro) ou <b>negar</b>.</p>
-          <p>O plano que cede fica com a falta e precisa repor ou reservar de novo antes de iniciar. Se duas pessoas decidirem ao mesmo tempo, só a primeira vale.</p>
-        </HelpTip>
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {pendentes === 0
-          ? "Nenhum pedido aguardando decisão."
-          : `${pendentes} ${pendentes === 1 ? "pedido aguardando" : "pedidos aguardando"} decisão${podeDecidir ? "" : " de Coordenador, Supervisor ou Administrador"}.`}
-      </p>
+    <main className="app-page-container">
+      <PageHeader
+        breadcrumbs={[{ label: "Planejamento", href: "/planejamento" }, { label: "Disputas de reserva" }]}
+        title="Disputas de reserva"
+        help={
+          <HelpTip title="Como funciona">
+            <p>Quando um plano reservado fica com falta de um insumo que outro plano reservado segura, quem executa pode pedir a reserva do outro plano.</p>
+            <p>O Gestor identifica a falta e pede, mas não decide.</p>
+            <p>Coordenador, Supervisor ou Administrador decide: <b>transferir</b> (a reserva passa de um plano para o outro, lote por lote, validade mais curta primeiro) ou <b>negar</b>.</p>
+            <p>O plano que cede fica com a falta e precisa repor ou reservar de novo antes de iniciar. Se duas pessoas decidirem ao mesmo tempo, só a primeira vale.</p>
+          </HelpTip>
+        }
+        description={
+          <>
+            {pendentes === 0
+              ? "Nenhum pedido aguardando decisão."
+              : `${pendentes} ${pendentes === 1 ? "pedido aguardando" : "pedidos aguardando"} decisão${podeDecidir ? "" : " de Coordenador, Supervisor ou Administrador"}.`}
+          </>
+        }
+      />
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os pedidos agora. Recarregue a página.</p>}
-      <section className="mt-6 space-y-3" aria-label="Pedidos de reserva">
+      <section className="mt-6 max-w-4xl space-y-3" aria-label="Pedidos de reserva">
         {disputas.length === 0 && !error && (
           <p className="rounded-lg border border-border bg-card px-3 py-6 text-center text-sm text-muted-foreground">Nenhum pedido registrado.</p>
         )}

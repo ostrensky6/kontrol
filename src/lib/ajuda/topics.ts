@@ -978,6 +978,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Listas e formulários",
+        itens: [
+          "As listas abrem primeiro; para criar, use o botão 'Novo…' no canto direito do cabeçalho. O formulário abre logo abaixo, com o cursor no primeiro campo.",
+          "Nas tabelas, clique no título de uma coluna para ordenar e use 'Compacta' para ver mais linhas. Ao rolar a tabela para o lado, a primeira coluna continua visível.",
+          "Na linha, a ação mais comum fica à vista; excluir ou cancelar fica no menu '…', sempre com confirmação.",
+          "Abas logo abaixo da barra do módulo levam às telas irmãs: por exemplo, Planos e Disputas de reserva em Planejamento.",
+        ],
+      },
+      {
         titulo: "Ajuda na própria tela",
         itens: [
           "O '?' ao lado de um título explica aquela parte da tela em poucas linhas.",
