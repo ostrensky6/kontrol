@@ -11,7 +11,7 @@ export function buildPermissoesPorCategoria(rows: Array<{ papel: string; permiss
   ) as PermissoesPorCategoria;
 }
 
-/** Privilégios agrupados por módulo, na ordem do catálogo (Cadastros, Operação…). */
+/** Privilégios agrupados por módulo, na ordem do catálogo (Cadastros, Análises e custeio…). */
 export function gruposDePermissoes(): Array<[modulo: string, permissoes: typeof PERMISSOES]> {
   const modulos = new Map<string, typeof PERMISSOES>();
   for (const permissao of PERMISSOES) {

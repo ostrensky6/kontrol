@@ -147,13 +147,13 @@ export const PERMISSOES: Array<{
     descricao:
       "Ver e alterar o salário dos técnicos. Também mostra os valores de pessoal (PE) do catálogo de custos. Sem ela, o salário aparece como XXX.",
   },
-  // ---- Operação ----
-  { key: "analises.ver", modulo: "Operação", label: "Acessar Análises", descricao: "Ver o catálogo de análises, etapas e receitas." },
-  { key: "analises.editar", modulo: "Operação", label: "Editar análises", descricao: "Criar, duplicar, editar e excluir análises e receitas." },
-  { key: "insumos.ver", modulo: "Operação", label: "Acessar Insumos por análise", descricao: "Ver os insumos de cada análise." },
-  { key: "insumos.editar", modulo: "Operação", label: "Editar insumos", descricao: "Criar, editar e excluir insumos do cadastro, inclusive junto com o histórico (lotes e movimentações)." },
-  { key: "custeio.ver", modulo: "Operação", label: "Acessar Custeio", descricao: "Ver o custo técnico das análises." },
-  { key: "configuracoes.ver", modulo: "Operação", label: "Acessar Parâmetros de custeio", descricao: "Ver os parâmetros de custeio (horas, rateios, percentuais)." },
+  // ---- Análises e custeio (antes "Operação") ----
+  { key: "analises.ver", modulo: "Análises e custeio", label: "Acessar Análises", descricao: "Ver o catálogo de análises, etapas e receitas." },
+  { key: "analises.editar", modulo: "Análises e custeio", label: "Editar análises", descricao: "Criar, duplicar, editar e excluir análises e receitas." },
+  { key: "insumos.ver", modulo: "Análises e custeio", label: "Acessar Insumos por análise", descricao: "Ver os insumos de cada análise." },
+  { key: "insumos.editar", modulo: "Análises e custeio", label: "Editar insumos", descricao: "Criar, editar e excluir insumos do cadastro, inclusive junto com o histórico (lotes e movimentações)." },
+  { key: "custeio.ver", modulo: "Análises e custeio", label: "Acessar Custeio", descricao: "Ver o custo técnico das análises." },
+  { key: "configuracoes.ver", modulo: "Análises e custeio", label: "Acessar Parâmetros de custeio", descricao: "Ver os parâmetros de custeio (horas, rateios, percentuais)." },
   // ---- Suprimentos ----
   { key: "estoque.ver", modulo: "Suprimentos", label: "Acessar Estoque", descricao: "Ver saldos, lotes, inventário, etiquetas e equipamentos." },
   { key: "estoque.movimentar", modulo: "Suprimentos", label: "Dar baixa e registrar entradas", descricao: "Retirar material, abrir frascos, dar baixa e lançar entradas manuais." },
@@ -191,7 +191,7 @@ export const PERMISSOES: Array<{
       "Ver e lançar os valores de pessoal (PE) no orçamento de projeto e no catálogo de custos. Sem ela, o valor aparece como XXX.",
   },
   // ---- Governança ----
-  { key: "auditoria.visualizar", modulo: "Governança", label: "Ver auditoria", descricao: "Ver a trilha de auditoria e a governança de orçamentos." },
+  { key: "auditoria.visualizar", modulo: "Governança", label: "Ver auditoria", descricao: "Ver a trilha de auditoria e as regras do orçamento." },
 ];
 
 const LABORATORIO: PermissaoUsuario[] = [
