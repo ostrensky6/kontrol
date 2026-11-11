@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   amostrasPrazo,
@@ -18,13 +18,13 @@ const ROTULO_CONFIANCA: Record<ResumoPrazo["confianca"], string> = {
   alta: "Alta (10 ou mais)",
 };
 
-const th = "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
 const td = "px-3 py-2 text-sm";
 
 function Tabela({ titulo, coluna, linhas }: { titulo: string; coluna: string; linhas: ResumoPrazo[] }) {
   const id = `prazos-${coluna.toLowerCase().replace(/\W+/g, "-")}`;
   return (
-    <section className="mt-6" aria-labelledby={id}>
+    <section className="mt-6 max-w-5xl" aria-labelledby={id}>
       <h2 id={id} className="mb-2 text-lg font-semibold tracking-tight">{titulo}</h2>
       <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         {linhas.length === 0 ? (
@@ -64,7 +64,7 @@ export default async function PrazosCompraPage() {
   const podeVer = (await pode("compras.ver")) || (await pode("pedido.ver"));
   if (!podeVer) {
     return (
-      <main id="conteudo-principal" className="mx-auto max-w-5xl px-4 py-6">
+      <main className="app-page-container">
         <p className="text-sm">Sua função não permite ver os prazos de compra.</p>
       </main>
     );
@@ -84,20 +84,24 @@ export default async function PrazosCompraPage() {
   const porInsumo = resumirPrazos(amostras, (a) => `${a.insumo} · ${a.caminho}`).slice(0, 50);
 
   return (
-    <main id="conteudo-principal" className="mx-auto max-w-5xl px-4 py-6">
-      <Breadcrumbs items={[{ label: "Pedidos", href: "/pedido" }, { label: "Prazos de compra" }]} />
-      <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        Prazos de compra
-        <HelpTip title="Como o prazo é medido">
-          <p>Conta os dias do envio do pedido interno para validação até o recebimento de cada item. Pedido ainda aberto, atrasado ou cancelado não entra.</p>
-          <p><b>Curto</b>: metade das compras chegou até aqui. <b>Intermediário</b>: 3 de cada 4. <b>Conservador</b>: 9 de cada 10.</p>
-          <p>O caminho vem da instituição do pedido (por exemplo, Funpar) ou da modalidade (compra direta pela ATGC, fundação, universidade).</p>
-        </HelpTip>
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {amostras.length} {amostras.length === 1 ? "item recebido medido" : "itens recebidos medidos"}. Use o prazo conservador para insumo crítico.
-        O prazo do fornecedor de cada insumo fica em <Link href="/cadastros/insumos" className="text-primary underline underline-offset-2">Cadastros → Insumos</Link>.
-      </p>
+    <main className="app-page-container">
+      <PageHeader
+        breadcrumbs={[{ label: "Pedidos", href: "/pedido" }, { label: "Prazos de compra" }]}
+        title="Prazos de compra"
+        help={
+          <HelpTip title="Como o prazo é medido">
+            <p>Conta os dias do envio do pedido interno para validação até o recebimento de cada item. Pedido ainda aberto, atrasado ou cancelado não entra.</p>
+            <p><b>Curto</b>: metade das compras chegou até aqui. <b>Intermediário</b>: 3 de cada 4. <b>Conservador</b>: 9 de cada 10.</p>
+            <p>O caminho vem da instituição do pedido (por exemplo, Funpar) ou da modalidade (compra direta pela ATGC, fundação, universidade).</p>
+          </HelpTip>
+        }
+        description={
+          <>
+            {amostras.length} {amostras.length === 1 ? "item recebido medido" : "itens recebidos medidos"}. Use o prazo conservador para insumo crítico.
+            O prazo do fornecedor de cada insumo fica em <Link href="/cadastros/insumos" className="text-primary underline underline-offset-2">Cadastros → Insumos</Link>.
+          </>
+        }
+      />
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os pedidos agora. Recarregue a página.</p>}
       <Tabela titulo="Por caminho de compra" coluna="Caminho" linhas={porCaminho} />
       <Tabela titulo="Por categoria" coluna="Categoria" linhas={porCategoria} />

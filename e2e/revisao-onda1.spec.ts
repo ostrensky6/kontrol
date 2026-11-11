@@ -397,3 +397,85 @@ test("abas de Pedidos mostram só as telas que a pessoa pode abrir (L13, prova n
   await expect(page.getByRole("heading", { level: 1, name: "Pedidos" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Seções de pedidos" })).toHaveCount(0);
 });
+
+test("cabeçalho padrão: título de 20 px e mesma margem nas telas que fugiam do padrão (10.2)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  const titulo = () => page.getByRole("heading", { level: 1 });
+  const telas = [
+    "/planejamento/disputas",
+    "/suprimentos/prazos",
+    "/governanca/incidentes",
+    "/notificacoes",
+    "/scanner/triagem",
+    "/cadastros/qualidade",
+  ];
+  for (const tela of telas) {
+    await page.goto(tela);
+    await expect(titulo(), tela).toBeVisible();
+    expect(await titulo().evaluate((el) => getComputedStyle(el).fontSize), tela).toBe("20px");
+  }
+  // trocar de aba não desloca o título para o lado
+  const xDoTitulo = async (rota: string) => {
+    await page.goto(rota);
+    await expect(titulo()).toBeVisible();
+    return (await titulo().boundingBox())!.x;
+  };
+  expect(Math.abs((await xDoTitulo("/planejamento")) - (await xDoTitulo("/planejamento/disputas")))).toBeLessThanOrEqual(1);
+  expect(Math.abs((await xDoTitulo("/pedido")) - (await xDoTitulo("/suprimentos/prazos")))).toBeLessThanOrEqual(1);
+});
+
+test("campo padrão nos formulários de criação: rótulo de 12 px em frase normal (10.4)", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  const formularios = [
+    { url: "/planejamento", botao: "Novo plano", rotulo: "Nome do plano" },
+    { url: "/compras", botao: "Nova compra", rotulo: "Fornecedor" },
+    { url: "/usuarios", botao: "Novo usuário", rotulo: "E-mail" },
+    { url: "/estoque/inventario", botao: "Nova campanha", rotulo: "Campanha" },
+  ];
+  for (const formulario of formularios) {
+    await page.goto(formulario.url);
+    await page.getByRole("button", { name: formulario.botao, exact: true }).click();
+    const rotulo = page.locator("label", { hasText: new RegExp(`^${formulario.rotulo}$`) }).first();
+    await expect(rotulo, formulario.url).toBeVisible();
+    const estilo = await rotulo.evaluate((el) => {
+      const css = getComputedStyle(el);
+      return { tamanho: css.fontSize, caixa: css.textTransform };
+    });
+    expect(estilo, formulario.url).toEqual({ tamanho: "12px", caixa: "none" });
+    // o rótulo está ligado ao campo: clicar nele leva o foco ao controle
+    const campo = page.locator(`#${await rotulo.getAttribute("for")}`);
+    await rotulo.click();
+    await expect(campo, formulario.url).toBeFocused();
+    expect(await campo.evaluate((el) => getComputedStyle(el).height), formulario.url).toBe("36px");
+  }
+});
+
+test("tabela padrão: título de coluna em frase normal e primeira coluna fixa ao rolar (10.3, 10.4)", async ({ page }) => {
+  // largura em que a tabela de Pedidos não cabe e precisa rolar para o lado
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto("/pedido");
+  const tabela = page.getByRole("table").first();
+  await expect(tabela).toBeVisible();
+  const titulos = tabela.getByRole("columnheader");
+  expect(await titulos.first().evaluate((el) => getComputedStyle(el).textTransform)).toBe("none");
+
+  const area = tabela.locator("xpath=..");
+  expect(await area.evaluate((el) => el.scrollWidth > el.clientWidth)).toBe(true);
+  const primeira = tabela.locator("tbody tr").first().locator("td").first();
+  const segunda = tabela.locator("tbody tr").first().locator("td").nth(1);
+  const antes = { primeira: (await primeira.boundingBox())!.x, segunda: (await segunda.boundingBox())!.x };
+  await expect(area).not.toHaveAttribute("data-rolado", "true");
+  await area.evaluate((el) => {
+    el.scrollLeft = 160;
+  });
+  await expect(area).toHaveAttribute("data-rolado", "true");
+  const depois = { primeira: (await primeira.boundingBox())!.x, segunda: (await segunda.boundingBox())!.x };
+  // a coluna com o número do pedido não sai do lugar; as outras rolam por baixo
+  expect(Math.abs(depois.primeira - antes.primeira)).toBeLessThanOrEqual(1);
+  expect(antes.segunda - depois.segunda).toBeGreaterThan(100);
+  // negativa: voltando ao início, a sombra some
+  await area.evaluate((el) => {
+    el.scrollLeft = 0;
+  });
+  await expect(area).not.toHaveAttribute("data-rolado", "true");
+});

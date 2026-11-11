@@ -325,6 +325,28 @@ html:not(.dark) .text-brand-500 {
   }
 }
 
+/* Tabela padrão: a primeira coluna (o nome) fica fixa ao rolar para o lado
+   (revisão de 11/11, 10.3). Fundo opaco, igual ao da linha, para o que rola
+   não aparecer por baixo; a sombra só aparece enquanto a tabela está rolada. */
+.app-coluna-fixa {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background-color: var(--card);
+}
+
+thead .app-coluna-fixa {
+  background-color: color-mix(in srgb, var(--muted) 60%, var(--card));
+}
+
+tbody tr:hover > .app-coluna-fixa {
+  background-color: color-mix(in srgb, var(--muted) 50%, var(--card));
+}
+
+[data-rolado="true"] .app-coluna-fixa {
+  box-shadow: 1px 0 0 var(--border), 8px 0 8px -6px rgb(15 23 42 / 0.28);
+}
+
 /* Impressão de orçamentos: esconde navegação e controles de edição,
    mostra só o documento (.print-area). */
 @media print {

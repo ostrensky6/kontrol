@@ -5,6 +5,9 @@ import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { CriarPorBotao } from "@/components/common/CriarPorBotao";
+import { Campo } from "@/components/common/Campo";
+import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import { descreverDiferencaInventario, unidadeDoLote, type LoteUnidade } from "@/lib/inventario/contagem";
 import {
@@ -209,29 +212,19 @@ export default async function InventarioPage() {
             cabecalho={cabecalho}
           >
             <FormComMensagem action={criarCicloInventario} className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-              <div>
-                <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Campanha</label>
-                <input
-                  name="nome"
-                  placeholder="Inventário semanal"
-                  className="mt-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Local</label>
-                <select
-                  name="local_id"
-                  defaultValue=""
-                  className="mt-1 rounded-md border border-input bg-card px-3 py-2 text-sm"
-                >
+              <Campo rotulo="Campanha" htmlFor="nova-campanha-nome" className="min-w-56">
+                <Input id="nova-campanha-nome" name="nome" placeholder="Inventário semanal" />
+              </Campo>
+              <Campo rotulo="Local" htmlFor="nova-campanha-local" className="min-w-40">
+                <Select id="nova-campanha-local" name="local_id" defaultValue="">
                   <option value="">Todos</option>
                   {locaisOpcoes.map((local) => (
                     <option key={local.id} value={local.id}>
                       {local.nome}
                     </option>
                   ))}
-                </select>
-              </div>
+                </Select>
+              </Campo>
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
                 Criar campanha
               </button>

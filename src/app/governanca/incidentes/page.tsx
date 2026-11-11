@@ -1,4 +1,4 @@
-import { Breadcrumbs } from "@/components/common/Breadcrumbs";
+import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import { AtualizarIncidenteForm, DESTINO_INCIDENTE, NovoIncidenteForm } from "@/components/incidentes/IncidentesForms";
 import { temPapel } from "@/lib/auth/roles";
@@ -38,30 +38,34 @@ export default async function IncidentesPage() {
   const abertos = incidentes.filter((i) => i.situacao !== "resolvido").length;
 
   return (
-    <main className="mx-auto max-w-4xl px-4 py-6">
-      <Breadcrumbs items={[{ label: "Governança", href: "/governanca" }, { label: "Incidentes" }]} />
-      <h1 className="mt-2 flex items-center gap-2 text-2xl font-semibold tracking-tight">
-        Incidentes
-        <HelpTip title="Como funciona">
-          <p>Um incidente é algo que atrapalha o trabalho: sistema fora do ar, dado errado, equipamento parado, falta de energia.</p>
-          <p>Quem registra diz o que aconteceu, quem foi afetado e o que fazer enquanto isso. O aviso chega no sino de quem foi escolhido.</p>
-          <p>Se a causa ainda não foi confirmada, deixe em branco: a tela mostra “{CAUSA_DESCONHECIDA}”.</p>
-        </HelpTip>
-      </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        {abertos === 0 ? "Nenhum incidente em aberto." : `${abertos} ${abertos === 1 ? "incidente em aberto" : "incidentes em aberto"}.`}{" "}
-        Coordenador, Gestor, Supervisor e Administrador registram e acompanham; todos veem.
-      </p>
+    <main className="app-page-container">
+      <PageHeader
+        breadcrumbs={[{ label: "Governança", href: "/governanca" }, { label: "Incidentes" }]}
+        title="Incidentes"
+        help={
+          <HelpTip title="Como funciona">
+            <p>Um incidente é algo que atrapalha o trabalho: sistema fora do ar, dado errado, equipamento parado, falta de energia.</p>
+            <p>Quem registra diz o que aconteceu, quem foi afetado e o que fazer enquanto isso. O aviso chega no sino de quem foi escolhido.</p>
+            <p>Se a causa ainda não foi confirmada, deixe em branco: a tela mostra “{CAUSA_DESCONHECIDA}”.</p>
+          </HelpTip>
+        }
+        description={
+          <>
+            {abertos === 0 ? "Nenhum incidente em aberto." : `${abertos} ${abertos === 1 ? "incidente em aberto" : "incidentes em aberto"}.`}{" "}
+            Coordenador, Gestor, Supervisor e Administrador registram e acompanham; todos veem.
+          </>
+        }
+      />
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os incidentes agora. Recarregue a página.</p>}
 
       {podeRegistrar && (
-        <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm" aria-labelledby="novo-incidente-titulo">
+        <section className="mt-6 max-w-4xl rounded-lg border border-border bg-card p-4 shadow-sm" aria-labelledby="novo-incidente-titulo">
           <h2 id="novo-incidente-titulo" className="mb-3 text-lg font-semibold tracking-tight">Registrar incidente</h2>
           <NovoIncidenteForm />
         </section>
       )}
 
-      <section className="mt-6 space-y-3" aria-label="Lista de incidentes">
+      <section className="mt-6 max-w-4xl space-y-3" aria-label="Lista de incidentes">
         {incidentes.length === 0 && !error && (
           <p className="rounded-lg border border-border bg-card px-3 py-6 text-center text-sm text-muted-foreground">Nenhum incidente registrado.</p>
         )}
