@@ -234,6 +234,16 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Ficha do insumo",
+        itens: [
+          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes, ou no botão 'Ficha' do Controle de Estoque. Ler o código do insumo com o leitor também abre a ficha.",
+          "A ficha junta o que antes ficava em seis telas: disponível, reservado, a caminho e mínimo; os lotes, na ordem em que vencem; os pedidos e compras em andamento; as reservas em planos; o consumo mensal; as análises que usam o insumo; e as últimas movimentações.",
+          "'A caminho' conta só o que já foi comprado ou autorizado e ainda não chegou. Pedido em aprovação ou cotação aparece na lista como 'Ainda não comprado' e não entra nesse número.",
+          "Pedidos, compras e análises só aparecem para quem tem acesso a essas áreas. 'Abrir cadastro' aparece para quem acessa Cadastros.",
+          "Quando um número não pôde ser lido, a ficha mostra 'sem dado' em vez de zero.",
+        ],
+      },
+      {
         titulo: "Entrada de lote (+ Entrada)",
         itens: [
           "Na linha do insumo, clique em '+ Entrada' e informe quantidade, validade e o número do lote do fabricante.",
@@ -296,7 +306,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["saldo", "lote", "validade", "fefo", "calibração", "manutenção", "equipamento", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
+    termos: ["ficha do insumo", "ficha", "como está o insumo", "a caminho", "saldo", "lote", "validade", "fefo", "calibração", "manutenção", "equipamento", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
   },
   {
     id: "planejamento",

@@ -37,22 +37,40 @@ function SugestaoCompra({ sugestao, unidade }: { sugestao: SugestaoCobertura | n
   );
 }
 
-/** Consumo mensal calculado das saídas do estoque (0157), sem digitação. */
-export function ConsumoMensalPainel({ leitura, especificacao, previsao = null }: {
+/**
+ * Consumo mensal calculado das saídas do estoque (0157), sem digitação.
+ * `naFicha`: bloco da ficha do insumo, com título de seção (h2) e sem repetir o nome.
+ */
+export function ConsumoMensalPainel({ leitura, especificacao, previsao = null, naFicha = false }: {
   leitura: LeituraConsumoMensal;
   especificacao: string;
   previsao?: PrevisaoInsumo | null;
+  naFicha?: boolean;
 }) {
   if (!leitura.ok) {
+    if (naFicha) {
+      return (
+        <section aria-labelledby="titulo-consumo-mensal" className="space-y-2 text-sm">
+          <h2 id="titulo-consumo-mensal" className="text-base font-semibold">Consumo mensal</h2>
+          <p role="status" className="text-muted-foreground">Sem dado. {leitura.message}</p>
+        </section>
+      );
+    }
     return <p role="status" className="mt-4 border-t border-border pt-3 text-sm text-warning-strong">Consumo mensal indisponível. {leitura.message}</p>;
   }
   const c = leitura.dados;
   const unidade = (v: number | null) => rotuloUnidade(c.unidade, v);
   const ref = c.referencia;
+  const Titulo = naFicha ? "h2" : "h4";
   return (
-    <section aria-labelledby="titulo-consumo-mensal" className="mt-4 space-y-3 border-t border-border pt-3 text-sm">
+    <section
+      aria-labelledby="titulo-consumo-mensal"
+      className={naFicha ? "space-y-3 text-sm" : "mt-4 space-y-3 border-t border-border pt-3 text-sm"}
+    >
       <div className="flex items-center gap-1">
-        <h4 id="titulo-consumo-mensal" className="font-semibold">Consumo mensal · {especificacao}</h4>
+        <Titulo id="titulo-consumo-mensal" className={naFicha ? "text-base font-semibold" : "font-semibold"}>
+          {naFicha ? "Consumo mensal" : `Consumo mensal · ${especificacao}`}
+        </Titulo>
         <HelpTip title="Como o consumo mensal é calculado">
           <p>O Kontrol soma as saídas registradas em cada mês completo, nos últimos {c.janela_meses} meses. O mês atual só entra quando terminar.</p>
           <p>Ajustes de inventário não contam como consumo.</p>

@@ -1,10 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable, numericSort } from "@/components/common/DataTable";
 import { FiltroCartoes, gravarFiltroNaUrl } from "@/components/common/FiltroChips";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import {
   FILTRO_ESTOQUE_PADRAO,
@@ -90,7 +92,13 @@ const colunas: ColumnDef<LinhaEstoqueDisponivel, unknown>[] = [
     header: "Insumo",
     cell: ({ row }) => (
       <div className="min-w-48">
-        <p className="font-medium text-foreground">{row.original.especificacao}</p>
+        {/* F5: o nome abre a ficha do insumo */}
+        <Link
+          href={hrefFichaInsumo(row.original.insumoId) ?? "/estoque"}
+          className="font-medium text-foreground underline-offset-2 hover:underline"
+        >
+          {row.original.especificacao}
+        </Link>
         {row.original.tipo && <p className="text-xs text-muted-foreground">{row.original.tipo}</p>}
       </div>
     ),
@@ -183,6 +191,7 @@ export function EstoqueDisponivelTable({
               : "Escolha outra situação acima."
         }
         getMobileTitle={(linha) => linha.especificacao}
+        getMobileHref={(linha) => hrefFichaInsumo(linha.insumoId)}
         getMobileDescription={(linha) =>
           `Disponível ${formatNumber(linha.disponivel)} ${linha.unidade}` +
           (linha.reservado > 0 ? ` · reservado ${formatNumber(linha.reservado)}` : "") +

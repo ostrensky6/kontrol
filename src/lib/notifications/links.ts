@@ -26,7 +26,8 @@ export function caminhoNotificacao(entidadeTipo: string | null, entidadeId: numb
     case "orcamento":
       return id ? `/orcamento/${id}` : "/orcamento";
     case "insumo":
-      return "/cadastros/insumos";
+      // F5: aviso de insumo abre a ficha dele
+      return id ? `/estoque/insumos/${id}` : "/cadastros/insumos";
     default:
       return null;
   }

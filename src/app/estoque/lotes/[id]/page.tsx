@@ -12,6 +12,7 @@ import { usuarioAtual } from "@/lib/auth/roles";
 import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 
 export const dynamic = "force-dynamic";
 
@@ -181,7 +182,16 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
                 </span>
               )}
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">{ins?.especificacao ?? ins?.nome_item ?? "—"}</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {/* F5: do lote para a ficha do insumo */}
+              {hrefFichaInsumo(lote.insumo_id) ? (
+                <Link href={hrefFichaInsumo(lote.insumo_id)!} className="underline underline-offset-2 hover:text-foreground">
+                  {ins?.especificacao ?? ins?.nome_item ?? "Abrir a ficha do insumo"}
+                </Link>
+              ) : (
+                (ins?.especificacao ?? ins?.nome_item ?? "—")
+              )}
+            </p>
           </div>
           <LoteAcoes
             loteId={lote.id as number}

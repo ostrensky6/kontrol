@@ -67,6 +67,19 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path.startsWith("/estoque/insumos/"),
+    content: {
+      title: "Ficha do insumo",
+      description: "Tudo sobre um insumo numa página: saldo, lotes, pedidos, reservas, consumo e análises.",
+      checks: [
+        "Disponível é o que pode ser usado agora; reservado já tem plano.",
+        "A caminho conta só o que foi comprado ou autorizado e ainda não chegou.",
+        "Os lotes aparecem na ordem em que vencem. Clique no lote para dar baixa ou ver o histórico.",
+        "Número que não pôde ser lido aparece como “sem dado”, nunca como zero.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/estoque"),
     content: {
       title: "Estoque",
