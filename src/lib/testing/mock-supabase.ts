@@ -378,6 +378,8 @@ const baseStore = (): Store => {
       pedido_interno_id: 501,
       tipo: "material",
       especificacao: "Etanol absoluto 1 L",
+      // 1.8.9: item ligado a um insumo do cadastro, para a ficha do insumo mostrar o pedido (F5)
+      insumo_id: 900,
       quantidade: 2,
       unidade: "un",
       orcamento_previo: 80,

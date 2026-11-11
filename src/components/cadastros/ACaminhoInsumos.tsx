@@ -1,6 +1,7 @@
 import { HelpTip } from "@/components/common/HelpTip";
 import Link from "next/link";
 
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import { formatDate } from "@/lib/formatters";
 import { pedidoInternoNumero } from "@/lib/pedido/status";
 import { resumirACaminho, type ItemACaminho } from "@/lib/suprimentos/a-caminho";
@@ -102,7 +103,7 @@ function Linhas({ itens }: { itens: ItemACaminho[] }) {
               <tr key={item.itemId} className="border-b border-border/60 align-top">
                 <td className="py-2 pr-3 font-medium">
                   {item.insumoId != null ? (
-                    <Link href={`/cadastros/insumos?focus=${item.insumoId}`} className="hover:underline">{item.especificacao}</Link>
+                    <Link href={hrefFichaInsumo(item.insumoId) ?? "/estoque"} className="hover:underline">{item.especificacao}</Link>
                   ) : item.especificacao}
                 </td>
                 <td className="py-2 pr-3 tabular-nums">{item.solicitado}</td>

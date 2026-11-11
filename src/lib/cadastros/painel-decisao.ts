@@ -13,6 +13,7 @@
  * - Cobertura = disponível ÷ consumo médio diário da janela da previsão.
  */
 import { ehCritico, type InsumoPainel } from "@/lib/cadastros/painel-insumos";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 
 type Numerico = number | string | null | undefined;
 
@@ -427,7 +428,9 @@ export function montarAlertas({
   const ids = new Map(itens.map((i) => [i.id, i]));
   const doRecorte = lotes.filter((l) => ids.has(numero(l.insumo_id)));
   const nome = (insumoId: number) => ids.get(insumoId)?.especificacao ?? `Insumo ${insumoId}`;
-  const fichaInsumo = (id: number) => `/cadastros/insumos?focus=${id}`;
+  // F5: alerta de estoque abre a ficha do insumo; o que falta preencher abre o cadastro
+  const fichaInsumo = (id: number) => hrefFichaInsumo(id) ?? "/estoque";
+  const cadastroInsumo = (id: number) => `/cadastros/insumos?focus=${id}`;
   const fichaLote = (id: Numerico) => `/estoque/lotes/${numero(id)}`;
   const saldo = (i: InsumoDecisao) => i.disponivel !== null
     ? `${formatar(i.disponivel)} ${i.unidade}`.trim()
@@ -653,7 +656,7 @@ export function montarAlertas({
         chave: `i${i.id}`,
         titulo: i.especificacao,
         detalhe: zeroNoSistema(i) ? "Zero no sistema · confira antes de decidir" : `disponível ${saldo(i)}`,
-        href: fichaInsumo(i.id),
+        href: cadastroInsumo(i.id),
       })),
     },
   ];

@@ -24,7 +24,8 @@ test("painel de insumos: origem dos alertas e filtro na URL", async ({ page }, t
   // Insumo sem linha de saldo é "não conferido", nunca zero.
   const semDado = page.getByRole("region", { name: "Saldo não conferido" });
   await expect(semDado).toContainText("Sem dado de saldo nesta leitura");
-  await expect(semDado.getByRole("link").first()).toHaveAttribute("href", /\/cadastros\/insumos\?focus=\d+/);
+  // alerta de estoque abre a ficha do insumo (F5); só o que falta preencher abre o cadastro
+  await expect(semDado.getByRole("link").first()).toHaveAttribute("href", /\/estoque\/insumos\/\d+$/);
   await expect(page.getByRole("region", { name: "Saldo indisponível", exact: true })).toHaveCount(0);
   await expect(painel.getByText(/Conferência física não comprovada/)).toBeVisible();
 

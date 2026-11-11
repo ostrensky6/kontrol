@@ -9,6 +9,7 @@ import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { AjusteInventarioButton } from "@/components/estoque/ReceberLote";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import {
   FILTROS_SALDO,
   ROTULO_SALDO_EM_DIA,
@@ -136,6 +137,15 @@ const saldoColumns = (podeMovimentar: boolean, entradaInicialInsumoId?: number):
     accessorKey: "especificacao",
     header: "Reagente",
     meta: { className: "max-w-xs truncate" },
+    // F5: o nome abre a ficha do insumo
+    cell: ({ row }) => (
+      <Link
+        href={hrefFichaInsumo(row.original.insumoId) ?? "/estoque"}
+        className="font-medium text-foreground underline-offset-2 hover:underline"
+      >
+        {row.original.especificacao}
+      </Link>
+    ),
   },
   { accessorKey: "unidade", header: "Un." },
   {

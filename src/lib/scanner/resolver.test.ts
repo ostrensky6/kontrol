@@ -28,7 +28,7 @@ describe("scanner global", () => {
 
   it("gera destinos internos sem acionar fluxo operacional", () => {
     expect(destinoScanner("lote", 5)).toBe("/estoque/lotes/5");
-    expect(destinoScanner("insumo", 5)).toBe("/cadastros/insumos?focus=5");
+    expect(destinoScanner("insumo", 5)).toBe("/estoque/insumos/5");
     expect(destinoScanner("equipamento", 5)).toBe("/cadastros/equipamentos?focus=5");
     expect(destinoScanner("equipamento_unidade", 5)).toBe("/estoque/equipamentos?tab=unidades&focus=5");
     expect(destinoScanner("local", 5)).toBe("/cadastros/locais?focus=5");

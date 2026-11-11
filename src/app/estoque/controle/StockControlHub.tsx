@@ -38,6 +38,7 @@ import type { FormState } from "@/lib/actions/cadastros";
 import { LoteAcoes } from "@/components/estoque/LoteAcoes";
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
 import type { LoteBaixa, ModeloQuantidadeLote } from "@/lib/estoque/baixa";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import {
   FILTROS_INSUMO,
   FILTROS_LOTE,
@@ -716,12 +717,15 @@ export function StockControlHub({
                         </div>
 
                         <div className="flex flex-wrap items-center gap-2 justify-end mt-auto">
-                          <Link
-                            href={`/cadastros/insumos?focus=${item.insumo_id ?? ""}`}
-                            className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm hover:bg-muted/50"
-                          >
-                            <ExternalLink className="h-3.5 w-3.5" /> Ficha
-                          </Link>
+                          {/* F5: a ficha junta saldo, lotes, pedidos, reservas e consumo do insumo */}
+                          {item.insumo_id != null && (
+                            <Link
+                              href={hrefFichaInsumo(item.insumo_id) ?? "/estoque"}
+                              className="inline-flex items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1.5 text-xs font-semibold text-foreground shadow-sm hover:bg-muted/50"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" /> Ficha
+                            </Link>
+                          )}
                           {podeBaixar && (
                             <DarBaixaDialog
                               lotes={lotesBaixaPorInsumo.get(Number(item.insumo_id)) ?? []}

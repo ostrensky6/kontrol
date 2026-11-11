@@ -216,17 +216,21 @@ export function resumirACaminho(lista: ItemACaminho[]): ResumoACaminho {
   };
 }
 
-/** Lê tudo o que o quadro precisa. Sem a caixinha de compras, a RLS devolve vazio. */
-export async function lerACaminho(supabase: SupabaseClient, hojeIso: string) {
-  const prazos = await lerTudo<PrazoCompraDb>((de, ate) =>
-    supabase
+/**
+ * Lê tudo o que o quadro precisa. Sem a caixinha de compras, a RLS devolve vazio.
+ * Com `insumoId`, só as compras daquele insumo (ficha do insumo).
+ */
+export async function lerACaminho(supabase: SupabaseClient, hojeIso: string, insumoId?: number) {
+  const prazos = await lerTudo<PrazoCompraDb>((de, ate) => {
+    const consulta = supabase
       .from("v_compras_prazo")
       .select("pedido_id, item_id, insumo_id, status, qtd_restante, prevista")
-      .gt("qtd_restante", 0)
+      .gt("qtd_restante", 0);
+    return (insumoId == null ? consulta : consulta.eq("insumo_id", insumoId))
       .order("pedido_id")
       .order("item_id")
-      .range(de, ate),
-  );
+      .range(de, ate);
+  });
   if (prazos.error) return { itens: [] as ItemACaminho[], erro: prazos.error.message };
   const compraIds = [...new Set(prazos.data.map((p) => p.pedido_id))];
   const itemIds = [...new Set(prazos.data.map((p) => p.item_id))];
