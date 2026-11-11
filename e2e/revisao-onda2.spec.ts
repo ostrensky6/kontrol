@@ -261,11 +261,17 @@ test("Cadastros mostra a contagem do painel; o Início mostra os números do est
   }
   // prova negativa: o número único que juntava tudo e as palavras antigas não voltam
   await expect(indicadores.getByRole("link", { name: /^(Situação do estoque|Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
-  // cada linha de "Precisa de atenção hoje" abre a ficha do insumo ou o lote, nunca uma lista genérica
-  const linhas = page.getByRole("list", { name: "Precisa de atenção hoje" }).getByRole("link");
+  // na tabela "Precisa de atenção hoje", Estoque e Validade somam os itens urgentes e de atenção do painel
+  const origens = page.getByRole("group", { name: "Filtrar por origem" });
+  const quantos = async (origem: string) =>
+    Number(/(\d+)$/.exec(((await origens.getByRole("button", { name: new RegExp(`^${origem}`) }).textContent()) ?? "").trim())?.[1]);
+  expect((await quantos("Estoque")) + (await quantos("Validade"))).toBe(total);
+  // cada linha do estoque abre a ficha do insumo ou o lote, nunca uma lista genérica
+  const tabela = page.getByRole("table", { name: /Precisa de atenção hoje/ });
+  const linhas = tabela.locator("tbody tr").filter({ has: page.getByRole("cell", { name: /^(Estoque|Validade)$/ }) });
   if (total > 0) await expect(linhas.first()).toBeVisible();
   for (const linha of await linhas.all()) {
-    await expect(linha).toHaveAttribute("href", /^\/(estoque\/insumos|estoque\/lotes|cadastros\/insumos)/);
+    await expect(linha.getByRole("link")).toHaveAttribute("href", /^\/(estoque\/insumos|estoque\/lotes|cadastros\/insumos)/);
   }
 
   // o número abre a lista já filtrada, e a lista tem exatamente aquele tanto de insumos

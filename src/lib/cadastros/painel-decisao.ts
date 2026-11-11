@@ -316,7 +316,14 @@ export type LotePainelDb = {
 
 export type TomAlerta = "vermelho" | "ambar" | "azul" | "cinza";
 
-export type ItemAlerta = { chave: string; titulo: string; detalhe: string; href: string };
+export type ItemAlerta = {
+  chave: string;
+  titulo: string;
+  detalhe: string;
+  href: string;
+  /** até quando: "hoje", uma data ou "em N dia(s)"; vazio quando o alerta não tem prazo */
+  prazo?: string;
+};
 
 export type Alerta = {
   chave: string;
@@ -370,11 +377,15 @@ export function textoResumoAlertas(resumo: ResumoAlertas | null): string {
 export type LinhaAtencao = {
   chave: string;
   tom: "vermelho" | "ambar";
+  /** chave do alerta do painel ("em-falta", "vencendo"…) */
+  alerta: string;
   /** nome do quadro do painel de onde a linha veio */
   quadro: string;
   titulo: string;
   detalhe: string;
   href: string;
+  /** até quando, do jeito que o painel calcula; null quando o alerta não tem prazo */
+  prazo: string | null;
 };
 
 /**
@@ -391,10 +402,12 @@ export function linhasDeAtencao(alertas: readonly Alerta[]): LinhaAtencao[] {
       alerta.itens.map((item) => ({
         chave: `${alerta.chave}-${item.chave}`,
         tom: alerta.tom as "vermelho" | "ambar",
+        alerta: alerta.chave,
         quadro: alerta.titulo,
         titulo: item.titulo,
         detalhe: item.detalhe,
         href: item.href,
+        prazo: item.prazo ?? null,
       })),
     );
 }
@@ -564,6 +577,7 @@ export function montarAlertas({
         titulo: i.especificacao,
         detalhe: `mínimo ${formatar(i.minimo)} · ${pedido(i)}`,
         href: fichaInsumo(i.id),
+        prazo: "hoje",
       })),
     },
     {
@@ -576,6 +590,7 @@ export function montarAlertas({
         titulo: i.especificacao,
         detalhe: `cobertura estimada: ${Math.floor(i.coberturaDias ?? 0)} dia(s) · prazo de referência: ${i.prazoDias} dia(s)`,
         href: fichaInsumo(i.id),
+        prazo: `acaba em ${Math.floor(i.coberturaDias ?? 0)} dia(s)`,
       })),
     },
     {
@@ -588,6 +603,7 @@ export function montarAlertas({
         titulo: l.especificacao,
         detalhe: `venceu em ${dataBr(l.validade)} · ${formatar(l.quantidade)} no lote`,
         href: l.loteId ? fichaLote(l.loteId) : fichaInsumo(l.insumoId),
+        prazo: dataBr(l.validade),
       })),
     },
     {
@@ -613,6 +629,8 @@ export function montarAlertas({
         titulo: nome(insumoId),
         detalhe: `aberto: ${nomeLote(aberto)} (vence ${dataBr(aberto.validade)}) · fechado: ${nomeLote(antes)} (vence ${dataBr(validadeDoLote(antes))})`,
         href: fichaLote(antes.id),
+        // o prazo é o do lote fechado que vence antes: é ele que tem de sair primeiro
+        prazo: dataBr(validadeDoLote(antes)),
       })),
     },
     {
@@ -637,6 +655,7 @@ export function montarAlertas({
         titulo: l.especificacao,
         detalhe: `vence em ${dataBr(l.validade)} · ${formatar(l.quantidade)} no lote`,
         href: l.loteId ? fichaLote(l.loteId) : fichaInsumo(l.insumoId),
+        prazo: dataBr(l.validade),
       })),
     },
     {
