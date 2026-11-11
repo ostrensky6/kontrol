@@ -6,14 +6,15 @@ import { cn } from "@/lib/utils";
 import type { Pendencia } from "./aguardando";
 
 /**
- * O que espera a ação do usuário (PER2-10). Aparece na página inicial (tudo),
- * na visão geral de Suprimentos e na lista de Pedidos (só o que é dali). Com
+ * O que espera a ação do usuário (PER2-10). O quadro completo aparece só no
+ * Início; o sino do topo mostra o mesmo conteúdo em qualquer tela e as outras
+ * telas mostram uma linha (AguardandoVoceLinha, D4 da revisão de 11/11). Com
  * `destaque`, o quadro ganha contorno quando há algo esperando.
  */
 export function AguardandoVoce({
   pendencias,
   destaque = false,
-  vazio = "Tudo em dia. Quando algo precisar de você, aparece aqui e em Notificações.",
+  vazio = "Nada esperando a sua ação agora. Quando algo depender de você, aparece aqui e no sino, no topo da tela.",
   ajuda = "Etapas que dependem da sua ação, conforme as suas permissões.",
 }: {
   pendencias: Pendencia[];

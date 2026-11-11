@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
-import { PENDENCIAS_DE_SUPRIMENTOS, montarPendencias, pendenciasDe } from "@/components/dashboard/aguardando";
-import { AndamentoPedidos } from "@/components/suprimentos/AndamentoPedidos";
+import { AguardandoVoceLinha } from "@/components/dashboard/AguardandoVoceLinha";
+import { PENDENCIAS_DE_SUPRIMENTOS, pendenciasDe } from "@/components/dashboard/aguardando";
+import { carregarPendencias } from "@/lib/pendencias/carregar";
 
 import { HelpTip } from "@/components/common/HelpTip";
 import { GerarPedidoReposicaoButton } from "@/components/pedido/GerarPedidoReposicaoButton";
@@ -87,9 +87,9 @@ export default async function SuprimentosPage({
           .is("recebido_em", null)
       : Promise.resolve({ data: [] as ItemAReceberDb[] }),
     // o banco diz, pela competência de cada um, o que espera este usuário (0173)
-    supabase.rpc("aguardando_voce"),
+    carregarPendencias(),
   ]);
-  const pendencias = pendenciasDe(montarPendencias(aguardando.data), PENDENCIAS_DE_SUPRIMENTOS);
+  const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_SUPRIMENTOS);
   if (saldoError) throw new Error(`Não foi possível ler o saldo do estoque: ${saldoError.message}`);
 
   const linhas = montarEstoqueDisponivel({
@@ -104,6 +104,7 @@ export default async function SuprimentosPage({
   const porEtapa = Object.fromEntries(
     ETAPAS_PEDIDO.map((e) => [e.id, etapas.filter((etapa) => etapa === e.id).length]),
   ) as Record<EtapaAtivaId, number>;
+  const emAndamento = ETAPAS_PEDIDO.reduce((soma, etapa) => soma + porEtapa[etapa.id], 0);
   const statusAguardandoChegada: readonly string[] = PEDIDO_INTERNO_AGUARDANDO_CHEGADA;
   const aReceber = ((itensResp.data ?? []) as ItemAReceberDb[]).filter((item) =>
     statusAguardandoChegada.includes(asOne(item.pedidos_internos)?.status ?? ""),
@@ -118,7 +119,7 @@ export default async function SuprimentosPage({
               <h1 className="text-xl font-semibold tracking-tight">Suprimentos</h1>
               <HelpTip title="Suprimentos">
                 <p>
-                  Aqui você vê, nesta ordem: <b>o que espera você</b>, <b>em que etapa está cada pedido</b> e{" "}
+                  Aqui você vê <b>o que espera você</b> em Suprimentos, <b>quantos pedidos estão em andamento</b> e{" "}
                   <b>o que temos em estoque</b>. Cada assunto tem um lugar só, na barra acima:
                 </p>
                 <ul className="list-disc space-y-1 pl-4">
@@ -129,7 +130,7 @@ export default async function SuprimentosPage({
                 </ul>
               </HelpTip>
             </div>
-            <p className="mt-1 text-sm text-muted-foreground">O que espera você, o andamento dos pedidos e o que temos em estoque.</p>
+            <p className="mt-1 text-sm text-muted-foreground">O que espera você e o que temos em estoque.</p>
           </div>
           {podeCriarPedido && (
             <div className="flex flex-wrap items-center gap-2">
@@ -144,14 +145,33 @@ export default async function SuprimentosPage({
           )}
         </div>
 
-        <AguardandoVoce
-          pendencias={pendencias}
-          destaque
-          vazio="Nada esperando a sua ação em Suprimentos agora. Quando um pedido, uma compra ou um plano depender de você, aparece aqui."
-          ajuda="O que depende de você em Suprimentos: pedidos para aprovar, autorizar, cotar ou pagar, compras para receber e planos em rascunho."
-        />
+        {/* o quadro completo de Aguardando você fica no Início e no sino; aqui, uma linha (D4) */}
+        <AguardandoVoceLinha pendencias={pendencias} />
 
-        {podeVerPedidos && <AndamentoPedidos porEtapa={porEtapa} aReceber={podeVerRecebimento ? aReceber : null} />}
+        {/* as caixas das seis etapas ficam em Pedidos; aqui, o total em uma linha (D5) */}
+        {podeVerPedidos && (
+          <p data-testid="andamento-resumo" className="text-sm text-muted-foreground">
+            {emAndamento === 0 ? (
+              "Nenhum pedido em andamento."
+            ) : (
+              <>
+                <Link href="/pedido" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {emAndamento} {emAndamento === 1 ? "pedido em andamento" : "pedidos em andamento"}
+                </Link>
+                , da solicitação ao pagamento.
+              </>
+            )}
+            {podeVerRecebimento && aReceber > 0 && (
+              <>
+                {" "}
+                <Link href="/recebimento" className="font-medium text-primary underline-offset-4 hover:underline">
+                  {aReceber} {aReceber === 1 ? "item comprado ainda não chegou" : "itens comprados ainda não chegaram"}
+                </Link>
+                .
+              </>
+            )}
+          </p>
+        )}
 
         <section id="estoque-disponivel" aria-labelledby="titulo-estoque-disponivel" className="scroll-mt-20 space-y-3">
           <div className="flex flex-wrap items-end justify-between gap-2">

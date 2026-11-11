@@ -181,26 +181,27 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     titulo: "Suprimentos: visão geral",
     grupo: "Suprimentos",
     href: "/suprimentos",
-    resumo: "O que espera você, o andamento dos pedidos e o que temos em estoque.",
+    resumo: "O que espera você e o que temos em estoque.",
     intro:
-      "A visão geral de Suprimentos responde três perguntas, nesta ordem: o que espera a sua ação, em que etapa está cada pedido e o que temos disponível em estoque. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento, Equipamentos e Notificações.",
+      "A visão geral de Suprimentos responde duas perguntas: o que espera a sua ação e o que temos disponível em estoque. Cada assunto do módulo tem um lugar só, na barra de cima: Visão geral, Estoque, Planejamento, Pedidos, Recebimento e Equipamentos.",
     secoes: [
       {
         titulo: "Onde fica cada coisa",
         itens: [
-          "Visão geral: 'Aguardando você', o andamento dos pedidos pelas seis etapas e a tabela 'Estoque disponível'.",
+          "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
           "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário, etiquetas e códigos não reconhecidos.",
           "Planejamento: reservas de insumo para as análises previstas.",
           "Pedidos: cada pedido e a etapa em que está. Compras formais e prazos de compra ficam no topo dessa página.",
-          "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção. Notificações: avisos para você.",
+          "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
+          "Notificações saíram desta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",
         ],
       },
       {
-        titulo: "Aguardando você e andamento dos pedidos",
+        titulo: "Sua vez e pedidos em andamento",
         itens: [
-          "'Aguardando você' mostra só o que depende de você em Suprimentos: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras para receber e planos em rascunho. Clique no nome para abrir direto o registro.",
-          "'Andamento dos pedidos' mostra quantos pedidos há em cada uma das seis etapas (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) e quantos itens comprados ainda não chegaram. Clique numa etapa para abrir a lista já filtrada.",
-          "As seis etapas são as mesmas na visão geral, na lista de Pedidos e na página de cada pedido.",
+          "A linha 'Sua vez' aparece só quando algo de Suprimentos depende de você: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar, compras para receber, planos em rascunho, lotes em quarentena, disputas de reserva, códigos lidos sem cadastro e manutenção vencida. Clique para abrir o registro ou a lista. O quadro completo, 'Aguardando você', fica no Início e no sino.",
+          "O total de pedidos em andamento leva a Pedidos, onde cada uma das seis etapas (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) abre a sua lista.",
+          "As seis etapas são as mesmas na lista de Pedidos e na página de cada pedido.",
         ],
       },
       {
@@ -379,7 +380,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Onde o coordenador aprova",
         itens: [
-          "O pedido enviado aparece para quem aprova em 'Aguardando você': na página inicial, na visão geral de Suprimentos e no topo de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
+          "O pedido enviado aparece para quem aprova em 'Aguardando você', no Início e no sino do topo, e na linha 'Sua vez' da visão geral de Suprimentos e de Pedidos. O coordenador também recebe um aviso em Notificações e por e-mail.",
           "Clique no nome do pedido para abrir. Logo abaixo do cabeçalho ficam a trilha das seis etapas e o quadro 'O que falta agora', com o próximo passo, com quem está e o que vem depois.",
           "Quando o passo depende de você, o quadro mostra 'Sua vez' e os botões ficam ali mesmo: 'Aprovar pedido' ou 'Devolver ao solicitante' (com o motivo). Os itens para conferir ficam logo abaixo.",
           "Quem não é o responsável vê 'Aguardando aprovação' e o nome de quem aprova. O Administrador pode aprovar na ausência do coordenador, e isso fica registrado.",
@@ -858,7 +859,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Onde ver",
         itens: [
-          "O sino no menu mostra quantos avisos estão sem ler; a tela Notificações lista todos, com link para o registro de origem.",
+          "O sino, no topo de qualquer tela, mostra o que está aguardando você e os avisos sem ler; o número soma os dois. A tela Notificações lista todos os avisos, com link para o registro de origem.",
           "Aprovações pendentes aparecem primeiro; depois faltas, reposições e vencimentos.",
           "Marque como lido quando tratar o aviso. Ele continua no histórico.",
         ],
@@ -871,7 +872,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Entrega registrada e pagamento/nota fiscal: o responsável do pagamento. Sem responsável indicado, o Administrador.",
           "O solicitante é avisado quando o pedido volta para ajuste, é aprovado para compra, está a caminho, é concluído ou cancelado.",
           "Os responsáveis do administrativo e do pagamento (e os substitutos) são escolhidos pelo Administrador em Cadastros > Responsáveis do administrativo e do pagamento.",
-          "'Aguardando você', na página inicial, mostra só o que cabe a você decidir.",
+          "'Aguardando você', no Início e no sino, mostra só o que cabe a você decidir.",
         ],
       },
       {
@@ -958,7 +959,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Menu lateral: Início, Orçamentos, Projetos, Suprimentos, Análises e custeio, Cadastros, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
           "Projetos reúne os orçamentos, planejamentos e compras de cada projeto.",
-          "Busca rápida: Ctrl K (ou a lupa no celular) encontra qualquer tela, como Inventário, Etiquetas ou Parâmetros de custeio.",
+          "Barra do topo: à esquerda, os lugares do módulo aberto; à direita, a busca, o sino e a ajuda.",
+          "Busca rápida: Ctrl K (ou a lupa) encontra qualquer tela, como Inventário, Etiquetas ou Parâmetros de custeio.",
+          "Sino: o que está aguardando você e os avisos não lidos, de todos os módulos.",
           "Tabelas com busca e filtros: encontre registros nas filas sem rolar tudo.",
           "Tema claro/escuro: acompanha o sistema e pode ser alternado.",
         ],
@@ -966,7 +969,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Início",
         itens: [
-          "'Aguardando você' vem primeiro: é o que depende da sua decisão.",
+          "'Aguardando você' vem primeiro: é o que depende da sua decisão. O mesmo quadro abre pelo sino, em qualquer tela.",
           "Cada número abre a lista completa daquele assunto.",
           "'Precisa de atenção hoje' junta numa lista só o que está vencido, sem validade, com compra sugerida ou vencendo.",
           "Os gráficos aparecem para Gestor, Supervisor e Administrador, e só quando há dados.",
@@ -976,7 +979,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Ajuda na própria tela",
         itens: [
           "O '?' ao lado de um título explica aquela parte da tela em poucas linhas.",
-          "O botão de ajuda no canto inferior direito (no celular, o '?' da barra superior) resume a tela atual e leva a esta Central.",
+          "O '?' no canto direito da barra do topo resume a tela atual e leva a esta Central.",
         ],
       },
     ],

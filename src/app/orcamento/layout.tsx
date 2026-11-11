@@ -1,4 +1,3 @@
-import { ModuleTopNav } from "@/components/layout/ModuleTopNav";
 import { ConfiguracoesSubnav } from "@/components/orcamento/ConfiguracoesSubnav";
 import { permiteAcesso } from "@/config/modules";
 import { minhasPermissoes } from "@/lib/auth/permissao-efetiva";
@@ -10,7 +9,6 @@ export default async function OrcamentoLayout({ children }: { children: React.Re
 
   return (
     <>
-      <ModuleTopNav moduleId="orcamentos" />
       <ConfiguracoesSubnav secoes={secoes.map((secao) => ({ ...secao }))} />
       {children}
     </>

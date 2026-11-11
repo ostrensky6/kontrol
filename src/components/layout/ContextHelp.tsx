@@ -5,7 +5,6 @@ import { LifeBuoy } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { hrefAjuda, topicoParaRota } from "@/lib/ajuda/secao";
 import {
   Dialog,
@@ -13,10 +12,9 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 
-/** Evento para abrir a ajuda a partir de outro botão (ex.: barra superior no celular). */
+/** Evento para abrir a ajuda: o "?" da barra do topo e, no celular, o da barra do logotipo. */
 export const EVENTO_ABRIR_AJUDA = "kontrol:open-context-help";
 
 export function abrirAjudaContextual() {
@@ -84,10 +82,10 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     match: (path) => path === "/suprimentos",
     content: {
       title: "Suprimentos",
-      description: "O que espera você, o andamento dos pedidos e o que temos em estoque. Cada assunto tem um lugar só na barra de cima.",
+      description: "O que espera você e o que temos em estoque. Cada assunto tem um lugar só na barra de cima.",
       checks: [
-        "Aguardando você mostra o que depende de você: pedidos para aprovar, autorizar, cotar ou pagar, compras para receber e planos em rascunho.",
-        "Andamento dos pedidos mostra quantos pedidos há em cada uma das seis etapas; clique numa etapa para ver os pedidos dela.",
+        "A linha Sua vez aparece quando algo de Suprimentos depende de você; o quadro completo fica no Início e no sino do topo.",
+        "O total de pedidos em andamento leva a Pedidos, onde cada etapa abre a sua lista.",
         "A tabela Estoque disponível mostra, por insumo, o que dá para usar, o reservado, o que está a caminho e a validade mais próxima; os botões acima filtram por situação.",
       ],
     },
@@ -98,7 +96,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Pedidos",
       description: "O que foi pedido e em que etapa cada pedido está, da solicitação ao pagamento.",
       checks: [
-        "Aguardando você mostra os pedidos que dependem de você, como os que o coordenador precisa aprovar. Clique no nome para abrir.",
+        "A linha Sua vez mostra os pedidos que dependem de você, como os que o coordenador precisa aprovar. Clique para abrir.",
         "Clique numa etapa para ver só os pedidos dela; Em andamento, Concluídos, Cancelados e Todos trocam o conjunto.",
         "Próximo passo diz o que falta e com quem está. Os botões de cada etapa ficam no topo do pedido, no quadro O que falta agora.",
       ],
@@ -230,7 +228,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Kontrol",
       description: "Painel do laboratório: orçamento, estoque, compras e execução.",
       checks: [
-        "Ctrl K (ou a lupa no celular) busca telas e ações.",
+        "Ctrl K (ou a lupa) busca telas e ações; o sino mostra o que espera você.",
         "O ? ao lado de um título explica aquela parte da tela.",
         "Revise os alertas de estoque antes de abrir compras.",
       ],
@@ -254,20 +252,9 @@ export function ContextHelp() {
   }, []);
 
   return (
+    // Sem botão flutuante (cobria ações e a barra de salvar): a ajuda abre pelo
+    // "?" da barra do topo e, no celular, pelo da barra do logotipo.
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {/* No celular o botão flutuante cobriria ações e avisos no rodapé: lá a
-            ajuda abre pelo ícone da barra superior (Sidebar). */}
-        <Button
-          type="button"
-          variant="secondary"
-          size="icon"
-          className="fixed bottom-4 right-4 z-40 hidden h-10 w-10 rounded-full shadow-lg md:inline-flex print:hidden"
-          aria-label="Ajuda contextual"
-        >
-          <LifeBuoy aria-hidden />
-        </Button>
-      </DialogTrigger>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{content.title}</DialogTitle>

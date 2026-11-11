@@ -587,7 +587,18 @@ const baseStore = (): Store => {
     },
   ],
   scan_eventos: [],
-  cadastros_triagem: [],
+  // código lido sem cadastro: aparece em "Aguardando você" para quem pode cadastrar (F8)
+  cadastros_triagem: [
+    {
+      id: 1,
+      codigo: "7891000315507",
+      codigo_normalizado: "7891000315507",
+      formato: "EAN_13",
+      tipo_sugerido: null,
+      status: "pendente",
+      criado_em: "2026-10-20T12:00:00.000Z",
+    },
+  ],
   perfis: [
     { id: "user-e2e", nome: "Admin E2E", email: "admin@example.com", papel: "admin" },
     // 0160: coordenador para a lista "Quem atua neste projeto".

@@ -69,13 +69,11 @@ export default async function NotificacoesPage() {
     <PageShell>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Suprimentos
-          </p>
           <div className="flex items-center gap-1">
             <h1 className="text-2xl font-bold text-foreground">Notificações</h1>
             <HelpTip title="Notificações">
-              <p>Avisos para você: etapas que esperam sua ação, faltas, reposições e vencimentos.</p>
+              <p>Avisos para você, de todos os módulos: etapas que esperam sua ação, faltas, reposições, vencimentos e incidentes.</p>
+              <p>O sino no topo de qualquer tela mostra os avisos não lidos e o que está aguardando você.</p>
             </HelpTip>
           </div>
         </div>
