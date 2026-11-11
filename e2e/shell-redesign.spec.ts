@@ -21,7 +21,7 @@ test("shell modular preserva sidebar, top-nav, collapse e temas nas telas princi
     await alternarTema(page, tema);
     await page.goto("/");
     await expect(page.locator("html")).toHaveClass(tema === "dark" ? /dark/ : /^(?!.*dark).*$/);
-    await expect(page.getByRole("heading", { name: /Dashboard/i })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
 
     await page.goto("/orcamento/demandas");
     await expect(page.getByRole("navigation", { name: "Navegação de Orçamentos" })).toBeVisible();

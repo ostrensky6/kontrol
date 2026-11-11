@@ -259,6 +259,8 @@ export const APP_MODULES: AppModule[] = [
         label: "Novo orçamento",
         desc: "abre diretamente o formulário de entrada comercial",
         icon: "FileText",
+        // barra é para lugares, não para ações: o botão fica na lista de Orçamentos
+        showInTopNav: false,
       },
       {
         href: "/orcamento/historico",

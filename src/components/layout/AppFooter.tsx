@@ -1,5 +1,8 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 import { KontrolLogo } from "@/components/brand/KontrolLogo";
 import { APP_VERSION, APP_YEAR } from "@/config/app";
@@ -10,7 +13,39 @@ const links = [
   { href: "/suporte", label: "Suporte" },
 ];
 
+/**
+ * Rodapé institucional completo só na página inicial. Nas demais telas a versão
+ * e os links cabem numa linha: o bloco de logotipos tomava cerca de 180 px no
+ * fim de toda tela (revisão de 11/11, seção 10.2).
+ */
 export function AppFooter() {
+  const pathname = usePathname();
+  if (pathname !== "/") {
+    return (
+      <footer
+        aria-label="Informações institucionais"
+        className="border-t border-border/70 bg-card print:hidden"
+      >
+        <div className="app-topnav-container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-xs text-muted-foreground md:justify-between">
+          <p>
+            Kontrol · Versão {APP_VERSION} · {APP_YEAR}
+          </p>
+          <nav aria-label="Links institucionais" className="flex flex-wrap items-center gap-x-1">
+            {links.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="inline-flex min-h-8 items-center rounded-md px-2 font-medium transition-colors hover:bg-muted hover:text-foreground"
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+        </div>
+      </footer>
+    );
+  }
+
   return (
     <footer
       aria-label="Informações institucionais"
@@ -26,7 +61,7 @@ export function AppFooter() {
             <p className="text-xs font-medium text-muted-foreground">
               Uma parceria GIA &amp; ATGC
             </p>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Versão {APP_VERSION} · {APP_YEAR}
             </p>
           </div>
