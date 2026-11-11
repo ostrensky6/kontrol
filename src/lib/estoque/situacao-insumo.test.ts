@@ -26,7 +26,7 @@ const alerta = (tipo: string) => ({ tipo });
 describe("sinais do insumo", () => {
   it("insumo sem alerta, com saldo e sem sugestão de compra está em dia", () => {
     const situacao = situacaoDoInsumo({ disponivel: 10, qtd_sugerida_compra: 0 }, []);
-    expect(situacao).toEqual({ sinais: [], principal: null, rotulo: "Estoque OK", tom: "slate" });
+    expect(situacao).toEqual({ sinais: [], principal: null, rotulo: "Em dia", tom: "slate" });
   });
 
   it("guarda todos os sinais simultâneos, em ordem de gravidade", () => {
@@ -56,7 +56,7 @@ describe("sinais do insumo", () => {
     const situacao = situacaoDoInsumo({ disponivel: 8, qtd_sugerida_compra: 0 }, [alerta("reposicao_pendente")]);
     expect(situacao.sinais).toEqual(["reposicao_pendente"]);
     expect(situacao.principal).toBe("reposicao_pendente");
-    expect(situacao.rotulo).toBe("Reposição aguardando aprovação");
+    expect(situacao.rotulo).toBe("Repor, aguardando aprovação");
     expect(situacao.tom).toBe("amber");
     expect(insumoAtendeFiltro(situacao.sinais, "ok")).toBe(false);
     expect(insumoAtendeFiltro(situacao.sinais, "reposicao_pendente")).toBe(true);
@@ -105,7 +105,7 @@ describe("filtros e contadores por sinal", () => {
     expect(insumoAtendeFiltro(vencendo.sinais, "vencido_vencendo")).toBe(true);
   });
 
-  it("Estoque OK só pega insumo sem nenhum sinal", () => {
+  it("Em dia só pega insumo sem nenhum sinal", () => {
     expect(itens.filter((item) => insumoAtendeFiltro(item.sinais, "ok"))).toEqual([emDia]);
   });
 

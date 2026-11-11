@@ -197,7 +197,7 @@ export default async function Home() {
   } else if (verCompras) {
     indicadores.push({
       href: "/compras",
-      label: "Comprar agora",
+      label: "Repor",
       value: comprarAgora.length,
       detail: "insumos com compra sugerida pela previsão",
       tone: comprarAgora.length ? "warning" : "neutral",
@@ -237,7 +237,7 @@ export default async function Home() {
       }))
     : comprarAgora.map((c, i) => ({
         chave: `comprar-${i}-${c.titulo}`,
-        selo: "Comprar agora",
+        selo: "Repor",
         tom: "atencao",
         titulo: c.titulo,
         meta: c.meta,

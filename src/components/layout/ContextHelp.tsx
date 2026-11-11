@@ -60,7 +60,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Inventário",
       description: "Contagem física por insumo (sem lote) ou por lote, com ajuste das diferenças.",
       checks: [
-        "Abra uma campanha em Nova campanha e leia o código de barras do insumo, ou o local e o lote.",
+        "Abra uma contagem em Nova contagem e leia o código de barras do insumo, ou o local e o lote.",
         "Informe a quantidade contada; a diferença aparece na hora.",
         "Ajustes precisam de justificativa e ficam na auditoria.",
       ],

@@ -30,12 +30,13 @@ export const META_SINAL: Record<SinalInsumo, { rotulo: string; tom: TomSinal }> 
   sem_validade: { rotulo: "Sem validade", tom: "red" },
   sem_disponivel: { rotulo: "Sem estoque", tom: "red" },
   compra_atrasada: { rotulo: "Compra atrasada", tom: "red" },
-  reposicao: { rotulo: "Reposição", tom: "amber" },
-  reposicao_pendente: { rotulo: "Reposição aguardando aprovação", tom: "amber" },
+  reposicao: { rotulo: "Repor", tom: "amber" },
+  reposicao_pendente: { rotulo: "Repor, aguardando aprovação", tom: "amber" },
   vencendo: { rotulo: "Vence em breve", tom: "amber" },
 };
 
-export const ROTULO_ESTOQUE_OK = "Estoque OK";
+// glossário da revisão de 11/11 (10.5): o mesmo "Em dia" do filtro
+export const ROTULO_ESTOQUE_OK = "Em dia";
 
 /** Tipo da linha de v_alertas_estoque que liga cada sinal vindo do banco. */
 const SINAL_POR_TIPO_ALERTA: Record<string, SinalInsumo> = {
@@ -96,13 +97,13 @@ export function situacaoDoInsumo(saldo: SaldoParaSinais, alertas: readonly Alert
 /** Opções do filtro "Estado físico / alerta" na visão por insumo. */
 export const FILTROS_INSUMO = [
   { valor: "todos", rotulo: "Todos" },
-  { valor: "sem_disponivel", rotulo: "Sem Estoque" },
-  { valor: "reposicao", rotulo: "Abaixo do Ponto (Repor)" },
-  { valor: "reposicao_pendente", rotulo: "Reposição aguardando aprovação" },
+  { valor: "sem_disponivel", rotulo: "Sem estoque" },
+  { valor: "reposicao", rotulo: "Repor" },
+  { valor: "reposicao_pendente", rotulo: "Repor, aguardando aprovação" },
   { valor: "vencido_vencendo", rotulo: "Vencido/Vencendo" },
   { valor: "sem_validade", rotulo: "Sem validade" },
   { valor: "compra_atrasada", rotulo: "Compra atrasada" },
-  { valor: "ok", rotulo: "Estoque OK" },
+  { valor: "ok", rotulo: ROTULO_ESTOQUE_OK },
 ] as const;
 
 export type FiltroInsumo = (typeof FILTROS_INSUMO)[number]["valor"];
@@ -204,19 +205,19 @@ export function filtroValidoNaVisao(filtro: string, visao: "insumo" | "lote" | "
 
 // ── Tabela "Saldo por insumo" (/estoque) ─────────────────────────────────
 
-/** Condições da coluna Status, da mais grave para a menos grave. */
+/** Condições da coluna Situação, da mais grave para a menos grave. */
 export const SITUACOES_SALDO = ["sem_estoque", "repor", "reposicao_pendente"] as const;
 export type SituacaoSaldo = (typeof SITUACOES_SALDO)[number];
 
 export const ROTULO_SITUACAO_SALDO: Record<SituacaoSaldo, string> = {
   sem_estoque: "Sem estoque",
   repor: "Repor",
-  reposicao_pendente: "Reposição aguardando aprovação",
+  reposicao_pendente: "Repor, aguardando aprovação",
 };
 
 export const ROTULO_SALDO_EM_DIA = "Em dia";
 
-/** Opções do filtro Status: casa pela condição, não pelo rótulo exibido. */
+/** Opções do filtro Situação: casa pela condição, não pelo rótulo exibido. */
 export const FILTROS_SALDO = [
   { value: "ok", label: ROTULO_SALDO_EM_DIA },
   { value: "repor", label: ROTULO_SITUACAO_SALDO.repor },

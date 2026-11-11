@@ -44,12 +44,12 @@ export type AlertaPainelDb = {
 export type Motivo = "em_falta" | "compra_atrasada" | "acaba_antes" | "abaixo_minimo" | "comprar" | "vencido" | "vencendo";
 
 export const META_MOTIVO: Record<Motivo, { rotulo: string; ordem: number; tom: "vermelho" | "ambar" | "azul" }> = {
-  em_falta: { rotulo: "Zero no sistema", ordem: 0, tom: "vermelho" },
+  em_falta: { rotulo: "Sem estoque", ordem: 0, tom: "vermelho" },
   compra_atrasada: { rotulo: "Compra atrasada", ordem: 1, tom: "vermelho" },
   acaba_antes: { rotulo: "Risco de falta sem pedido aberto", ordem: 2, tom: "vermelho" },
   vencido: { rotulo: "Lote vencido", ordem: 3, tom: "vermelho" },
   abaixo_minimo: { rotulo: "Abaixo do mínimo", ordem: 4, tom: "ambar" },
-  comprar: { rotulo: "Repor (sugestão de compra)", ordem: 5, tom: "ambar" },
+  comprar: { rotulo: "Repor", ordem: 5, tom: "ambar" },
   vencendo: { rotulo: "Lote vence em breve", ordem: 6, tom: "azul" },
 };
 
@@ -239,7 +239,7 @@ export type FaixaCobertura = { faixa: string; insumos: number; tom: "vermelho" |
 /** Quantos insumos duram quanto tempo, no consumo atual. */
 export function faixasCobertura(itens: readonly InsumoDecisao[]): FaixaCobertura[] {
   const faixas: FaixaCobertura[] = [
-    { faixa: "Zero no sistema", insumos: 0, tom: "ambar" },
+    { faixa: "Sem estoque", insumos: 0, tom: "ambar" },
     { faixa: "< 15 dias", insumos: 0, tom: "vermelho" },
     { faixa: "15–30 dias", insumos: 0, tom: "ambar" },
     { faixa: "30–90 dias", insumos: 0, tom: "verde" },
@@ -556,7 +556,7 @@ export function montarAlertas({
     },
     {
       chave: "em-falta",
-      titulo: "Zero no sistema",
+      titulo: "Sem estoque",
       descricao: "O sistema registra zero disponível. Confira o estoque antes de decidir.",
       tom: "vermelho",
       itens: emFalta.map((i) => ({
@@ -642,7 +642,7 @@ export function montarAlertas({
     {
       chave: "abaixo-minimo",
       titulo: "Abaixo do mínimo",
-      descricao: "Ainda tem, mas menos que o ponto de reposição.",
+      descricao: "Ainda tem, mas menos que o mínimo.",
       tom: "ambar",
       itens: abaixo.map((i) => ({
         chave: `i${i.id}`,
@@ -653,7 +653,7 @@ export function montarAlertas({
     },
     {
       chave: "repor",
-      titulo: "Repor pelo consumo",
+      titulo: "Repor",
       descricao: "Acima do mínimo, mas o consumo e o prazo pedem compra (sugestão do Estoque).",
       tom: "azul",
       itens: repor.map((i) => ({
@@ -714,12 +714,12 @@ export function montarAlertas({
     {
       chave: "sem-minimo",
       titulo: "Sem mínimo definido",
-      descricao: "Sem ponto de reposição para comparar o saldo. Completar no cadastro.",
+      descricao: "Sem mínimo para comparar o saldo. Completar no cadastro.",
       tom: "cinza",
       itens: semMinimo.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: zeroNoSistema(i) ? "Zero no sistema · confira antes de decidir" : `disponível ${saldo(i)}`,
+        detalhe: zeroNoSistema(i) ? "Sem estoque · confira antes de decidir" : `disponível ${saldo(i)}`,
         href: cadastroInsumo(i.id),
       })),
     },

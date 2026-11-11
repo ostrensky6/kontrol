@@ -104,9 +104,9 @@ describe("consumidor de estimativa manual no saldo", () => {
     // D1: a linha do saldo é a mesma da visão geral de Suprimentos (6 colunas; o resto fica na ficha)
     expect(io.saldo.mock.calls[0][0].rows[0]).toMatchObject({
       insumoId: 12, disponivel: 10, reservado: 4, aCaminho: 3, aguardandoAprovacao: 2, minimo: 2, sugerido: 3,
-      situacao: "Reposição", sinais: ["reposicao"], unidadeFisica: "mL",
+      situacao: "Repor", sinais: ["reposicao"], unidadeFisica: "mL",
     });
-    expect(io.saldo.mock.calls[0][0].rows[1]).toMatchObject({ insumoId: 13, aCaminho: null, situacao: "Estoque OK" });
+    expect(io.saldo.mock.calls[0][0].rows[1]).toMatchObject({ insumoId: 13, aCaminho: null, situacao: "Em dia" });
     expect(io.saldo.mock.calls[0][0].filtroInicial).toBe("todos");
     expect(html).toContain("Escolha um insumo para ver quanto saiu do estoque");
   });

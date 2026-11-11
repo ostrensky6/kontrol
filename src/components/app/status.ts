@@ -39,7 +39,7 @@ const STATUS: Record<string, StatusInfo> = {
   em_revisao: { label: "Em revisão", tone: "warning" },
   revisao: { label: "Revisão", tone: "warning" },
   quarentena: { label: "Quarentena", tone: "warning" },
-  reposicao: { label: "Reposição", tone: "warning" },
+  reposicao: { label: "Repor", tone: "warning" },
   repor: { label: "Repor", tone: "warning" },
   sem_validade: { label: "Sem validade", tone: "warning" },
   nao_lida: { label: "Não lida", tone: "warning" },

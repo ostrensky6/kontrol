@@ -111,7 +111,7 @@ export default async function InventarioPage() {
       .order("especificacao"),
   ]);
 
-  // campanhas abertas: quantas contagens e quantas diferenças ainda sem ajuste
+  // contagens abertas: quantos itens contados e quantas diferenças ainda sem ajuste
   const idsAbertos = (ciclos ?? []).map((ciclo) => Number(ciclo.id));
   const { data: contagensAbertas } = idsAbertos.length
     ? await supabase
@@ -188,14 +188,14 @@ export default async function InventarioPage() {
         <h1 className="text-xl font-semibold tracking-tight">Inventário cíclico</h1>
         <HelpTip title="Inventário cíclico">
           <p>
-            Conferência física do estoque, organizada em <b>campanhas</b> (por exemplo, uma por
+            Conferência física do estoque, organizada em <b>contagens</b> (por exemplo, uma por
             semana ou por local).
           </p>
           <p>
-            A contagem não muda o saldo sozinha: a diferença fica registrada e o saldo só é
+            O item contado não muda o saldo sozinho: a diferença fica registrada e o saldo só é
             corrigido quando alguém com <b>Corrigir estoque</b> clica em <b>Aplicar ajuste</b>.
           </p>
-          <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
+          <p>Com as diferenças ajustadas, <b>feche a contagem</b>: ela deixa de receber itens.</p>
           <HelpExample>Sistema diz 12, você contou 10: diferença −2, com justificativa.</HelpExample>
         </HelpTip>
       </div>
@@ -205,18 +205,18 @@ export default async function InventarioPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        {/* a contagem vem primeiro; a nova campanha abre pelo botão (L14) */}
+        {/* contar vem primeiro; a nova contagem abre pelo botão (L14); "Contagem" no lugar de "Campanha" (10.5) */}
         {podeCriar ? (
           <CriarPorBotao
-            rotulo="Nova campanha"
+            rotulo="Nova contagem"
             cabecalho={cabecalho}
           >
             <FormComMensagem action={criarCicloInventario} className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-              <Campo rotulo="Campanha" htmlFor="nova-campanha-nome" className="min-w-56">
-                <Input id="nova-campanha-nome" name="nome" placeholder="Inventário semanal" />
+              <Campo rotulo="Contagem" htmlFor="nova-contagem-nome" className="min-w-56">
+                <Input id="nova-contagem-nome" name="nome" placeholder="Inventário semanal" />
               </Campo>
-              <Campo rotulo="Local" htmlFor="nova-campanha-local" className="min-w-40">
-                <Select id="nova-campanha-local" name="local_id" defaultValue="">
+              <Campo rotulo="Local" htmlFor="nova-contagem-local" className="min-w-40">
+                <Select id="nova-contagem-local" name="local_id" defaultValue="">
                   <option value="">Todos</option>
                   {locaisOpcoes.map((local) => (
                     <option key={local.id} value={local.id}>
@@ -226,7 +226,7 @@ export default async function InventarioPage() {
                 </Select>
               </Campo>
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                Criar campanha
+                Criar contagem
               </button>
             </FormComMensagem>
           </CriarPorBotao>
@@ -249,7 +249,7 @@ export default async function InventarioPage() {
               ))}
             </ul>
             {diferencasPendentes.length > 8 && (
-              <p className="mt-1">E mais {diferencasPendentes.length - 8} em Contagens recentes.</p>
+              <p className="mt-1">E mais {diferencasPendentes.length - 8} em Itens contados recentes.</p>
             )}
             <p className="mt-1.5 text-xs">
               O saldo só muda quando alguém com Corrigir estoque clicar em Aplicar ajuste.
@@ -258,16 +258,16 @@ export default async function InventarioPage() {
         )}
 
         {resumoCiclos.length > 0 && (
-          <section aria-label="Campanhas abertas" className="mt-6">
+          <section aria-label="Contagens abertas" className="mt-6">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              Campanhas abertas
+              Contagens abertas
             </h2>
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
               {resumoCiclos.map((ciclo) => (
                 <li key={ciclo.id} className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2.5 text-sm">
                   <span className="min-w-0 flex-1 font-medium">{ciclo.nome}</span>
                   <span className="tabular-nums text-muted-foreground">
-                    {ciclo.contagens} {ciclo.contagens === 1 ? "contagem" : "contagens"}
+                    {ciclo.contagens} {ciclo.contagens === 1 ? "item contado" : "itens contados"}
                   </span>
                   {ciclo.pendentes > 0 ? (
                     <span className="text-warning-strong">
@@ -280,13 +280,13 @@ export default async function InventarioPage() {
                     <FormComMensagem action={fecharCicloInventario} className="flex items-center gap-2">
                       <input type="hidden" name="ciclo_id" value={ciclo.id} />
                       <ConfirmSubmitButton
-                        titulo="Fechar campanha?"
-                        mensagem={`A campanha “${ciclo.nome}” deixa de receber contagens. As ${ciclo.contagens} contagens e os ajustes ficam no histórico.`}
-                        confirmLabel="Fechar campanha"
+                        titulo="Fechar contagem?"
+                        mensagem={`A contagem “${ciclo.nome}” deixa de receber itens. Os ${ciclo.contagens} itens contados e os ajustes ficam no histórico.`}
+                        confirmLabel="Fechar contagem"
                         disabled={ciclo.pendentes > 0}
                         className="inline-flex h-8 items-center rounded-md border border-input px-3 text-xs font-medium hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
                       >
-                        Fechar campanha
+                        Fechar contagem
                       </ConfirmSubmitButton>
                     </FormComMensagem>
                   )}
@@ -307,13 +307,13 @@ export default async function InventarioPage() {
 
         <section className="mt-8 rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Contagens recentes</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens contados recentes</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
                 <tr>
-                  <th className="px-4 py-3 text-left">Campanha</th>
+                  <th className="px-4 py-3 text-left">Contagem</th>
                   <th className="px-4 py-3 text-left">Lote ou insumo</th>
                   <th className="px-4 py-3 text-left">Local</th>
                   <th className="px-4 py-3 text-right">Sistema</th>

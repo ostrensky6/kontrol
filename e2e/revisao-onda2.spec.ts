@@ -235,7 +235,7 @@ test("Cadastros e Início mostram a contagem do painel, com o mesmo número, e l
   await expect(situacao).toContainText(String(total));
   await expect(situacao).toContainText(resumo);
   // os três números de estoque, cada um com uma regra própria, viraram um
-  await expect(indicadores.getByRole("link", { name: /^(Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
+  await expect(indicadores.getByRole("link", { name: /^(Repor|Comprar agora|Vencidos|Sem disponível):/ })).toHaveCount(0);
   // cada linha de "Precisa de atenção hoje" abre a ficha do insumo ou o lote, nunca uma lista genérica
   const linhas = page.getByRole("list", { name: "Precisa de atenção hoje" }).getByRole("link");
   if (total > 0) await expect(linhas.first()).toBeVisible();

@@ -169,7 +169,7 @@ const lotesColumns = (permissoes: PermissoesLote): ColumnDef<LoteRow, unknown>[]
   },
   {
     accessorKey: "statusLabel",
-    header: "Estado",
+    header: "Situação",
     meta: { align: "center" },
     filterFn: "equalsString",
     cell: ({ row }) => <LoteStatusBadge status={row.original.status} label={row.original.statusLabel} />,
@@ -248,7 +248,7 @@ export function LotesTable({
       filters={[
         {
           columnId: "statusLabel",
-          label: "Estado",
+          label: "Situação",
           options: [
             { value: "Disponível", label: "Disponível" },
             { value: "Em uso", label: "Em uso" },

@@ -328,7 +328,7 @@ test("criar fica atrás de um botão: Planejamento, Compras, Usuários e Invent�
     { url: "/planejamento", botao: "Novo plano", campo: () => page.getByLabel("Nome do plano") },
     { url: "/compras", botao: "Nova compra", campo: () => page.getByLabel("Fornecedor", { exact: true }) },
     { url: "/usuarios", botao: "Novo usuário", campo: () => page.locator("#novo-usuario-nome") },
-    { url: "/estoque/inventario", botao: "Nova campanha", campo: () => page.getByPlaceholder("Inventário semanal") },
+    { url: "/estoque/inventario", botao: "Nova contagem", campo: () => page.getByPlaceholder("Inventário semanal") },
   ];
   for (const tela of telas) {
     await page.goto(tela.url);
@@ -430,7 +430,7 @@ test("campo padrão nos formulários de criação: rótulo de 12 px em frase nor
     { url: "/planejamento", botao: "Novo plano", rotulo: "Nome do plano" },
     { url: "/compras", botao: "Nova compra", rotulo: "Fornecedor" },
     { url: "/usuarios", botao: "Novo usuário", rotulo: "E-mail" },
-    { url: "/estoque/inventario", botao: "Nova campanha", rotulo: "Campanha" },
+    { url: "/estoque/inventario", botao: "Nova contagem", rotulo: "Contagem" },
   ];
   for (const formulario of formularios) {
     await page.goto(formulario.url);

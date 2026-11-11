@@ -28,7 +28,7 @@ test("barra de Suprimentos tem um link por tarefa e a visão geral mostra o esto
   // a tabela abre só com o que precisa de atenção; a lista inteira aparece quando pedida
   await expect(secao.getByRole("button", { name: /^Precisa de atenção/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page).not.toHaveURL(/situacao=/);
-  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => !t.includes("Estoque OK"))).toBe(true);
+  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => !t.includes("Em dia"))).toBe(true);
   await secao.getByRole("button", { name: /^Todos/ }).click();
   await expect(page).toHaveURL(/situacao=todos/);
   // a lista abre curta (10 linhas): a busca acha o insumo
@@ -43,7 +43,7 @@ test("barra de Suprimentos tem um link por tarefa e a visão geral mostra o esto
   await secao.getByRole("button", { name: /^Em dia/ }).click();
   await expect(secao.getByRole("button", { name: /^Em dia/ })).toHaveAttribute("aria-pressed", "true");
   await expect(page).toHaveURL(/situacao=ok/);
-  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => t.includes("Estoque OK") || t.includes("Nenhum insumo"))).toBe(true);
+  await expect.poll(async () => (await linhas.allInnerTexts()).every((t) => t.includes("Em dia") || t.includes("Nenhum insumo"))).toBe(true);
 
   // o filtro também vem pela URL (avisos da visão geral e da página inicial)
   await page.goto("/suprimentos?situacao=sem_disponivel#estoque-disponivel");

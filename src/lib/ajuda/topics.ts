@@ -239,7 +239,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Estoque → Situação é o painel único de alertas: cada quadro lista os insumos ou lotes que pedem atenção e por quê. Urgente pede ação agora, Atenção pede acompanhamento de perto, Acompanhar e Cadastro podem esperar.",
           "O Início e Cadastros mostram só a contagem (por exemplo, '3 urgentes · 5 de atenção') e levam ao painel. O número é o mesmo nas três telas, porque sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
           "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir no Inventário.",
-          "Zero no sistema é o disponível zerado com mínimo definido. Zero sem mínimo aparece em Sem mínimo definido. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
+          "Sem estoque é o disponível zerado com mínimo definido. Zero sem mínimo aparece em Sem mínimo definido. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
           "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
           "O quadro 'A caminho', no fim do painel, lista as compras feitas e não recebidas, para conferir antes de pedir de novo. Ele aparece para quem tem acesso a Compras.",
           "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
@@ -326,7 +326,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
     ],
-    termos: ["ficha do insumo", "ficha", "como está o insumo", "a caminho", "saldo", "lote", "validade", "fefo", "calibração", "manutenção", "equipamento", "consumo mensal", "estimativa", "confiança", "reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
+    termos: ["ficha do insumo", "ficha", "como está o insumo", "a caminho", "saldo", "lote", "validade", "fefo", "calibração", "manutenção", "equipamento", "consumo mensal", "estimativa", "confiança", "reposição", "repor", "mínimo", "ponto de reposição", "rastreio", "entrada", "saída", "dar baixa", "baixa avulsa", "perda", "quebra", "descarte", "vencido", "número do lote", "planilha", "excel", "importar"],
   },
   {
     id: "planejamento",
