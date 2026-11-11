@@ -6,8 +6,8 @@ import { montarPendencias } from "@/components/dashboard/aguardando";
 import { formatCompactCurrency, formatDate, formatNumber } from "@/lib/formatters";
 import { minhasPermissoes, temNaLista } from "@/lib/auth/permissao-efetiva";
 import type { PermissaoUsuario } from "@/lib/auth/permissions";
+import { papelAtual } from "@/lib/auth/roles";
 import { rotuloTipoNotificacao } from "@/lib/notifications/links";
-import { statusInfo } from "@/components/app/status";
 import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
@@ -93,91 +93,27 @@ function Indicador({
   );
 }
 
-function JornadaCard({
-  titulo,
-  subtitulo,
-  ajuda,
-  passos,
-}: {
-  titulo: string;
-  subtitulo: string;
-  ajuda?: React.ReactNode;
-  passos: Array<{ titulo: string; desc: string; href: string }>;
-}) {
-  return (
-    <SectionCard
-      title={titulo}
-      help={
-        <HelpTip title={`Jornada de ${titulo.toLowerCase()}`}>
-          <p>{subtitulo}</p>
-          {ajuda}
-        </HelpTip>
-      }
-      contentClassName="grid gap-2"
-    >
-      {passos.map((p, i) => (
-        <Link
-          key={p.href}
-          href={p.href}
-          className="group flex gap-3 rounded-md border border-border/70 p-3 transition-colors hover:bg-muted/50"
-        >
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-            {i + 1}
-          </span>
-          <span className="min-w-0">
-            <span className="block text-sm font-medium text-foreground group-hover:text-primary">
-              {p.titulo}
-            </span>
-            <span className="block text-xs leading-snug text-muted-foreground">{p.desc}</span>
-          </span>
-        </Link>
-      ))}
-    </SectionCard>
-  );
-}
+/** Tom de cada tipo de linha em "Precisa de atenção hoje": vermelho só para o que bloqueia. */
+const TOM_ATENCAO = {
+  critico: "border-danger-strong/30 bg-danger-soft text-danger-strong",
+  atencao: "border-warning-strong/30 bg-warning-soft text-warning-strong",
+} as const;
 
-function ListaProblemas({
-  titulo,
-  href,
-  vazio: textoVazio,
-  itens,
-}: {
+type LinhaAtencao = {
+  chave: string;
+  selo: string;
+  tom: keyof typeof TOM_ATENCAO;
   titulo: string;
+  meta: string;
   href: string;
-  vazio: string;
-  itens: Array<{ titulo: string; meta: string }>;
-}) {
-  return (
-    <SectionCard
-      title={titulo}
-      actions={
-        <Link href={href} aria-label={`Ver todos: ${titulo}`} className="text-xs font-semibold text-primary hover:underline">
-          Ver todos
-        </Link>
-      }
-      contentClassName="p-3 sm:p-3"
-    >
-      {itens.length > 0 ? (
-        <ul className="space-y-2">
-          {itens.map((item, i) => (
-            <li key={`${item.titulo}-${i}`} className="rounded-md bg-muted/50 px-3 py-2">
-              <div className="truncate text-sm font-medium text-foreground" title={item.titulo}>
-                {item.titulo}
-              </div>
-              <div className="mt-0.5 text-xs text-muted-foreground">{item.meta}</div>
-            </li>
-          ))}
-        </ul>
-      ) : (
-        <EmptyState title="Tudo em dia" description={textoVazio} className="py-4" />
-      )}
-    </SectionCard>
-  );
-}
+};
+
+/** Quantas linhas a lista mostra: a página inicial precisa caber em uma tela. */
+const LIMITE_ATENCAO = 8;
 
 export default async function Home() {
   const supabase = await createClient();
-  const efetivas = await minhasPermissoes();
+  const [efetivas, papel] = await Promise.all([minhasPermissoes(), papelAtual()]);
   const pode = (chave: PermissaoUsuario) => temNaLista(efetivas, chave);
 
   // A página mostra só o que a pessoa pode abrir (a caixinha manda).
@@ -312,41 +248,58 @@ export default async function Home() {
     });
   }
 
-  const passosOrcamento = [
-    pode("orcamentos.criar_editar") && { href: "/orcamento/demandas/nova", titulo: "Novo orçamento", desc: "Cliente, amostras e análises em um só formulário." },
-    verOrcamentos && { href: "/orcamento/demandas", titulo: "Orçamentos em andamento", desc: "Custos, revisão e emissão da proposta final." },
-    pode("analises.ver") && { href: "/analises", titulo: "Análises", desc: "Revise capacidade, tempos, equipamentos e materiais por protocolo." },
-    verOrcamentos && { href: "/orcamento/historico", titulo: "Histórico", desc: "Propostas emitidas, aprovadas ou encerradas." },
-  ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string }>;
-  const passosEstoque = [
-    verPlanejamento && { href: "/planejamento", titulo: "Planejamento", desc: "Calcule consumo por campanha e reserve material antes da execução." },
-    verEstoque && { href: "/estoque", titulo: "Estoque e lotes", desc: "Veja saldo, validade, bloqueios e rastreabilidade." },
-    // caminho único da compra (decisão de 09/11): começa e é acompanhada em Pedidos
-    pode("pedido.ver") && { href: "/pedido", titulo: "Pedidos", desc: "Peça material e acompanhe do pedido ao pagamento." },
-  ].filter(Boolean) as Array<{ href: string; titulo: string; desc: string }>;
+  // Uma lista só, do mais grave para o menos grave. Cada assunto aparece uma vez:
+  // o número fica no indicador e os itens ficam aqui (D12 da revisão de 11/11).
+  const hrefValidade = "/estoque/controle";
+  const hrefComprar = verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras";
+  const linhaValidade = (a: AlertaEstoque, selo: string, tom: LinhaAtencao["tom"]): LinhaAtencao => ({
+    chave: `${a.tipo}-${a.insumo_id}-${a.validade ?? ""}`,
+    selo,
+    tom,
+    titulo: a.especificacao ?? `Insumo #${a.insumo_id}`,
+    meta: `${a.validade ? `validade ${formatDate(a.validade)} · ` : ""}saldo ${formatNumber(a.valor)}`,
+    href: hrefValidade,
+  });
+  const atencao: LinhaAtencao[] = [
+    ...alertas.filter((a) => a.tipo === "vencido").map((a) => linhaValidade(a, "Vencido", "critico")),
+    ...alertas.filter((a) => a.tipo === "sem_validade").map((a) => linhaValidade(a, "Sem validade", "critico")),
+    ...comprarAgora.map((c, i): LinhaAtencao => ({
+      chave: `comprar-${i}-${c.titulo}`,
+      selo: "Comprar agora",
+      tom: "atencao",
+      titulo: c.titulo,
+      meta: c.meta,
+      href: hrefComprar,
+    })),
+    ...vencendo.map((a) => linhaValidade(a, "Vencendo", "atencao")),
+  ];
 
-  const baseControle = (
-    [
-      ["Cadastros", "/cadastros", "Insumos, equipamentos, técnicos, fornecedores, locais e parâmetros.", pode("cadastros.ver")],
-      ["Qualidade", "/cadastros/qualidade", "O que falta nos cadastros e distorce custo ou compra.", pode("cadastros.ver")],
-      ["Auditoria", "/auditoria", "Quem alterou o quê, e quando.", pode("auditoria.visualizar")],
-      ["Usuários", "/usuarios", "Categorias, permissões e acessos.", efetivas.admin],
-    ] as Array<[string, string, string, boolean]>
-  ).filter(([, , , visivel]) => visivel);
+  // Gráficos só para quem decide, e só o gráfico que tem dado (8.1 da revisão).
+  const decide = efetivas.admin || papel === "gestor" || papel === "supervisor";
+  const gastosComDado = decide && gastos && gastos.length > 0 ? gastos : null;
+  const funilComDado = decide && funil && funil.some((f) => f.total > 0) ? funil : null;
 
+  // Sem os atalhos, o aviso de "nenhuma área" olha as mesmas áreas que eles cobriam.
   const semModulos =
-    !verSuprimentos && !verOrcamentos && !verPlanejamento && passosOrcamento.length === 0 && baseControle.length === 0;
+    !verSuprimentos &&
+    !verOrcamentos &&
+    !verPlanejamento &&
+    !efetivas.admin &&
+    !pode("pedido.ver") &&
+    !pode("analises.ver") &&
+    !pode("cadastros.ver") &&
+    !pode("auditoria.visualizar");
 
   return (
     <PageShell>
       <PageHeader
-        title="Painel de decisão operacional"
+        title="Início"
         help={
-          <HelpTip title="Painel de decisão">
-            <p>O que espera por você e o que precisa de compra, aceite, baixa ou revisão hoje.</p>
+          <HelpTip title="Início">
+            <p>O que espera por você e o que precisa de compra, baixa ou revisão hoje.</p>
             <p>
               Mostra só as áreas que o seu usuário pode abrir. Em <b>Aguardando você</b> ficam as
-              etapas que dependem da sua ação; cada indicador leva à lista que o explica.
+              etapas que dependem da sua ação; cada número leva à lista que o explica.
             </p>
             <HelpLegend
               items={[
@@ -376,100 +329,79 @@ export default async function Home() {
         />
       )}
 
-      <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" aria-label="Pendências">
+      <div className={notificacoes.length > 0 && verSuprimentos ? "grid gap-4 lg:grid-cols-3" : "grid gap-4"}>
         {verSuprimentos && (
-          <ListaProblemas
-            titulo="Prioridade de compra"
-            href={verEstoque ? "/suprimentos?situacao=reposicao#estoque-disponivel" : "/compras"}
-            vazio="Nenhum insumo com compra sugerida pela previsão."
-            itens={comprarAgora.slice(0, 5)}
-          />
+          <SectionCard
+            title="Precisa de atenção hoje"
+            className={notificacoes.length > 0 ? "lg:col-span-2" : undefined}
+            contentClassName="p-3 sm:p-3"
+          >
+            {atencao.length > 0 ? (
+              <>
+                <ul aria-label="Precisa de atenção hoje" className="divide-y divide-border/60">
+                  {atencao.slice(0, LIMITE_ATENCAO).map((linha) => (
+                    <li key={linha.chave}>
+                      <Link
+                        href={linha.href}
+                        className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md px-2 py-2 hover:bg-muted/50 focus-visible:outline-2 focus-visible:outline-offset-2"
+                      >
+                        <span
+                          className={`w-28 shrink-0 rounded-full border px-2 py-0.5 text-center text-xs font-medium ${TOM_ATENCAO[linha.tom]}`}
+                        >
+                          {linha.selo}
+                        </span>
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground" title={linha.titulo}>
+                          {linha.titulo}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{linha.meta}</span>
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+                {atencao.length > LIMITE_ATENCAO && (
+                  <p className="px-2 pt-2 text-xs text-muted-foreground">
+                    E mais {atencao.length - LIMITE_ATENCAO}. Os números acima abrem as listas completas.
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="px-2 py-1 text-sm text-muted-foreground">
+                Nada vencido, vencendo ou com compra sugerida agora.
+              </p>
+            )}
+          </SectionCard>
         )}
-        {verEstoque && (
-          <ListaProblemas
-            titulo="Validade e uso"
-            href="/estoque/controle"
-            vazio="Nenhum lote vencido ou vencendo dentro da janela."
-            itens={[...vencidos, ...vencendo].slice(0, 5).map((a) => ({
-              titulo: a.especificacao ?? `Insumo #${a.insumo_id}`,
-              meta: `${a.tipo === "vencido" ? "vencido" : a.tipo === "sem_validade" ? "sem validade cadastrada" : "vence em breve"}${a.validade ? ` · ${formatDate(a.validade)}` : ""} · saldo ${formatNumber(a.valor)}`,
-            }))}
-          />
-        )}
-        {verCompras && (
-          <ListaProblemas
-            titulo="Compras em andamento"
-            href="/compras"
-            vazio="Nenhuma compra formal em andamento."
-            itens={pedidos.slice(0, 5).map((p) => ({
-              titulo: `Compra #${p.id}`,
-              meta: `${statusInfo(p.status).label}${p.data_solicitacao ? ` · ${formatDate(p.data_solicitacao)}` : ""}${p.projeto ? ` · ${p.projeto}` : ""}`,
-            }))}
-          />
-        )}
-        <ListaProblemas
-          titulo="Notificações"
-          href="/notificacoes"
-          vazio="Nenhuma notificação para você."
-          itens={notificacoes.map((n) => ({
-            titulo: n.titulo,
-            meta: `${rotuloTipoNotificacao(n.tipo)}${n.corpo ? ` · ${n.corpo}` : ""}`,
-          }))}
-        />
-      </section>
 
-      {(gastos !== null || funil !== null) && (
+        {notificacoes.length > 0 && (
+          <SectionCard
+            title="Notificações"
+            actions={
+              <Link href="/notificacoes" className="text-xs font-semibold text-primary hover:underline">
+                Ver todas
+              </Link>
+            }
+            contentClassName="p-3 sm:p-3"
+          >
+            <ul className="space-y-2">
+              {notificacoes.map((n) => (
+                <li key={n.id} className="rounded-md bg-muted/50 px-3 py-2">
+                  <div className="truncate text-sm font-medium text-foreground" title={n.titulo}>
+                    {n.titulo}
+                  </div>
+                  <div className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">
+                    {rotuloTipoNotificacao(n.tipo)}
+                    {n.corpo ? ` · ${n.corpo}` : ""}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </SectionCard>
+        )}
+      </div>
+
+      {(gastosComDado !== null || funilComDado !== null) && (
         <SectionCard title="Dashboard executivo">
-          <ExecutiveCharts gastos={gastos} funil={funil} />
-        </SectionCard>
-      )}
-
-      {(passosOrcamento.length > 0 || passosEstoque.length > 0) && (
-        <section className="grid gap-4 lg:grid-cols-2" aria-label="Jornadas">
-          {passosOrcamento.length > 0 && (
-            <JornadaCard
-              titulo="Orçamento"
-              subtitulo="Do pedido do cliente à proposta emitida."
-              ajuda={
-                <p>
-                  O preço sai das análises escolhidas: <b>custos diretos</b> (reagentes, equipamento e
-                  pessoal), overhead e fatores comerciais. Tudo fica registrado na proposta.
-                </p>
-              }
-              passos={passosOrcamento}
-            />
-          )}
-          {passosEstoque.length > 0 && (
-            <JornadaCard
-              titulo="Suprimentos"
-              subtitulo="Do planejamento à reposição."
-              ajuda={
-                <p>
-                  O plano calcula quanto de cada insumo será usado e <b>reserva os lotes</b>. A baixa
-                  segue o lote que vence primeiro, e a falta de saldo vira pedido, acompanhado em <b>Pedidos</b>.
-                </p>
-              }
-              passos={passosEstoque}
-            />
-          )}
-        </section>
-      )}
-
-      {baseControle.length > 0 && (
-        <SectionCard
-          title="Base de controle"
-          contentClassName="grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
-        >
-          {baseControle.map(([titulo, href, desc]) => (
-            <Link
-              key={href}
-              href={href}
-              className="rounded-md border border-border/70 bg-muted/40 p-3 transition-colors hover:bg-muted/70"
-            >
-              <span className="block text-sm font-semibold text-foreground">{titulo}</span>
-              <span className="mt-1 block text-xs leading-snug text-muted-foreground">{desc}</span>
-            </Link>
-          ))}
+          <ExecutiveCharts gastos={gastosComDado} funil={funilComDado} />
         </SectionCard>
       )}
     </PageShell>

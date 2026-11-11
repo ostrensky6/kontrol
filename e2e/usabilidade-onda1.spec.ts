@@ -60,25 +60,29 @@ test("novo orçamento permite remover grupo de amostras sem repetir nomes", asyn
 test("página inicial não aponta para rotas que só redirecionam", async ({ page }) => {
   await page.goto("/");
   await expect(page.locator('a[href="/orcamento/projetos"], a[href="/orcamento/revisao"], a[href="/orcamento"]')).toHaveCount(0);
-  await expect(page.getByRole("link", { name: /^Ver todos:/ }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: "Início" })).toBeVisible();
 });
 
-// Lapidação de 10/11: o que pede decisão vem antes dos gráficos e cada destino
-// aparece uma vez só; a compra começa em Pedidos (caminho único).
-test("página inicial mostra as pendências antes dos gráficos, sem atalhos repetidos", async ({ page }) => {
+// Revisão de 11/11 (Onda 0b): o que pede decisão vem antes dos gráficos, cada
+// assunto aparece uma vez e os atalhos que repetiam o menu saíram (D12, D13).
+test("página inicial mostra o que pede atenção antes dos gráficos, sem atalhos repetidos", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
   await page.goto("/");
   const main = page.getByRole("main");
-  const pendencias = main.getByRole("region", { name: "Pendências" });
+  const atencao = main.getByRole("heading", { name: "Precisa de atenção hoje" });
   const graficos = main.getByRole("heading", { name: "Dashboard executivo" });
-  await expect(pendencias).toBeVisible();
+  await expect(atencao).toBeVisible();
   await expect(graficos).toBeVisible();
-  const yPendencias = (await pendencias.boundingBox())!.y;
-  const yGraficos = (await graficos.boundingBox())!.y;
-  expect(yPendencias).toBeLessThan(yGraficos);
+  expect((await atencao.boundingBox())!.y).toBeLessThan((await graficos.boundingBox())!.y);
 
-  await expect(main.locator('a[href="/orcamento/demandas/nova"]')).toHaveCount(1);
-  await expect(main.locator('a[href="/planejamento"]')).toHaveCount(1);
+  // os atalhos para módulos ficam só na barra lateral
+  await expect(main.getByRole("region", { name: "Jornadas" })).toHaveCount(0);
+  await expect(main.getByRole("heading", { name: "Base de controle" })).toHaveCount(0);
+  await expect(main.locator('a[href="/orcamento/demandas/nova"], a[href="/planejamento"], a[href="/usuarios"]')).toHaveCount(0);
   await expect(main.getByRole("link", { name: /Abrir compras/ })).toHaveCount(0);
-  await expect(main.getByRole("link", { name: /^3\s*Pedidos/ })).toHaveAttribute("href", "/pedido");
+
+  // cada assunto uma vez: as quatro listas viraram uma, e bloco sem dado não aparece
+  await expect(main.getByRole("heading", { name: /Prioridade de compra|Validade e uso|Compras em andamento/ })).toHaveCount(0);
+  await expect(main.getByText("Tudo em dia", { exact: true })).toHaveCount(0);
+  await expect(main.getByText("Sem dados de gastos")).toHaveCount(0);
 });

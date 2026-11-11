@@ -60,3 +60,23 @@ test("estoque diz sem dado em vez de texto técnico (8.3)", async ({ page }) => 
   await expect(page.getByText("Sem linha nesta consulta.")).toHaveCount(0);
   await expect(page.getByText("Indisponível", { exact: true })).toHaveCount(0);
 });
+
+test("rodapé institucional completo só no Início; nas outras telas, uma linha (10.2)", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto("/");
+  const rodape = page.getByRole("contentinfo", { name: "Informações institucionais" });
+  await expect(rodape).toContainText("Uma parceria GIA & ATGC");
+
+  await page.goto("/estoque");
+  await expect(rodape).toContainText(/Kontrol · Versão \d+\.\d+\.\d+/);
+  await expect(rodape).not.toContainText("Uma parceria GIA & ATGC");
+  await expect(rodape.getByRole("link", { name: "Suporte" })).toBeVisible();
+  expect((await rodape.boundingBox())!.height).toBeLessThan(60);
+});
+
+test("barra de Orçamentos tem lugares, não ações: novo orçamento é botão da lista (D14)", async ({ page }) => {
+  await page.goto("/orcamento/demandas");
+  const barra = page.getByRole("navigation", { name: "Navegação de Orçamentos" });
+  await expect(barra.getByRole("link", { name: "Novo orçamento" })).toHaveCount(0);
+  await expect(page.getByRole("main").getByRole("link", { name: "Novo orçamento" })).toBeVisible();
+});

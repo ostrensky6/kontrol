@@ -961,6 +961,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Início",
+        itens: [
+          "'Aguardando você' vem primeiro: é o que depende da sua decisão.",
+          "Cada número abre a lista completa daquele assunto.",
+          "'Precisa de atenção hoje' junta numa lista só o que está vencido, sem validade, com compra sugerida ou vencendo.",
+          "Os gráficos aparecem para Gestor, Supervisor e Administrador, e só quando há dados.",
+        ],
+      },
+      {
         titulo: "Ajuda na própria tela",
         itens: [
           "O '?' ao lado de um título explica aquela parte da tela em poucas linhas.",
