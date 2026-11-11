@@ -33,13 +33,24 @@ test("situação do estoque: origem dos alertas e filtro na URL", async ({ page 
   // alerta sem itens aparece como "sem alerta agora"
   await expect(page.getByRole("region", { name: "Sem alerta agora" })).toContainText("Aberto fora da ordem de validade");
 
+  // Os gráficos têm visão própria (etapa 3): a visão por insumo fica com os quadros e a lista para tratar.
+  await expect(painel.getByRole("application")).toHaveCount(0);
+  const visoes = page.getByRole("navigation", { name: "Como ver a situação do estoque" });
+  await visoes.getByRole("link", { name: /Gráficos/ }).click();
+  await expect(page).toHaveURL(/ver=graficos/);
+  const graficos = page.getByRole("region", { name: "Gráficos do estoque" });
   // As opções existem no HTML inicial; o gráfico montado confirma a hidratação.
-  await expect(painel.getByRole("application").first()).toBeVisible();
+  await expect(graficos.getByRole("application").first()).toBeVisible();
   await page.getByLabel("Categoria de compra").selectOption({ label: "Sem categoria" });
   await expect(page).toHaveURL(/compra=/);
   await page.reload();
   await expect(page.getByLabel("Categoria de compra")).not.toHaveValue("");
-  await page.getByRole("button", { name: "Limpar filtros" }).click();
+  // o filtro de categoria acompanha a troca de visão
+  await visoes.getByRole("link", { name: /Por insumo/ }).click();
+  await expect(page).not.toHaveURL(/ver=/);
+  await expect(page).toHaveURL(/compra=/);
+  await expect(page.getByLabel("Categoria de compra")).not.toHaveValue("");
+  await page.getByRole("button", { name: "Limpar filtros", exact: true }).click();
   await expect(page).not.toHaveURL(/compra=/);
 
   for (const [width, theme] of [[1280, "light"], [375, "dark"]] as const) {

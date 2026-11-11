@@ -59,7 +59,9 @@ const ITENS_POR_ALERTA = 5;
 /**
  * Painel único de situação do estoque (D1 e L1 da revisão de 11/11): os 14
  * quadros de alerta e os gráficos. Fica em Estoque › Situação do estoque;
- * o Início e Cadastros mostram só a contagem e levam até aqui.
+ * o Início e Cadastros mostram só a contagem e levam até aqui. Desde a
+ * organização de 11/11/2026 a tela tem três visões: os quadros ficam na
+ * visão por insumo e os gráficos na visão Gráficos (`mostrar`).
  */
 export function PainelSituacaoEstoque({
   insumos,
@@ -70,7 +72,10 @@ export function PainelSituacaoEstoque({
   graficosIncompletos,
   hojeIso,
   erro,
+  mostrar,
 }: {
+  /** "quadros": os quadros de alerta; "graficos": os quatro gráficos */
+  mostrar: "quadros" | "graficos";
   insumos: InsumoDecisao[];
   lotesVencendo: LoteVencendo[];
   lotes: LotePainelDb[];
@@ -149,7 +154,7 @@ export function PainelSituacaoEstoque({
   return (
     <section aria-labelledby="painel-situacao-titulo" className="space-y-4">
       <h2 id="painel-situacao-titulo" className="sr-only">
-        Alertas do estoque
+        {mostrar === "graficos" ? "Gráficos do estoque" : "Alertas do estoque"}
       </h2>
 
       {erro ? (
@@ -213,7 +218,7 @@ export function PainelSituacaoEstoque({
         </dl>
       </div>
 
-      {ativos.length > 0 ? (
+      {mostrar === "graficos" ? null : ativos.length > 0 ? (
         <div className="grid min-w-0 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
           {ativos.map((alerta) => (
             <QuadroAlerta key={alerta.chave} alerta={alerta} />
@@ -225,7 +230,7 @@ export function PainelSituacaoEstoque({
         </p>
       )}
 
-      {emOrdem.length > 0 ? (
+      {mostrar === "quadros" && emOrdem.length > 0 ? (
         <section aria-labelledby="em-ordem-titulo" className="rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
           <h3 id="em-ordem-titulo" className="text-xs font-semibold text-muted-foreground">
             Sem alerta agora
@@ -240,6 +245,7 @@ export function PainelSituacaoEstoque({
         </section>
       ) : null}
 
+      {mostrar === "graficos" && (
       <div className="grid min-w-0 gap-4 lg:grid-cols-2">
         <Grafico titulo="Cobertura estimada do estoque" subtitulo="Estimativa em dias com base no saldo disponível e no ritmo das saídas registradas.">
           {graficosIncompletos.cobertura ? (
@@ -372,14 +378,17 @@ export function PainelSituacaoEstoque({
           )}
         </Grafico>
       </div>
+      )}
 
-      <p className="text-center text-sm text-muted-foreground">
-        A lista completa dos insumos, com busca e edição, fica em{" "}
-        <Link href="/cadastros/insumos" className="font-medium text-primary hover:underline">
-          Cadastros → Insumos
-        </Link>
-        .
-      </p>
+      {mostrar === "quadros" && (
+        <p className="text-center text-sm text-muted-foreground">
+          A lista completa dos insumos, com busca e edição, fica em{" "}
+          <Link href="/cadastros/insumos" className="font-medium text-primary hover:underline">
+            Cadastros → Insumos
+          </Link>
+          .
+        </p>
+      )}
     </section>
   );
 }

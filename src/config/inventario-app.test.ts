@@ -32,6 +32,12 @@ const tela = (arquivo: string, contem: string): Onde => ({ tipo: "tela", arquivo
 const INVENTARIO: ItemDoInventario[] = [
   // ── Início ──
   { area: "Início", item: "Aguardando você", onde: [barra("inicio", "/", "Início"), tela("app/page.tsx", "<AguardandoVoce")] },
+  // os três números do estoque saem da mesma regra do topo da Situação do estoque (numerosDoEstoque)
+  { area: "Início", item: "Número Sem estoque", onde: [tela("app/page.tsx", "numerosDoEstoque(sinaisEstoque)"), tela("app/page.tsx", '"sem_disponivel", "vencido_vencendo", "reposicao"'), tela("lib/estoque/controle-estoque.ts", '"Sem estoque",')] },
+  { area: "Início", item: "Número Vencidos ou vencendo", onde: [tela("app/page.tsx", '"sem_disponivel", "vencido_vencendo", "reposicao"'), tela("lib/estoque/controle-estoque.ts", '"Vencidos ou vencendo",')] },
+  { area: "Início", item: "Número Repor", onde: [tela("app/page.tsx", '"sem_disponivel", "vencido_vencendo", "reposicao"'), tela("lib/estoque/controle-estoque.ts", '"Repor",')] },
+  { area: "Início", item: "Número Compras abertas", onde: [tela("app/page.tsx", 'label: "Compras abertas"')] },
+  { area: "Início", item: "Número Propostas com o cliente", onde: [tela("app/page.tsx", 'label: "Propostas com o cliente"')] },
   { area: "Início", item: "Precisa de atenção hoje", onde: [tela("app/page.tsx", "Precisa de atenção hoje")] },
   { area: "Início", item: "Dashboard executivo (gastos por mês e funil)", onde: [tela("app/page.tsx", "<ExecutiveCharts")] },
   { area: "Início", item: "Notificações", onde: [busca("/notificacoes"), tela("components/layout/SinoAvisos.tsx", 'href="/notificacoes"')] },
@@ -53,6 +59,7 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Compras", item: "Visão geral: quadro Aguardando você", onde: [tela("app/suprimentos/page.tsx", "<AguardandoVoce")] },
   { area: "Compras", item: "Visão geral: andamento dos pedidos nas 6 etapas", onde: [tela("app/suprimentos/page.tsx", "<AndamentoPedidos")] },
   { area: "Compras", item: "Pedidos", onde: [barra("compras", "/pedido", "Pedidos")] },
+  { area: "Compras", item: "Pedidos: quadro Aguardando você", onde: [tela("app/pedido/page.tsx", "<AguardandoVoce\n")] },
   { area: "Compras", item: "Novo pedido", onde: [tela("app/suprimentos/page.tsx", 'href="/pedido?novo=1"')] },
   { area: "Compras", item: "Compras com fornecedor", onde: [barra("compras", "/compras", "Compras com fornecedor")] },
   { area: "Compras", item: "Nova compra (sem pedido)", onde: [tela("app/compras/page.tsx", 'rotulo="Nova compra"')] },
@@ -70,6 +77,21 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Estoque", item: "Situação do estoque (painel de alertas)", onde: [barra("estoque", "/estoque/situacao", "Situação do estoque")] },
   { area: "Estoque", item: "Gerar pedidos de reposição", onde: [tela("app/estoque/situacao/page.tsx", "<GerarPedidoReposicaoButton")] },
   { area: "Estoque", item: "A caminho: compras ainda não recebidas", onde: [tela("app/estoque/situacao/page.tsx", "<ACaminhoInsumos")] },
+  // o que era do Controle de Estoque e voltou para dentro da Situação (etapa 3 da organização de 11/11)
+  { area: "Estoque", item: "Situação: visões por insumo, por lote e gráficos", onde: [tela("app/estoque/situacao/page.tsx", "<VisoesSituacao"), tela("lib/estoque/controle-estoque.ts", '{ id: "lote", rotulo: "Por lote" }')] },
+  { area: "Estoque", item: "Situação: números Sem estoque, Repor, Vencidos ou vencendo e Compra atrasada", onde: [tela("app/estoque/situacao/page.tsx", "<IndicadoresEstoque"), tela("components/estoque/IndicadoresEstoque.tsx", "numerosDoEstoque(resumo)"), tela("lib/estoque/controle-estoque.ts", '"Compra atrasada",')] },
+  { area: "Estoque", item: "Situação: saúde do estoque", onde: [tela("components/estoque/IndicadoresEstoque.tsx", 'label="Saúde do estoque"'), tela("components/estoque/ResumoGraficoEstoque.tsx", 'data-testid="taxa-de-saude"')] },
+  { area: "Estoque", item: "Situação: quadros de alerta", onde: [tela("app/estoque/situacao/page.tsx", 'mostrar="quadros"')] },
+  { area: "Estoque", item: "Situação: tratar por insumo, com os sinais de cada um", onde: [tela("app/estoque/situacao/page.tsx", "<ControlePorInsumo")] },
+  { area: "Estoque", item: "Situação: filtro de criticidade", onde: [tela("components/estoque/ControleEstoque.tsx", "FILTROS_CRITICIDADE.map")] },
+  { area: "Estoque", item: "Situação: filtro de avisos pendentes, tratados e sem aviso", onde: [tela("components/estoque/ControleEstoque.tsx", "FILTROS_AVISO.map")] },
+  { area: "Estoque", item: "Situação: Tratar alerta (marca o aviso como lido)", onde: [tela("components/estoque/ControleEstoque.tsx", "executar(marcarNotificacaoLida)")] },
+  { area: "Estoque", item: "Situação: Arquivar o aviso", onde: [tela("components/estoque/ControleEstoque.tsx", "executar(arquivarNotificacao)")] },
+  { area: "Estoque", item: "Situação: Dar baixa em cada insumo", onde: [tela("components/estoque/ControleEstoque.tsx", "<DarBaixaDialog")] },
+  { area: "Estoque", item: "Situação: Pedir reposição em cada insumo", onde: [tela("components/estoque/ControleEstoque.tsx", "<GerarPedidoInsumoButton")] },
+  { area: "Estoque", item: "Situação: lotes pela validade, com as ações do lote", onde: [tela("app/estoque/situacao/page.tsx", "<ControlePorLote"), tela("components/estoque/ControleEstoque.tsx", "<LotesTable")] },
+  { area: "Estoque", item: "Situação: gráficos de cobertura, categoria, valor e movimentos", onde: [tela("app/estoque/situacao/page.tsx", 'mostrar="graficos"')] },
+  { area: "Estoque", item: "Situação: gráfico Insumos por situação e notas de controle", onde: [tela("app/estoque/situacao/page.tsx", "<ResumoGraficoEstoque"), tela("components/estoque/ResumoGraficoEstoque.tsx", "Notas de controle")] },
   { area: "Estoque", item: "Entrada e saída por leitura", onde: [barra("estoque", "/estoque/leitura", "Entrada e saída por leitura")] },
   {
     area: "Estoque",

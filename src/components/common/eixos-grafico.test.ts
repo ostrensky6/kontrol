@@ -63,6 +63,7 @@ describe("eixos dos gráficos XY", () => {
       "components/custeio/CusteioAmostrasChart.tsx",
       "components/dashboard/ExecutiveCharts.tsx",
       "components/estoque/PainelSituacaoEstoque.tsx",
+      "components/estoque/ResumoGraficoEstoque.tsx",
     ]);
   });
 

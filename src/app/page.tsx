@@ -15,8 +15,9 @@ import { SectionCard } from "@/components/app/SectionCard";
 import { StatCard, type Tone } from "@/components/app/StatCard";
 import { EmptyState } from "@/components/app/EmptyState";
 import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoque";
-import { textoResumoAlertas } from "@/lib/cadastros/painel-decisao";
 import { hojeIso } from "@/lib/estoque/baixa";
+import { contarSinaisEstoque } from "@/lib/estoque/controle-dados";
+import { hrefListaPorInsumo, numerosDoEstoque } from "@/lib/estoque/controle-estoque";
 import { contarSituacaoEstoque } from "@/lib/estoque/situacao-dados";
 import { noGlossario } from "@/lib/glossario";
 
@@ -114,9 +115,11 @@ export default async function Home() {
   const verPlanejamento = pode("planejamento.ver");
   const verSuprimentos = verEstoque || verCompras;
 
+  const semTipo = verEstoque ? await createClientUntyped() : null;
   const [
     pendencias,
     situacaoEstoque,
+    sinaisEstoque,
     { data: previsaoRaw },
     { data: pedidosRaw },
     { data: dashboardRaw },
@@ -125,7 +128,9 @@ export default async function Home() {
     // a função do banco mais lotes em quarentena, disputas, códigos e manutenção vencida (F8)
     carregarPendencias(),
     // D1: o Início mostra a contagem do painel único de situação, com as regras dele
-    verEstoque ? createClientUntyped().then((semTipo) => contarSituacaoEstoque(semTipo, hojeIso())) : null,
+    semTipo ? contarSituacaoEstoque(semTipo, hojeIso()) : null,
+    // os números do estoque saem da mesma conta dos números do topo da Situação do estoque
+    semTipo ? contarSinaisEstoque(semTipo, hojeIso()) : null,
     // quem vê Compras sem ver Estoque não abre o painel: fica com a sugestão de compra
     verCompras && !verEstoque
       ? supabase
@@ -184,18 +189,25 @@ export default async function Home() {
       ]
     : null;
 
-  // No máximo 5 indicadores, sem repetição, cada um levando à sua lista.
+  // Cinco números, sem repetição, cada um levando à lista que o explica. Sem estoque e
+  // Vencidos ou vencendo são problemas diferentes, com ações diferentes: ficam separados.
   const indicadores: Array<{ href: string; label: string; value: React.ReactNode; detail: string; tone: Tone }> = [];
-  if (situacaoEstoque) {
-    // um número só para o estoque, o mesmo do painel; leitura incompleta aparece como "sem dado"
-    const resumo = situacaoEstoque.resumo;
-    indicadores.push({
-      href: HREF_SITUACAO_ESTOQUE,
-      label: "Situação do estoque",
-      value: resumo ? resumo.urgentes + resumo.atencao : "sem dado",
-      detail: resumo ? `${textoResumoAlertas(resumo)} · abre o painel` : "a leitura do estoque não respondeu por inteiro",
-      tone: !resumo ? "neutral" : resumo.urgentes ? "danger" : resumo.atencao ? "warning" : "neutral",
-    });
+  if (verEstoque) {
+    // os mesmos números do topo da Situação do estoque, com o mesmo texto e o mesmo destino;
+    // leitura incompleta aparece como "sem dado", nunca como zero
+    const numeros = numerosDoEstoque(sinaisEstoque);
+    for (const filtro of ["sem_disponivel", "vencido_vencendo", "reposicao"] as const) {
+      const numero = numeros.find((n) => n.filtro === filtro);
+      if (numero) {
+        indicadores.push({
+          href: hrefListaPorInsumo(filtro),
+          label: numero.label,
+          value: numero.value,
+          detail: numero.detail,
+          tone: numero.tone,
+        });
+      }
+    }
   } else if (verCompras) {
     indicadores.push({
       href: "/compras",

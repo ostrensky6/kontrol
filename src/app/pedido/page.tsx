@@ -7,7 +7,7 @@ import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
 import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
 import { proximoPasso } from "@/lib/pedido/proximo-passo";
 import { coordenadorDoProjeto, type UsuarioCoordenador } from "@/app/projetos/_lib/responsavel";
-import { AguardandoVoceLinha } from "@/components/dashboard/AguardandoVoceLinha";
+import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
 import { PENDENCIAS_DE_PEDIDOS, pendenciasDe } from "@/components/dashboard/aguardando";
 import { carregarPendencias } from "@/lib/pendencias/carregar";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
@@ -206,8 +206,15 @@ export default async function PedidoPage({
           <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} abrirAoCarregar={abrirNovo} />
         </div>
 
-        {/* o quadro completo fica no Início e no sino; aqui, uma linha (D4) */}
-        <AguardandoVoceLinha pendencias={pendencias} className="mt-4" />
+        {/* o quadro inteiro voltou na organização de 11/11/2026: o que espera a pessoa fica onde a ação acontece */}
+        <div className="mt-4">
+          <AguardandoVoce
+            pendencias={pendencias}
+            destaque
+            vazio="Nenhum pedido esperando a sua ação agora. Quando um pedido depender de você, ele aparece aqui."
+            ajuda="Pedidos que dependem de você: aprovar como coordenador ou pelo laboratório, autorizar, cotar, fechar a compra ou pagar."
+          />
+        </div>
 
         <div className="mt-5">
           <PedidosPorEtapa key={filtroEtapa} rows={rows} podeExcluir={podeExcluir} filtroInicial={filtroEtapa} />

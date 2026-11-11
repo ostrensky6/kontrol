@@ -72,7 +72,9 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Situação do estoque",
       description: "O painel único de alertas: saldo, compra, validade e lotes.",
       checks: [
+        "Três visões: Por insumo, Por lote e Gráficos. Os números do topo abrem a lista por insumo já filtrada.",
         "Urgente pede ação agora; Atenção pede acompanhamento de perto.",
+        "Em Tratar por insumo, Tratar alerta marca o aviso como lido para você e Arquivar tira da sua lista; Dar baixa e Pedir reposição ficam no mesmo cartão.",
         "Clique no nome para abrir a ficha do insumo ou a página do lote.",
         "Gerar pedidos de reposição cria um rascunho com os insumos que precisam de compra. O botão fica só aqui.",
         "A caminho, no fim, mostra o que já foi comprado e ainda não chegou.",
@@ -123,7 +125,7 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
       title: "Pedidos",
       description: "O que foi pedido e em que etapa cada pedido está, da solicitação ao pagamento.",
       checks: [
-        "A linha Sua vez mostra os pedidos que dependem de você, como os que o coordenador precisa aprovar. Clique para abrir.",
+        "O quadro Aguardando você mostra os pedidos que dependem de você, como os que o coordenador precisa aprovar. Clique no nome para abrir.",
         "Clique numa etapa para ver só os pedidos dela; Em andamento, Concluídos, Cancelados e Todos trocam o conjunto.",
         "Próximo passo diz o que falta e com quem está. Os botões de cada etapa ficam no topo do pedido, no quadro O que falta agora.",
       ],
