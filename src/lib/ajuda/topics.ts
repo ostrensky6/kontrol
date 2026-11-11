@@ -191,7 +191,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
           "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Controle de Estoque, entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
           "Planejamento: reservas de insumo para as análises previstas.",
-          "Pedidos: cada pedido e a etapa em que está. Compras formais e prazos de compra ficam no topo dessa página.",
+          "Pedidos: cada pedido e a etapa em que está. Compras formais e Prazos de compra são abas dessa tela, logo abaixo da barra.",
           "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
           "Notificações saíram desta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",
         ],
@@ -318,7 +318,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Crie um plano, informe projeto e período e adicione as análises (só as ativas aparecem) com nº de amostras, controles e repetições.",
+          "Clique em 'Novo plano', no topo da lista, informe projeto e período e adicione as análises (só as ativas aparecem) com nº de amostras, controles e repetições.",
+          "Na lista, 'Ver' e 'Editar' ficam à vista; excluir ou cancelar um plano fica no menu '…' da linha e dentro do próprio plano, sempre com motivo.",
           "Clique em 'Reservar insumos': os lotes ficam separados, mas o saldo ainda não sai do estoque.",
           "Separe o material e escaneie os lotes para conferir com a reserva.",
           "'Retirar insumos e iniciar' tira do estoque os frascos reservados e registra quem retirou; sobras não voltam ao almoxarifado. 'Concluir análise' encerra a execução.",
@@ -337,7 +338,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Falta que outro plano segura (disputa de reserva)",
         itens: [
           "Se o plano reservado ficou com falta e outro plano reservado segura o mesmo insumo, use 'Pedir reserva de outro plano' na página do plano e diga o motivo.",
-          "Coordenador, Supervisor ou Administrador decide em Planejamento → Disputas de reserva: transferir (escolhendo o plano que cede) ou negar, sempre com o motivo. O Gestor identifica a falta e pede a reserva, mas não decide.",
+          "Coordenador, Supervisor ou Administrador decide na aba 'Disputas de reserva' do Planejamento: transferir (escolhendo o plano que cede) ou negar, sempre com o motivo. A aba mostra quantas disputas esperam a sua decisão, o mesmo número do sino. O Gestor identifica a falta e pede a reserva, mas não decide.",
           "A transferência move a reserva lote por lote, validade mais curta primeiro; embalagem fechada vai inteira. O plano que cede fica com a falta e precisa repor ou reservar de novo antes de iniciar.",
           "Se duas pessoas decidirem ao mesmo tempo, só a primeira vale. Quem pediu recebe o aviso da decisão, e tudo fica na Auditoria.",
         ],
@@ -461,7 +462,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Pedidos → Compras formais.",
+          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou na aba 'Compras formais' de Pedidos. Para registrar uma compra avulsa, use 'Nova compra', no topo da lista.",
           "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
           "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
@@ -480,7 +481,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Prazos de compra (ATGC, Funpar e outros caminhos)",
         itens: [
-          "Em Suprimentos → Pedidos → 'Prazos de compra', veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
+          "Na aba 'Prazos de compra' de Pedidos, veja quanto tempo as compras levaram, do envio do pedido interno para validação até o recebimento.",
           "O prazo aparece por caminho (Funpar, compra direta ATGC, universidade...), por categoria e por insumo, com o número de compras medidas e a confiança.",
           "Curto: metade das compras chegou até ali. Intermediário: 3 de cada 4. Conservador: 9 de cada 10. Para insumo crítico, planeje pelo conservador.",
           "Pedido aberto, atrasado ou cancelado não entra na conta. Informe a instituição ou a modalidade no pedido para o caminho sair certo.",
@@ -839,7 +840,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Como usar",
         itens: [
-          "Crie o usuário e escolha a função dele; ele entra com senha provisória e troca no primeiro acesso.",
+          "Clique em 'Novo usuário', no topo da lista, e escolha a função; a pessoa entra com senha provisória e troca no primeiro acesso.",
           "Use os três pontinhos para editar a função, ajustar permissões só daquela pessoa, enviar a assinatura, alterar a senha, suspender ou excluir.",
           "Para mudar o que uma função inteira pode fazer, use Governança → Privilégios.",
           "Toda segunda-feira, Coordenador, Gestor, Supervisor e Administrador recebem em Notificações (e por e-mail, quando configurado) o resumo da semana: insumos abaixo do mínimo ou vencidos, pedidos internos aguardando validação e manutenções de equipamento a vencer sem encaminhamento.",

@@ -6,6 +6,7 @@ import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
@@ -66,25 +67,59 @@ export default async function ComprasPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex items-center gap-1">
-          <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
-          <HelpTip title="Compras">
-            <p>
-              Cada compra segue os status abaixo. Quem registra a chegada cadastra o lote e ele já fica
-              <b>disponível no estoque</b>. Compra que nasceu de pedido interno é aprovada junto com o
-              pedido, quando ele chega a “Aprovado para compra”.
-            </p>
-            <HelpLegend
-              items={[
-                { tom: "atencao", rotulo: "Solicitado", texto: "aguardando aprovação" },
-                { tom: "info", rotulo: "Aprovado", texto: "liberado para comprar" },
-                { tom: "info", rotulo: "Enviado", texto: "pedido feito ao fornecedor" },
-                { tom: "info", rotulo: "Recebido", texto: "material entregue e registrado" },
-                { tom: "neutro", rotulo: "Cancelado", texto: "não segue adiante" },
-              ]}
-            />
-          </HelpTip>
-        </div>
+        {/* a lista vem primeiro; o formulário de nova compra abre pelo botão (L14) */}
+        <CriarPorBotao
+          rotulo="Nova compra"
+          cabecalho={
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold tracking-tight">Compras</h1>
+              <HelpTip title="Compras">
+                <p>
+                  Cada compra segue os status abaixo. Quem registra a chegada cadastra o lote e ele já fica
+                  <b>disponível no estoque</b>. Compra que nasceu de pedido interno é aprovada junto com o
+                  pedido, quando ele chega a “Aprovado para compra”.
+                </p>
+                <HelpLegend
+                  items={[
+                    { tom: "atencao", rotulo: "Solicitado", texto: "aguardando aprovação" },
+                    { tom: "info", rotulo: "Aprovado", texto: "liberado para comprar" },
+                    { tom: "info", rotulo: "Enviado", texto: "pedido feito ao fornecedor" },
+                    { tom: "info", rotulo: "Recebido", texto: "material entregue e registrado" },
+                    { tom: "neutro", rotulo: "Cancelado", texto: "não segue adiante" },
+                  ]}
+                />
+              </HelpTip>
+            </div>
+          }
+        >
+          <FormComMensagem action={criarPedido} className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground">Fornecedor</label>
+              <select aria-label="Fornecedor" name="fornecedor_id" className={`${inp} mt-1`} defaultValue="">
+                <option value="">—</option>
+                {(fornecedores ?? []).map((f) => (
+                  <option key={f.id} value={f.id}>{f.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
+              <select aria-label="Projeto" name="projeto_id" className={`${inp} mt-1`} defaultValue="">
+                <option value="">—</option>
+                {(projetos ?? []).map((p) => (
+                  <option key={p.id} value={p.id}>{p.nome}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex-1 min-w-40">
+              <label className="block text-xs font-medium text-muted-foreground">Campanha (texto livre)</label>
+              <input aria-label="Campanha (texto livre)" name="projeto" className={`${inp} mt-1 w-full`} />
+            </div>
+            <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
+              Criar compra
+            </SubmitButton>
+          </FormComMensagem>
+        </CriarPorBotao>
 
         {/* sugestões */}
         {sugestoes.length > 0 && (
@@ -139,35 +174,6 @@ export default async function ComprasPage() {
             {sugestoes.length === 0 && <GerarPedidoReposicaoButton />}
           </div>
         </div>
-
-        {/* nova compra */}
-        <FormComMensagem action={criarPedido} className="mt-6 flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground">Fornecedor</label>
-            <select aria-label="Fornecedor" name="fornecedor_id" className={`${inp} mt-1`} defaultValue="">
-              <option value="">—</option>
-              {(fornecedores ?? []).map((f) => (
-                <option key={f.id} value={f.id}>{f.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
-            <select aria-label="Projeto" name="projeto_id" className={`${inp} mt-1`} defaultValue="">
-              <option value="">—</option>
-              {(projetos ?? []).map((p) => (
-                <option key={p.id} value={p.id}>{p.nome}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex-1 min-w-40">
-            <label className="block text-xs font-medium text-muted-foreground">Campanha (texto livre)</label>
-            <input aria-label="Campanha (texto livre)" name="projeto" className={`${inp} mt-1 w-full`} />
-          </div>
-          <SubmitButton pendingLabel="Criando…" className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500">
-            + Nova compra
-          </SubmitButton>
-        </FormComMensagem>
 
         <div className="mt-6">
           <ComprasTable rows={linhas} />

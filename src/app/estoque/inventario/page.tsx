@@ -4,6 +4,7 @@ import { criarCicloInventario, fecharCicloInventario } from "@/lib/actions/inven
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { CriarPorBotao } from "@/components/common/CriarPorBotao";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import { descreverDiferencaInventario, unidadeDoLote, type LoteUnidade } from "@/lib/inventario/contagem";
 import {
@@ -178,28 +179,35 @@ export default async function InventarioPage() {
     unidade: saldo.unidade_saldo ? String(saldo.unidade_saldo) : null,
   }));
 
+  const cabecalho = (
+    <div>
+      <div className="flex items-center gap-1">
+        <h1 className="text-xl font-semibold tracking-tight">Inventário cíclico</h1>
+        <HelpTip title="Inventário cíclico">
+          <p>
+            Conferência física do estoque, organizada em <b>campanhas</b> (por exemplo, uma por
+            semana ou por local).
+          </p>
+          <p>
+            A contagem não muda o saldo sozinha: a diferença fica registrada e o saldo só é
+            corrigido quando alguém com <b>Corrigir estoque</b> clica em <b>Aplicar ajuste</b>.
+          </p>
+          <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
+          <HelpExample>Sistema diz 12, você contou 10: diferença −2, com justificativa.</HelpExample>
+        </HelpTip>
+      </div>
+    </div>
+  );
+
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Inventário cíclico</h1>
-              <HelpTip title="Inventário cíclico">
-                <p>
-                  Conferência física do estoque, organizada em <b>campanhas</b> (por exemplo, uma por
-                  semana ou por local).
-                </p>
-                <p>
-                  A contagem não muda o saldo sozinha: a diferença fica registrada e o saldo só é
-                  corrigido quando alguém com <b>Corrigir estoque</b> clica em <b>Aplicar ajuste</b>.
-                </p>
-                <p>Com as diferenças ajustadas, <b>feche a campanha</b>: ela deixa de receber contagens.</p>
-                <HelpExample>Sistema diz 12, você contou 10: diferença −2, com justificativa.</HelpExample>
-              </HelpTip>
-            </div>
-          </div>
-          {podeCriar && (
+        {/* a contagem vem primeiro; a nova campanha abre pelo botão (L14) */}
+        {podeCriar ? (
+          <CriarPorBotao
+            rotulo="Nova campanha"
+            cabecalho={cabecalho}
+          >
             <FormComMensagem action={criarCicloInventario} className="flex flex-wrap items-end gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
               <div>
                 <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Campanha</label>
@@ -225,11 +233,13 @@ export default async function InventarioPage() {
                 </select>
               </div>
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                Criar
+                Criar campanha
               </button>
             </FormComMensagem>
-          )}
-        </div>
+          </CriarPorBotao>
+        ) : (
+          cabecalho
+        )}
 
         {diferencasPendentes.length > 0 && (
           <div role="alert" className="mt-6 rounded-lg border border-warning-strong/30 bg-warning-soft px-4 py-3 text-sm text-warning-strong">

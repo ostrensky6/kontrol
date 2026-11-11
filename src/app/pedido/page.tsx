@@ -2,7 +2,6 @@ import { cicloLiberaEm, dataEmBrasilia, rotuloCiclo, rotuloData } from "@/lib/pe
 import { rotuloUso } from "@/lib/pedido/natureza";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
-import Link from "next/link";
 import type { PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
 import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
 import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
@@ -203,10 +202,6 @@ export default async function PedidoPage({
               </HelpTip>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">O que foi pedido e em que etapa cada pedido está.</p>
-            <nav aria-label="Compras e prazos" className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm">
-              <Link href="/compras" className="font-medium text-primary hover:underline">Compras formais</Link>
-              <Link href="/suprimentos/prazos" className="font-medium text-primary hover:underline">Prazos de compra</Link>
-            </nav>
           </div>
           <NovoPedidoDialog projetos={((projetos ?? []) as ProjetoOption[])} areas={areas} abrirAoCarregar={abrirNovo} />
         </div>
