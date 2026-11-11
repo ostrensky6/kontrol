@@ -38,11 +38,11 @@ export function topicoCasa(topico: AjudaTopico, termo: string) {
 }
 
 export const AJUDA_TOPICOS: AjudaTopico[] = [
-  // ───────────────────────────── Operação ─────────────────────────────
+  // ──────────────────────── Análises e custeio ────────────────────────
   {
     id: "analises",
     titulo: "Análises",
-    grupo: "Operação",
+    grupo: "Análises e custeio",
     href: "/analises",
     resumo: "Catálogo técnico das análises: finalidade, matriz e método.",
     intro:
@@ -59,7 +59,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Criar, duplicar e inativar",
         itens: [
-          "Criar: Operação → Análises → 'Nova análise'. Comece em branco ou copiando etapas, materiais e equipamentos de outra análise.",
+          "Criar: Análises e custeio → Análises → 'Nova análise'. Comece em branco ou copiando etapas, materiais e equipamentos de outra análise.",
           "Duplicar: no menu ⋯ da linha da análise, escolha 'Duplicar' e dê um código novo.",
           "Inativar: na ficha da análise, 'Inativar' a retira de novos orçamentos e planos; o histórico é preservado.",
           "Reativar: abra a ficha da análise inativa e clique em 'Reativar'.",
@@ -90,7 +90,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   {
     id: "insumos-por-analise",
     titulo: "Insumos por análise",
-    grupo: "Operação",
+    grupo: "Análises e custeio",
     href: "/insumos",
     resumo: "Reagentes, controles e perdas que compõem cada análise.",
     intro:
@@ -126,7 +126,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
   {
     id: "custeio",
     titulo: "Custeio",
-    grupo: "Operação",
+    grupo: "Análises e custeio",
     href: "/custeio",
     resumo: "Custo técnico, overhead e preço base por análise.",
     intro:
@@ -145,7 +145,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Confira a tabela: custo e preço por amostra de cada análise ativa.",
           "No gráfico, escolha as análises e veja os degraus quando uma nova corrida é necessária.",
-          "Os fatores de preço (margem, impostos, taxas e fundos) ficam em Operação → Parâmetros de custeio (gestor ou acima).",
+          "Os fatores de preço (margem, impostos, taxas e fundos) ficam em Análises e custeio → Parâmetros de custeio (gestor ou acima).",
         ],
       },
       {
@@ -644,6 +644,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Para que serve",
         itens: [
           "Centralizar margens, impostos e fundos usados no cálculo de preço.",
+          "Fica em Orçamentos → Configurações, ao lado de Documento da proposta e Modelos e catálogo.",
           "Garantir consistência de preços entre todos os orçamentos.",
         ],
       },
@@ -763,6 +764,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Filtre por entidade, período ou usuário para localizar um evento.",
           "Use a trilha para reconstruir a sequência de mudanças de um registro.",
+          "Para orçamentos, Governança → Regras do orçamento mostra quem pode fazer cada ação sensível e quem alterou cada campo.",
         ],
       },
     ],
@@ -919,7 +921,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/governanca/privilegios",
     resumo: "O que cada uma das seis funções pode ver e fazer, módulo por módulo.",
     intro:
-      "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Cadastros, Operação, Suprimentos, Orçamentos e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
+      "Uma tabela com uma caixinha por função e privilégio, separada por módulo (Cadastros, Análises e custeio, Suprimentos, Orçamentos e Governança) em faixas alternadas. Caixinha marcada é pode; vazia é não pode.",
     secoes: [
       {
         titulo: "Como usar",
@@ -954,7 +956,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Recursos de navegação",
         itens: [
-          "Menu lateral: acessa os módulos, organizados por área (Operação, Suprimentos, etc.).",
+          "Menu lateral: Início, Orçamentos, Projetos, Suprimentos, Análises e custeio, Cadastros, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
+          "Projetos reúne os orçamentos, planejamentos e compras de cada projeto.",
           "Busca rápida: Ctrl K (ou a lupa no celular) encontra qualquer tela, como Inventário, Etiquetas ou Parâmetros de custeio.",
           "Tabelas com busca e filtros: encontre registros nas filas sem rolar tudo.",
           "Tema claro/escuro: acompanha o sistema e pode ser alternado.",
@@ -982,9 +985,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
 ];
 
 export const AJUDA_GRUPOS = [
-  "Operação",
-  "Suprimentos",
   "Orçamentos",
+  "Suprimentos",
+  "Análises e custeio",
   "Cadastros",
   "Governança",
   "Geral",

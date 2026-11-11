@@ -11,6 +11,8 @@ export type NavigationProfile = {
 } | null;
 
 export type AppModuleId =
+  | "inicio"
+  | "projetos"
   | "operacao"
   | "suprimentos"
   | "orcamentos"
@@ -21,6 +23,8 @@ export type AppModuleId =
 export type ModuleChild = NavLink & {
   minRole?: Role;
   showInTopNav?: boolean;
+  /** false: o item existe só na barra do módulo (ex.: "Configurações", que abre a primeira tela do grupo) */
+  showInCommand?: boolean;
   /** outras rotas em que este item fica marcado na barra (ex.: /compras em Pedidos) */
   ativoTambem?: string[];
 };
@@ -55,59 +59,105 @@ const cadastroChildren = getCadastrosOrdenados().map((cadastro) => ({
 
 export const APP_MODULES: AppModule[] = [
   {
-    id: "cadastros",
-    label: "Cadastros",
-    href: "/cadastros",
-    desc: "dados mestres do laboratório",
-    icon: "Database",
-    accent: "violet",
-    activePaths: ["/cadastros"],
+    id: "inicio",
+    label: "Início",
+    href: "/",
+    desc: "o que depende de você e o que precisa de atenção hoje",
+    icon: "Home",
+    accent: "brand",
+    activePaths: ["/"],
     children: [
       {
-        href: "/cadastros",
-        label: "Painel de insumos",
-        desc: "visão geral dos insumos, nível crítico e todos os cadastros",
-        icon: "LayoutGrid",
-        shortcut: "D",
+        href: "/",
+        label: "Início",
+        desc: "pendências, números do dia e o que precisa de atenção",
+        icon: "Home",
       },
-      ...cadastroChildren,
     ],
   },
   {
-    id: "operacao",
-    label: "Operação",
-    href: "/operacao",
-    desc: "análises, receitas e custo técnico",
-    icon: "Activity",
-    accent: "brand",
-    activePaths: ["/operacao", "/analises", "/insumos", "/custeio", "/parametros"],
+    id: "orcamentos",
+    label: "Orçamentos",
+    href: "/orcamento/demandas",
+    desc: "propostas, parâmetros e histórico",
+    icon: "FileText",
+    accent: "amber",
+    activePaths: ["/orcamento"],
     children: [
       {
-        href: "/analises",
-        label: "Análises",
-        desc: "catálogo técnico, finalidade e matriz",
-        icon: "FlaskConical",
-        shortcut: "A",
+        href: "/orcamento/demandas",
+        label: "Orçamentos",
+        desc: "entrada comercial e orçamentos pendentes",
+        icon: "Inbox",
+        shortcut: "O",
       },
       {
-        href: "/insumos",
-        label: "Insumos por análise",
-        desc: "reagentes, controles e perdas",
-        icon: "TestTube2",
+        href: "/orcamento/demandas/nova",
+        label: "Novo orçamento",
+        desc: "abre diretamente o formulário de entrada comercial",
+        icon: "FileText",
+        // barra é para lugares, não para ações: o botão fica na lista de Orçamentos
+        showInTopNav: false,
       },
       {
-        href: "/custeio",
-        label: "Custeio",
-        desc: "custo técnico, overhead e preço base",
-        icon: "Calculator",
-        shortcut: "C",
+        href: "/orcamento/historico",
+        label: "Histórico de orçamentos",
+        desc: "consulta de versões concluídas",
+        icon: "History",
       },
       {
-        href: "/parametros",
-        label: "Parâmetros de custeio",
-        desc: "margem, impostos, taxas e fundos do preço",
+        href: "/orcamento/fundos",
+        label: "Fundos e taxas",
+        desc: "recebimentos, impostos e fundos",
+        icon: "DollarSign",
+      },
+      {
+        // abre a primeira tela do grupo; as três ficam nas abas de Configurações (L5)
+        href: "/orcamento/configuracoes",
+        label: "Configurações",
+        desc: "parâmetros econômicos, documento da proposta e modelos",
+        icon: "SlidersHorizontal",
+        ativoTambem: ["/orcamento/parametros", "/orcamento/documento-proposta", "/orcamento/modelos"],
+        showInCommand: false,
+      },
+      {
+        href: "/orcamento/parametros",
+        label: "Parâmetros econômicos",
+        desc: "gross-up, índices e premissas financeiras",
         icon: "Percent",
         showInTopNav: false,
+      },
+      {
+        href: "/orcamento/documento-proposta",
+        label: "Documento da proposta",
+        desc: "dados das empresas emissoras e textos padrão",
+        icon: "FileText",
+        showInTopNav: false,
+      },
+      {
+        href: "/orcamento/modelos",
+        label: "Modelos e catálogo",
+        desc: "templates comerciais e modelos de proposta",
+        icon: "LayoutGrid",
+        showInTopNav: false,
+      },
+    ],
+  },
+  {
+    // o projeto liga orçamento, plano, pedido e custo: não é de um módulo só (L4)
+    id: "projetos",
+    label: "Projetos",
+    href: "/projetos",
+    desc: "orçamentos, planejamentos e compras de cada projeto",
+    icon: "FolderKanban",
+    accent: "amber",
+    activePaths: ["/projetos"],
+    children: [
+      {
+        href: "/projetos",
+        label: "Projetos",
+        desc: "orçamentos, planejamentos e compras de cada projeto",
+        icon: "FolderKanban",
       },
     ],
   },
@@ -239,100 +289,67 @@ export const APP_MODULES: AppModule[] = [
     ],
   },
   {
-    id: "orcamentos",
-    label: "Orçamentos",
-    href: "/orcamento/demandas",
-    desc: "propostas, parâmetros e histórico",
-    icon: "FileText",
-    accent: "amber",
-    activePaths: ["/orcamento", "/projetos"],
+    id: "operacao",
+    label: "Análises e custeio",
+    href: "/operacao",
+    desc: "análises, receitas e custo técnico",
+    icon: "Activity",
+    accent: "brand",
+    activePaths: ["/operacao", "/analises", "/insumos", "/custeio", "/parametros"],
     children: [
       {
-        href: "/orcamento/demandas",
-        label: "Orçamentos",
-        desc: "entrada comercial e orçamentos pendentes",
-        icon: "Inbox",
-        shortcut: "O",
+        href: "/analises",
+        label: "Análises",
+        desc: "catálogo técnico, finalidade e matriz",
+        icon: "FlaskConical",
+        shortcut: "A",
       },
       {
-        href: "/orcamento/demandas/nova",
-        label: "Novo orçamento",
-        desc: "abre diretamente o formulário de entrada comercial",
-        icon: "FileText",
-        // barra é para lugares, não para ações: o botão fica na lista de Orçamentos
-        showInTopNav: false,
+        href: "/insumos",
+        label: "Insumos por análise",
+        desc: "reagentes, controles e perdas",
+        icon: "TestTube2",
       },
       {
-        href: "/orcamento/historico",
-        label: "Histórico de orçamentos",
-        desc: "consulta de versões concluídas",
-        icon: "History",
+        href: "/custeio",
+        label: "Custeio",
+        desc: "custo técnico, overhead e preço base",
+        icon: "Calculator",
+        shortcut: "C",
       },
       {
-        href: "/projetos",
-        label: "Visão por projeto",
-        desc: "orçamentos, planejamentos e compras de cada projeto",
-        icon: "FolderKanban",
-        showInTopNav: false,
-      },
-      {
-        href: "/orcamento/fundos",
-        label: "Fundos e taxas",
-        desc: "recebimentos, impostos e fundos",
-        icon: "DollarSign",
-      },
-      {
-        href: "/orcamento/parametros",
-        label: "Parâmetros econômicos",
-        desc: "gross-up, índices e premissas financeiras",
+        href: "/parametros",
+        label: "Parâmetros de custeio",
+        desc: "margem, impostos, taxas e fundos do preço",
         icon: "Percent",
-        showInTopNav: false,
-      },
-      {
-        href: "/orcamento/documento-proposta",
-        label: "Documento da proposta",
-        desc: "dados das empresas emissoras e textos padrão",
-        icon: "FileText",
-        showInTopNav: false,
-      },
-      {
-        href: "/orcamento/modelos",
-        label: "Modelos",
-        desc: "templates comerciais e modelos de proposta",
-        icon: "LayoutGrid",
-        showInTopNav: false,
-      },
-      {
-        href: "/orcamento/governanca",
-        label: "Regras do orçamento",
-        desc: "validações e trilha de controles do orçamento",
-        icon: "ShieldCheck",
         showInTopNav: false,
       },
     ],
   },
   {
-    id: "ajuda",
-    label: "Ajuda",
-    href: "/ajuda",
-    desc: "central de ajuda e orientações",
-    icon: "LifeBuoy",
-    accent: "blue",
-    activePaths: ["/ajuda"],
+    id: "cadastros",
+    label: "Cadastros",
+    href: "/cadastros",
+    desc: "dados mestres do laboratório",
+    icon: "Database",
+    accent: "violet",
+    activePaths: ["/cadastros"],
     children: [
       {
-        href: "/ajuda",
-        label: "Central de Ajuda",
-        desc: "orientações de todos os módulos do app",
-        icon: "LifeBuoy",
+        href: "/cadastros",
+        label: "Painel de insumos",
+        desc: "visão geral dos insumos, nível crítico e todos os cadastros",
+        icon: "LayoutGrid",
+        shortcut: "D",
       },
+      ...cadastroChildren,
     ],
   },
   {
     id: "governanca",
     label: "Governança",
     href: "/governanca",
-    desc: "auditoria, incidentes, backups, erros, usuários e privilégios",
+    desc: "auditoria, incidentes, backups, erros, usuários, privilégios e regras",
     icon: "ShieldCheck",
     accent: "slate",
     activePaths: ["/governanca", "/auditoria", "/usuarios"],
@@ -377,8 +394,31 @@ export const APP_MODULES: AppModule[] = [
         icon: "ShieldCheck",
         minRole: "admin",
       },
+      {
+        href: "/governanca/regras",
+        label: "Regras do orçamento",
+        desc: "ações sensíveis do orçamento e quem alterou cada campo",
+        icon: "ClipboardCheck",
+      },
     ],
   },
+  {
+    id: "ajuda",
+    label: "Ajuda",
+    href: "/ajuda",
+    desc: "central de ajuda e orientações",
+    icon: "LifeBuoy",
+    accent: "blue",
+    activePaths: ["/ajuda"],
+    children: [
+      {
+        href: "/ajuda",
+        label: "Central de Ajuda",
+        desc: "orientações de todos os módulos do app",
+        icon: "LifeBuoy",
+      },
+    ],
+  }
 ];
 
 /** A caixinha manda (0124): o item só aparece com a permissão "Acessar …" da área. */
@@ -442,6 +482,6 @@ export function getCommandGroups(perfil: NavigationProfile): NavGroup[] {
     title: module.label,
     accent: module.accent,
     icon: module.icon,
-    links: module.children,
+    links: module.children.filter((child) => child.showInCommand !== false),
   }));
 }

@@ -54,13 +54,14 @@ describe("APP_MODULES", () => {
   });
 
   it("marca o módulo certo como ativo para as novas rotas", () => {
-    expect(moduleIsActive(modulo("orcamentos"), "/projetos/7")).toBe(true);
+    expect(moduleIsActive(modulo("projetos"), "/projetos/7")).toBe(true);
+    expect(moduleIsActive(modulo("orcamentos"), "/projetos/7")).toBe(false);
     expect(moduleIsActive(modulo("operacao"), "/parametros")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/estoque/inventario")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/estoque/leitura")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/etiquetas")).toBe(true);
     expect(moduleIsActive(modulo("suprimentos"), "/scanner/triagem")).toBe(true);
-    expect(moduleIsActive(modulo("orcamentos"), "/projetosx")).toBe(false);
+    expect(moduleIsActive(modulo("projetos"), "/projetosx")).toBe(false);
   });
 
   // A caixinha manda (0124): cada área aparece só com a permissão "Acessar …".
@@ -91,7 +92,8 @@ describe("APP_MODULES", () => {
     expect(laboratorio.find((m) => m.id === "governanca")?.children.map((c) => c.href)).toEqual(["/governanca/incidentes"]);
     const gestor = getModulesForProfile(comPermissoes("gestor", ["auditoria.visualizar"]));
     const governanca = gestor.find((m) => m.id === "governanca");
-    expect(governanca?.children.map((c) => c.href)).toEqual(["/auditoria", "/governanca/incidentes"]);
+    // Regras do orçamento passou para a Governança (L6) e segue a caixinha "Ver auditoria"
+    expect(governanca?.children.map((c) => c.href)).toEqual(["/auditoria", "/governanca/incidentes", "/governanca/regras"]);
     const admin = getModulesForProfile({ papel: "admin", permissoes: { admin: true, permissoes: {} } });
     expect(admin.find((m) => m.id === "governanca")?.children.map((c) => c.href)).toEqual(
       expect.arrayContaining(["/auditoria", "/usuarios", "/governanca/backups"]),
@@ -154,6 +156,62 @@ describe("hrefAtivoNaBarra", () => {
   });
 });
 
+describe("revisão de 11/11: barra lateral e lugares", () => {
+  const admin = { papel: "admin", permissoes: { admin: true, permissoes: {} } };
+
+  it("barra lateral começa em Início, tem Projetos e chama Operação de Análises e custeio", async () => {
+    const { getSidebarGroups } = await import("./modules");
+    expect(getSidebarGroups(admin).map((g) => g.title)).toEqual([
+      "Início",
+      "Orçamentos",
+      "Projetos",
+      "Suprimentos",
+      "Análises e custeio",
+      "Cadastros",
+      "Governança",
+      "Ajuda",
+    ]);
+  });
+
+  it("Início só fica ativo na própria página inicial", () => {
+    expect(moduleIsActive(modulo("inicio"), "/")).toBe(true);
+    expect(moduleIsActive(modulo("inicio"), "/estoque")).toBe(false);
+    expect(moduleIsActive(modulo("inicio"), "/orcamento/demandas")).toBe(false);
+  });
+
+  it("uma rota marca um único item da barra lateral", () => {
+    const rotas = ["/", "/projetos/3", "/orcamento/parametros", "/governanca/regras", "/estoque", "/custeio", "/cadastros/insumos", "/ajuda"];
+    for (const rota of rotas) {
+      expect(APP_MODULES.filter((m) => moduleIsActive(m, rota)).map((m) => m.id), rota).toHaveLength(1);
+    }
+    expect(moduleIsActive(modulo("governanca"), "/governanca/regras")).toBe(true);
+  });
+
+  it("Orçamentos: Configurações marca as três telas e não repete na busca", () => {
+    const visiveis = modulo("orcamentos").children.filter((c) => c.showInTopNav !== false);
+    expect(visiveis.map((c) => c.label)).toEqual(["Orçamentos", "Histórico de orçamentos", "Fundos e taxas", "Configurações"]);
+    for (const rota of ["/orcamento/parametros", "/orcamento/documento-proposta", "/orcamento/modelos", "/orcamento/modelos/planilha"]) {
+      expect(hrefAtivoNaBarra(visiveis, rota), rota).toBe("/orcamento/configuracoes");
+    }
+    expect(hrefAtivoNaBarra(visiveis, "/orcamento/demandas/1")).toBe("/orcamento/demandas");
+    const busca = getCommandGroups(admin).flatMap((g) => g.links);
+    expect(busca.map((l) => l.href)).not.toContain("/orcamento/configuracoes");
+    expect(busca.map((l) => l.href)).toEqual(
+      expect.arrayContaining(["/", "/projetos", "/orcamento/parametros", "/orcamento/documento-proposta", "/orcamento/modelos", "/governanca/regras"]),
+    );
+    expect(busca.map((l) => l.label)).not.toContain("Visão por projeto");
+  });
+
+  it("Regras do orçamento não aparece em Orçamentos e some da Governança sem a caixinha", () => {
+    expect(modulo("orcamentos").children.map((c) => c.href)).not.toContain("/orcamento/governanca");
+    const semAuditoria = getModulesForProfile({
+      papel: "coordenador",
+      permissoes: { admin: false, permissoes: { "orcamentos.visualizar": true } },
+    });
+    expect(semAuditoria.find((m) => m.id === "governanca")?.children.map((c) => c.href)).not.toContain("/governanca/regras");
+  });
+});
+
 describe("menu lateral", () => {
   it("sem acesso à visão geral de Suprimentos, o menu abre o primeiro item permitido", async () => {
     const { getSidebarGroups } = await import("./modules");
@@ -162,5 +220,16 @@ describe("menu lateral", () => {
     expect(grupo?.href).toBe("/pedido");
     const comEstoque = { papel: "laboratorio", permissoes: { admin: false, permissoes: { "pedido.ver": true, "estoque.ver": true } } };
     expect(getSidebarGroups(comEstoque).find((g) => g.title === "Suprimentos")?.href).toBe("/suprimentos");
+  });
+});
+
+describe("acesso por rota", () => {
+  it("Regras do orçamento exige Ver auditoria no endereço novo e no antigo", async () => {
+    const { acessoDaRota } = await import("./acesso-modulos");
+    expect(acessoDaRota("/governanca/regras")?.chave).toBe("auditoria.visualizar");
+    expect(acessoDaRota("/orcamento/governanca")?.chave).toBe("auditoria.visualizar");
+    // as outras telas da Governança seguem sem caixinha de rota (incidentes é de todos)
+    expect(acessoDaRota("/governanca/incidentes")).toBeNull();
+    expect(acessoDaRota("/orcamento/configuracoes")?.chave).toBe("orcamentos.visualizar");
   });
 });

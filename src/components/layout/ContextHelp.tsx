@@ -201,10 +201,22 @@ export const HELP: Array<{ match: (path: string) => boolean; content: HelpConten
     },
   },
   {
+    match: (path) => path === "/projetos" || path.startsWith("/projetos/"),
+    content: {
+      title: "Projetos",
+      description: "Orçamentos, planejamentos e compras de cada projeto num só lugar.",
+      checks: [
+        "Abra o projeto para comparar o que foi orçado com o que já foi comprometido em compras.",
+        "O coordenador do projeto é quem aprova os pedidos de compra dele.",
+        "Projeto sem coordenador não envia pedido para aprovação: indique um em Cadastros.",
+      ],
+    },
+  },
+  {
     match: (path) => path.startsWith("/usuarios") || path.startsWith("/governanca") || path.startsWith("/auditoria"),
     content: {
       title: "Governança",
-      description: "Usuários, privilégios, auditoria e backups.",
+      description: "Usuários, privilégios, auditoria, regras do orçamento e backups.",
       checks: [
         "Privilégios define, por caixinha, o que cada uma das seis funções pode fazer; ajustes de uma pessoa ficam em Usuários.",
         "Ver salário dos técnicos vem ligada só para administrador.",
