@@ -36,7 +36,7 @@ export type PedidoAbertoLeitura = {
 export type InsumoLeitura = {
   id: number;
   especificacao: string;
-  /** "frasco(s) de 1000 Un": a mesma unidade do Controle de Estoque */
+  /** "frasco(s) de 1000 Un": a mesma unidade do Saldo e lotes */
   unidadeSaldo: string;
   /** embalagens fechadas em estoque (inclui vencidas, como o Controle) */
   fechadas: number;
@@ -105,7 +105,6 @@ async function insumoAtivo(supabase: Supabase, insumoId: number) {
 function revalidarEstoque() {
   for (const path of [
     "/estoque",
-    "/estoque/controle",
     "/estoque/situacao",
     "/estoque/inventario",
     "/estoque/leitura",
@@ -242,7 +241,7 @@ async function carregarInsumoLeitura(supabase: Supabase, insumoId: number): Prom
   } else if (fechadas <= 0) {
     motivoSemSaida = "Não há embalagem fechada deste insumo no estoque.";
   } else if (validos.length === 0) {
-    motivoSemSaida = "As embalagens fechadas deste insumo estão vencidas; dê baixa por vencimento no Controle de Estoque.";
+    motivoSemSaida = "As embalagens fechadas deste insumo estão vencidas; dê baixa por vencimento em Estoque → Saldo e lotes.";
   } else if (livres.length === 0) {
     motivoSemSaida = "As embalagens fechadas estão reservadas para planejamentos; registre a retirada pelo planejamento.";
   }

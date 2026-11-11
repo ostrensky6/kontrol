@@ -12,7 +12,16 @@ import {
   excluirLote,
 } from "@/lib/actions/estoque";
 import type { FormState } from "@/lib/actions/cadastros";
+import { MoreHorizontal } from "lucide-react";
+
 import { DarBaixaDialog } from "@/components/estoque/DarBaixaDialog";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { HelpTip } from "@/components/common/HelpTip";
 import {
   Dialog,
@@ -35,7 +44,8 @@ export function LoteAcoes({
   unidade,
   critico,
   validade = null,
-  rotuloBaixa = "Baixa",
+  rotuloBaixa = "Dar baixa",
+  compacto = false,
   reservado = 0,
   modeloQuantidade = "LEGADO",
   estornoDiretoPermitido = false,
@@ -59,8 +69,10 @@ export function LoteAcoes({
   /** validade efetiva (aaaa-mm-dd) */
   validade?: string | null;
   vencido?: boolean;
-  /** texto do botão de baixa (na página do lote: "Dar baixa") */
+  /** texto do botão de baixa */
   rotuloBaixa?: string;
+  /** linha de lista: só "Dar baixa" à vista; as outras ações no menu "…" */
+  compacto?: boolean;
   reservado?: number;
   modeloQuantidade?: ModeloQuantidadeLote;
   estornoDiretoPermitido?: boolean;
@@ -196,38 +208,45 @@ export function LoteAcoes({
   const loteAtivo = status === "aceito" || status === "em_uso";
   const emEmbalagens = modeloQuantidade === "EMBALAGEM_FECHADA";
 
+  // As ações que não são a baixa: na lista viram o menu "…" (8.3 da revisão de 11/11); na página do lote, botões.
+  type Secundaria = "estornar" | "bloquear" | "ajuste" | "descartar" | "excluir";
+  const secundarias: { chave: Secundaria; rotulo: string; tom: "perigo" | "atencao" | "info" }[] = [
+    ...(status === "quarentena" && estornoDiretoPermitido && podeCorrigir
+      ? [{ chave: "estornar" as const, rotulo: "Estornar entrada", tom: "perigo" as const }]
+      : []),
+    ...(estornoRecebimento && podeCorrigir && (status === "quarentena" || status === "aceito")
+      ? [{ chave: "estornar" as const, rotulo: "Estornar recebimento", tom: "perigo" as const }]
+      : []),
+    ...(loteAtivo && podeGerir ? [{ chave: "bloquear" as const, rotulo: "Bloquear", tom: "atencao" as const }] : []),
+    ...(loteAtivo && podeCorrigir ? [{ chave: "ajuste" as const, rotulo: "Ajustar", tom: "info" as const }] : []),
+    ...(status !== "consumido" && status !== "descartado" && podeGerir
+      ? [{ chave: "descartar" as const, rotulo: "Descartar", tom: "perigo" as const }]
+      : []),
+    ...(podeCorrigir && exclusaoBloqueadaMotivo === null
+      ? [{ chave: "excluir" as const, rotulo: "Excluir lote", tom: "perigo" as const }]
+      : []),
+  ];
+  // desbloquear não abre diálogo: roda direto, fora da lista (a regra de refs do React pede o handler à parte)
+  const podeDesbloquear = status === "bloqueado" && podeGerir;
+  const classeTom = {
+    perigo: "text-danger-strong hover:bg-danger-soft",
+    atencao: "text-warning-strong hover:bg-warning-soft",
+    info: "text-info-strong hover:bg-info-soft",
+  } as const;
+
   return (
-    <span className="inline-flex flex-wrap gap-1">
-      {status === "quarentena" && (
-        <>
-          {podeAceitar && !aceiteBloqueadoMotivo && (
-            <button disabled={pending} onClick={() => {
-                setState({ ok: false });
-                setResponsavel(responsavelPadrao);
-                setModal("aceitar");
-              }} className={`${btn} text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30`}>
-              Aceitar
-            </button>
-          )}
-          {podeAceitar && aceiteBloqueadoMotivo && (
-            <span className="text-xs text-muted-foreground">{aceiteBloqueadoMotivo}</span>
-          )}
-          {estornoDiretoPermitido && podeCorrigir && (
-            <button disabled={pending} onClick={() => setModal("estornar")} className={`${btn} text-danger-strong hover:bg-danger-soft`}>
-              Estornar entrada
-            </button>
-          )}
-        </>
-      )}
-      {estornoRecebimento && podeCorrigir && (status === "quarentena" || status === "aceito") && (
-        <button disabled={pending} onClick={() => setModal("estornar")} className={`${btn} text-danger-strong hover:bg-danger-soft`}>
-          Estornar recebimento
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {status === "quarentena" && podeAceitar && !aceiteBloqueadoMotivo && (
+        <button disabled={pending} onClick={() => {
+            setState({ ok: false });
+            setResponsavel(responsavelPadrao);
+            setModal("aceitar");
+          }} className={`${btn} text-brand-700 hover:bg-brand-50 dark:text-brand-300 dark:hover:bg-brand-950/30`}>
+          Aceitar
         </button>
       )}
-      {(status === "aceito" || status === "em_uso") && podeGerir && (
-        <button disabled={pending} onClick={() => setModal("bloquear")} className={`${btn} text-warning-strong hover:bg-warning-soft`}>
-          Bloquear
-        </button>
+      {status === "quarentena" && podeAceitar && aceiteBloqueadoMotivo && (
+        <span className="text-xs text-muted-foreground">{aceiteBloqueadoMotivo}</span>
       )}
       {/* vencido também: o diálogo só aceita o motivo Vencimento (0117) */}
       {loteAtivo && podeBaixar && (
@@ -235,28 +254,50 @@ export function LoteAcoes({
           lotes={[{ id: loteId, codigoLote, validade, quantidadeAtual, reservado, modeloQuantidade, status }]}
           unidade={unidade}
           triggerLabel={rotuloBaixa}
-          triggerClassName={`${btn} text-danger-strong hover:bg-danger-soft`}
+          triggerClassName={compacto ? `${btn} border border-border text-foreground hover:bg-muted` : `${btn} text-danger-strong hover:bg-danger-soft`}
         />
       )}
-      {loteAtivo && podeCorrigir && (
-        <button disabled={pending} onClick={() => setModal("ajuste")} className={`${btn} text-info-strong hover:bg-info-soft`}>
-          Ajustar
-        </button>
-      )}
-      {status === "bloqueado" && podeGerir && (
-        <button aria-busy={pending} disabled={pending} onClick={() => run(desbloquearLote)} className={`${btn} text-info-strong hover:bg-info-soft`}>
-          {pending ? "Desbloqueando…" : "Desbloquear"}
-        </button>
-      )}
-      {status !== "consumido" && status !== "descartado" && podeGerir && (
-        <button disabled={pending} onClick={() => setModal("descartar")} className={`${btn} text-danger-strong hover:bg-danger-soft`}>
-          Descartar
-        </button>
-      )}
-      {podeCorrigir && exclusaoBloqueadaMotivo === null && (
-        <button disabled={pending} onClick={() => setModal("excluir")} className={`${btn} text-danger-strong hover:bg-danger-soft`}>
-          Excluir lote
-        </button>
+      {compacto && (secundarias.length > 0 || podeDesbloquear) ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={pending} aria-label={`Mais ações do lote ${codigoLote}`}>
+              <MoreHorizontal />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {podeDesbloquear && (
+              <DropdownMenuItem onSelect={() => run(desbloquearLote)}>{pending ? "Desbloqueando…" : "Desbloquear"}</DropdownMenuItem>
+            )}
+            {secundarias.map((item) => (
+              <DropdownMenuItem
+                key={`${item.chave}-${item.rotulo}`}
+                variant={item.tom === "perigo" ? "destructive" : "default"}
+                onSelect={() => setModal(item.chave)}
+              >
+                {item.rotulo}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : (
+        <>
+          {podeDesbloquear && (
+            <button aria-busy={pending} disabled={pending} onClick={() => run(desbloquearLote)} className={`${btn} ${classeTom.info}`}>
+              {pending ? "Desbloqueando…" : "Desbloquear"}
+            </button>
+          )}
+          {secundarias.map((item) => (
+            <button
+              key={`${item.chave}-${item.rotulo}`}
+              type="button"
+              disabled={pending}
+              onClick={() => setModal(item.chave)}
+              className={`${btn} ${classeTom[item.tom]}`}
+            >
+              {item.rotulo}
+            </button>
+          ))}
+        </>
       )}
       {!podeAceitar && !podeGerir && status === "quarentena" && (
         <span className="text-xs text-muted-foreground/80">aguardando aceitação</span>

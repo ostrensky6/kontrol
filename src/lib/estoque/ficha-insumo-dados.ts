@@ -47,7 +47,7 @@ export type DadosFichaInsumo = {
   /** blocos que o banco não respondeu */
   semDado: Record<BlocoDaFicha, boolean>;
   /** o que este usuário pode ver e abrir a partir da ficha */
-  pode: { pedidos: boolean; compras: boolean; planos: boolean; analises: boolean; cadastro: boolean };
+  pode: { pedidos: boolean; compras: boolean; planos: boolean; analises: boolean; cadastro: boolean; criarPedido: boolean };
 };
 
 type InsumoDb = {
@@ -74,12 +74,13 @@ export async function lerFichaInsumo(insumoId: number): Promise<DadosFichaInsumo
   if (!insumoRaw) return null;
   const insumoDb = insumoRaw as InsumoDb;
 
-  const [podePedidos, podeCompras, podePlanos, podeAnalises, podeCadastro] = await Promise.all([
+  const [podePedidos, podeCompras, podePlanos, podeAnalises, podeCadastro, podeCriarPedido] = await Promise.all([
     pode("pedido.ver"),
     pode("compras.ver"),
     pode("planejamento.ver"),
     pode("analises.ver"),
     pode("cadastros.ver"),
+    pode("pedido.criar"),
   ]);
 
   const hoje = hojeIso();
@@ -201,6 +202,13 @@ export async function lerFichaInsumo(insumoId: number): Promise<DadosFichaInsumo
       analises: Boolean(analisesResp.error),
       movimentos: Boolean(movimentosResp.error),
     },
-    pode: { pedidos: podePedidos, compras: podeCompras, planos: podePlanos, analises: podeAnalises, cadastro: podeCadastro },
+    pode: {
+      pedidos: podePedidos,
+      compras: podeCompras,
+      planos: podePlanos,
+      analises: podeAnalises,
+      cadastro: podeCadastro,
+      criarPedido: podeCriarPedido,
+    },
   };
 }

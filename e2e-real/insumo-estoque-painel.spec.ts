@@ -37,7 +37,7 @@ test("insumo cadastrado com estoque inicial aparece na lista e no estoque depois
   await expect(page.getByRole("cell", { name: nome })).toBeVisible();
 
   await page.goto("/estoque");
-  await page.getByPlaceholder("Buscar reagente...").fill(nome);
+  await page.getByPlaceholder("Buscar insumo...").fill(nome);
   await expect(page.getByText(nome).first()).toBeVisible();
 });
 

@@ -189,7 +189,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Onde fica cada coisa",
         itens: [
           "Visão geral: a linha 'Sua vez', o total de pedidos em andamento e a tabela 'Estoque disponível'.",
-          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Situação (o painel de alertas), Controle de Estoque, entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
+          "Estoque: saldo e lotes, entradas e baixas. A barra do Estoque reúne Saldo e lotes, Situação (o painel de alertas), entrada e saída por leitura, inventário e etiquetas. Os códigos não reconhecidos ficam dentro de Entrada e saída por leitura, no botão ao lado do título, com o número dos que esperam cadastro.",
           "Planejamento: reservas de insumo para as análises previstas.",
           "Pedidos: cada pedido e a etapa em que está. Compras formais e Prazos de compra são abas dessa tela, logo abaixo da barra.",
           "Recebimento: registrar o que chegou. Equipamentos: calibração e manutenção.",
@@ -208,7 +208,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Estoque disponível",
         itens: [
           "Uma linha por insumo ativo: disponível (em mãos menos o reservado), reservado, a caminho, mínimo, validade mais próxima e situação.",
-          "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia. As regras são as mesmas do Controle de Estoque.",
+          "Os botões acima da tabela filtram por situação: repor, sem estoque, vencido ou vencendo e em dia. As regras são as mesmas de Estoque → Saldo e lotes e da ficha do insumo.",
           "O número em cada botão diz quantos insumos estão naquela situação; o aviso de reposição da página inicial já abre a tabela filtrada.",
           "Para dar entrada, baixa ou ver os lotes, use o Estoque.",
         ],
@@ -248,7 +248,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Ficha do insumo",
         itens: [
-          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes, no botão 'Ficha' do Controle de Estoque ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
+          "Clique no nome de um insumo em Suprimentos (Estoque disponível), em Estoque → Saldo e lotes ou num alerta da Situação do estoque. Ler o código do insumo com o leitor também abre a ficha.",
           "A ficha junta o que antes ficava em seis telas: disponível, reservado, a caminho e mínimo; os lotes, na ordem em que vencem; os pedidos e compras em andamento; as reservas em planos; o consumo mensal; as análises que usam o insumo; e as últimas movimentações.",
           "'A caminho' conta só o que já foi comprado ou autorizado e ainda não chegou. Pedido em aprovação ou cotação aparece na lista como 'Ainda não comprado' e não entra nesse número.",
           "Pedidos, compras e análises só aparecem para quem tem acesso a essas áreas. 'Abrir cadastro' aparece para quem acessa Cadastros.",
@@ -267,7 +267,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Baixa avulsa (Dar baixa)",
         itens: [
           "Use para material que sai fora de um plano: entrega ao laboratório, perda ou quebra, vencimento ou outro motivo.",
-          "Onde: Estoque → 'Dar baixa' na linha do insumo, ou nas ações de um lote específico.",
+          "Onde: Estoque → 'Dar baixa' na linha do insumo, ou 'Dar baixa' na linha de um lote (as outras ações do lote, como bloquear, ajustar e descartar, ficam no menu '…').",
           "Sem escolher o lote, a baixa sai do lote que vence antes (FEFO); escolhendo o lote, sai só dele.",
           "Lote vencido só pode sair com o motivo Vencimento.",
           "Toda baixa pede o motivo e fica no histórico do lote.",
@@ -302,12 +302,20 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Consumo mensal",
         itens: [
-          "Na página do Estoque, clique em 'Consumo mensal' (ao lado de 'Saldo por insumo' e 'Lotes em estoque'), escolha o insumo e clique em 'Ver consumo'.",
+          "O consumo mensal fica na ficha do insumo: clique no nome do insumo em Estoque → Saldo e lotes. Na ficha, 'Estimativa manual e histórico de revisões' abre o registro da estimativa.",
           "O Kontrol soma sozinho as saídas de cada mês completo dos últimos 12 meses. Ajustes de inventário não contam como consumo.",
           "A confiança sobe com o histórico: alta com 6 meses ou mais, saída em pelo menos 4 deles e consumo parecido de um mês para outro.",
           "O consumo de referência é o calculado quando a confiança é alta. Antes disso, vale a estimativa manual em embalagens por mês, se alguém a registrou.",
           "Uma nova estimativa manual não apaga as anteriores. Os limites do cálculo ficam em Parâmetros.",
           "Quando o insumo tem prazo de compra e as unidades conferem, o painel mostra quanto falta para cobrir o prazo com o consumo de referência (inclusive a estimativa manual), já descontando o disponível e os pedidos abertos.",
+        ],
+      },
+      {
+        titulo: "Saldo e lotes e custo do estoque",
+        itens: [
+          "Saldo e lotes mostra cada insumo com Disponível, Reservado, A caminho, Mínimo e Situação, com as mesmas regras e palavras da visão geral de Suprimentos. Os filtros acima da tabela separam o que precisa de atenção.",
+          "Em mãos, cobertura, prazo de compra, lotes e consumo de cada insumo ficam na ficha dele. Na ficha, 'Pedir reposição' abre um pedido em rascunho só daquele insumo, quando a previsão sugere comprar.",
+          "Custo do estoque (botão no topo do Estoque) é o relatório dos insumos em que o custo do cadastro e o dos lotes liberados divergem.",
         ],
       },
       {

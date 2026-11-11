@@ -303,7 +303,6 @@ test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, co
   await expect(secoes.getByRole("link")).toHaveText([
     "Saldo e lotes",
     "Situação",
-    "Controle de Estoque",
     "Entrada e saída por leitura",
     "Inventário",
     "Etiquetas",

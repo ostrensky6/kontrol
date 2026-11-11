@@ -60,8 +60,8 @@ test("ferramentas do estoque ficam na barra do Estoque, marcando a seção certa
   await expect(barra.getByRole("link", { name: "Estoque" })).toHaveAttribute("aria-current", "page");
   const secoes = page.getByRole("navigation", { name: "Seções do estoque" });
   await expect(secoes.getByRole("link", { name: "Inventário" })).toHaveAttribute("aria-current", "page");
-  await secoes.getByRole("link", { name: "Controle de Estoque" }).click();
-  await expect(page.getByRole("heading", { level: 1, name: "Controle de Estoque" })).toBeVisible();
+  await secoes.getByRole("link", { name: "Situação" }).click();
+  await expect(page.getByRole("heading", { level: 1, name: "Situação do estoque" })).toBeVisible();
   await expect(barra.getByRole("link", { name: "Estoque" })).toHaveAttribute("aria-current", "page");
 
   // Equipamentos tem item próprio: a barra do Estoque some
@@ -145,34 +145,29 @@ test("coordenador acha o pedido para aprovar e o botão fica no topo da página"
   await expect(painel.getByRole("button", { name: "Aprovar pedido" })).toBeEnabled();
 });
 
-test("Estoque mostra uma visão por vez e o cartão de alerta filtra a lista", async ({ page }) => {
+test("Estoque mostra uma visão por vez: saldo ou lotes; alertas, consumo e custos ficam em outro lugar (D1, L10)", async ({ page }) => {
   await page.goto("/estoque");
   const visoes = page.getByRole("navigation", { name: "O que mostrar do estoque" });
+  await expect(visoes.getByRole("link")).toHaveText([/Saldo por insumo/, /Lotes em estoque/]);
   await expect(visoes.getByRole("link", { name: /Saldo por insumo/ })).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { name: "Saldo por insumo" })).toBeVisible();
-  // nada de lotes, custos e consumo empilhados na mesma página
+  // nada de lotes, custos, consumo ou cartões de alerta empilhados na mesma página
   await expect(page.getByRole("heading", { name: "Lotes em estoque" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Custo de estoque vigente" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Consumo mensal" })).toHaveCount(0);
-
-  // o alerta abre a visão certa já filtrada; clicar de novo (ou "Mostrar tudo") desfaz
-  const repor = page.getByTestId("alerta-reposicao");
-  if (await repor.count()) {
-    const total = await page.locator("tbody tr").count();
-    await repor.click();
-    await expect(page).toHaveURL(/alerta=reposicao/);
-    await expect(page.getByTestId("filtro-alerta")).toContainText("Mostrando só Repor");
-    await expect(repor).toHaveAttribute("aria-current", "true");
-    expect(await page.locator("tbody tr").count()).toBeLessThanOrEqual(total);
-    await page.getByTestId("filtro-alerta").getByRole("link", { name: "Mostrar tudo" }).click();
-    await expect(page).not.toHaveURL(/alerta=/);
-    await expect(page.getByTestId("filtro-alerta")).toHaveCount(0);
-  }
+  await expect(page.getByRole("list", { name: "Alertas do estoque" })).toHaveCount(0);
 
   await visoes.getByRole("link", { name: /Lotes em estoque/ }).click();
   await expect(page).toHaveURL(/ver=lotes/);
   await expect(page.getByRole("heading", { name: "Lotes em estoque" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Saldo por insumo" })).toHaveCount(0);
-  await visoes.getByRole("link", { name: /Custos/ }).click();
-  await expect(page.getByRole("heading", { name: "Custo de estoque vigente" })).toBeVisible();
+
+  // custo é relatório próprio; endereços antigos levam ao novo lugar
+  await page.getByRole("link", { name: "Custo do estoque" }).click();
+  await expect(page).toHaveURL(/\/estoque\/custos$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Custo do estoque" })).toBeVisible();
+  await page.goto("/estoque?ver=custos");
+  await expect(page).toHaveURL(/\/estoque\/custos$/);
+  await page.goto("/estoque?alerta=vencido");
+  await expect(page).toHaveURL(/\/estoque\/situacao$/);
 });

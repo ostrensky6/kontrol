@@ -16,8 +16,9 @@ async function saldoAtualDoLote(page: import("@playwright/test").Page) {
   return numero(await dd.textContent());
 }
 
-async function emMaosDaLinha(linha: Locator) {
-  return numero(await linha.getByRole("cell").nth(2).textContent());
+// Saldo e lotes tem 6 colunas (Insumo, Disponível, …): a baixa reduz o disponível
+async function disponivelDaLinha(linha: Locator) {
+  return numero(await linha.getByRole("cell").nth(1).textContent());
 }
 
 test("dar baixa pela página do lote exige motivo e reduz o saldo", async ({ page }) => {
@@ -44,14 +45,14 @@ test("dar baixa pela página do lote exige motivo e reduz o saldo", async ({ pag
   await expect(page.getByRole("cell", { name: "baixa manual: Perda/quebra: Frasco trincado E2E" }).first()).toBeVisible();
 });
 
-test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o saldo em mãos", async ({ page }) => {
+test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o disponível", async ({ page }) => {
   await page.goto("/estoque");
   const linha = page
     .getByRole("row")
     .filter({ has: page.getByRole("button", { name: "+ Entrada" }) })
     .filter({ hasText: "Kit extração E2E" });
   await expect(linha).toBeVisible();
-  const antes = await emMaosDaLinha(linha);
+  const antes = await disponivelDaLinha(linha);
 
   await linha.getByRole("button", { name: "Dar baixa" }).click();
   const dialogo = page.getByRole("dialog");
@@ -68,16 +69,23 @@ test("dar baixa pela linha do insumo sugere o lote FEFO e reduz o saldo em mãos
   await dialogo.getByRole("button", { name: "Registrar baixa" }).click();
 
   await expect(dialogo).toBeHidden();
-  await expect.poll(() => emMaosDaLinha(linha)).toBe(antes - 2);
+  await expect.poll(() => disponivelDaLinha(linha)).toBe(antes - 2);
 });
 
-test("controle de estoque oferece dar baixa no cartão do insumo", async ({ page }) => {
-  await page.goto("/estoque/controle");
-  const cartao = page.locator("article").filter({ hasText: "Kit extração E2E" });
-  await expect(cartao.getByRole("button", { name: "Dar baixa" })).toBeVisible();
-  await cartao.getByRole("button", { name: "Dar baixa" }).click();
-  const dialogo = page.getByRole("dialog");
-  await expect(dialogo.getByLabel("Lote")).toHaveValue("1");
-  await dialogo.getByRole("button", { name: "Cancelar" }).click();
-  await expect(dialogo).toBeHidden();
+test("lote na lista: “Dar baixa” à vista e as outras ações no menu “…” (8.3)", async ({ page }) => {
+  await page.goto("/estoque?ver=lotes");
+  const linha = page.getByRole("row").filter({ has: page.getByRole("link", { name: "EMB-E2E-A" }) });
+  await expect(linha.getByRole("button", { name: "Dar baixa" })).toBeVisible();
+  // antes eram quatro botões de texto por linha, dois em vermelho
+  await expect(linha.getByRole("button", { name: /^(Bloquear|Ajustar|Descartar)$/ })).toHaveCount(0);
+  await linha.getByRole("button", { name: "Mais ações do lote EMB-E2E-A" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu.getByRole("menuitem")).toContainText(["Bloquear", "Ajustar", "Descartar"]);
+  await page.keyboard.press("Escape");
+  await expect(menu).toBeHidden();
+
+  // a página do lote continua com os botões à vista
+  await page.goto("/estoque/lotes/1");
+  await expect(page.getByRole("button", { name: "Bloquear" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Mais ações do lote EMB-E2E-A" })).toHaveCount(0);
 });

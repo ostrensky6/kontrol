@@ -5,6 +5,7 @@ const button = readFileSync(new URL("./ReceberLote.tsx", import.meta.url), "utf8
 const tables = readFileSync(new URL("./EstoqueTables.tsx", import.meta.url), "utf8");
 const loteAcoes = readFileSync(new URL("./LoteAcoes.tsx", import.meta.url), "utf8");
 const page = readFileSync(new URL("../../app/estoque/page.tsx", import.meta.url), "utf8");
+const tabelaComum = readFileSync(new URL("../suprimentos/EstoqueDisponivelTable.tsx", import.meta.url), "utf8");
 
 describe("entrada inicial de estoque", () => {
   it("permite abrir a mesma porta canonica de entrada por deep link do insumo", () => {
@@ -15,12 +16,16 @@ describe("entrada inicial de estoque", () => {
   });
 
   it("mantem os saldos operacionais separados das unidades abertas e fechadas", () => {
-    expect(tables).toContain('header: "Em mãos"');
+    // D1 (revisão de 11/11): o saldo usa a mesma tabela da visão geral de Suprimentos
+    expect(tables).toContain("<EstoqueDisponivelTable");
+    expect(tabelaComum).toContain('header: "Disponível"');
+    expect(tabelaComum).toContain('header: "Reservado"');
     // 0130: sem quarentena, a coluna saiu do saldo
     expect(tables).not.toContain('header: "Quarentena"');
+    expect(tabelaComum).not.toContain('header: "Quarentena"');
     // explicação sob demanda ("?"), não mais texto fixo na tela
     expect(tables).toContain('<HelpTip title="Como ler o saldo">');
-    expect(tables).toContain("<b>Em mãos</b> soma os lotes guardados");
+    expect(tables).toContain("<b>Disponível</b> é o que pode ser usado agora: os lotes guardados menos o que está reservado");
     expect(tables).not.toContain('header: "Saldo aceito (calculado)"');
   });
 

@@ -304,7 +304,6 @@ export async function excluirLote(_prev: FormState, formData: FormData): Promise
   // (compras/suprimentos) e em Insumos.
   for (const caminho of [
     "/estoque",
-    "/estoque/controle",
     "/estoque/situacao",
     "/estoque/inventario",
     "/cadastros",
@@ -409,7 +408,6 @@ function mensagemErro(error: unknown, padrao: string) {
 
 function revalidarBaixa(loteId: number) {
   revalidatePath("/estoque");
-  revalidatePath("/estoque/controle");
   revalidatePath("/estoque/situacao");
   revalidatePath(`/estoque/lotes/${loteId}`);
   revalidatePath("/cadastros/insumos");
@@ -644,7 +642,7 @@ export async function entradaEmbalagens(
   } as never);
   if (error) return { ok: false, message: mensagemDoBanco(error) };
 
-  for (const path of ["/estoque", "/estoque/controle", "/estoque/situacao", "/suprimentos", "/cadastros/insumos", "/insumos"]) {
+  for (const path of ["/estoque", "/estoque/situacao", "/suprimentos", "/cadastros/insumos", "/insumos"]) {
     revalidatePath(path);
   }
   return { ok: true, message: "Lote registrado e liberado para uso." };

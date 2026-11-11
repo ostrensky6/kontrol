@@ -86,26 +86,24 @@ test("o nome do insumo abre a ficha, com o mesmo disponível e a mesma situaçã
   await expect(page.getByTestId("ficha-situacao")).toContainText(situacao);
 });
 
-test("Ficha no Controle de Estoque, nome em Saldo e lotes e a página do lote levam à ficha (F5)", async ({ page }) => {
+test("nome em Saldo e lotes e a página do lote levam à ficha; o endereço do Controle leva ao Estoque (F5, D1)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
-  await page.goto("/estoque/controle");
-  const fichas = page.getByRole("link", { name: "Ficha" });
-  await expect(fichas.first()).toBeVisible();
-  // antes o botão abria a lista de cadastros
-  for (const link of await fichas.all()) {
-    await expect(link).toHaveAttribute("href", /^\/estoque\/insumos\/\d+$/);
-  }
-  await fichas.first().click();
-  await expect(page).toHaveURL(/\/estoque\/insumos\/\d+$/);
-  await expect(page.getByTestId("ficha-numeros")).toBeVisible();
-
   await page.goto("/estoque");
-  await expect(page.getByRole("link", { name: "Kit extração E2E" }).first()).toHaveAttribute("href", "/estoque/insumos/900");
+  const nome = page.getByRole("link", { name: "Kit extração E2E" }).first();
+  await expect(nome).toHaveAttribute("href", "/estoque/insumos/900");
+  await nome.click();
+  await expect(page).toHaveURL(/\/estoque\/insumos\/900$/);
+  await expect(page.getByTestId("ficha-numeros")).toBeVisible();
 
   await page.goto("/estoque/lotes/1");
   await expect(page.getByRole("heading", { level: 1, name: /^Lote / })).toBeVisible();
   await page.getByRole("link", { name: "Kit extração E2E" }).click();
   await expect(page).toHaveURL(/\/estoque\/insumos\/900$/);
+
+  // Controle de Estoque e Saldo e lotes viraram uma tela: o endereço antigo continua valendo
+  await page.goto("/estoque/controle");
+  await expect(page).toHaveURL(/\/estoque$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Estoque" })).toBeVisible();
 });
 
 test("alerta de estoque do painel abre a ficha; a análise que usa o insumo aparece na ficha (F5)", async ({ page }) => {
@@ -178,7 +176,6 @@ test("leitor: código de um insumo abre a ficha dele (F5)", async ({ page }) => 
 const SECOES_DO_ESTOQUE = [
   "Saldo e lotes",
   "Situação",
-  "Controle de Estoque",
   "Entrada e saída por leitura",
   "Inventário",
   "Etiquetas",
@@ -206,7 +203,7 @@ test("Situação é uma seção do Estoque e o único lugar dos alertas, do “a
   await expect(page.getByRole("region", { name: "Alertas do estoque" })).toHaveCount(0);
   await expect(page.getByRole("region", { name: "Saldo não conferido" })).toHaveCount(0);
   await expect(page.getByTestId("painel-a-caminho")).toHaveCount(0);
-  for (const tela of ["/cadastros", "/suprimentos", "/compras", "/estoque/controle", "/estoque"]) {
+  for (const tela of ["/cadastros", "/suprimentos", "/compras", "/estoque", "/estoque/insumos/900"]) {
     await page.goto(tela);
     await expect(page.getByRole("heading", { level: 1 }), tela).toBeVisible();
     await expect(page.getByRole("button", { name: "Gerar pedidos de reposição" }), tela).toHaveCount(0);

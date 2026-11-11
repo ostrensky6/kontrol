@@ -10,10 +10,10 @@ import { SubnavAbas } from "@/components/layout/SubnavAbas";
  * dentro de Entrada e saída por leitura (revisão de 11/11, L11).
  */
 export const SECOES_ESTOQUE = [
-  { href: "/estoque", label: "Saldo e lotes", desc: "saldo por insumo, entradas, baixas e lotes" },
+  // Saldo e lotes e Controle de Estoque viraram uma tela (D1); o custo é relatório (L10)
+  { href: "/estoque", label: "Saldo e lotes", desc: "saldo por insumo, entradas, baixas e lotes", ativoTambem: ["/estoque/custos"] },
   // painel único de alertas (D1, L1): saiu de Cadastros
   { href: "/estoque/situacao", label: "Situação", desc: "o que pede atenção: saldo, compra, validade e lotes" },
-  { href: "/estoque/controle", label: "Controle de Estoque", desc: "painel por insumo, por lote e em gráficos" },
   {
     href: "/estoque/leitura",
     label: "Entrada e saída por leitura",

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { redirect } from "next/navigation";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
@@ -10,27 +11,30 @@ import {
   type LoteBaixa,
   type LoteDbBaixa,
 } from "@/lib/estoque/baixa";
-import { rotuloDoSaldo, situacoesDoSaldo } from "@/lib/estoque/situacao-insumo";
+import { janelaVencimentoDias } from "@/lib/estoque/situacao-insumo";
 import {
-  ALERTAS_ESTOQUE,
+  HREF_CUSTOS_ESTOQUE,
   VISOES_ESTOQUE,
-  alertaEstoqueValido,
-  hrefAlertaEstoque,
+  destinoAntigoDoEstoque,
   hrefVisaoEstoque,
   visaoDoEstoque,
 } from "@/lib/estoque/visao-estoque";
+import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
+import {
+  filtroEstoqueValido,
+  montarEstoqueDisponivel,
+  type AlertaDisponivelDb,
+  type PrevisaoDisponivelDb,
+  type SaldoDisponivelDb,
+} from "@/lib/suprimentos/estoque-disponivel";
+import { HREF_SITUACAO_ESTOQUE } from "@/components/estoque/CartaoSituacaoEstoque";
+import { PageHeader } from "@/components/app/PageHeader";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { formatCurrency, formatDate, formatDateTime, formatNumber, formatPercent } from "@/lib/formatters";
+import { formatDate, formatDateTime, formatNumber } from "@/lib/formatters";
 import { DownloadButton } from "@/components/common/DownloadButton";
-import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
-import {
-  LotesTable,
-  SaldoTable,
-  type LoteRow,
-  type SaidasDiarias,
-  type SaldoRow,
-} from "@/components/estoque/EstoqueTables";
+import { HelpLegend, HelpTip } from "@/components/common/HelpTip";
+import { LotesTable, SaldoTable, type LoteRow, type SaldoRow } from "@/components/estoque/EstoqueTables";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 import type { Tables } from "@/lib/supabase/database.types";
 import { lerConsumoManual, type RevisaoConsumoManual } from "@/lib/actions/consumo-manual";
@@ -56,51 +60,6 @@ type LoteEstoqueDb = LoteDbBaixa & {
   recebido_por_id?: string | null;
   insumos: { especificacao: string | null; unidade: string | null; categoria_compra: string | null } | null;
 };
-
-type Alerta = {
-  tipo: string;
-  insumo_id: number;
-  especificacao: string | null;
-  validade: string | null;
-  valor: number | null;
-  referencia: number | null;
-  /** lote do alerta (vencimento, vencido, sem validade); null nos alertas por insumo */
-  lote_id: number | null;
-};
-
-type CustoEstoque = {
-  insumo_id: number;
-  especificacao: string | null;
-  unidade: string | null;
-  custo_padrao: number | null;
-  custo_medio_ponderado: number | null;
-  divergencia_percentual: number | null;
-  situacao: string;
-};
-
-function leituraSaidasDiarias(
-  prev: Tables<"v_previsao_suprimentos"> | undefined,
-  falha: "falha" | "parcial" | null,
-): SaidasDiarias {
-  if (falha === "falha") return { estado: falha, motivo: "Não foi possível ler a previsão." };
-  if (falha === "parcial") return { estado: falha, motivo: "A fonte retornou linhas com erro." };
-  if (!prev) return { estado: "indisponivel", motivo: "Sem previsão de consumo para este insumo." };
-
-  const taxa = prev.consumo_medio_diario;
-  if (taxa == null) return { estado: "indisponivel", motivo: "Consumo médio ainda não calculado." };
-  if (!Number.isFinite(taxa) || taxa < 0) return { estado: "indisponivel", motivo: "Consumo médio inválido." };
-  if (taxa === 0) return { estado: "indisponivel", motivo: "A previsão veio zerada; isso não confirma que não houve saída." };
-
-  const janelaDias = prev.janela_dias;
-  if (janelaDias == null || !Number.isSafeInteger(janelaDias) || janelaDias <= 0) {
-    return { estado: "indisponivel", motivo: "Período da previsão não informado." };
-  }
-  const unidadeReferencia = typeof prev.unidade_saldo === "string" ? prev.unidade_saldo.trim() : "";
-  if (!unidadeReferencia || unidadeReferencia === "—" || unidadeReferencia === "-") {
-    return { estado: "indisponivel", motivo: "Unidade da previsão não informada." };
-  }
-  return { estado: "provisoria", taxa, janelaDias, unidadeReferencia };
-}
 
 const decimalConsumo = new Intl.NumberFormat("en-US", { useGrouping: false, maximumSignificantDigits: 21 });
 
@@ -139,9 +98,13 @@ export default async function EstoquePage({
     entrada?: string | string[];
     consumo_insumo?: string | string[];
     consumo_antes?: string | string[];
+    situacao?: string | string[];
   }>;
 }) {
   const query = await searchParams;
+  // alertas e custos mudaram de lugar (D1, L10): os links antigos levam ao novo
+  const destino = destinoAntigoDoEstoque(query);
+  if (destino) redirect(destino);
   const entrada = Array.isArray(query.entrada) ? query.entrada[0] : query.entrada;
   const entradaInicialInsumoId = /^\d+$/.test(entrada ?? "") ? Number(entrada) : undefined;
   const supabase = await createClient();
@@ -151,8 +114,8 @@ export default async function EstoquePage({
     { data: saldo, error: saldoError },
     { data: alertas },
     { data: lotesRaw, error: lotesError },
-    { data: previsao, error: previsaoError },
-    { data: custos },
+    { data: previsao },
+    { data: parametros },
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
     { data: reservasRaw, error: reservasError },
@@ -161,7 +124,7 @@ export default async function EstoquePage({
     lerTudo<Tables<"v_estoque_saldo">>((de, ate) =>
       supabase.from("v_estoque_saldo").select("*").order("especificacao").order("insumo_id").range(de, ate),
     ),
-    supabase.from("v_alertas_estoque").select("*"),
+    supabase.from("v_alertas_estoque").select("insumo_id, tipo"),
     lerTudo<Record<string, unknown>>((de, ate) =>
       supabaseSemTipos
         .from("lotes_estoque")
@@ -171,8 +134,10 @@ export default async function EstoquePage({
         .order("id")
         .range(de, ate),
     ),
-    supabase.from("v_previsao_suprimentos").select("*"),
-    supabase.from("v_custo_estoque_vigente").select("*").order("especificacao"),
+    // a mesma previsão da visão geral de Suprimentos: a caminho, aguardando aprovação e repor
+    supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente"),
+    // janela do "vence em breve": a mesma de v_alertas_estoque (padrão 60 dias)
+    supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
     lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_compra_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
     lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_internos_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
     lerTudo<Pick<Tables<"reservas_estoque">, "lote_id" | "quantidade" | "quantidade_consumida" | "status">>((de, ate) =>
@@ -197,36 +162,7 @@ export default async function EstoquePage({
     usuarioAtual(),
   ]);
 
-  const al = (alertas ?? []) as Alerta[];
-  const porTipo = {
-    reposicao: al.filter((a) => a.tipo === "reposicao"),
-    // a necessidade já está coberta, mas só por pedido que ainda espera aprovação
-    reposicao_pendente: al.filter((a) => a.tipo === "reposicao_pendente"),
-    vencimento: al.filter((a) => a.tipo === "vencimento"),
-    vencido: al.filter((a) => a.tipo === "vencido"),
-    sem_validade: al.filter((a) => a.tipo === "sem_validade"),
-    compra_atrasada: al.filter((a) => a.tipo === "compra_atrasada"),
-  };
-  // Um alerta escolhido (?alerta=) abre a visão certa já filtrada; alerta sem itens não filtra nada.
-  const alertaPedido = alertaEstoqueValido(query.alerta);
-  const alertaAtivo = alertaPedido && porTipo[alertaPedido].length > 0 ? alertaPedido : null;
-  const visao = visaoDoEstoque({ ...query, alerta: alertaAtivo ?? undefined });
-  const metaAlertaAtivo = ALERTAS_ESTOQUE.find((a) => a.tipo === alertaAtivo) ?? null;
-  const insumosDoAlerta = new Set((alertaAtivo ? porTipo[alertaAtivo] : []).map((a) => Number(a.insumo_id)));
-  const lotesDoAlerta = new Set(
-    (alertaAtivo ? porTipo[alertaAtivo] : []).filter((a) => a.lote_id != null).map((a) => Number(a.lote_id)),
-  );
-  // alerta de lote sem o número do lote (não deveria acontecer): vale o insumo inteiro
-  const insumosDoAlertaSemLote = new Set(
-    (alertaAtivo ? porTipo[alertaAtivo] : []).filter((a) => a.lote_id == null).map((a) => Number(a.insumo_id)),
-  );
-  const insumosAguardandoAprovacao = new Set(porTipo.reposicao_pendente.map((a) => Number(a.insumo_id)));
-  const previsaoMap = new Map((previsao ?? []).map((p) => [p.insumo_id, p]));
-  // Só há sinal explícito de parcialidade quando a resposta traz linhas e erro.
-  const falhaPrevisao = previsaoError ? (previsaoMap.size > 0 ? "parcial" : "falha") : null;
-  const custosDivergentes = ((custos ?? []) as CustoEstoque[])
-    .filter((custo) => custo.situacao === "divergente" || custo.situacao === "sem_custo_padrao")
-    .sort((a, b) => Math.abs(Number(b.divergencia_percentual ?? 0)) - Math.abs(Number(a.divergencia_percentual ?? 0)));
+  const hoje = hojeIso();
   const origemEstornoComprovada = !vinculosCompraError && !vinculosInternosError;
   const lotesVinculados = new Set([
     ...(vinculosCompra ?? []).map((recebimento) => Number(recebimento.lote_id)),
@@ -239,41 +175,33 @@ export default async function EstoquePage({
     lista.push(loteBaixaDeDb(l, reservadoPorLote));
     lotesBaixaPorInsumo.set(Number(l.insumo_id), lista);
   }
-  const saldoRows: SaldoRow[] = (saldo ?? []).map((s) => {
-    const prev = previsaoMap.get(s.insumo_id);
-    const pontoReposicao = Number(s.ponto_reposicao ?? 0);
-    const disponivel = Number(s.disponivel ?? 0);
-    const emMaos = Number(s.em_maos ?? 0);
-    const pontoSugerido = Number(prev?.ponto_reposicao_sugerido ?? pontoReposicao);
-    // Uma regra só (0130): "Repor" quando a previsão sugere comprar, isto é, o
-    // disponível mais o que está a caminho não cobre o prazo total da compra.
-    const repor = Number(prev?.qtd_sugerida_compra ?? 0) > 0;
-    // Todas as condições (sem estoque e repor podem valer juntas): o filtro Status casa por condição.
-    const situacoes = situacoesDoSaldo({
-      emMaos,
-      repor,
-      reposicaoPendente: insumosAguardandoAprovacao.has(Number(s.insumo_id)),
-    });
+  // D1: as mesmas linhas, regras e palavras da visão geral de Suprimentos e da ficha do insumo
+  const linhas = montarEstoqueDisponivel({
+    saldo: (saldo ?? []) as SaldoDisponivelDb[],
+    previsao: (previsao ?? []) as PrevisaoDisponivelDb[],
+    alertas: (alertas ?? []) as AlertaDisponivelDb[],
+    lotes: lotes.map((l) => ({
+      insumo_id: Number(l.insumo_id),
+      validade: l.validade ?? null,
+      validade_apos_abertura: l.validade_apos_abertura ?? null,
+      quantidade_atual: l.quantidade_atual,
+      status: l.status,
+    })),
+    hoje,
+    janelaVencimento: janelaVencimentoDias((parametros as { valor: unknown }[] | null)?.[0]?.valor),
+  });
+  const saldoPorInsumo = new Map((saldo ?? []).map((s) => [Number(s.insumo_id), s]));
+  const saldoRows: SaldoRow[] = linhas.map((linha) => {
+    const s = saldoPorInsumo.get(linha.insumoId);
     return {
-      insumoId: s.insumo_id as number,
-      especificacao: s.especificacao ?? "—",
-      // Saldo de insumo contado em frascos é em frascos (EST2-5).
-      unidade: s.unidade_saldo ?? s.unidade ?? "—",
-      unidadeFisica: s.unidade ?? "",
-      embalagemFechada: s.modelo_quantidade === "EMBALAGEM_FECHADA",
-      emMaos,
-      reservado: Number(s.reservado ?? 0),
-      disponivel,
-      pontoReposicao,
-      saidasDiarias: leituraSaidasDiarias(prev, falhaPrevisao),
-      consumoMedioDiario: Number(prev?.consumo_medio_diario ?? 0),
-      diasCobertura: prev?.dias_cobertura == null ? null : Number(prev.dias_cobertura),
-      pontoSugerido,
-      situacoes,
-      statusLabel: rotuloDoSaldo(situacoes),
-      lotesBaixa: lotesBaixaPorInsumo.get(Number(s.insumo_id)) ?? [],
+      ...linha,
+      unidadeFisica: s?.unidade ?? "",
+      embalagemFechada: s?.modelo_quantidade === "EMBALAGEM_FECHADA",
+      lotesBaixa: lotesBaixaPorInsumo.get(linha.insumoId) ?? [],
     };
   });
+  const situacaoPedida = Array.isArray(query.situacao) ? query.situacao[0] : query.situacao;
+  const filtroSaldo = situacaoPedida ? filtroEstoqueValido(situacaoPedida) : "todos";
   const insumoConsultado = inteiroDaConsulta(query.consumo_insumo);
   const antesDaRevisao = inteiroDaConsulta(query.consumo_antes);
   const cursorInvalido = query.consumo_antes !== undefined && antesDaRevisao === null;
@@ -286,20 +214,12 @@ export default async function EstoquePage({
       lerPrevisaoInsumo(insumoSelecionado.insumoId),
     ])
     : [null, null, null];
-  const hoje = hojeIso();
-  const lotesVisiveis =
-    metaAlertaAtivo?.visao === "lotes"
-      ? lotes.filter((l) => lotesDoAlerta.has(Number(l.id)) || insumosDoAlertaSemLote.has(Number(l.insumo_id)))
-      : lotes;
-  const saldoVisivel =
-    metaAlertaAtivo?.visao === "saldo" ? saldoRows.filter((s) => insumosDoAlerta.has(Number(s.insumoId))) : saldoRows;
+  const visao = visaoDoEstoque(query);
   const contagemDaVisao: Record<string, number | null> = {
     saldo: saldoRows.length,
     lotes: lotes.length,
-    custos: custosDivergentes.length,
-    consumo: null,
   };
-  const loteRows: LoteRow[] = lotesVisiveis.map((l) => {
+  const loteRows: LoteRow[] = lotes.map((l) => {
     const ins = l.insumos;
     const baixa = loteBaixaDeDb(l, reservadoPorLote);
     return {
@@ -332,93 +252,42 @@ export default async function EstoquePage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
-            <h1 className="text-xl font-semibold tracking-tight">Estoque</h1>
+        <PageHeader
+          title="Estoque"
+          description="Saldo por insumo e lotes, com entrada e baixa."
+          help={
             <HelpTip title="Estoque">
               <p>
-                Os alertas ficam no topo. Abaixo, escolha o que ver: saldo por insumo, lotes, custos
-                ou consumo mensal. O uso segue <b>FEFO</b>: o lote que vence primeiro sai primeiro.
+                Escolha o que ver: saldo por insumo ou lotes. O uso segue <b>FEFO</b>: o lote que vence primeiro
+                sai primeiro.
               </p>
               <p>
-                <b>+ Entrada</b> registra um lote com o número do fabricante. <b>Dar baixa</b> retira
-                material com motivo (consumo, perda, vencimento ou outro).
+                <b>+ Entrada</b> registra um lote com o número do fabricante. <b>Dar baixa</b> retira material
+                com motivo (consumo, perda, vencimento ou outro).
+              </p>
+              <p>
+                O que pede atenção (falta, validade, compra atrasada) fica em <b>Situação</b>. Consumo, prazo e
+                histórico de cada insumo ficam na ficha dele: clique no nome.
               </p>
             </HelpTip>
-          </div>
-          <DownloadButton href="/cadastros/insumos/export" fileName="insumos.xlsx">
-            Planilha de insumos
-          </DownloadButton>
-        </div>
+          }
+          actions={
+            <>
+              <Link href={HREF_SITUACAO_ESTOQUE} className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">
+                Ver a situação
+              </Link>
+              <Link href={HREF_CUSTOS_ESTOQUE} className="inline-flex h-8 items-center rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">
+                Custo do estoque
+              </Link>
+              <DownloadButton href="/cadastros/insumos/export" fileName="insumos.xlsx">
+                Planilha de insumos
+              </DownloadButton>
+            </>
+          }
+        />
 
-        {/* Alertas */}
-        <div className="mt-6 flex items-center gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Alertas</h2>
-          <HelpTip title="Alertas do estoque">
-            <HelpLegend
-              items={[
-                { tom: "atencao", rotulo: "Repor", texto: "é hora de pedir: o disponível mais o que já está a caminho não cobre as saídas previstas durante o prazo da compra (tramitação na universidade + entrega), mais o estoque de segurança" },
-                { tom: "atencao", rotulo: "Reposição aguardando aprovação", texto: "o que falta já foi pedido, mas o pedido ainda espera aprovação (compra solicitada, inclusive o rascunho automático do dia, ou pedido interno em rascunho): aprove ou recuse o pedido" },
-                { tom: "critico", rotulo: "Compra atrasada", texto: "o estoque já está no ponto e a compra que viria passou da data prevista: cobre o fornecedor ou encerre a compra e dê outro destino ao que falta" },
-                { tom: "atencao", rotulo: "Vence em breve", texto: "lote perto do fim da validade" },
-                { tom: "critico", rotulo: "Vencido", texto: "só pode sair com o motivo Vencimento; a reserva do lote é liberada" },
-                { tom: "critico", rotulo: "Sem validade", texto: "lote de insumo crítico sem data de validade" },
-              ]}
-            />
-            <p>
-              O número é a <b>quantidade de alertas</b>. Clique num cartão para ver só os insumos ou
-              lotes daquele alerta; clique de novo para voltar à lista inteira.
-            </p>
-          </HelpTip>
-        </div>
-        <ul aria-label="Alertas do estoque" className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
-          {ALERTAS_ESTOQUE.map((alerta) => {
-            const quantidade = porTipo[alerta.tipo].length;
-            const ativo = alerta.tipo === alertaAtivo;
-            const conteudo = (
-              <>
-                <span className="text-sm font-medium leading-5 text-foreground">{alerta.rotulo}</span>
-                <span
-                  className={cn(
-                    "text-xl font-semibold leading-6 tabular-nums",
-                    quantidade === 0
-                      ? "text-muted-foreground"
-                      : alerta.tom === "critico"
-                        ? "text-danger-strong"
-                        : "text-warning-strong",
-                  )}
-                >
-                  {quantidade}
-                </span>
-              </>
-            );
-            return (
-              <li key={alerta.tipo}>
-                {quantidade > 0 ? (
-                  <Link
-                    href={hrefAlertaEstoque(alerta.tipo, alertaAtivo)}
-                    aria-current={ativo ? "true" : undefined}
-                    data-testid={`alerta-${alerta.tipo}`}
-                    className={cn(
-                      "flex min-h-16 items-start justify-between gap-2 rounded-lg border p-3 transition-colors",
-                      ativo
-                        ? "border-primary bg-primary/5 ring-1 ring-primary"
-                        : "border-border bg-card hover:border-primary/50 hover:bg-primary/5",
-                    )}
-                  >
-                    {conteudo}
-                  </Link>
-                ) : (
-                  <div className="flex min-h-16 items-start justify-between gap-2 rounded-lg border border-dashed border-border p-3 opacity-80">
-                    {conteudo}
-                  </div>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-
-        <nav aria-label="O que mostrar do estoque" className="mt-6 flex flex-wrap gap-2 border-b border-border pb-3">
+        {visao !== "consumo" && (
+        <nav aria-label="O que mostrar do estoque" className="mt-2 flex flex-wrap gap-2 border-b border-border pb-3">
           {VISOES_ESTOQUE.map((v) => {
             const ativa = v.id === visao;
             const contagem = contagemDaVisao[v.id];
@@ -449,81 +318,15 @@ export default async function EstoquePage({
             );
           })}
         </nav>
-
-        {metaAlertaAtivo && (
-          <p
-            role="status"
-            data-testid="filtro-alerta"
-            className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md bg-primary/5 px-3 py-2 text-sm"
-          >
-            <span>
-              Mostrando só <b>{metaAlertaAtivo.rotulo}</b>:{" "}
-              {metaAlertaAtivo.visao === "lotes"
-                ? `${lotesVisiveis.length} ${lotesVisiveis.length === 1 ? "lote" : "lotes"}`
-                : `${saldoVisivel.length} ${saldoVisivel.length === 1 ? "insumo" : "insumos"}`}
-              .
-            </span>
-            <Link href={hrefVisaoEstoque(metaAlertaAtivo.visao)} className="font-medium text-primary hover:underline">
-              Mostrar tudo
-            </Link>
-          </p>
-        )}
-
-        {visao === "custos" && (
-        <section className="mt-4 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div>
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Custo de estoque vigente</h2>
-                <HelpTip title="Custo padrão × custo médio">
-                  <p>
-                    O <b>custo padrão</b> vem do cadastro e é usado nas simulações. O <b>custo médio</b>{" "}
-                    é o preço real dos lotes liberados. A lista mostra só os insumos em que os dois divergem.
-                  </p>
-                  <HelpExample>
-                    Padrão R$ 100, lotes a R$ 120 → variação de +20%: revise o custo padrão.
-                  </HelpExample>
-                </HelpTip>
-              </div>
-            </div>
-            <span className="text-sm tabular-nums text-warning-strong">{custosDivergentes.length} divergência(s)</span>
-          </div>
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-2 py-2 text-left">Insumo</th>
-                  <th className="px-2 py-2 text-right">Padrão</th>
-                  <th className="px-2 py-2 text-right">Médio vigente</th>
-                  <th className="px-2 py-2 text-right">Variação</th>
-                  <th className="px-2 py-2 text-left">Situação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {custosDivergentes.map((custo) => (
-                  <tr key={custo.insumo_id}>
-                    <td className="px-2 py-2 font-medium">{custo.especificacao ?? "—"} <span className="text-xs text-muted-foreground">{custo.unidade ?? ""}</span></td>
-                    <td className="px-2 py-2 text-right tabular-nums">{formatCurrency(custo.custo_padrao)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums">{formatCurrency(custo.custo_medio_ponderado)}</td>
-                    <td className="px-2 py-2 text-right tabular-nums text-warning-strong">{custo.divergencia_percentual == null ? "—" : formatPercent(custo.divergencia_percentual)}</td>
-                    <td className="px-2 py-2 text-xs text-warning-strong">{custo.situacao === "sem_custo_padrao" ? "Sem custo padrão" : "Divergente"}</td>
-                  </tr>
-                ))}
-                {custosDivergentes.length === 0 && (
-                  <tr><td colSpan={5} className="px-2 py-5 text-center text-muted-foreground">Custos vigentes alinhados ou sem lotes liberados.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </section>
         )}
 
         {visao === "saldo" && (
           <div className="mt-4">
             <SaldoTable
-              rows={saldoVisivel}
+              rows={saldoRows}
               podeMovimentar={podeBaixar}
               entradaInicialInsumoId={entradaInicialInsumoId}
+              filtroInicial={filtroSaldo}
             />
           </div>
         )}
@@ -537,6 +340,15 @@ export default async function EstoquePage({
                 <p>Quando ainda há pouco histórico, informe uma estimativa manual em embalagens por mês. Ela vale até o cálculo ganhar confiança alta.</p>
                 <p>Uma nova estimativa não apaga as anteriores; o histórico fica guardado.</p>
               </HelpTip>
+              {/* L10: o consumo se lê na ficha do insumo; aqui ficam a estimativa manual e o histórico */}
+              {insumoSelecionado && (
+                <Link
+                  href={hrefFichaInsumo(insumoSelecionado.insumoId) ?? "/estoque"}
+                  className="ml-auto text-sm font-medium text-primary hover:underline"
+                >
+                  Voltar à ficha do insumo
+                </Link>
+              )}
             </div>
             {insumosConsultaveis.length > 0 ? (
               <form action="/estoque#consumo-manual" method="get" className="mt-3 flex flex-wrap items-end gap-2">

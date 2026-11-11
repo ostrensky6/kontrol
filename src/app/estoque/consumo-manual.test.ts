@@ -30,7 +30,7 @@ vi.mock("@/components/estoque/EstoqueTables", () => ({
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) => createElement("a", { href }, children),
 }));
-vi.mock("next/navigation", () => ({ unstable_rethrow: () => {} }));
+vi.mock("next/navigation", () => ({ unstable_rethrow: () => {}, redirect: (destino: string) => { throw new Error(`redirect:${destino}`); } }));
 vi.mock("react", async (original) => ({
   ...await original<typeof import("react")>(),
   useState: (inicial: unknown) => [io.base ?? (typeof inicial === "function" ? inicial() : inicial), vi.fn()],
@@ -64,10 +64,10 @@ beforeEach(() => {
   io.registrar.mockResolvedValue({ ok: true, estado: "registrada", registro });
   io.from.mockImplementation((table: string) => {
     const chain = {
-      select: () => chain, order: () => chain, range: () => chain, not: () => chain, in: () => chain,
+      select: () => chain, order: () => chain, range: () => chain, not: () => chain, in: () => chain, eq: () => chain,
       then: (resolve: (result: { data: unknown; error: unknown }) => void) => resolve({
         data: table === "v_estoque_saldo" ? [saldo(12), saldo(13)] : table === "v_previsao_suprimentos"
-          ? [{ insumo_id: 12, consumo_medio_diario: 2.5, janela_dias: 31, unidade_saldo: "mL", dias_cobertura: 4, ponto_reposicao_sugerido: 18, qtd_sugerida_compra: 3 }]
+          ? [{ insumo_id: 12, qtd_sugerida_compra: 3, qtd_pedida_aberta: 5, qtd_pedida_pendente: 2 }]
           : [],
         error: null,
       }),
@@ -101,10 +101,13 @@ describe("consumidor de estimativa manual no saldo", () => {
     // a visão do consumo não desenha a tabela de saldo; o saldo segue igual na visão dele
     expect(io.saldo).not.toHaveBeenCalled();
     await render();
+    // D1: a linha do saldo é a mesma da visão geral de Suprimentos (6 colunas; o resto fica na ficha)
     expect(io.saldo.mock.calls[0][0].rows[0]).toMatchObject({
-      disponivel: 10, reservado: 4, consumoMedioDiario: 2.5, diasCobertura: 4, pontoSugerido: 18,
-      situacoes: ["repor"], saidasDiarias: { estado: "provisoria", taxa: 2.5, janelaDias: 31, unidadeReferencia: "mL" },
+      insumoId: 12, disponivel: 10, reservado: 4, aCaminho: 3, aguardandoAprovacao: 2, minimo: 2, sugerido: 3,
+      situacao: "Reposição", sinais: ["reposicao"], unidadeFisica: "mL",
     });
+    expect(io.saldo.mock.calls[0][0].rows[1]).toMatchObject({ insumoId: 13, aCaminho: null, situacao: "Estoque OK" });
+    expect(io.saldo.mock.calls[0][0].filtroInicial).toBe("todos");
     expect(html).toContain("Escolha um insumo para ver quanto saiu do estoque");
   });
 
