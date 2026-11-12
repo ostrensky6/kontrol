@@ -146,6 +146,7 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Cadastros", item: "Qualidade dos cadastros", onde: [tela("app/cadastros/page.tsx", 'href="/cadastros/qualidade"')] },
   { area: "Cadastros", item: "Cadastrar nova pessoa no campo de coordenador", onde: [tela("components/cadastros/CrudShell.tsx", "Cadastrar nova pessoa")] },
   { area: "Cadastros", item: "Pré-aprovados no campo de coordenador", onde: [tela("components/cadastros/CrudShell.tsx", "Pré-aprovados, ainda sem conta")] },
+  { area: "Cadastros", item: "Motivo do Somente consulta", onde: [tela("app/cadastros/[slug]/CadastroPagina.tsx", "motivo-somente-consulta")] },
   { area: "Cadastros", item: "Indicar ou cadastrar o nome escrito no projeto", onde: [tela("components/cadastros/CrudShell.tsx", "sugestao-")] },
   // ── Governança ──
   { area: "Governança", item: "Auditoria", onde: [barra("governanca", "/auditoria", "Auditoria")] },

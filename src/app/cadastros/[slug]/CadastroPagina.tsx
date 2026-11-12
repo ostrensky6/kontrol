@@ -23,6 +23,7 @@ import {
 } from "@/lib/cadastros/insumos";
 import { nomesDosPais } from "@/lib/cadastros/locais";
 import { preAprovadosSemConta, type PreAprovadoOpcao } from "@/lib/cadastros/pessoas";
+import { motivoSomenteConsulta } from "@/lib/cadastros/somente-consulta";
 import {
   camposTecnicosParaUsuario,
   colunasCalculadasTecnico,
@@ -180,7 +181,8 @@ export async function CadastroPagina({
   // e mandam os demais pedirem a ele.
   const podeCadastrarPessoa = cfg.campos.some((c) => c.opcoesDe === "perfis") && (await temPapel("admin"));
   // Sem a permissão de edição, a tela vira consulta (sem Novo, Editar e Excluir).
-  const podeEditar = await pode(PERMISSAO_EDITAR[slug] ?? "cadastros.editar");
+  const permissaoEditar = PERMISSAO_EDITAR[slug] ?? "cadastros.editar";
+  const podeEditar = await pode(permissaoEditar);
   // Salário: decidido no servidor; sem permissão o valor real nunca é lido
   // nem serializado para o CrudShell (cliente).
   const podeVerSalarioTecnicos = slug === "tecnicos" ? await podeVerSalario() : false;
@@ -404,6 +406,11 @@ export async function CadastroPagina({
             )}
           </HelpTip>
         </div>
+        {!podeEditar && (
+          <p data-testid="motivo-somente-consulta" className="mt-1 text-sm text-muted-foreground">
+            {motivoSomenteConsulta(slug, permissaoEditar)}
+          </p>
+        )}
 
         <div className="mt-6">
           <CrudShell
