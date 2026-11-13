@@ -31,6 +31,6 @@ describe("edição de usuário", () => {
   it("expõe nome ausente e ação de correção também no mobile", () => {
     expect(tabela).toContain("Nome não informado");
     expect(acoes).toContain("Completar nome");
-    expect(tabela).toContain("getMobileMeta={(row) => <UsuarioAcoes row={row} />}");
+    expect(tabela).toMatch(/getMobileMeta=\{\(row\) => \([\s\S]*<UsuarioAcoes row=\{row\} \/>/);
   });
 });

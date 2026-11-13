@@ -371,10 +371,24 @@ export async function CadastroPagina({
   if (slug === "responsaveis") {
     const usuarios = opcoesPorFonte["perfis"] ?? [];
     const nomePorId = new Map(usuarios.map((o) => [o.value, o.label]));
+    // 0180: sem responsável, vale a primeira pessoa ativa com a função Administrativo
+    const { data: administrativos } = await supabase
+      .from("perfis")
+      .select("nome, email")
+      .eq("papel", "administrativo")
+      .eq("suspenso", false)
+      .order("nome");
+    const primeiroAdministrativo = ((administrativos ?? []) as { nome: string | null; email: string | null }[])
+      .map((p) => p.nome?.trim() || p.email || "")
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b, "pt-BR"))[0];
+    const semResponsavel = primeiroAdministrativo
+      ? `Sem indicado: vale ${primeiroAdministrativo} (Administrativo)`
+      : "Sem responsável: avisos vão ao Administrador";
     linhas = linhas.map((r) => ({
       ...r,
       etapa_nome: ETAPAS_RESPONSAVEIS[String(r.etapa)] ?? String(r.etapa ?? "—"),
-      usuario_nome: r.usuario_id != null ? nomePorId.get(String(r.usuario_id)) ?? "—" : "Sem responsável: avisos vão ao Administrador",
+      usuario_nome: r.usuario_id != null ? nomePorId.get(String(r.usuario_id)) ?? "—" : semResponsavel,
       substituto_nome: r.substituto_id != null ? nomePorId.get(String(r.substituto_id)) ?? "—" : "—",
     }));
   }

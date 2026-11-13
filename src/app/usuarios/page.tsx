@@ -3,7 +3,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { HelpTip } from "@/components/common/HelpTip";
 import { CriarPorBotao } from "@/components/common/CriarPorBotao";
-import { temPapel } from "@/lib/auth/roles";
+import { temPapel, usuarioAtual } from "@/lib/auth/roles";
 import { PAPEIS } from "@/lib/auth/permissions";
 import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
 import { CriarUsuarioForm } from "@/components/usuarios/CriarUsuarioForm";
@@ -11,7 +11,12 @@ import { UsuariosTable, type UsuarioRow } from "@/components/usuarios/UsuariosTa
 
 export const dynamic = "force-dynamic";
 
-export default async function UsuariosPage() {
+export default async function UsuariosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ removidos?: string | string[] }>;
+}) {
+  const mostrarRemovidos = (await searchParams).removidos === "1";
   if (!(await temPapel("admin"))) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-center font-sans">
@@ -23,7 +28,7 @@ export default async function UsuariosPage() {
   const supabase = await createClient();
   const { data: perfis } = await supabase
     .from("perfis")
-    .select("id, nome, email, papel, criado_em, suspenso, senha_provisoria, assinatura_path, assinatura_url, permissoes")
+    .select("id, nome, email, papel, criado_em, suspenso, removido_em, senha_provisoria, assinatura_path, assinatura_url, permissoes")
     .order("email");
   const { data: preAprovados } = await supabase
     .from("usuarios_pre_aprovados")
@@ -35,7 +40,11 @@ export default async function UsuariosPage() {
   const permissoesPorCategoria = buildPermissoesPorCategoria(permissoesCategorias ?? []);
   const papelLabel = new Map(PAPEIS.map((papel) => [papel.value, papel.label]));
   const emailsComAcesso = new Set((perfis ?? []).map((perfil) => String(perfil.email ?? "").toLowerCase()));
-  const linhas: UsuarioRow[] = (perfis ?? []).map((perfil) => ({
+  const eu = await usuarioAtual();
+  // 0180: removidos da equipe saem da lista; "Mostrar removidos" traz de volta
+  const totalRemovidos = (perfis ?? []).filter((perfil) => perfil.removido_em).length;
+  const perfisVisiveis = (perfis ?? []).filter((perfil) => mostrarRemovidos || !perfil.removido_em);
+  const linhas: UsuarioRow[] = perfisVisiveis.map((perfil) => ({
     id: String(perfil.id),
     userId: String(perfil.id),
     nome: perfil.nome ?? "—",
@@ -43,6 +52,8 @@ export default async function UsuariosPage() {
     papel: perfil.papel,
     papelLabel: papelLabel.get(perfil.papel as (typeof PAPEIS)[number]["value"]) ?? perfil.papel,
     suspenso: Boolean(perfil.suspenso),
+    removido: Boolean(perfil.removido_em),
+    ehVoce: eu?.id === perfil.id,
     senhaProvisoria: Boolean(perfil.senha_provisoria),
     temAcesso: true,
     assinaturaPath: perfil.assinatura_path ?? null,
@@ -83,7 +94,8 @@ export default async function UsuariosPage() {
                 <p>
                   Acessos, pré-aprovados, funções, assinaturas e senhas. O que cada função pode fazer fica em{" "}
                   <Link href="/governanca/privilegios" className="underline">Governança → Privilégios</Link>; em
-                  Editar, ajuste uma pessoa sem mudar a função dela.
+                  Editar, ajuste uma pessoa sem mudar a função dela. Para trocar a função, escolha outra na coluna
+                  Função. A lixeira remove quem saiu da equipe sem apagar o histórico.
                 </p>
               </HelpTip>
             </div>
@@ -91,6 +103,18 @@ export default async function UsuariosPage() {
         >
           <CriarUsuarioForm />
         </CriarPorBotao>
+
+        {(totalRemovidos > 0 || mostrarRemovidos) && (
+          <p className="mt-4 text-sm text-muted-foreground">
+            {mostrarRemovidos ? (
+              <Link href="/usuarios" className="underline">Esconder removidos</Link>
+            ) : (
+              <Link href="/usuarios?removidos=1" className="underline">
+                Mostrar removidos ({totalRemovidos})
+              </Link>
+            )}
+          </p>
+        )}
 
         <div className="mt-6">
           <UsuariosTable rows={linhas} />

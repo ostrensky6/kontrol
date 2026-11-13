@@ -1,5 +1,6 @@
 /**
- * As seis funções (decisão do dono, 06/11/2026; migration 0146). Quem era
+ * As funções (seis na decisão do dono de 06/11/2026, migration 0146; Supervisor
+ * na 0160; Administrativo na 0180). Quem era
  * "Técnico" passou a "Laboratório". Laboratório, Compra e Cadastro estão no
  * mesmo nível; acima vêm Coordenador, Gestor e Administrador. O nível só
  * importa onde ainda há "papel mínimo"; o que cada função faz é a caixinha
@@ -9,6 +10,9 @@ export const PAPEIS = [
   { value: "laboratorio", label: "Laboratório", nivel: 0 },
   { value: "compra", label: "Compra", nivel: 0 },
   { value: "cadastro", label: "Cadastro", nivel: 0 },
+  // 0180: organização, planejamento geral, compras e financeiro. Não é o
+  // Administrador do sistema (não mexe em usuários, privilégios nem backups).
+  { value: "administrativo", label: "Administrativo", nivel: 0 },
   { value: "coordenador", label: "Coordenador", nivel: 1 },
   { value: "gestor", label: "Gestor", nivel: 2 },
   // 0160: Supervisor acima de Coordenador e Gestor, abaixo do Administrador.
@@ -112,9 +116,8 @@ export const HISTORICAL_ROLE_RECONCILIATION = [
   },
   {
     historico: "administrativo",
-    atual: "sem papel dedicado",
-    observacao:
-      "O papel historico nao existe no check atual de perfis; foi preservado como conjunto de capacidades editaveis, sem recriar papel no banco nesta reconciliacao.",
+    atual: "administrativo",
+    observacao: "Recriado como funcao propria na 0180 (organizacao, planejamento geral, compras e financeiro).",
   },
   {
     historico: "gerente",
@@ -249,6 +252,43 @@ const CADASTRO: PermissaoUsuario[] = [
   "estoque.ver",
 ];
 
+/**
+ * Administrativo (0180): organização, planejamento geral, compras (todas as
+ * etapas, inclusive a autorização administrativa e o pagamento) e financeiro.
+ * Mesma lista da migration 0180.
+ */
+const ADMINISTRATIVO: PermissaoUsuario[] = [
+  "cadastros.ver",
+  "cadastros.editar",
+  "projetos.ver",
+  "projetos.editar",
+  "planejamento.ver",
+  "planejamento.editar",
+  "insumos.ver",
+  "estoque.ver",
+  "analises.ver",
+  "pedido.ver",
+  "pedido.criar",
+  "pedido.aprovar",
+  "compras.ver",
+  "compras.solicitar",
+  "compras.aprovar",
+  "compras.receber",
+  "compras.cancelar",
+  "recebimento.ver",
+  "recebimento.registrar",
+  "custeio.ver",
+  "orcamentos.visualizar",
+  "orcamentos.criar_editar",
+  "orcamentos.emitir",
+  "orcamentos.cancelar",
+  "orcamentos.fundos",
+  "orcamentos.pessoal",
+  "tecnicos.salario.ver",
+  "auditoria.visualizar",
+  "configuracoes.ver",
+];
+
 const COORDENADOR: PermissaoUsuario[] = [
   ...LABORATORIO,
   "analises.editar",
@@ -288,6 +328,7 @@ const DEFAULT_PERMISSIONS_BY_ROLE: Record<PapelUsuario, PermissaoUsuario[]> = {
   laboratorio: LABORATORIO,
   compra: COMPRA,
   cadastro: CADASTRO,
+  administrativo: ADMINISTRATIVO,
   coordenador: COORDENADOR,
   gestor: GESTOR,
   // 0160: nasce com as caixinhas do Gestor; o Admin ajusta em Privilégios.

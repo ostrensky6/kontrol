@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 
 import {
   HISTORICAL_ROLE_RECONCILIATION,
@@ -49,7 +50,7 @@ describe("permissoes reconciliadas", () => {
   it("documenta que o papel administrativo historico nao foi colapsado silenciosamente", () => {
     expect(HISTORICAL_ROLE_RECONCILIATION).toContainEqual(expect.objectContaining({
       historico: "administrativo",
-      atual: "sem papel dedicado",
+      atual: "administrativo",
     }));
   });
 
@@ -126,7 +127,7 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
   it("substitui as quatro funções por Administrador, Gestor, Laboratório, Compra, Cadastro e Coordenador", async () => {
     const { PAPEIS } = await import("./permissions");
     expect(PAPEIS.map((papel) => papel.label).sort()).toEqual(
-      ["Administrador", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório", "Supervisor"].sort(),
+      ["Administrador", "Administrativo", "Cadastro", "Compra", "Coordenador", "Gestor", "Laboratório", "Supervisor"].sort(),
     );
     expect(PAPEIS.map((papel) => papel.value)).not.toContain("tecnico");
   });
@@ -198,5 +199,31 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
     expect(semComentarios).not.toMatch(/drop\s+(table|column|policy|trigger|function|schema)/i);
     expect(semComentarios).not.toMatch(/\btruncate\b|disable\s+row\s+level/i);
     expect(sql).toContain("when 'tecnico' then 0");
+  });
+});
+
+describe("Administrativo (13/11/2026, migration 0180)", () => {
+  it("é uma função própria, diferente do Administrador do sistema", async () => {
+    const { PAPEIS, nivelPapel, papelAlcanca } = await import("./permissions");
+    expect(PAPEIS.find((papel) => papel.value === "administrativo")?.label).toBe("Administrativo");
+    expect(nivelPapel("administrativo")).toBe(nivelPapel("compra"));
+    expect(papelAlcanca("administrativo", "coordenador")).toBe(false);
+  });
+
+  it("nasce com compras, financeiro e planejamento, sem administrar o sistema", () => {
+    const padrao = defaultPermissionsForRole("administrativo");
+    for (const chave of ["pedido.aprovar", "compras.aprovar", "planejamento.editar", "orcamentos.fundos", "custeio.ver", "tecnicos.salario.ver"]) {
+      expect(padrao).toContain(chave);
+    }
+    for (const chave of ["usuarios.gerenciar", "privilegios.gerenciar", "backups.gerenciar", "estoque.movimentar"]) {
+      expect(padrao).not.toContain(chave);
+    }
+  });
+
+  it("a lista do código é a mesma da migration 0180", () => {
+    const sql = readFileSync("supabase/migrations/0180_funcao_administrativo_remover_usuario.sql", "utf8");
+    const bloco = sql.slice(sql.indexOf("from unnest(array["), sql.indexOf("]::text[]) as k"));
+    const doSql = [...bloco.matchAll(/'([a-z_.]+)'/g)].map((m) => m[1]).sort();
+    expect(doSql).toEqual([...defaultPermissionsForRole("administrativo")].sort());
   });
 });

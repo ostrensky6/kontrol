@@ -73,13 +73,13 @@ test("projeto: o campo de coordenador também oferece o cadastro, com Coordenado
   await expect(dialogo.getByLabel("Função").locator("option", { hasText: "Administrador" })).toHaveCount(0);
 });
 
-test("responsáveis por etapa: a pessoa nova sugere a função Compra", async ({ page }) => {
+test("responsáveis por etapa: a pessoa nova sugere a função Administrativo (0180)", async ({ page }) => {
   await page.goto("/cadastros/responsaveis");
   await page.getByRole("row", { name: /Administrativo: autorização/ }).getByRole("button", { name: "Abrir ações do registro" }).click();
   await page.getByRole("menuitem", { name: "Editar" }).click();
   const gaveta = page.getByRole("dialog", { name: /Editar responsável/ });
   await gaveta.getByRole("button", { name: /Cadastrar nova pessoa/ }).first().click();
-  await expect(page.getByRole("dialog", { name: "Cadastrar nova pessoa" }).getByLabel("Função")).toHaveValue("compra");
+  await expect(page.getByRole("dialog", { name: "Cadastrar nova pessoa" }).getByLabel("Função")).toHaveValue("administrativo");
 });
 
 /**

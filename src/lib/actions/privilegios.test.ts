@@ -72,7 +72,7 @@ describe("privilegios", () => {
     const formData = new FormData();
     formData.set("permissoes_presentes", "1");
     // todas as funções repetem o que já vale, menos Gestor (perde auditoria) e Compra (ganha cadastros.editar)
-    for (const papel of ["laboratorio", "compra", "cadastro", "coordenador", "gestor", "supervisor"] as const) {
+    for (const papel of ["laboratorio", "compra", "cadastro", "administrativo", "coordenador", "gestor", "supervisor"] as const) {
       for (const [chave, pode] of Object.entries(atual[papel])) {
         if (!pode) continue;
         if (papel === "gestor" && chave === "auditoria.visualizar") continue;
@@ -107,7 +107,7 @@ describe("privilegios", () => {
     await salvarMatrizPrivilegios({ ok: false }, formData);
 
     const linhas = upsert.mock.calls[0]?.[0] as Array<{ papel: string; permissoes: Record<string, boolean> }>;
-    expect(linhas.map((linha) => linha.papel)).toEqual(["laboratorio", "compra", "cadastro", "coordenador", "gestor", "supervisor"]);
+    expect(linhas.map((linha) => linha.papel)).toEqual(["laboratorio", "compra", "cadastro", "administrativo", "coordenador", "gestor", "supervisor"]);
     for (const linha of linhas) {
       expect(Object.values(linha.permissoes).every((pode) => pode === false)).toBe(true);
     }

@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { temPapel, usuarioAtual } from "@/lib/auth/roles";
 import {
@@ -464,16 +464,17 @@ export async function alternarSuspensao(formData: FormData): Promise<FormState> 
       return { ok: false, message: "Você não pode suspender o seu próprio usuário." };
     }
 
-    const admin = createAdminClient();
+    const admin = await clienteAdmin();
     const { error: authError } = await admin.auth.admin.updateUserById(id, {
       ban_duration: suspender ? BAN_SUSPENSO : "none",
     });
     if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
 
     const supabase = await createClient();
+    // 0180: reativar também traz de volta quem tinha sido removido da equipe
     const { data, error } = await supabase
       .from("perfis")
-      .update({ suspenso: suspender })
+      .update(suspender ? { suspenso: true } : { suspenso: false, removido_em: null, removido_por: null })
       .eq("id", id)
       .select("id");
     if (error || (data?.length ?? 0) === 0) {
@@ -573,6 +574,150 @@ export async function excluirUsuario(_prev: FormState, formData: FormData): Prom
 
     revalidatePath("/usuarios");
     return { ok: true, message: `Usuário ${email || ""} excluído.` };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/**
+ * Troca a função direto na lista de Usuários (0180). Vale para quem já tem
+ * conta e para pré-aprovados. Como em "Editar pré-aprovado", as exceções da
+ * função antiga não servem para a nova: a pessoa fica com o padrão da nova
+ * função (o ajuste individual continua em Editar).
+ */
+export async function alterarFuncaoUsuario(formData: FormData): Promise<FormState> {
+  try {
+    if (!(await temPapel("admin"))) return { ok: false, message: "Só o Administrador troca a função de alguém." };
+    const id = String(formData.get("id") ?? "");
+    const preAprovadoId = Number(formData.get("pre_aprovado_id") ?? 0);
+    const papel = String(formData.get("papel") ?? "");
+    if (!id && !preAprovadoId) return { ok: false, message: "Usuário inválido." };
+    if (!isPapelValido(papel)) return { ok: false, message: "Função inválida." };
+    const rotulo = PAPEIS.find((item) => item.value === papel)?.label ?? papel;
+
+    const supabase = await createClient();
+    if (preAprovadoId) {
+      const { data, error } = await supabase
+        .from("usuarios_pre_aprovados")
+        .update({ papel, permissoes: {} })
+        .eq("id", preAprovadoId)
+        .select("nome");
+      if (error) return { ok: false, message: error.message };
+      if ((data?.length ?? 0) === 0) return { ok: false, message: "Pré-aprovação não encontrada." };
+      revalidatePath("/usuarios");
+      return { ok: true, message: `${data?.[0]?.nome ?? "Pré-aprovado"} agora é ${rotulo}.` };
+    }
+
+    const eu = await usuarioAtual();
+    if (eu?.id === id && papel !== "admin") {
+      return { ok: false, message: "Você não pode tirar a sua própria função de Administrador por aqui." };
+    }
+    const { data, error } = await supabase
+      .from("perfis")
+      .update({ papel, permissoes: {} })
+      .eq("id", id)
+      .select("nome, email");
+    if (error) {
+      if (/administrador ativo|ultimo|último/i.test(error.message)) {
+        return { ok: false, message: "É o último Administrador ativo: indique outro antes de trocar a função dele." };
+      }
+      return { ok: false, message: error.message };
+    }
+    if ((data?.length ?? 0) === 0) return { ok: false, message: "Usuário não encontrado." };
+    revalidatePath("/usuarios");
+    const nome = data?.[0]?.nome || data?.[0]?.email || "Usuário";
+    return { ok: true, message: `${nome} agora é ${rotulo}.` };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/** Onde a pessoa ainda está indicada (para o Administrador trocar depois de removê-la). */
+async function ondeEstaIndicado(id: string): Promise<string[]> {
+  // coordenador_id, coordenacoes_area e responsaveis_compras não estão todos nos tipos gerados
+  const supabase = await createClientUntyped();
+  const [projetos, areas, responsaveis] = await Promise.all([
+    supabase.from("projetos").select("nome").eq("coordenador_id", id),
+    // tabelas pequenas (laboratórios e as duas etapas): filtra aqui
+    supabase.from("coordenacoes_area").select("nome, coordenador_id, substituto_id"),
+    supabase.from("responsaveis_compras").select("etapa, usuario_id, substituto_id"),
+  ]);
+  const ligado = (r: { coordenador_id?: string | null; usuario_id?: string | null; substituto_id?: string | null }) =>
+    r.coordenador_id === id || r.usuario_id === id || r.substituto_id === id;
+  const lugares: string[] = [];
+  for (const p of (projetos.data ?? []) as { nome: string | null }[]) lugares.push(`coordenação do projeto ${p.nome ?? "sem nome"}`);
+  for (const a of ((areas.data ?? []) as { nome: string | null; coordenador_id: string | null; substituto_id: string | null }[]).filter(ligado)) {
+    lugares.push(`${a.coordenador_id === id ? "coordenação" : "substituição"} de ${a.nome ?? "laboratório"}`);
+  }
+  for (const r of ((responsaveis.data ?? []) as { etapa: string; usuario_id: string | null; substituto_id: string | null }[]).filter(ligado)) {
+    const etapa = r.etapa === "pagamento" ? "do pagamento" : "da autorização administrativa";
+    lugares.push(`${r.usuario_id === id ? "responsável" : "substituto"} ${etapa}`);
+  }
+  return lugares;
+}
+
+/**
+ * Remove da equipe quem não faz mais parte do processo (0180), sem apagar o
+ * histórico: bloqueia o login, marca removido_em e tira a pessoa da lista.
+ * Pedidos, movimentações, aprovações e a auditoria continuam com o nome dela.
+ * "Mostrar removidos" + Reativar desfaz.
+ */
+export async function removerUsuario(formData: FormData): Promise<FormState> {
+  try {
+    if (!(await temPapel("admin"))) return { ok: false, message: "Só o Administrador remove usuários." };
+    const id = String(formData.get("id") ?? "");
+    if (!id) return { ok: false, message: "Usuário inválido." };
+    const eu = await usuarioAtual();
+    if (eu?.id === id) return { ok: false, message: "Você não pode remover o seu próprio usuário." };
+
+    const admin = await clienteAdmin();
+    const { error: authError } = await admin.auth.admin.updateUserById(id, { ban_duration: BAN_SUSPENSO });
+    if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+      .from("perfis")
+      .update({ suspenso: true, removido_em: new Date().toISOString(), removido_por: eu?.id ?? null })
+      .eq("id", id)
+      .select("nome, email, suspenso");
+    if (error || (data?.length ?? 0) === 0) {
+      // o login volta ao que era só se a pessoa não estava suspensa antes
+      const { data: antes } = await supabase.from("perfis").select("suspenso").eq("id", id).maybeSingle();
+      if (!antes?.suspenso) await admin.auth.admin.updateUserById(id, { ban_duration: "none" });
+      const ultimoAdmin = error && /administrador ativo|ultimo|último/i.test(error.message);
+      return {
+        ok: false,
+        message: ultimoAdmin
+          ? "É o último Administrador ativo: indique outro antes de removê-lo."
+          : "Não foi possível remover o usuário; nada foi alterado. Tente novamente.",
+      };
+    }
+    const nome = data?.[0]?.nome || data?.[0]?.email || "Usuário";
+    const lugares = await ondeEstaIndicado(id);
+    revalidatePath("/usuarios");
+    return {
+      ok: true,
+      message: lugares.length
+        ? `${nome} foi removido. Ainda aparece em: ${lugares.join("; ")}. Escolha outra pessoa nesses cadastros.`
+        : `${nome} foi removido. O histórico dele continua guardado.`,
+    };
+  } catch (error) {
+    return { ok: false, message: mensagemErroAcao(error) };
+  }
+}
+
+/** Retira uma pré-aprovação (a pessoa nunca entrou; não há histórico). */
+export async function excluirPreAprovado(formData: FormData): Promise<FormState> {
+  try {
+    if (!(await temPapel("admin"))) return { ok: false, message: "Só o Administrador remove usuários." };
+    const id = Number(formData.get("pre_aprovado_id") ?? 0);
+    if (!id) return { ok: false, message: "Pré-aprovação inválida." };
+    const supabase = await createClient();
+    const { data, error } = await supabase.from("usuarios_pre_aprovados").delete().eq("id", id).select("nome, email");
+    if (error) return { ok: false, message: error.message };
+    if ((data?.length ?? 0) === 0) return { ok: false, message: "Pré-aprovação não encontrada." };
+    revalidatePath("/usuarios");
+    return { ok: true, message: `Pré-aprovação de ${data?.[0]?.nome || data?.[0]?.email} retirada.` };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
   }

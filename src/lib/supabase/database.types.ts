@@ -3817,6 +3817,8 @@ export type Database = {
           nome: string | null
           papel: string
           permissoes: Json
+          removido_em: string | null
+          removido_por: string | null
           senha_provisoria: boolean
           suspenso: boolean
         }
@@ -3829,6 +3831,8 @@ export type Database = {
           nome?: string | null
           papel?: string
           permissoes?: Json
+          removido_em?: string | null
+          removido_por?: string | null
           senha_provisoria?: boolean
           suspenso?: boolean
         }
@@ -3841,6 +3845,8 @@ export type Database = {
           nome?: string | null
           papel?: string
           permissoes?: Json
+          removido_em?: string | null
+          removido_por?: string | null
           senha_provisoria?: boolean
           suspenso?: boolean
         }
