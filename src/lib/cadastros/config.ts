@@ -38,7 +38,7 @@ export type Campo = {
    * Campos de usuário (`opcoesDe: "perfis"`): função que o formulário sugere ao
    * cadastrar uma pessoa nova ali mesmo. Sem isso, a sugestão é Coordenador.
    */
-  novaPessoaPapel?: "laboratorio" | "compra" | "cadastro" | "coordenador" | "gestor";
+  novaPessoaPapel?: "laboratorio" | "compra" | "cadastro" | "administrativo" | "coordenador" | "gestor";
   /**
    * Campos de usuário: outro campo do registro com um nome escrito à mão (ex.:
    * "Responsável técnico" do projeto). Com o campo de usuário vazio, o
@@ -240,7 +240,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     singular: "responsável",
     resumo: "Quem autoriza a compra e quem paga.",
     subtitulo:
-      "Quem **autoriza a compra** (fonte e rubrica, cotações, aprovação final) e quem **paga**. Essas pessoas recebem os avisos e os e-mails de cada passagem do pedido nessas etapas e veem os pedidos em \"Aguardando você\". Sem responsável, os avisos vão para o Administrador.",
+      "Quem **autoriza a compra** (fonte e rubrica, cotações, aprovação final) e quem **paga**. Essas pessoas recebem os avisos e os e-mails de cada passagem do pedido nessas etapas e veem os pedidos em \"Aguardando você\". Sem responsável, vale quem tem a função **Administrativo**; sem ninguém nela, o Administrador.",
     rotulo: "etapa_nome",
     apenasEditar: true,
     colunas: [
@@ -256,15 +256,15 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoesDe: "perfis",
         grupo: "Quem recebe os avisos",
-        novaPessoaPapel: "compra",
-        ajuda: "Recebe o aviso e o e-mail de cada pedido que chega a esta etapa.",
+        novaPessoaPapel: "administrativo",
+        ajuda: "Recebe o aviso e o e-mail de cada pedido que chega a esta etapa. Em branco, vale quem tem a função Administrativo.",
       },
       {
         name: "substituto_id",
         label: "Substituto (usuário)",
         tipo: "select",
         opcoesDe: "perfis",
-        novaPessoaPapel: "compra",
+        novaPessoaPapel: "administrativo",
         ajuda: "Recebe os avisos quando o responsável está suspenso ou não foi indicado.",
       },
       { name: "observacoes", label: "Observações", tipo: "textarea", colSpan: 2, grupo: "Observações" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState, useTransition } from "react";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, Trash2 } from "lucide-react";
 
 import {
   alterarSenhaUsuario,
@@ -9,8 +9,10 @@ import {
   criarUsuarioPreAprovado,
   editarPreAprovado,
   editarUsuario,
+  excluirPreAprovado,
   excluirUsuario,
   gerarNovaSenhaProvisoria,
+  removerUsuario,
   type UsuarioFormState,
 } from "@/lib/actions/usuarios";
 import { Button } from "@/components/ui/button";
@@ -52,7 +54,16 @@ for (const permissao of PERMISSOES) {
 }
 const GRUPOS_PERMISSOES = Array.from(permissoesPorModulo.entries());
 
-type DialogAberto = "editar" | "assinatura" | "senha" | "senha_provisoria" | "apagar" | "pre_aprovar" | "editar_pre" | null;
+type DialogAberto =
+  | "editar"
+  | "assinatura"
+  | "senha"
+  | "senha_provisoria"
+  | "apagar"
+  | "remover"
+  | "pre_aprovar"
+  | "editar_pre"
+  | null;
 
 function permissoesEfetivasDaLinha(row: UsuarioRow, papel: string) {
   const base = row.categorias?.[papel] ?? normalizePermissions(papel, {});
@@ -490,10 +501,10 @@ function ExcluirDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Apagar usuário</DialogTitle>
+          <DialogTitle>Apagar usuário de vez</DialogTitle>
           <DialogDescription>
-            Esta ação é irreversível. {row.email} perderá o acesso e o cadastro será apagado. O
-            histórico de auditoria das ações dele é preservado.
+            Só para conta criada por engano. Esta ação é irreversível: {row.email} perde o acesso e o cadastro é
+            apagado. Para quem saiu da equipe, use o ícone de lixeira (Remover), que guarda o histórico com o nome.
           </DialogDescription>
         </DialogHeader>
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
@@ -506,6 +517,70 @@ function ExcluirDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Remover da equipe (0180): para quem não faz mais parte do processo. Não
+ * apaga nada: bloqueia o login e tira da lista; o histórico fica com o nome.
+ * Pré-aprovado (nunca entrou) tem a pré-aprovação retirada.
+ */
+function RemoverDialog({
+  row,
+  open,
+  onOpenChange,
+}: {
+  row: UsuarioRow;
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+}) {
+  const [pending, startTransition] = useTransition();
+  const [erro, setErro] = useState("");
+  const nome = row.nome === "—" ? row.email : row.nome;
+
+  function confirmar() {
+    const fd = new FormData();
+    if (row.temAcesso) fd.set("id", row.id);
+    else fd.set("pre_aprovado_id", String(row.preAprovadoId ?? ""));
+    startTransition(async () => {
+      const res = row.temAcesso ? await removerUsuario(fd) : await excluirPreAprovado(fd);
+      if (res.ok) {
+        setErro("");
+        toast.success(res.message, { duration: 10000 });
+        onOpenChange(false);
+      } else {
+        setErro(res.message ?? "Não foi possível remover.");
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => !pending && onOpenChange(v)}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>{row.temAcesso ? "Remover usuário" : "Retirar pré-aprovação"}</DialogTitle>
+          <DialogDescription>
+            {row.temAcesso ? (
+              <>
+                {nome} deixa de entrar no Kontrol e sai da lista de Usuários. Pedidos, movimentações, aprovações e a
+                auditoria continuam com o nome dele. Para desfazer, use “Mostrar removidos” e Reativar.
+              </>
+            ) : (
+              <>{nome} ainda não entrou no Kontrol; a pré-aprovação é retirada e nada mais muda.</>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        {erro && <p role="alert" className="text-xs text-danger-strong">{erro}</p>}
+        <DialogFooter>
+          <Button type="button" variant="ghost" onClick={() => onOpenChange(false)} disabled={pending}>
+            Cancelar
+          </Button>
+          <Button type="button" variant="destructive" onClick={confirmar} disabled={pending} aria-busy={pending}>
+            {pending ? "Removendo…" : row.temAcesso ? "Remover" : "Retirar"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -538,6 +613,19 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
           onClick={() => setDialog("editar")}
         >
           Completar nome
+        </Button>
+      )}
+      {!row.removido && !row.ehVoce && (
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          className="h-11 w-11 text-danger-strong hover:text-danger-strong md:h-8 md:w-8"
+          aria-label={`Remover ${nomeAusente ? row.email : row.nome}`}
+          title="Remover usuário (guarda o histórico)"
+          onClick={() => setDialog("remover")}
+        >
+          <Trash2 />
         </Button>
       )}
       <DropdownMenu>
@@ -573,7 +661,7 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
                 onSelect={() => setDialog("apagar")}
                 className="text-danger-strong focus:text-danger-strong"
               >
-                Apagar
+                Apagar de vez
               </DropdownMenuItem>
             </>
           )}
@@ -593,6 +681,7 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
           <ExcluirDialog row={row} open={dialog === "apagar"} onOpenChange={(v) => setDialog(v ? "apagar" : null)} />
         </>
       )}
+      <RemoverDialog row={row} open={dialog === "remover"} onOpenChange={(v) => setDialog(v ? "remover" : null)} />
       {!row.temAcesso && (
         <>
           <EditarPreAprovadoDialog row={row} open={dialog === "editar_pre"} onOpenChange={(v) => setDialog(v ? "editar_pre" : null)} />

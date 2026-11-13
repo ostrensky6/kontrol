@@ -6,6 +6,7 @@ import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { PAPEIS } from "@/lib/auth/permissions";
 import { UploadAssinaturaButton, UsuarioAcoes } from "./UsuarioAcoes";
+import { FuncaoNaLista } from "./FuncaoNaLista";
 
 export type UsuarioRow = {
   id: string;
@@ -16,6 +17,10 @@ export type UsuarioRow = {
   papel: string;
   papelLabel: string;
   suspenso: boolean;
+  /** 0180: removido da equipe (login bloqueado, histórico guardado) */
+  removido?: boolean;
+  /** a linha é o próprio Administrador logado (não remove a si mesmo) */
+  ehVoce?: boolean;
   senhaProvisoria: boolean;
   temAcesso: boolean;
   assinaturaPath?: string | null;
@@ -28,6 +33,7 @@ export type UsuarioRow = {
 
 function statusTexto(row: UsuarioRow) {
   if (!row.temAcesso) return "Pré-aprovado";
+  if (row.removido) return "Removido";
   if (row.suspenso) return "Suspenso";
   if (row.senhaProvisoria) return "Senha provisória";
   return "Ativo";
@@ -45,7 +51,12 @@ const columns: ColumnDef<UsuarioRow, unknown>[] = [
       ),
   },
   { accessorKey: "email", header: "E-mail" },
-  { accessorKey: "papelLabel", header: "Função", filterFn: "equalsString" },
+  {
+    accessorKey: "papelLabel",
+    header: "Função",
+    filterFn: "equalsString",
+    cell: ({ row }) => <FuncaoNaLista row={row.original} />,
+  },
   {
     id: "assinatura",
     header: "Assinatura",
@@ -57,6 +68,7 @@ const columns: ColumnDef<UsuarioRow, unknown>[] = [
     cell: ({ row }) => {
       const r = row.original;
       if (!r.temAcesso) return <Badge variant="secondary">Pré-aprovado</Badge>;
+      if (r.removido) return <Badge variant="muted">Removido</Badge>;
       if (r.suspenso) return <Badge variant="secondary">Suspenso</Badge>;
       if (r.senhaProvisoria) return <Badge variant="muted">Senha provisória</Badge>;
       return <Badge variant="outline">Ativo</Badge>;
@@ -86,8 +98,13 @@ export function UsuariosTable({ rows }: { rows: UsuarioRow[] }) {
       getMobileTitle={(row) =>
         row.nome === "—" ? <span className="text-warning-strong">Nome não informado</span> : row.nome
       }
-      getMobileDescription={(row) => `${row.email} · ${row.papelLabel} · ${statusTexto(row)}`}
-      getMobileMeta={(row) => <UsuarioAcoes row={row} />}
+      getMobileDescription={(row) => `${row.email} · ${statusTexto(row)}`}
+      getMobileMeta={(row) => (
+        <div className="flex flex-col items-end gap-2">
+          <FuncaoNaLista row={row} />
+          <UsuarioAcoes row={row} />
+        </div>
+      )}
     />
   );
 }

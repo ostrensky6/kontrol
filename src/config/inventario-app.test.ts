@@ -155,6 +155,9 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Governança", item: "Erros do app", onde: [barra("governanca", "/governanca/erros", "Erros do app")] },
   { area: "Governança", item: "Usuários", onde: [barra("governanca", "/usuarios", "Usuários")] },
   { area: "Governança", item: "Usuários: editar pré-aprovado", onde: [tela("components/usuarios/UsuarioAcoes.tsx", "Editar pré-aprovado")] },
+  // 0180 (13/11): trocar a função na lista e remover quem saiu da equipe guardando o histórico
+  { area: "Governança", item: "Usuários: trocar função na lista", onde: [tela("components/usuarios/UsuariosTable.tsx", "<FuncaoNaLista"), tela("components/usuarios/FuncaoNaLista.tsx", "Trocar a função")] },
+  { area: "Governança", item: "Usuários: remover (lixeira)", onde: [tela("components/usuarios/UsuarioAcoes.tsx", "Remover usuário"), tela("app/usuarios/page.tsx", "Mostrar removidos")] },
   { area: "Governança", item: "Privilégios", onde: [barra("governanca", "/governanca/privilegios", "Privilégios")] },
   { area: "Governança", item: "Regras do orçamento", onde: [barra("governanca", "/governanca/regras", "Regras do orçamento")] },
   // ── Ajuda ──

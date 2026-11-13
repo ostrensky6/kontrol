@@ -1,4 +1,4 @@
-import { decideDisputaReserva, papelAlcanca } from "@/lib/auth/permissions";
+import { decideDisputaReserva, defaultPermissionsForRole, papelAlcanca } from "@/lib/auth/permissions";
 
 type Row = Record<string, unknown>;
 type Store = Record<string, Row[]>;
@@ -239,6 +239,11 @@ const MOCK_PERMISSOES_CATEGORIAS = [
       "privilegios.gerenciar": true,
       "configuracoes.ver": true,
     },
+  },
+  // 0180: Administrativo nasce com a mesma marcação da migration
+  {
+    papel: "administrativo",
+    permissoes: Object.fromEntries(defaultPermissionsForRole("administrativo").map((chave) => [chave, true])),
   },
 ];
 
@@ -1021,7 +1026,7 @@ function mockTemPermissao(chave: unknown, sessao: SessaoMock): boolean {
   if (!perfil || perfil.suspenso === true) return false;
   const papel = String(sessao.papel ?? perfil.papel ?? "");
   if (papel === "admin") return true;
-  if (!["laboratorio", "compra", "cadastro", "coordenador", "gestor"].includes(papel)) return false;
+  if (!["laboratorio", "compra", "cadastro", "administrativo", "coordenador", "gestor", "supervisor"].includes(papel)) return false;
   // Com papel simulado, vale só a categoria (perfil individual é do admin).
   const individuais = sessao.papel ? {} : ((perfil.permissoes ?? {}) as Row);
   const valor =
