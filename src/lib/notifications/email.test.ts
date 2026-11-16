@@ -3,7 +3,10 @@ import { dispatchEntityNotificationEmails, dispatchPendingNotificationEmails } f
 
 type Chamada = { tabela: string; valores: Record<string, unknown>; filtros: Record<string, unknown> };
 
-function supabaseFalso(destinatarios: string[], opcoes: { reservaPerdida?: boolean; marcacaoFalha?: boolean } = {}) {
+function supabaseFalso(
+  destinatarios: string[],
+  opcoes: { reservaPerdida?: boolean; marcacaoFalha?: boolean; marcacaoSemLinha?: boolean } = {},
+) {
   const updates: Chamada[] = [];
   const filtrosConsulta: Record<string, unknown> = {};
   const linhas = [
@@ -22,10 +25,16 @@ function supabaseFalso(destinatarios: string[], opcoes: { reservaPerdida?: boole
     const f = {
       eq: (coluna: string, valor: number) => { chamada.filtros[coluna] = valor; return f; },
       is: (coluna: string, valor: null) => { chamada.filtros[coluna] = valor; return f; },
-      // reserva: update ... select("id")
-      select: async () => ({ data: opcoes.reservaPerdida ? [] : [{ id: 10 }], error: null }),
-      then: (ok: (v: { error: { message: string } | null }) => unknown) =>
-        Promise.resolve({ error: opcoes.marcacaoFalha && "email_enviado_em" in chamada.valores ? { message: "falhou" } : null }).then(ok),
+      // reserva e marcação de envio: update ... select("id")
+      select: async () => {
+        if ("email_enviado_em" in chamada.valores) {
+          if (opcoes.marcacaoFalha) return { data: null, error: { message: "falhou" } };
+          return { data: opcoes.marcacaoSemLinha ? [] : [{ id: 10 }], error: null };
+        }
+        return { data: opcoes.reservaPerdida ? [] : [{ id: 10 }], error: null };
+      },
+      // registro do erro (melhor esforço): aguardado direto
+      then: (ok: (v: { error: { message: string } | null }) => unknown) => Promise.resolve({ error: null }).then(ok),
     };
     return f;
   };
@@ -125,6 +134,14 @@ describe("dispatchPendingNotificationEmails", () => {
     expect(String(updates[2].valores.email_erro)).toContain("Enviado, mas não marcado");
     await dispatchPendingNotificationEmails(cliente);
     expect(enviados.map((e) => e.chave)).toEqual(["kontrol-notificacao-10", "kontrol-notificacao-10"]);
+  });
+
+  it("e-mail saiu mas o banco não marcou nenhuma linha: conta como falha e registra", async () => {
+    const { cliente, updates } = supabaseFalso(["coord@example.com"], { marcacaoSemLinha: true });
+    const resultado = await dispatchPendingNotificationEmails(cliente);
+    expect(resultado).toMatchObject({ sent: 0, failed: 1 });
+    expect(enviados).toHaveLength(1);
+    expect(String(updates[2].valores.email_erro)).toContain("Enviado, mas não marcado");
   });
 
   it("0173: envia na hora os avisos de um pedido, com a mesma reserva", async () => {

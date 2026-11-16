@@ -23,7 +23,10 @@ vi.mock("next/headers", () => ({
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
     auth: { admin: { updateUserById } },
-    from: vi.fn(() => ({ update: vi.fn(() => ({ eq: perfilUpdate })) })),
+    // a ação confere a linha devolvida: update(...).eq(...).select("id")
+    from: vi.fn(() => ({
+      update: vi.fn(() => ({ eq: (...filtro: unknown[]) => ({ select: () => perfilUpdate(...filtro) }) })),
+    })),
   })),
   mensagemErroAdminSupabase: (error: { message?: string }) => String(error?.message ?? "erro"),
 }));
@@ -105,7 +108,7 @@ describe("troca da senha provisória", () => {
     getUser.mockResolvedValue({ data: { user: { id: "u1", app_metadata: { senha_provisoria: true } } } });
     updateUser.mockReset().mockResolvedValue({ error: null });
     updateUserById.mockReset().mockResolvedValue({ error: null });
-    perfilUpdate.mockReset().mockResolvedValue({ error: null });
+    perfilUpdate.mockReset().mockResolvedValue({ data: [{ id: "u1" }], error: null });
   });
 
   it("conclui as três etapas e entra", async () => {
@@ -114,7 +117,7 @@ describe("troca da senha provisória", () => {
   });
 
   it("falha só na última etapa (perfil): avisa e não entra", async () => {
-    perfilUpdate.mockResolvedValue({ error: { message: "rede" } });
+    perfilUpdate.mockResolvedValue({ data: null, error: { message: "rede" } });
     const resultado = await definirSenhaDefinitiva({ ok: false }, formSenha());
     expect(resultado.ok).toBe(false);
     expect(resultado.message).toMatch(/senha nova já está valendo/);

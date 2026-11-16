@@ -7,6 +7,7 @@ import { getCadastrosParaImportacao, type CadastroConfig } from "@/lib/cadastros
 import { carregarPlanilha } from "@/lib/cadastros/leitura-planilha";
 import { registrarErro } from "@/lib/monitoramento/erros";
 import { mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { criariaCicloLocal } from "@/lib/cadastros/locais";
 import {
   QUANTIDADE_INSUMO_KEY,
@@ -805,8 +806,12 @@ export async function salvarRegistro(
     // Sinônimos (0168), controlado e laboratório (0174) não estão na lista
     // fechada da RPC de criação: gravam logo depois.
     const extras = camposExtrasInsumo(payload);
-    const erroSinonimos = extras
-      ? (await supabase.from("insumos").update(extras).eq("id", createdId)).error
+    // sem linha devolvida os extras não foram gravados (RLS barra sem erro)
+    const gravacaoExtras = extras
+      ? await supabase.from("insumos").update(extras).eq("id", createdId).select("id")
+      : null;
+    const erroSinonimos = gravacaoExtras
+      ? gravacaoExtras.error ?? (semLinhasAfetadas(gravacaoExtras.data) ? { message: "nenhuma linha gravada" } : null)
       : null;
 
     revalidarDependentes(slug);
@@ -1105,9 +1110,14 @@ async function importarCadastro(
         }
         continue;
       }
-      const { error } = await supabase.from(tabela).update(payload).eq("id", alvoId);
+      const { data: atualizada, error } = await supabase.from(tabela).update(payload).eq("id", alvoId).select("id");
       if (error) {
         falhar([`Linha ${linha.excelRow}: ${mensagemRecusa(error)}`]);
+        continue;
+      }
+      // só conta como atualizada a linha que o banco devolveu (RLS barra sem erro)
+      if (semLinhasAfetadas(atualizada)) {
+        falhar([`Linha ${linha.excelRow}: não atualizada (o registro não existe mais ou seu perfil não pode alterá-lo).`]);
         continue;
       }
       resumo.atualizados += 1;
@@ -1161,8 +1171,13 @@ async function importarCadastro(
         await vincularCodigosDaLinha(novoId, linha);
         const extras = camposExtrasInsumo(parsed.data);
         if (extras) {
-          const { error: erroExtras } = await supabase.from("insumos").update(extras).eq("id", novoId);
+          const { data: extrasGravados, error: erroExtras } = await supabase
+            .from("insumos")
+            .update(extras)
+            .eq("id", novoId)
+            .select("id");
           if (erroExtras) resumo.avisos.push(`Linha ${linha.excelRow}: sinônimos, controlado ou laboratório não gravados (${mensagemRecusa(erroExtras)}).`);
+          else if (semLinhasAfetadas(extrasGravados)) resumo.avisos.push(`Linha ${linha.excelRow}: sinônimos, controlado ou laboratório não gravados (sem permissão para alterar o insumo).`);
         }
       }
       if ((data as { repetido?: boolean } | null)?.repetido) {

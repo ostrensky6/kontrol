@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { SENHA_PROVISORIA_LEGADA, senhaProvisoriaVencida } from "@/lib/auth/senha-provisoria";
@@ -125,8 +126,12 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
     });
     if (metadataError) return { ok: false, message: mensagemErroAdminSupabase(metadataError) };
 
-    const { error: perfilError } = await admin.from("perfis").update({ senha_provisoria: false }).eq("id", user.id);
-    if (perfilError) {
+    const { data: perfilGravado, error: perfilError } = await admin
+      .from("perfis")
+      .update({ senha_provisoria: false })
+      .eq("id", user.id)
+      .select("id");
+    if (perfilError || semLinhasAfetadas(perfilGravado)) {
       return {
         ok: false,
         message:

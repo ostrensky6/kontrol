@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 
 // ---- helpers ---------------------------------------------------------
 const txt = (fd: FormData, k: string) => {
@@ -88,7 +89,16 @@ export async function criarAnaliseAcao(
     } as never);
     if (error) return { ok: false, message: mensagemRpcAnalise(error.message) };
     if (descricao) {
-      await supabase.from("analises").update({ descricao }).eq("codigo", codigo);
+      const { data: descrita, error: descricaoError } = await supabase
+        .from("analises")
+        .update({ descricao })
+        .eq("codigo", codigo)
+        .select("codigo");
+      if (descricaoError || semLinhasAfetadas(descrita)) {
+        // a análise já foi criada pela cópia: diz o que ficou faltando em vez de "tudo certo"
+        revalidatePath("/analises");
+        return { ok: true, message: "Análise criada, mas a descrição não foi gravada. Abra a análise e preencha a descrição.", codigo };
+      }
     }
   } else {
     const { error } = await supabase.from("analises").insert({ codigo, nome, descricao, ativo: true });

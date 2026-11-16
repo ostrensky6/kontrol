@@ -24,11 +24,14 @@ function from(table: string) {
       };
       return consulta;
     },
+    // a importação confere a linha devolvida: update(...).eq(...).select("id")
     update: (payload: Row) => ({
-      eq: async (_coluna: string, id: unknown) => {
-        updates.push({ table, payload, id });
-        return { error: null };
-      },
+      eq: (_coluna: string, id: unknown) => ({
+        select: async () => {
+          updates.push({ table, payload, id });
+          return { data: [{ id }], error: null };
+        },
+      }),
     }),
     insert: async (payload: Row) => {
       inserts.push({ table, payload });

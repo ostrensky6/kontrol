@@ -1,5 +1,6 @@
 import { caminhoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
 import { noGlossario } from "@/lib/glossario";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 
 type Resultado<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
 
@@ -238,17 +239,21 @@ async function enviarAvisos(supabase: SupabaseLike, linhas: NotificationEmailRow
       if (to.length === 0) throw new Error("Nenhum destinatário com e-mail para este aviso.");
       await sendWithResend(row, to);
       enviado = true;
-      const { error: updateError } = await supabase
+      const { data: marcada, error: updateError } = await supabase
         .from("notificacoes")
         .update({ email_enviado_em: new Date().toISOString(), email_erro: null })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .select("id");
       if (updateError) throw new Error(updateError.message);
+      // sem linha devolvida o aviso não ficou marcado como enviado e seria tentado de novo
+      if (semLinhasAfetadas(marcada)) throw new Error("O aviso não foi marcado como enviado (nenhuma linha gravada).");
       sent += 1;
     } catch (error) {
       failed += 1;
       const message = error instanceof Error ? error.message : "Falha desconhecida";
       // Se o e-mail saiu e só a marcação falhou, a próxima tentativa usa a
       // mesma chave de idempotência e o Resend não reenvia.
+      // escrita-sem-conferencia: registro do erro por melhor esforço; a falha já foi contada em `failed`
       await supabase
         .from("notificacoes")
         .update({ email_erro: (enviado ? `Enviado, mas não marcado: ${message}` : message).slice(0, 500) })

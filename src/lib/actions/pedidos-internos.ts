@@ -2,6 +2,7 @@
 
 import { STATUS_DE_AJUSTE } from "@/lib/pedido/reenvio";
 import { mensagemDoBanco } from "@/lib/erros";
+import { conferirEscrita, garantirEscrita, semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { createHash, randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -446,10 +447,12 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
   };
   const faltaUrgencia = faltaJustificativaUrgencia(payload.urgencia, payload.urgencia_justificativa);
   if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
-  let { error } = await supabase
+  // .select(): sob RLS a gravação barrada volta sem erro e sem linha; só a linha devolvida comprova
+  let { data: gravado, error } = await supabase
     .from("pedidos_internos")
     .update(payload)
-    .eq("id", pedidoId);
+    .eq("id", pedidoId)
+    .select("id");
   if (erroSchemaCache(error)) {
     const legado = {
       titulo,
@@ -459,10 +462,13 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
       fonte_recurso: texto(formData, "fonte_recurso"),
       justificativa: texto(formData, "justificativa"),
     };
-    const retry = await supabase.from("pedidos_internos").update(legado).eq("id", pedidoId);
+    const retry = await supabase.from("pedidos_internos").update(legado).eq("id", pedidoId).select("id");
     error = retry.error;
+    gravado = retry.data;
   }
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível salvar.") };
+  const escrita = conferirEscrita(null, gravado, "O pedido não foi salvo.");
+  if (!escrita.ok) return escrita;
   revalidatePath(`/pedido/${pedidoId}`);
   revalidatePath("/pedido");
   return { ok: true, message: "Pedido atualizado." };
@@ -554,7 +560,7 @@ export async function editarItemPedidoInterno(formData: FormData) {
     .single();
   if (!pedido || !(await podeMexerItens(pedido.status))) return;
 
-  const { error } = await supabase
+  const { data: gravado, error } = await supabase
     .from("pedidos_internos_itens")
     .update({
       tipo: texto(formData, "tipo") ?? "material",
@@ -570,8 +576,9 @@ export async function editarItemPedidoInterno(formData: FormData) {
       ...camposExigenciaItem(formData),
     })
     .eq("id", itemId)
-    .eq("pedido_interno_id", pedido_interno_id);
-  if (error) throw new Error(error.message);
+    .eq("pedido_interno_id", pedido_interno_id)
+    .select("id");
+  garantirEscrita(error, gravado, "O item não foi salvo.");
   revalidatePath(`/pedido/${pedido_interno_id}`);
 }
 
@@ -588,13 +595,17 @@ export async function removerItemPedidoInterno(_prev: FormState, formData: FormD
   if (!pedido || !(await podeMexerItens(pedido.status))) {
     return { ok: false, message: "Nesta etapa os itens não mudam. Depois da formalização, devolva o pedido para ajuste antes de alterar a lista." };
   }
-  const { error } = await supabase
+  const { data: removidos, error } = await supabase
     .from("pedidos_internos_itens")
     .delete()
     .eq("id", itemId)
-    .eq("pedido_interno_id", pedidoId);
+    .eq("pedido_interno_id", pedidoId)
+    .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível remover o item.") };
   revalidatePath(`/pedido/${pedidoId}`);
+  if (semLinhasAfetadas(removidos)) {
+    return { ok: false, message: "Nada foi removido: o item já não está neste pedido ou você não tem permissão para alterá-lo. A tela foi atualizada." };
+  }
   return { ok: true, message: "Item removido." };
 }
 
@@ -1208,9 +1219,17 @@ export async function removerAnexoPedidoInterno(_prev: FormState, formData: Form
       .remove([anexo.storage_path]);
     if (storageError) return { ok: false, message: mensagemDoBanco(storageError, "Falha ao remover o arquivo. Tente de novo.") };
   }
-  const { error } = await supabase.from("pedidos_internos_anexos").delete().eq("id", anexoId);
+  const { data: removidos, error } = await supabase
+    .from("pedidos_internos_anexos")
+    .delete()
+    .eq("id", anexoId)
+    .eq("pedido_interno_id", pedidoId)
+    .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/pedido/${pedidoId}`);
+  if (semLinhasAfetadas(removidos)) {
+    return { ok: false, message: "Nada foi removido: o documento já não está neste pedido ou você não tem permissão para removê-lo. A tela foi atualizada." };
+  }
   return { ok: true, message: "Documento removido." };
 }
 
@@ -1306,13 +1325,17 @@ export async function removerOrcamento(_prev: FormState, formData: FormData): Pr
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const orcamentoId = Number(formData.get("orcamento_id"));
   const supabase = await createClientUntyped();
-  const { error } = await supabase
+  const { data: removidos, error } = await supabase
     .from("pedidos_internos_cotacoes")
     .delete()
     .eq("id", orcamentoId)
-    .eq("pedido_interno_id", pedidoId);
+    .eq("pedido_interno_id", pedidoId)
+    .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error) };
   revalidatePath(`/pedido/${pedidoId}`);
+  if (semLinhasAfetadas(removidos)) {
+    return { ok: false, message: "Nada foi removido: o orçamento escolhido não sai, e um orçamento já removido não está mais na lista. A tela foi atualizada." };
+  }
   return { ok: true, message: "Orçamento removido." };
 }
 

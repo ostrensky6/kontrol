@@ -214,18 +214,34 @@ describe("alternarSuspensao", () => {
 });
 
 describe("editarUsuario", () => {
-  it("não altera o Auth quando o perfil recusa a edição", async () => {
-    resultadoPerfil = { error: { message: "permission denied" } };
+  function edicao() {
     const formData = new FormData();
     formData.set("id", "usuario-alvo");
     formData.set("nome", "Nome novo");
     formData.set("papel", "laboratorio");
+    return formData;
+  }
+
+  it("não altera o Auth quando o perfil recusa a edição", async () => {
+    linhasPerfil = { data: null, error: { message: "permission denied" } };
     const { editarUsuario } = await import("./usuarios");
 
-    const result = await editarUsuario({ ok: false }, formData);
+    const result = await editarUsuario({ ok: false }, edicao());
 
     expect(result.ok).toBe(false);
     expect(updateUserById).not.toHaveBeenCalled();
+  });
+
+  it("não diz que salvou quando o banco não gravou nenhuma linha", async () => {
+    linhasPerfil = { data: [], error: null };
+    const { editarUsuario } = await import("./usuarios");
+
+    const result = await editarUsuario({ ok: false }, edicao());
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Nada foi salvo");
+    expect(updateUserById).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 });
 

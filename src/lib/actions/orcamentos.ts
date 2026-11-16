@@ -18,6 +18,7 @@ import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { registrarEvento } from "./eventos";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -109,10 +110,14 @@ async function atualizarOperacionalLaboratorio(
     statusDocumento: statusDocumento ?? orc?.status,
     quantidadeItens: itens?.length ?? 0,
   });
-  const { error } = await supabase.from("orcamentos").update({
+  const { data: gravado, error } = await supabase.from("orcamentos").update({
     status_operacional: status,
     status_operacional_atualizado_em: new Date().toISOString(),
-  }).eq("id", id);
+  }).eq("id", id).select("id");
+  // sem linha devolvida o andamento não foi gravado (RLS barra sem erro)
+  if (!error && semLinhasAfetadas(gravado)) {
+    return { error: { message: "O andamento do orçamento não foi gravado: o orçamento não existe ou seu perfil não pode alterá-lo." } };
+  }
   return { error };
 }
 
@@ -227,7 +232,7 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
     if (transicaoError) return falha(mensagemDoBanco(transicaoError));
   }
   // responsável e andamento na mesma linha, numa única gravação
-  const { error } = await supabase
+  const { data: revisado, error } = await supabase
     .from("orcamentos")
     .update({
       responsavel,
@@ -237,8 +242,12 @@ export async function revisarOrcamentoLaboratorio(_estado: EstadoAcao, formData:
       }),
       status_operacional_atualizado_em: new Date().toISOString(),
     })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return falha(mensagemDoBanco(error));
+  if (semLinhasAfetadas(revisado)) {
+    return falha("A revisão não foi gravada: o orçamento não existe ou seu perfil não pode alterá-lo.");
+  }
   revalidatePath(`/orcamento/${id}`);
   revalidatePath("/orcamento");
   return sucesso("Custos revisados. A proposta já pode ser emitida.");
