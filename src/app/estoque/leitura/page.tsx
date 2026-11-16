@@ -3,6 +3,8 @@ import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { LeituraEstoquePanel, type ModoLeitura } from "@/components/estoque/LeituraEstoquePanel";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +17,7 @@ export default async function LeituraEstoquePage({
 }: {
   searchParams: Promise<{ modo?: string }>;
 }) {
+  const leitura = novaLeitura("/estoque/leitura");
   const { modo } = await searchParams;
   const modoInicial: ModoLeitura = modo === "saida" ? "saida" : "entrada";
   const supabase = await createClientUntyped();
@@ -22,8 +25,8 @@ export default async function LeituraEstoquePage({
     pode("estoque.movimentar"),
     pode("compras.receber"),
     pode("insumos.editar"),
-    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao"),
-    supabase.from("locais").select("id, nome").order("nome"),
+    leitura.de("insumos", supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao")),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
     // códigos lidos que ainda não têm cadastro: a triagem mora aqui dentro (revisão de 11/11, L11)
     supabase.from("cadastros_triagem").select("id").in("status", ["pendente", "em_analise"]),
   ]);
@@ -32,6 +35,7 @@ export default async function LeituraEstoquePage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Entrada e saída por leitura</h1>

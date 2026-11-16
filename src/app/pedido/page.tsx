@@ -17,6 +17,8 @@ import { lerAreasPedido } from "@/lib/pedido/areas";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { statusInfo } from "@/components/app/status";
 import { HelpTip } from "@/components/common/HelpTip";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 const URGENCIA_LABEL: Record<string, string> = {
   baixa: "Baixa",
@@ -91,6 +93,7 @@ export default async function PedidoPage({
 }: {
   searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[] }>;
 }) {
+  const leitura = novaLeitura("/pedido");
   const query = await searchParams;
   const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
   const abrirNovo = query.novo === "1";
@@ -106,18 +109,18 @@ export default async function PedidoPage({
     // o banco diz, pela competência de cada um, o que espera este usuário (0173)
     carregarPendencias(),
     // quem aprova pelo projeto é o usuário coordenador (0136/0169), não o nome escrito no cadastro
-    supabase.from("perfis").select("id, nome, email, suspenso"),
+    leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso")),
   ]);
   const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
   const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PEDIDOS);
   const { data: pedidos } = pedidosFull.error
-    ? await supabase
+    ? await leitura.de("pedidos", supabase
         .from("pedidos_internos")
         .select("id, titulo, status, solicitante, data_necessidade, urgencia, pedido_compra_id, criado_em, projetos(nome, coordenador), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
-        .order("criado_em", { ascending: false })
+        .order("criado_em", { ascending: false }))
     : pedidosFull;
   const { data: projetos } = projetosFull.error
-    ? await supabase.from("projetos").select("id, nome, coordenador").order("nome")
+    ? await leitura.de("projetos", supabase.from("projetos").select("id, nome, coordenador").order("nome"))
     : projetosFull;
 
   const hojeBrasilia = dataEmBrasilia(new Date());
@@ -182,6 +185,7 @@ export default async function PedidoPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-1">

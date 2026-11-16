@@ -8,6 +8,8 @@ import { PAPEIS } from "@/lib/auth/permissions";
 import { buildPermissoesPorCategoria } from "@/lib/auth/permission-categories";
 import { CriarUsuarioForm } from "@/components/usuarios/CriarUsuarioForm";
 import { UsuariosTable, type UsuarioRow } from "@/components/usuarios/UsuariosTable";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ export default async function UsuariosPage({
 }: {
   searchParams: Promise<{ removidos?: string | string[] }>;
 }) {
+  const leitura = novaLeitura("/usuarios");
   const mostrarRemovidos = (await searchParams).removidos === "1";
   if (!(await temPapel("admin"))) {
     return (
@@ -26,17 +29,17 @@ export default async function UsuariosPage({
   }
 
   const supabase = await createClient();
-  const { data: perfis } = await supabase
+  const { data: perfis } = await leitura.de("pessoas", supabase
     .from("perfis")
     .select("id, nome, email, papel, criado_em, suspenso, removido_em, senha_provisoria, assinatura_path, assinatura_url, permissoes")
-    .order("email");
-  const { data: preAprovados } = await supabase
+    .order("email"));
+  const { data: preAprovados } = await leitura.de("pessoas pré-aprovadas", supabase
     .from("usuarios_pre_aprovados")
     .select("id, nome, email, papel, permissoes")
-    .order("nome");
-  const { data: permissoesCategorias } = await supabase
+    .order("nome"));
+  const { data: permissoesCategorias } = await leitura.de("permissões por função", supabase
     .from("permissoes_categorias")
-    .select("papel, permissoes");
+    .select("papel, permissoes"));
   const permissoesPorCategoria = buildPermissoesPorCategoria(permissoesCategorias ?? []);
   const papelLabel = new Map(PAPEIS.map((papel) => [papel.value, papel.label]));
   const emailsComAcesso = new Set((perfis ?? []).map((perfil) => String(perfil.email ?? "").toLowerCase()));
@@ -84,6 +87,7 @@ export default async function UsuariosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         {/* a lista vem primeiro; o formulário de novo usuário abre pelo botão (L14) */}
         <CriarPorBotao
           rotulo="Novo usuário"

@@ -21,6 +21,8 @@ import {
   textoPrazo,
   type AvisoEquipamento,
 } from "@/lib/equipamentos/avisos";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +140,7 @@ export default async function EquipamentosPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const leitura = novaLeitura("/estoque/equipamentos");
   const { focus, scan: scanAntigo } = await searchParams;
   const scan = focus ?? scanAntigo;
   const origem = await origemPublicaKontrol();
@@ -150,36 +153,36 @@ export default async function EquipamentosPage({
     .order("id", { ascending: true });
 
   const [{ data }, avisosResult, catalogoResult, antecedenciaResult, podeEditar] = await Promise.all([
-    scanId ? query.eq("id", scanId) : query,
+    leitura.de("unidades de equipamento", scanId ? query.eq("id", scanId) : query),
     supabase
       .from("v_equipamento_avisos")
       .select("equipamento_unidade_id, tipo, obrigatorio, periodicidade_dias, antecedencia_dias, ultima_conclusao, vencimento, situacao, dias_para_vencer, agendada_para, encaminhamento_decisao, encaminhamento_observacao, encaminhado_em, encaminhado")
       .limit(500),
-    supabase.from("equipamentos").select("id, nome").order("nome").limit(500),
-    supabase.from("parametros").select("valor").eq("chave", "equipamento_aviso_antecedencia_dias").maybeSingle(),
+    leitura.de("equipamentos", supabase.from("equipamentos").select("id, nome").order("nome").limit(500)),
+    leitura.de("parâmetros", supabase.from("parametros").select("valor").eq("chave", "equipamento_aviso_antecedencia_dias").maybeSingle()),
     pode("cadastros.editar"),
   ]);
   const unidades = (data ?? []) as unknown as UnidadeEquipamento[];
   const unidadeIds = unidades.map((unidade) => unidade.id);
   const [manutencoesResult, planosResult, logsResult] = unidadeIds.length > 0
     ? await Promise.all([
-        supabase
+        leitura.de("manutenções", supabase
           .from("equipamento_manutencoes")
           .select("id, equipamento_unidade_id, tipo, data_programada, data_inicio, data_conclusao, proxima_data, status, bloqueia_operacao, tecnico_responsavel, descricao, resultado, ordem_servico, numero_documento")
           .in("equipamento_unidade_id", unidadeIds)
           .order("data_programada", { ascending: false })
-          .limit(200),
-        supabase
+          .limit(200)),
+        leitura.de("planos de manutenção", supabase
           .from("equipamento_planos_manutencao")
           .select("id, equipamento_id, equipamento_unidade_id, tipo, periodicidade_dias, tolerancia_dias, obrigatorio, descricao, ativo")
           .eq("ativo", true)
-          .limit(200),
-        supabase
+          .limit(200)),
+        leitura.de("histórico dos equipamentos", supabase
           .from("equipamento_status_log")
           .select("id, equipamento_unidade_id, status_anterior, status_novo, motivo, criado_em")
           .in("equipamento_unidade_id", unidadeIds)
           .order("criado_em", { ascending: false })
-          .limit(200),
+          .limit(200)),
       ])
     : [{ data: [], error: null }, { data: [] }, { data: [] }];
 
@@ -204,6 +207,7 @@ export default async function EquipamentosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <AbasEquipamentos ativa="unidades" />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>

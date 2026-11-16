@@ -5,6 +5,8 @@ import {
   InsumosAnaliseTable,
   type InsumoAnaliseRow,
 } from "@/components/insumos/InsumosAnaliseTable";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -13,29 +15,30 @@ export default async function InsumosPage({
 }: {
   searchParams: Promise<{ analise?: string }>;
 }) {
+  const leitura = novaLeitura("/insumos");
   const { analise } = await searchParams;
   const supabase = await createClient();
 
-  const { data: analises } = await supabase
+  const { data: analises } = await leitura.de("análises", supabase
     .from("analises")
     .select("codigo")
-    .order("codigo");
+    .order("codigo"));
 
   const atual = analise ?? analises?.[0]?.codigo ?? "";
 
-  const { data: linhas } = await supabase
+  const { data: linhas } = await leitura.de("insumos das análises", supabase
     .from("insumo_analise")
     .select(
       "id, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, quantidade_por_amostra, modo_cobranca, insumos(custo_unitario)",
     )
     .eq("codigo_analise", atual)
-    .order("id");
+    .order("id"));
 
   // grupos de escolha já existentes (em todas as análises) p/ reaproveitar
-  const { data: gruposRaw } = await supabase
+  const { data: gruposRaw } = await leitura.de("insumos das análises", supabase
     .from("insumo_analise")
     .select("grupo_escolha")
-    .not("grupo_escolha", "is", null);
+    .not("grupo_escolha", "is", null));
   const grupoOptions = [
     { value: "", label: "(nenhum)" },
     ...[
@@ -67,6 +70,7 @@ export default async function InsumosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">
             Insumos por análise

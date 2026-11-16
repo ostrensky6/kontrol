@@ -11,6 +11,8 @@ import { mascararAuditoriaSigilosa } from "@/lib/cadastros/salario";
 import { LABEL_PAPEL, PERMISSOES_ORCAMENTO } from "@/lib/orcamento/governanca";
 import { agruparAlteracoesSeguidas, type GrupoAuditoria } from "@/lib/orcamento/auditoria-resumo";
 import { PAPEIS, PERMISSOES, defaultPermissionsForRole, papelAlcanca } from "@/lib/auth/permissions";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 /** Funções que já vêm com a caixinha marcada (padrão de Privilégios). */
 function funcoesComPadrao(chave: string | null, papelMinimo: (typeof PAPEIS)[number]["value"]) {
@@ -96,6 +98,7 @@ type Auditoria = {
 };
 
 export default async function GovernancaOrcamentoPage() {
+  const leitura = novaLeitura("/governanca/regras");
   const permitido = await pode("auditoria.visualizar");
   const usuario = await usuarioAtual();
 
@@ -114,18 +117,18 @@ export default async function GovernancaOrcamentoPage() {
 
   const supabase = await createClient();
   const [{ data: eventos }, { data: auditorias }] = await Promise.all([
-    supabase
+    leitura.de("histórico de situações", supabase
       .from("eventos_status")
       .select("id, entidade, entidade_id, de_status, para_status, usuario, observacao, criado_em")
       .in("entidade", ENTIDADES_ORCAMENTO)
       .order("criado_em", { ascending: false })
-      .limit(80),
-    supabase
+      .limit(80)),
+    leitura.de("registros de auditoria", supabase
       .from("auditoria")
       .select("id, tabela, registro_id, acao, usuario, valor_anterior, valor_novo, criado_em")
       .in("tabela", TABELAS_ORCAMENTO)
       .order("id", { ascending: false })
-      .limit(80),
+      .limit(80)),
   ]);
 
   const eventosRecentes = (eventos ?? []) as Evento[];
@@ -144,6 +147,7 @@ export default async function GovernancaOrcamentoPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">

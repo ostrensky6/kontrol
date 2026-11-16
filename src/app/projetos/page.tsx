@@ -4,6 +4,8 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { formatDate } from "@/lib/formatters";
 import { STATUS_PROJETO } from "./_lib/status";
 import { coordenadorDoProjeto, type UsuarioCoordenador } from "./_lib/responsavel";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -12,15 +14,16 @@ const thCls =
 const tdCls = "px-3 py-2 text-sm text-foreground";
 
 export default async function ProjetosPage() {
+  const leitura = novaLeitura("/projetos");
   const supabase = await createClient();
   const [{ data: projetos }, { data: clientes }, { data: usuarios }] = await Promise.all([
-    supabase
+    leitura.de("projetos", supabase
       .from("projetos")
       .select("id, nome, cliente_id, responsavel, coordenador, coordenador_nome, status, data_inicio, data_fim")
-      .order("criado_em", { ascending: false }),
-    supabase.from("clientes").select("id, nome"),
+      .order("criado_em", { ascending: false })),
+    leitura.de("clientes", supabase.from("clientes").select("id, nome")),
     // quem aprova os pedidos do projeto é o usuário indicado como coordenador (0136/0169)
-    supabase.from("perfis").select("id, nome, email, suspenso"),
+    leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso")),
   ]);
   const perfis = (usuarios ?? []) as UsuarioCoordenador[];
   // coordenador_id ainda não está nos tipos gerados: lido à parte
@@ -39,6 +42,7 @@ export default async function ProjetosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Projetos</h1>

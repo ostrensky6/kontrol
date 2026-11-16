@@ -7,6 +7,8 @@ import { decideDisputaReserva } from "@/lib/auth/permissions";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { formatDateTime, formatNumber as fmt } from "@/lib/formatters";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +29,7 @@ type Disputa = {
 const SITUACAO: Record<Disputa["status"], string> = { pendente: "Aguardando decisão", transferida: "Transferida", negada: "Negada" };
 
 export default async function DisputasReservaPage() {
+  const leitura = novaLeitura("/planejamento/disputas");
   const podeVer = (await pode("planejamento.ver")) || (await pode("planejamento.executar"));
   if (!podeVer) {
     return (
@@ -48,15 +51,15 @@ export default async function DisputasReservaPage() {
   const planoIds = [...new Set(disputas.flatMap((d) => [d.planejamento_destino_id, d.planejamento_origem_id]).filter((id): id is number => id != null))];
   const insumoIds = [...new Set(disputas.map((d) => d.insumo_id))];
   const [{ data: planos }, { data: insumos }] = await Promise.all([
-    planoIds.length > 0 ? supabase.from("planejamento").select("id, nome").in("id", planoIds) : Promise.resolve({ data: [] }),
-    insumoIds.length > 0 ? supabase.from("insumos").select("id, especificacao").in("id", insumoIds) : Promise.resolve({ data: [] }),
+    planoIds.length > 0 ? leitura.de("planejamentos", supabase.from("planejamento").select("id, nome").in("id", planoIds)) : Promise.resolve({ data: [] }),
+    insumoIds.length > 0 ? leitura.de("insumos", supabase.from("insumos").select("id, especificacao").in("id", insumoIds)) : Promise.resolve({ data: [] }),
   ]);
   const nomePlano = new Map((planos ?? []).map((p: { id: number; nome: string | null }) => [Number(p.id), p.nome ?? `Plano #${p.id}`]));
   const nomeInsumo = new Map((insumos ?? []).map((i: { id: number; especificacao: string | null }) => [Number(i.id), i.especificacao ?? `Insumo #${i.id}`]));
   const candidatos = new Map<number, PlanoCandidato[]>();
   if (podeDecidir) {
     await Promise.all(disputas.filter((d) => d.status === "pendente").map(async (d) => {
-      const { data: lista } = await supabase.rpc("planos_com_reserva", { p_insumo_id: d.insumo_id, p_excluir_planejamento_id: d.planejamento_destino_id });
+      const { data: lista } = await leitura.de("planos com reserva", supabase.rpc("planos_com_reserva", { p_insumo_id: d.insumo_id, p_excluir_planejamento_id: d.planejamento_destino_id }));
       candidatos.set(d.id, ((lista ?? []) as PlanoCandidato[]).map((c) => ({ ...c, reservado: Number(c.reservado) })));
     }));
   }
@@ -64,6 +67,7 @@ export default async function DisputasReservaPage() {
 
   return (
     <main className="app-page-container">
+      <AvisoLeitura falhas={leitura.falhas} />
       <PageHeader
         breadcrumbs={[{ label: "Planejamento", href: "/planejamento" }, { label: "Disputas de reserva" }]}
         title="Disputas de reserva"

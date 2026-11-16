@@ -18,6 +18,8 @@ import {
   type InventarioLoteOpcao,
 } from "@/components/estoque/InventarioScannerPanel";
 import { InventarioAjusteButton } from "@/components/estoque/InventarioAjusteButton";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -82,42 +84,43 @@ function firstRelation<T>(value: T | T[] | null | undefined): T | null {
 }
 
 export default async function InventarioPage() {
+  const leitura = novaLeitura("/estoque/inventario");
   const supabase = await createClientUntyped();
   const podeCriar = await pode("estoque.lote.gerir");
   const podeAjustar = await pode("estoque.lote.gerir");
 
   const [{ data: ciclos }, { data: locais }, { data: lotes }, { data: contagens }, { data: saldos }] = await Promise.all([
-    supabase
+    leitura.de("inventários", supabase
       .from("inventario_ciclos")
       .select("id, nome")
       .eq("status", "aberto")
-      .order("criado_em", { ascending: false }),
-    supabase.from("locais").select("id, nome").order("nome"),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
+    leitura.de("lotes", supabase
       .from("lotes_estoque")
       .select("id, insumo_id, status, codigo_lote, quantidade_atual, local_id, modelo_quantidade, conteudo_embalagem_snapshot, unidade_fisica_snapshot, locais(nome), insumos(especificacao, unidade)")
       .not("status", "in", "(consumido,descartado)")
-      .order("id", { ascending: false }),
-    supabase
+      .order("id", { ascending: false })),
+    leitura.de("contagens do inventário", supabase
       .from("inventario_contagens")
       .select(`id, ciclo_id, lote_id, insumo_id, quantidade_sistema, quantidade_contada, divergencia, justificativa, ajuste_aplicado, contado_em, inventario_ciclos(nome), locais(nome), lotes_estoque(${LOTE_SELECT}), insumos(especificacao)`)
       .order("contado_em", { ascending: false })
-      .limit(25),
+      .limit(25)),
     // insumos contados em embalagens fechadas: contagem sem lote
-    supabase
+    leitura.de("saldo do estoque", supabase
       .from("v_estoque_saldo")
       .select("insumo_id, especificacao, unidade_saldo, modelo_quantidade")
       .eq("modelo_quantidade", "EMBALAGEM_FECHADA")
-      .order("especificacao"),
+      .order("especificacao")),
   ]);
 
   // contagens abertas: quantos itens contados e quantas diferenças ainda sem ajuste
   const idsAbertos = (ciclos ?? []).map((ciclo) => Number(ciclo.id));
   const { data: contagensAbertas } = idsAbertos.length
-    ? await supabase
+    ? await leitura.de("contagens do inventário", supabase
         .from("inventario_contagens")
         .select(`id, ciclo_id, lote_id, insumo_id, quantidade_sistema, quantidade_contada, divergencia, ajuste_aplicado, lotes_estoque(${LOTE_SELECT}), insumos(especificacao)`)
-        .in("ciclo_id", idsAbertos)
+        .in("ciclo_id", idsAbertos))
     : { data: [] as ContagemAberta[] };
   const abertas = (contagensAbertas ?? []) as unknown as ContagemAberta[];
   // o que não bate e ainda não foi ajustado: vira alerta no topo, item por item
@@ -205,6 +208,7 @@ export default async function InventarioPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         {/* contar vem primeiro; a nova contagem abre pelo botão (L14); "Contagem" no lugar de "Campanha" (10.5) */}
         {podeCriar ? (
           <CriarPorBotao

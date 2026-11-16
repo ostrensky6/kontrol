@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
   calcularCurvaCustoAmostras,
@@ -33,6 +32,8 @@ import { podeEditarAnalises } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { AlternativasValidacao, type AlternativaLinha } from "@/components/analises/AlternativasValidacao";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -125,6 +126,7 @@ export default async function AnaliseDetalhe({
   params: Promise<{ codigo: string }>;
   searchParams: Promise<{ view?: string }>;
 }) {
+  const leitura = novaLeitura("/analises/[codigo]");
   const { codigo: codigoRaw } = await params;
   const { view } = await searchParams;
   const codigo = decodeURIComponent(codigoRaw);
@@ -135,12 +137,12 @@ export default async function AnaliseDetalhe({
   const podeValidarAlternativas = Boolean(usuario && !usuario.suspenso
     && ["laboratorio", "coordenador", "supervisor", "admin"].includes(usuario.papel));
 
-  const { data: analise } = await supabase
+  const { data: analise } = await leitura.de("análises", supabase
     .from("analises")
     .select("codigo, nome, nome_simplificado, descricao, status, ativo, ofertavel")
     .eq("codigo", codigo)
-    .single();
-  if (!analise) notFound();
+    .single());
+  if (!analise) semRegistro(leitura);
 
   const [
     { data: etapas },
@@ -149,34 +151,34 @@ export default async function AnaliseDetalhe({
     { data: insumosCatalogo },
     { data: equipamentosCatalogo },
   ] = await Promise.all([
-    supabase
+    leitura.de("etapas das análises", supabase
       .from("etapas")
       .select("*")
       .eq("codigo_analise", codigo)
-      .order("ordem", { nullsFirst: false }),
-    supabase
+      .order("ordem", { nullsFirst: false })),
+    leitura.de("equipamentos das análises", supabase
       .from("equipamento_analise")
       .select(
         "id, equipamento_id, peso_alocacao, equipamentos(nome, quantidade, custo_unitario, vida_util_anos, percentual_manutencao_anual, manutencao_anual_fixa, possui, custo_parceiro_por_amostra, custo_parceiro_estimado)",
       )
       .eq("codigo_analise", codigo)
-      .gt("peso_alocacao", 0),
-    supabase
+      .gt("peso_alocacao", 0)),
+    leitura.de("insumos das análises", supabase
       .from("insumo_analise")
       .select(
         "id, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, alternativa_observacao, alternativa_validada_em, quantidade_por_amostra, unidade, modo_cobranca, base_calculo, preferencial, etapa_id, insumo_id, insumos(especificacao, nome_item, unidade, custo_unitario, estoque_seguranca, ponto_reposicao, lead_time_dias)",
       )
       .eq("codigo_analise", codigo)
-      .order("nome_etapa"),
-    supabase
+      .order("nome_etapa")),
+    leitura.de("insumos", supabase
       .from("insumos")
       .select("id, especificacao, nome_item, unidade")
       .eq("ativo", true)
-      .order("especificacao"),
-    supabase
+      .order("especificacao")),
+    leitura.de("equipamentos", supabase
       .from("equipamentos")
       .select("id, nome")
-      .order("nome"),
+      .order("nome")),
   ]);
 
   const etapasT = (etapas ?? []) as unknown as Etapa[];
@@ -190,10 +192,10 @@ export default async function AnaliseDetalhe({
 
   const saldoResult =
     idsInsumos.length > 0
-      ? await supabase
+      ? await leitura.de("saldo do estoque", supabase
           .from("v_estoque_saldo")
           .select("insumo_id, disponivel, em_maos, reservado, unidade")
-          .in("insumo_id", idsInsumos)
+          .in("insumo_id", idsInsumos))
       : { data: [] as SaldoEstoque[] };
   const saldoPorInsumo = new Map(
     ((saldoResult.data ?? []) as SaldoEstoque[]).map((saldo) => [saldo.insumo_id, saldo]),
@@ -264,6 +266,7 @@ export default async function AnaliseDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Análises", href: "/analises" }, { label: codigo }]} />
 
         <section className="mt-3 rounded-lg border border-border bg-card shadow-sm">

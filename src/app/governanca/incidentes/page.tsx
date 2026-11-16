@@ -12,6 +12,8 @@ import {
   type IncidenteAtualizacao,
 } from "@/lib/incidentes";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -22,11 +24,12 @@ const COR: Record<Incidente["situacao"], string> = {
 };
 
 export default async function IncidentesPage() {
+  const leitura = novaLeitura("/governanca/incidentes");
   const podeRegistrar = await temPapel("coordenador");
   const supabase = await createClientUntyped();
   const [{ data, error }, { data: passos }] = await Promise.all([
     supabase.from("incidentes").select(CAMPOS_INCIDENTE).order("registrado_em", { ascending: false }).limit(100),
-    supabase.from("incidentes_atualizacoes").select("id, incidente_id, situacao, nota, criado_em").order("criado_em", { ascending: true }).limit(1000),
+    leitura.de("atualizações do incidente", supabase.from("incidentes_atualizacoes").select("id, incidente_id, situacao, nota, criado_em").order("criado_em", { ascending: true }).limit(1000)),
   ]);
   const incidentes = ordenarIncidentes((data ?? []) as Incidente[]);
   const porIncidente = new Map<number, IncidenteAtualizacao[]>();
@@ -39,6 +42,7 @@ export default async function IncidentesPage() {
 
   return (
     <main className="app-page-container">
+      <AvisoLeitura falhas={leitura.falhas} />
       <PageHeader
         breadcrumbs={[{ label: "Governança", href: "/governanca" }, { label: "Incidentes" }]}
         title="Incidentes"

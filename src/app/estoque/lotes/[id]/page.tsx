@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { Barcode39 } from "@/components/common/Barcode39";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
@@ -13,6 +12,8 @@ import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } from "@/lib/estoque/baixa";
 import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -54,17 +55,18 @@ function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
 }
 
 export default async function LoteDetalhe({ params }: { params: Promise<{ id: string }> }) {
+  const leitura = novaLeitura("/estoque/lotes/[id]");
   const { id: idRaw } = await params;
   const id = Number(idRaw);
-  if (!Number.isFinite(id)) notFound();
+  if (!Number.isFinite(id)) semRegistro(leitura);
   const supabase = await createClient();
 
-  const { data: lote } = await supabase
+  const { data: lote } = await leitura.de("lotes", supabase
     .from("lotes_estoque")
     .select("*, insumos(especificacao, nome_item, unidade, categoria_compra)")
     .eq("id", id)
-    .single();
-  if (!lote) notFound();
+    .single());
+  if (!lote) semRegistro(leitura);
 
   const [
     { data: movs },
@@ -79,14 +81,14 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
     vinculoInterno,
     usuario,
   ] = await Promise.all([
-    supabase
+    leitura.de("movimentações do estoque", supabase
       .from("estoque_movimentacoes")
       .select("id, tipo, quantidade, custo_unitario, data, motivo, referencia, usuario")
       .eq("lote_id", id)
       .order("data", { ascending: false })
-      .order("id", { ascending: false }),
+      .order("id", { ascending: false })),
     lote.local_id != null
-      ? supabase.from("locais").select("nome").eq("id", lote.local_id).single()
+      ? leitura.de("locais", supabase.from("locais").select("nome").eq("id", lote.local_id).single())
       : Promise.resolve({ data: null }),
     supabase
       .from("reservas_estoque")
@@ -169,6 +171,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Estoque", href: "/estoque" }, { label: `Lote ${codigoEtiqueta}` }]} />
 
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">

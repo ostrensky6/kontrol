@@ -6,6 +6,8 @@ import { AuditoriaTable, type AuditoriaRow } from "@/components/auditoria/Audito
 import { formatDateTime } from "@/lib/formatters";
 import { HelpTip } from "@/components/common/HelpTip";
 import { resumoDiffAuditoria } from "@/lib/orcamento/auditoria-resumo";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,7 @@ export default async function AuditoriaPage({
 }: {
   searchParams: Promise<{ tabela?: string }>;
 }) {
+  const leitura = novaLeitura("/auditoria");
   if (!(await pode("auditoria.visualizar"))) {
     return (
       <main className="mx-auto max-w-3xl px-4 py-6 sm:px-6 sm:py-8 text-center font-sans">
@@ -67,7 +70,7 @@ export default async function AuditoriaPage({
     .order("id", { ascending: false })
     .limit(200);
   if (tabela) q = q.eq("tabela", tabela);
-  const [{ data: registros }, podeVerSalarios] = await Promise.all([q, podeVerSalario()]);
+  const [{ data: registros }, podeVerSalarios] = await Promise.all([leitura.de("registros de auditoria", q), podeVerSalario()]);
 
   // insumo de cada registro de estoque (movimento, lote, código de barras), para
   // a trilha dizer "o quê" sem abrir o JSON
@@ -85,7 +88,7 @@ export default async function AuditoriaPage({
     ),
   ];
   const { data: insumosNomes } = idsInsumos.length
-    ? await supabase.from("insumos").select("id, especificacao").in("id", idsInsumos)
+    ? await leitura.de("insumos", supabase.from("insumos").select("id, especificacao").in("id", idsInsumos))
     : { data: [] as { id: number; especificacao: string | null }[] };
   const nomeInsumo = new Map((insumosNomes ?? []).map((i) => [Number(i.id), i.especificacao ?? `Insumo #${i.id}`]));
   const linhas: AuditoriaRow[] = (registros ?? []).map((original) => {
@@ -116,6 +119,7 @@ export default async function AuditoriaPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Auditoria</h1>
           <HelpTip title="Trilha de auditoria">

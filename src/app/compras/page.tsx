@@ -7,6 +7,8 @@ import { PrazoReposicao } from "@/components/compras/PrazoReposicao";
 import { PageHeader } from "@/components/app/PageHeader";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -19,15 +21,16 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 };
 
 export default async function ComprasPage() {
+  const leitura = novaLeitura("/compras");
   const supabase = await createClient();
   const [{ data: pedidos }, { data: saldo }, { data: projetos }, { data: previsao }] = await Promise.all([
-    supabase
+    leitura.de("compras", supabase
       .from("pedidos_compra")
       .select("id, status, projeto, projeto_id, solicitante, data_solicitacao, fornecedores(nome)")
-      .order("criado_em", { ascending: false }),
-    supabase.from("v_estoque_saldo").select("*"),
-    supabase.from("projetos").select("id, nome").order("nome"),
-    supabase.from("v_previsao_suprimentos").select("*").order("qtd_sugerida_compra", { ascending: false }),
+      .order("criado_em", { ascending: false })),
+    leitura.de("saldo do estoque", supabase.from("v_estoque_saldo").select("*")),
+    leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
+    leitura.de("previsão de compra", supabase.from("v_previsao_suprimentos").select("*").order("qtd_sugerida_compra", { ascending: false })),
   ]);
   const projetoNome = new Map((projetos ?? []).map((p) => [p.id, p.nome]));
   const linhas: CompraRow[] = (pedidos ?? []).map((p) => {
@@ -64,6 +67,7 @@ export default async function ComprasPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         {/* toda compra nasce de um pedido aprovado (decisão de 11/11/2026): não há mais "Nova compra" avulsa */}
         <PageHeader
           title="Compras com fornecedor"

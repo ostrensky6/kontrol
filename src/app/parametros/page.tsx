@@ -2,13 +2,16 @@ import { createClient } from "@/lib/supabase/server";
 import { ParametrosForm } from "@/components/parametros/ParametrosForm";
 import { HelpTip } from "@/components/common/HelpTip";
 import { pode } from "@/lib/auth/permissao-efetiva";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
 export default async function ParametrosPage() {
+  const leitura = novaLeitura("/parametros");
   const supabase = await createClient();
   const [{ data: params }, podeEditar] = await Promise.all([
-    supabase.from("parametros").select("chave, valor, unidade, descricao").order("chave"),
+    leitura.de("parâmetros", supabase.from("parametros").select("chave, valor, unidade, descricao").order("chave")),
     // mesma regra do RLS de `parametros` (kontrol_private.pode_editar_parametros)
     pode("orcamento.parametros.editar"),
   ]);
@@ -16,6 +19,7 @@ export default async function ParametrosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Parâmetros de custeio</h1>
           <HelpTip title="Parâmetros de custeio">

@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -29,6 +28,8 @@ import {
   loteSugeridoFefo,
   type LoteConferencia,
 } from "@/lib/planejamento/conferencia-lotes";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -82,17 +83,18 @@ export default async function PlanoDetalhe({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const leitura = novaLeitura("/planejamento/[id]");
   const { id } = await params;
   const planId = Number(id);
   const supabase = await createClient();
   const supabaseUntyped = await createClientUntyped();
 
-  const { data: plano } = await supabase
+  const { data: plano } = await leitura.de("planejamentos", supabase
     .from("planejamento")
     .select("*")
     .eq("id", planId)
-    .single();
-  if (!plano) notFound();
+    .single());
+  if (!plano) semRegistro(leitura);
 
   const planoOperacional = plano as typeof plano & {
     data_inicio_prevista?: string | null;
@@ -117,13 +119,13 @@ export default async function PlanoDetalhe({
     podeExecutar,
     podeCriarPedido,
   ] = await Promise.all([
-    supabase.from("planejamento_itens").select("id, codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual").eq("planejamento_id", planId).order("id"),
+    leitura.de("itens do planejamento", supabase.from("planejamento_itens").select("id, codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual").eq("planejamento_id", planId).order("id")),
     // Só análises ativas podem entrar em um plano novo; itens antigos continuam listados.
-    supabase.from("analises").select("codigo, nome").eq("ativo", true).order("codigo"),
+    leitura.de("análises", supabase.from("analises").select("codigo, nome").eq("ativo", true).order("codigo")),
     consultarReservasPlano(supabaseUntyped, planId),
-    supabase.from("projetos").select("id, nome").order("nome"),
-    supabase.from("v_margem_real_planejamento").select("*").eq("planejamento_id", planId).limit(1),
-    supabaseUntyped.from("pedidos_internos").select("id, status").eq("planejamento_id", planId).neq("status", "cancelado"),
+    leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
+    leitura.de("margem real", supabase.from("v_margem_real_planejamento").select("*").eq("planejamento_id", planId).limit(1)),
+    leitura.de("pedidos", supabaseUntyped.from("pedidos_internos").select("id, status").eq("planejamento_id", planId).neq("status", "cancelado")),
     pode("planejamento.editar"),
     pode("planejamento.executar"),
     pode("pedido.criar"),
@@ -134,26 +136,26 @@ export default async function PlanoDetalhe({
 
   const codigosPlano = [...new Set((itens ?? []).map((item) => item.codigo_analise).filter(Boolean))];
   const { data: vinculosEquipamento } = codigosPlano.length > 0
-    ? await supabaseUntyped
+    ? await leitura.de("equipamentos das análises", supabaseUntyped
         .from("equipamento_analise")
         .select("codigo_analise, equipamento_id")
-        .in("codigo_analise", codigosPlano)
+        .in("codigo_analise", codigosPlano))
     : { data: [] };
   const equipamentoIds = [...new Set((vinculosEquipamento ?? []).map((vinculo) => Number(vinculo.equipamento_id)).filter(Number.isFinite))];
   const { data: etapasPlano } = codigosPlano.length > 0
-    ? await supabase.from("etapas").select("*").in("codigo_analise", codigosPlano)
+    ? await leitura.de("etapas das análises", supabase.from("etapas").select("*").in("codigo_analise", codigosPlano))
     : { data: [] };
   const [{ data: unidadesEquipamento }, { data: reservasEquipamento }] = equipamentoIds.length > 0
     ? await Promise.all([
-        supabaseUntyped
+        leitura.de("unidades de equipamento", supabaseUntyped
           .from("equipamento_unidades")
           .select("id, equipamento_id, codigo_patrimonio, status_operacional, ativo, equipamentos(nome)")
           .in("equipamento_id", equipamentoIds)
-          .order("id"),
-        supabaseUntyped
+          .order("id")),
+        leitura.de("reservas de equipamento", supabaseUntyped
           .from("equipamento_reservas")
           .select("id, equipamento_unidade_id, planejamento_id, data_inicio, data_fim, status")
-          .in("status", ["reservado", "em_uso"]),
+          .in("status", ["reservado", "em_uso"])),
       ])
     : [{ data: [] }, { data: [] }];
 
@@ -163,16 +165,16 @@ export default async function PlanoDetalhe({
   const { equivalentes } = await lerEquivalentesComSaldo(supabaseUntyped, demanda.filter((d) => d.falta > 0).map((d) => d.insumo_id));
   const [{ data: lotesConferencia }, { data: conferenciasPlanejamento }] = demandaIds.length > 0
     ? await Promise.all([
-        supabase
+        leitura.de("lotes", supabase
           .from("lotes_estoque")
           .select("id, insumo_id, codigo_lote, validade, validade_apos_abertura, quantidade_atual, status")
           .in("insumo_id", demandaIds)
-          .gt("quantidade_atual", 0),
-        supabaseUntyped
+          .gt("quantidade_atual", 0)),
+        leitura.de("conferências de lote", supabaseUntyped
           .from("planejamento_lote_conferencias")
           .select("id, insumo_id, lote_id, quantidade_conferida, status, justificativa, conferido_em")
           .eq("planejamento_id", planId)
-          .order("conferido_em", { ascending: false }),
+          .order("conferido_em", { ascending: false })),
       ])
     : [{ data: [] }, { data: [] }];
 
@@ -329,6 +331,7 @@ export default async function PlanoDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Planejamento", href: "/planejamento" }, { label: plano.nome ?? `Plano #${planId}` }]} />
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">

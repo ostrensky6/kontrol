@@ -8,10 +8,13 @@ import {
 import { calcularTodas } from "@/lib/costing/loader";
 import { createClient } from "@/lib/supabase/server";
 import { calcularPrevisaoOperacionalDemanda } from "@/lib/orcamento/previsao-operacional";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
 export default async function NovaDemandaPage() {
+  const leitura = novaLeitura("/orcamento/demandas/nova");
   const supabase = await createClient();
   const [
     { data: clientes },
@@ -23,17 +26,17 @@ export default async function NovaDemandaPage() {
     { breakdowns },
     { data: matrizes },
   ] = await Promise.all([
-    supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
-    supabase.from("projetos").select("id, nome").order("nome"),
-    supabase
+    leitura.de("clientes", supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome")),
+    leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
+    leitura.de("análises", supabase
       .from("analises")
       .select("codigo, nome, nome_simplificado, descricao, status, ativo")
       .eq("ativo", true)
       .eq("ofertavel", true)
-      .order("codigo"),
-    supabase
+      .order("codigo")),
+    leitura.de("etapas das análises", supabase
       .from("etapas")
-      .select("codigo_analise, nome_etapa, nome_atividade, execucoes_por_dia, amostras_por_execucao"),
+      .select("codigo_analise, nome_etapa, nome_atividade, execucoes_por_dia, amostras_por_execucao")),
     (supabase as never as { from: (table: string) => { select: (columns: string) => Promise<{ data: Array<{
       codigo_analise: string;
       especificacao_insumo: string | null;
@@ -54,7 +57,7 @@ export default async function NovaDemandaPage() {
       .select("insumo_id, disponivel"),
     calcularTodas(),
     // A matriz do grupo referencia o cadastro (FK): só códigos cadastrados.
-    supabase.from("matrizes_amostras").select("codigo, nome").eq("ativo", true).order("nome"),
+    leitura.de("matrizes de amostra", supabase.from("matrizes_amostras").select("codigo, nome").eq("ativo", true).order("nome")),
   ]);
 
   const quantidadeBase = 1;
@@ -138,6 +141,7 @@ export default async function NovaDemandaPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <Breadcrumbs
