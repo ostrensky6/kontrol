@@ -82,7 +82,7 @@ export default async function BackupsPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+              <thead className="bg-muted/50 text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Quando</th>
                   <th className="px-4 py-3 text-left">Tipo</th>
@@ -138,11 +138,11 @@ export default async function BackupsPage() {
           </div>
           <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
             <div className="rounded-md border border-border/70 bg-muted/50 p-3">
-              <dt className="text-xs font-medium uppercase text-muted-foreground">Retenção</dt>
+              <dt className="text-xs font-medium text-muted-foreground">Retenção</dt>
               <dd className="mt-1 font-semibold">5 últimas versões</dd>
             </div>
             <div className="rounded-md border border-border/70 bg-muted/50 p-3">
-              <dt className="text-xs font-medium uppercase text-muted-foreground">Último backup</dt>
+              <dt className="text-xs font-medium text-muted-foreground">Último backup</dt>
               <dd className="mt-1 font-semibold">
                 {ultimoApp ? formatDate(ultimoApp.modifiedAt) : "Nenhum"}
               </dd>
@@ -178,7 +178,7 @@ export default async function BackupsPage() {
           </div>
           <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
             <div className="rounded-md border border-border/70 bg-muted/50 p-3">
-              <dt className="flex items-center gap-1 text-xs font-medium uppercase text-muted-foreground">
+              <dt className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
                 Retenção
                 <HelpTip title="Retenção dos dumps">
                   <p>
@@ -190,7 +190,7 @@ export default async function BackupsPage() {
               <dd className="mt-1 font-semibold">30 dias; dias 1 e 15 indefinidos</dd>
             </div>
             <div className="rounded-md border border-border/70 bg-muted/50 p-3">
-              <dt className="text-xs font-medium uppercase text-muted-foreground">Último backup</dt>
+              <dt className="text-xs font-medium text-muted-foreground">Último backup</dt>
               <dd className="mt-1 font-semibold">
                 {ultimoDb ? formatDate(ultimoDb.modifiedAt) : "Nenhum"}
               </dd>
@@ -205,7 +205,7 @@ export default async function BackupsPage() {
             <h2 className="text-sm font-semibold">Versões do aplicativo</h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left">Arquivo</th>
                 <th className="px-4 py-3 text-left">Quando</th>
@@ -239,7 +239,7 @@ export default async function BackupsPage() {
             <h2 className="text-sm font-semibold">Dumps do banco</h2>
           </div>
           <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+            <thead className="bg-muted/50 text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left">Arquivo</th>
                 <th className="px-4 py-3 text-left">Quando</th>

@@ -408,7 +408,11 @@ export function DataTable<TData>({
                           : undefined
                       }
                       className={cn(
-                        compact && "h-8 px-3",
+                        compact && "h-8 px-2.5",
+                        // título curto não quebra ("A caminho"); o comprido quebra em duas linhas equilibradas
+                        typeof header.column.columnDef.header === "string" &&
+                          header.column.columnDef.header.length <= 14 &&
+                          "whitespace-nowrap",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         indice === 0 && "app-coluna-fixa",
@@ -453,7 +457,7 @@ export function DataTable<TData>({
                     <TableCell
                       key={cell.id}
                       className={cn(
-                        compact && "px-3 py-1.5",
+                        compact && "px-2.5 py-1.5",
                         meta?.align === "right" && "text-right tabular-nums",
                         meta?.align === "center" && "text-center",
                         indice === 0 && "app-coluna-fixa",

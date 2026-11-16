@@ -47,7 +47,7 @@ function referenciaLegivel(referencia: string | null): string {
 function Campo({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   return (
     <div className="flex flex-col">
-      <dt className="text-[11px] uppercase tracking-wide text-muted-foreground/80">{rotulo}</dt>
+      <dt className="text-xs text-muted-foreground/80">{rotulo}</dt>
       <dd className="text-sm text-foreground">{valor}</dd>
     </div>
   );
@@ -226,7 +226,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
         <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-56">
-              <p className="flex items-center gap-1 text-xs uppercase tracking-wide text-muted-foreground/80">
+              <p className="flex items-center gap-1 text-xs text-muted-foreground/80">
                 Etiqueta do lote
                 <HelpTip title="Etiqueta do lote">
                   <p>
@@ -242,15 +242,15 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
               </p>
               <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <div>
-                  <dt className="uppercase tracking-wide text-muted-foreground/80">Tipo</dt>
+                  <dt className="text-muted-foreground/80">Tipo</dt>
                   <dd className="font-medium text-foreground">Lote</dd>
                 </div>
                 <div>
-                  <dt className="uppercase tracking-wide text-muted-foreground/80">ID Kontrol</dt>
+                  <dt className="text-muted-foreground/80">ID Kontrol</dt>
                   <dd className="font-mono text-foreground">{lote.id}</dd>
                 </div>
                 <div>
-                  <dt className="uppercase tracking-wide text-muted-foreground/80">Código do lote</dt>
+                  <dt className="text-muted-foreground/80">Código do lote</dt>
                   <dd className="font-mono text-foreground">{codigoEtiqueta}</dd>
                 </div>
               </dl>
@@ -270,7 +270,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
 
         {/* Dados do lote (inclui validade dupla) */}
         <div className="mt-8 flex items-center gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Dados do lote</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Dados do lote</h2>
           <HelpTip title="Validade do lote">
             <p>
               Depois de aberto, o lote passa a ter duas datas. Vale a <b>mais próxima</b> entre a
@@ -300,7 +300,7 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
 
         {/* Rastreabilidade reversa */}
         <div className="mt-8 flex items-center gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className="text-sm font-semibold text-muted-foreground">
             Rastreabilidade reversa
           </h2>
           <HelpTip title="Rastreabilidade reversa">
@@ -330,17 +330,17 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
         </div>
 
         {/* Histórico de movimentações */}
-        <h2 className="mt-8 text-sm font-semibold uppercase tracking-wide text-muted-foreground">Histórico</h2>
+        <h2 className="mt-8 text-sm font-semibold text-muted-foreground">Histórico</h2>
         <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
           <table className="min-w-full text-sm">
             <thead className="border-b border-border/70">
               <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Data</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Tipo</th>
-                <th className="px-3 py-2 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground">Qtd.</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Motivo</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Referência</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">Por</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Data</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Tipo</th>
+                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Qtd.</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Motivo</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Referência</th>
+                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Por</th>
               </tr>
             </thead>
             <tbody>

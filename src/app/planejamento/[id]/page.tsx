@@ -380,7 +380,7 @@ export default async function PlanoDetalhe({
             ].map(([href, label, meta]) => (
               <a key={href} href={href} className="app-nav-level-3 rounded-md border border-primary/20 px-3 py-2 text-left text-xs text-brand-800 shadow-xs transition hover:border-primary/40 hover:text-brand-900 dark:text-brand-300">
                 <span className="block font-semibold">{label}</span>
-                <span className="mt-0.5 block text-[10px] uppercase tracking-wide text-muted-foreground">{meta}</span>
+                <span className="mt-0.5 block text-xs text-muted-foreground">{meta}</span>
               </a>
             ))}
           </div>
@@ -494,7 +494,7 @@ export default async function PlanoDetalhe({
             {capacidadePorAnalise.length > 0 && (
               <div className="overflow-x-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
+                  <thead className="bg-muted/50 text-xs text-muted-foreground">
                     <tr><th className="px-3 py-2 text-left">Análise</th><th className="px-3 py-2 text-right">Amostras planejadas</th><th className="px-3 py-2 text-right">Capacidade/dia</th><th className="px-3 py-2 text-right">Prazo projetado</th></tr>
                   </thead>
                   <tbody className="divide-y divide-border/70">
@@ -556,7 +556,7 @@ export default async function PlanoDetalhe({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Contexto operacional</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground">Contexto operacional</h2>
                 <HelpTip title="Contexto operacional">
                   <p>
                     Projeto, datas e responsável deste plano definem <b>para quando</b> reservar,
@@ -593,7 +593,7 @@ export default async function PlanoDetalhe({
         {/* itens do plano */}
         <section id="analises" className="mt-8 scroll-mt-24">
           <div className="flex items-center gap-1">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="text-sm font-semibold text-muted-foreground">
               Análises do plano
             </h2>
             <HelpTip title="Quantidade planejada">
@@ -624,7 +624,7 @@ export default async function PlanoDetalhe({
         <section id="materiais" className="mt-8 scroll-mt-24">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h2 className="text-sm font-semibold text-muted-foreground">
                 Insumos necessários {temFalta && <span className="text-warning-strong">· há faltas</span>}
               </h2>
               {temFalta && (
@@ -671,7 +671,7 @@ export default async function PlanoDetalhe({
           </div>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-transparent text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Insumo</th>
                   <th className="px-4 py-3 text-left">Un.</th>
@@ -795,7 +795,7 @@ export default async function PlanoDetalhe({
 function IndicadorMargem({ titulo, valor, detalhe, destaque = false }: { titulo: string; valor: number; detalhe?: string; destaque?: boolean }) {
   return (
     <div className={`rounded-lg border p-3 ${destaque ? "border-brand-300 bg-brand-50 dark:border-brand-800 dark:bg-brand-950/30" : "border-border bg-muted/30"}`}>
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titulo}</p>
+      <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
       <p className="mt-1 text-lg font-semibold tabular-nums">{formatCurrency(valor)}</p>
       {detalhe && <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p>}
     </div>

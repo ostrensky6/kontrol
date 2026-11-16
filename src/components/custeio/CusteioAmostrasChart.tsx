@@ -256,7 +256,7 @@ export function CusteioAmostrasChart({
         <div className="min-w-0">
           <div className="rounded-md border border-border/70 bg-muted/30 p-3">
             <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Análises</p>
+              <p className="text-xs font-semibold text-muted-foreground">Análises</p>
               <button
                 type="button"
                 onClick={() => setSelecionadas([])}

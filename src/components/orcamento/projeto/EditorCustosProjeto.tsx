@@ -401,7 +401,7 @@ export async function EditorCustosProjeto({
       <div className="overflow-x-auto rounded-md border border-border">
         <table className="min-w-full text-sm">
           <caption className="sr-only">Itens de {RUBRICAS_PROJETO[rubrica as keyof typeof RUBRICAS_PROJETO]}</caption>
-          <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-2">Descrição</th>
               <th scope="col" className="px-3 py-2">Unidade</th>
@@ -470,7 +470,7 @@ export async function EditorCustosProjeto({
     analises.length === 0 ? null : (
       <div className="rounded-md border border-border">
         <div className="flex items-center gap-1 border-b border-border bg-muted/50 px-3 py-1.5">
-          <h4 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Análises lançadas no projeto</h4>
+          <h4 className="text-xs font-semibold text-muted-foreground">Análises lançadas no projeto</h4>
           <HelpTip title="Análises lançadas no projeto">
             <p>
               Lançadas antes da mudança: entram em MC pelo <b>custo técnico</b> e continuam valendo. Análises novas entram pela
@@ -547,7 +547,7 @@ export async function EditorCustosProjeto({
           </div>
         )}
         <div className="text-right">
-          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Custo do projeto</p>
+          <p className="text-xs font-medium text-muted-foreground">Custo do projeto</p>
           <p className="text-2xl font-semibold tabular-nums" data-testid="total-custo-projeto">
             {mascararPessoal ? <Mascarado /> : brl(totalProjeto)}
           </p>

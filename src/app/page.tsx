@@ -91,7 +91,7 @@ function Indicador({
       aria-label={`${label}: ${typeof value === "string" || typeof value === "number" ? value : ""}. ${detail}`}
       className="block rounded-lg transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2"
     >
-      <StatCard label={label} value={value} detail={detail} tone={tone} className="h-full" labelInteiro />
+      <StatCard label={label} value={value} detail={detail} tone={tone} className="h-full" />
     </Link>
   );
 }

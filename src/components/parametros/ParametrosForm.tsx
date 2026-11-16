@@ -50,7 +50,7 @@ const num = (v: number, casas = 2) =>
 const inp =
   "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-medium tabular-nums text-brand-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 disabled:cursor-not-allowed disabled:bg-muted disabled:text-foreground dark:text-brand-300"; // §8.2: entrada em azul
 const lbl = "block text-xs font-medium text-muted-foreground";
-const sec = "text-sm font-semibold uppercase tracking-wide text-muted-foreground";
+const sec = "text-sm font-semibold text-muted-foreground";
 const LINK_VERSIONADOS = "/orcamento/parametros";
 
 function ordenar(a: Param, b: Param) {

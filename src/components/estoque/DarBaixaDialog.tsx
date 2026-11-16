@@ -31,7 +31,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const TRIGGER_PADRAO =
-  "rounded px-2 py-1 text-xs font-medium text-danger-strong hover:bg-danger-soft disabled:opacity-50";
+  "whitespace-nowrap rounded px-2 py-1 text-xs font-medium text-danger-strong hover:bg-danger-soft disabled:opacity-50";
 
 type Erros = Partial<Record<"lote" | "quantidade" | "motivo_tipo" | "motivo_detalhe", string>>;
 

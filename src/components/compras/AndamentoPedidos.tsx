@@ -61,7 +61,7 @@ export function AndamentoPedidos({
                 className={caixa}
               >
                 <span className="flex items-center justify-between gap-2">
-                  <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Etapa {i + 1}</span>
+                  <span className="text-xs font-semibold text-muted-foreground">Etapa {i + 1}</span>
                   <span className={cn("text-xl font-semibold tabular-nums", n > 0 ? "text-foreground" : "text-muted-foreground")}>{n}</span>
                 </span>
                 <span className="text-sm font-medium text-foreground">{etapa.rotulo}</span>

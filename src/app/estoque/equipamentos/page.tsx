@@ -206,7 +206,7 @@ export default async function EquipamentosPage({
         <AbasEquipamentos ativa="unidades" />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               Estoque · Patrimônio físico
             </p>
             <div className="mt-1 flex items-center gap-1">
@@ -313,7 +313,7 @@ export default async function EquipamentosPage({
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
           <table className="w-full text-sm">
-            <thead className="border-b border-border bg-transparent text-xs uppercase tracking-wide text-muted-foreground">
+            <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
               <tr>
                 <th className="px-4 py-3 text-left">ID</th>
                 <th className="px-4 py-3 text-left">Equipamento/tipo</th>
@@ -471,7 +471,7 @@ export default async function EquipamentosPage({
 
                   <dl className="mt-4 grid gap-3 sm:grid-cols-2">
                     <div className="rounded-md border border-border/70 p-3">
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Conclusões no recorte carregado</dt>
+                      <dt className="text-xs font-medium text-muted-foreground">Conclusões no recorte carregado</dt>
                       {ultimaDatada?.data_conclusao != null && (
                         <dd className="mt-1 text-sm font-medium">
                           <p>{labelTipo(ultimaDatada.tipo)} · Concluída em {formatDate(ultimaDatada.data_conclusao)}</p>
@@ -497,7 +497,7 @@ export default async function EquipamentosPage({
                       )}
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Próxima ação</dt>
+                      <dt className="text-xs font-medium text-muted-foreground">Próxima ação</dt>
                       <dd className="mt-1 text-sm font-medium">
                         {manutencoesIndisponiveis || !Array.isArray(manutencoesResult.data)
                           ? "Agenda indisponível no recorte carregado."
@@ -514,7 +514,7 @@ export default async function EquipamentosPage({
                       )}
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Plano ativo</dt>
+                      <dt className="text-xs font-medium text-muted-foreground">Plano ativo</dt>
                       {!Array.isArray(planosResult.data) || ("error" in planosResult && planosResult.error != null) ? (
                         <dd className="mt-1 text-sm font-medium">Planos indisponíveis no recorte carregado.</dd>
                       ) : (
@@ -529,7 +529,7 @@ export default async function EquipamentosPage({
                       )}
                     </div>
                     <div className="rounded-md border border-border/70 p-3">
-                      <dt className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Histórico de status</dt>
+                      <dt className="text-xs font-medium text-muted-foreground">Histórico de status</dt>
                       <dd className="mt-1 space-y-1 text-xs text-muted-foreground">
                         {historico.length > 0 ? historico.map((item) => (
                           <p key={item.id}>

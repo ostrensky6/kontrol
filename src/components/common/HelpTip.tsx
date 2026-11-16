@@ -92,7 +92,7 @@ export function HelpExample({
 }) {
   return (
     <div className="rounded-md border border-info-strong/20 bg-info-soft px-2.5 py-2 text-left text-xs leading-relaxed text-foreground">
-      <p className="mb-0.5 text-[11px] font-semibold uppercase tracking-wide text-info-strong">
+      <p className="mb-0.5 text-xs font-semibold text-info-strong">
         {title}
       </p>
       {children}

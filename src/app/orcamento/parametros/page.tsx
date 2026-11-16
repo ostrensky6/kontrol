@@ -270,7 +270,7 @@ export default async function ParametrosEconomicosPage() {
             valores={valores}
             cabecalho={
               <div className="flex items-center gap-0.5">
-                <h2 id="premissas-titulo" className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <h2 id="premissas-titulo" className="text-xs font-semibold text-muted-foreground">
                   Premissas de orçamento
                 </h2>
                 <HelpTip title="Quando as mudanças valem" className="h-6 w-6">
@@ -449,7 +449,7 @@ export default async function ParametrosEconomicosPage() {
   );
 }
 
-const cabecalhoTabela = "whitespace-nowrap text-[11px] uppercase tracking-wide text-muted-foreground";
+const cabecalhoTabela = "whitespace-nowrap text-xs text-muted-foreground";
 
 function AjudaVersoes() {
   return (

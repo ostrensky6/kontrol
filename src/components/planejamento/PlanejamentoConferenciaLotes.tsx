@@ -155,7 +155,7 @@ export function PlanejamentoConferenciaLotes({
     <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Separar material</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Separar material</h2>
           <HelpTip title="Separar material">
             <p>Escaneie o lote separado para conferir com a reserva. Não dá baixa no estoque.</p>
             <p>

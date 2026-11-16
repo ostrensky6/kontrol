@@ -44,11 +44,12 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
     >
       <div className="app-topnav-container flex items-center gap-3">
         {modulo && itens.length > 0 ? (
-          // no computador os lugares quebram em duas linhas quando não cabem (o Estoque tem sete):
-          // nenhum fica escondido atrás de rolagem. No celular a barra rola para o lado.
+          // os lugares do módulo cabem numa linha só a partir de 1280 px (o Estoque tem sete):
+          // abaixo de 1640 px o ícone sai e fica o nome. Se ainda assim não couber, a barra
+          // quebra em duas linhas: nenhum lugar fica escondido. No celular ela rola para o lado.
           <nav
             aria-label={`Navegação de ${modulo.label}`}
-            className="flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:overflow-visible"
+            className="flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:gap-1.5 md:overflow-visible"
           >
             {itens.map((item) => {
               const ativo = item.href === hrefAtivo;
@@ -59,10 +60,10 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
                   asChild
                   size="sm"
                   variant={ativo ? "default" : "outline"}
-                  className={cn("shrink-0 gap-2", !ativo && "app-nav-level-2 dark:bg-card dark:hover:bg-primary/10")}
+                  className={cn("shrink-0 gap-2 md:px-2.5", !ativo && "app-nav-level-2 dark:bg-card dark:hover:bg-primary/10")}
                 >
                   <Link href={item.href} aria-current={ativo ? "page" : undefined} title={item.desc?.replaceAll("**", "")}>
-                    {Icon && <Icon className="h-3.5 w-3.5" />}
+                    {Icon && <Icon className="h-3.5 w-3.5 md:hidden min-[1640px]:block" aria-hidden="true" />}
                     <span>{item.label}</span>
                   </Link>
                 </Button>
@@ -82,8 +83,8 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
             className="h-9 gap-2 border-border bg-background px-2.5 text-sm text-muted-foreground shadow-none hover:text-foreground"
           >
             <Search className="h-4 w-4" aria-hidden="true" />
-            <span className="hidden lg:inline">Buscar</span>
-            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground lg:inline">
+            <span className="hidden min-[1340px]:inline">Buscar</span>
+            <kbd className="hidden rounded border border-border bg-muted px-1.5 py-0.5 text-xs font-semibold text-muted-foreground 2xl:inline">
               Ctrl K
             </kbd>
           </Button>

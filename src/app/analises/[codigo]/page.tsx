@@ -101,9 +101,9 @@ type EquipamentoOpcao = {
 };
 
 const panel = "rounded-lg border border-border bg-card p-3 shadow-sm";
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-foreground";
+const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
 const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
-const labelClass = "text-[9px] font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300";
+const labelClass = "text-xs font-medium text-blue-700 dark:text-blue-300";
 const inputClass = "mt-0.5 h-7 w-full rounded-md border border-blue-300 bg-blue-50/70 px-2 py-0.5 text-[11px] font-medium text-blue-950 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100";
 const primaryButtonClass = "rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90";
 const editablePanelClass = "rounded-md border border-blue-200 bg-blue-50/35 p-2 dark:border-blue-900 dark:bg-blue-950/15";
@@ -712,7 +712,7 @@ function Section({
   return (
     <section className="mt-6">
       <div className="flex items-center gap-1">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold text-muted-foreground">{title}</h2>
         {help}
       </div>
       <div className={`mt-2 ${panel}`}>{children}</div>
@@ -742,7 +742,7 @@ function Stat({
 function MiniStat({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-md border border-border/60 bg-background/60 px-2.5 py-2">
-      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p className="text-xs text-muted-foreground">{label}</p>
       <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
     </div>
   );

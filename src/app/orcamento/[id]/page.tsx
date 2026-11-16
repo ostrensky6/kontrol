@@ -358,7 +358,7 @@ export default async function OrcamentoDetalhe({
                   className="inline-flex items-baseline gap-1.5 rounded-md border border-primary/20 px-2.5 py-1 text-xs text-brand-800 transition hover:border-primary/40 hover:bg-primary/5 hover:text-brand-900 dark:text-brand-300"
                 >
                   <span className="font-semibold">{tab.label}</span>
-                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">{tab.meta}</span>
+                  <span className="text-xs text-muted-foreground">{tab.meta}</span>
                 </a>
               ))}
             </div>
@@ -408,7 +408,7 @@ export default async function OrcamentoDetalhe({
           {/* Análises solicitadas */}
           <section id="analises-quantidades" className="mt-4 scroll-mt-24">
             <div className="flex flex-wrap items-end justify-between gap-3">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              <h2 className="text-sm font-semibold text-muted-foreground">
                 Análises e quantidades
               </h2>
               <span className="text-xs text-muted-foreground/80">
@@ -418,7 +418,7 @@ export default async function OrcamentoDetalhe({
             </div>
           <div className="mt-2 overflow-x-auto rounded-lg border border-border">
             <table className="w-full text-right text-sm">
-              <thead className="bg-transparent text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-transparent text-xs text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2 text-left">Análise</th>
                   <th className="px-3 py-2 text-left">Matriz</th>
@@ -546,7 +546,7 @@ export default async function OrcamentoDetalhe({
 
           {orc.observacoes && (
             <div className="mt-3 text-sm">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-medium text-muted-foreground">
                 Observações
               </p>
               <p className="mt-1 whitespace-pre-wrap text-foreground">
@@ -839,7 +839,7 @@ function TabelaCatalogoAnalises({
     <div className="mt-3 rounded-lg border border-border md:overflow-x-auto">
       {/* No celular cada análise vira um cartão (mesma tabela, só CSS): código e nome em cima. */}
       <table className="w-full text-sm md:min-w-[980px] md:text-right">
-        <thead className="hidden bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground md:table-header-group min-[1400px]:whitespace-nowrap">
+        <thead className="hidden bg-muted/50 text-xs text-muted-foreground md:table-header-group min-[1400px]:whitespace-nowrap">
           <tr>
             <th className="px-2 py-2 text-left">Incluir</th>
             <th className="px-2 py-2 text-left">Código</th>
@@ -892,12 +892,12 @@ function TabelaCatalogoAnalises({
                 </td>
                 <td className="order-1 col-span-2 font-semibold md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left">{analise.codigo}</td>
                 <td className="order-2 col-span-2 -mt-2 text-foreground md:order-none md:mt-0 md:table-cell md:max-w-xs md:px-2 md:py-1.5 md:text-left">{analise.nome ?? "—"}</td>
-                <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
-                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
-                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 min-[1400px]:whitespace-nowrap max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                <td data-label="Lote" className="order-7 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{analise.breakdown?.lote ?? "—"}</td>
+                <td data-label="Custo unit." className="order-3 tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(custoUnitario)}</td>
+                <td data-label="Composição (R · E · P · O)" className="order-9 col-span-2 text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 min-[1400px]:whitespace-nowrap max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   R {brl(Number(analise.breakdown?.reagentes ?? 0))} · E {brl(Number(analise.breakdown?.equipamento ?? 0))} · P {brl(Number(analise.breakdown?.pessoal ?? 0))} · O {brl(Number(analise.breakdown?.overhead ?? 0))}
                 </td>
-                <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
+                <td data-label="Amostras" className="order-5 md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">
                   {selecionada && bloqueado ? (
                     <span className="tabular-nums">{amostras}</span>
                   ) : selecionada ? (
@@ -922,7 +922,7 @@ function TabelaCatalogoAnalises({
                     <span className="text-muted-foreground/80">—</span>
                   )}
                 </td>
-                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:uppercase max-md:before:tracking-wide max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
+                <td data-label="Subtotal" className="order-4 font-semibold tabular-nums md:order-none md:table-cell md:px-2 md:py-1.5 max-md:before:block max-md:before:text-[11px] max-md:before:font-medium max-md:before:text-muted-foreground max-md:before:content-[attr(data-label)]">{brl(subtotal)}</td>
                 <td className="order-8 self-center text-xs text-muted-foreground md:order-none md:table-cell md:px-2 md:py-1.5 md:text-left min-[1400px]:whitespace-nowrap">
                   {selecionada ? "No orçamento" : "Fora do subtotal"}
                 </td>
@@ -947,7 +947,7 @@ function TabelaResumoTecnico({
   return (
     <div className="mb-1.5 mt-2 overflow-x-auto rounded-lg border border-border">
       <table className="w-full text-left text-sm">
-        <thead className="text-xs uppercase tracking-wide text-muted-foreground">
+        <thead className="text-xs text-muted-foreground">
           <tr>
             {colunas.map((coluna) => (
               <th key={coluna} className="px-3 py-2">

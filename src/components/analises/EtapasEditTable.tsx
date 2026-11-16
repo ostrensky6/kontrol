@@ -18,12 +18,12 @@ export type EtapaEditRowData = {
   atividade_opcional: boolean | null;
 };
 
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-foreground";
+const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
 const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
 const iconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-700";
 const editButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-background text-blue-700 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30";
 const dangerIconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-danger-strong/30 bg-background text-danger-strong hover:bg-danger-soft focus:outline-none focus:ring-2 focus:ring-danger-strong/20";
-const labelClass = "text-[9px] font-medium uppercase tracking-wide text-blue-700 dark:text-blue-300";
+const labelClass = "text-xs font-medium text-blue-700 dark:text-blue-300";
 const inputClass = "mt-0.5 h-7 w-full rounded-md border border-blue-300 bg-blue-50/70 px-2 py-0.5 text-[11px] font-medium text-blue-950 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100";
 const editablePanelClass = "rounded-md border border-blue-200 bg-blue-50/35 p-2 dark:border-blue-900 dark:bg-blue-950/15";
 
@@ -55,7 +55,7 @@ export function EtapasEditTable({
 
   return (
     <>
-      <h3 className="mt-5 text-xs font-semibold uppercase tracking-wide text-muted-foreground first:mt-0">{titulo}</h3>
+      <h3 className="mt-5 text-xs font-semibold text-muted-foreground first:mt-0">{titulo}</h3>
       {etapas.map((etapa) => (
         <form key={etapa.id} id={formId(etapa.id)} action={atualizarEtapa} />
       ))}

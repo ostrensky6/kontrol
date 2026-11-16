@@ -87,7 +87,7 @@ function Linhas({ itens }: { itens: ItemACaminho[] }) {
       <div className="hidden overflow-x-auto md:block">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <tr className="border-b border-border text-left text-xs text-muted-foreground">
               <th scope="col" className="py-2 pr-3 font-medium">Insumo</th>
               <th scope="col" className="py-2 pr-3 font-medium">Pedido</th>
               <th scope="col" className="py-2 pr-3 font-medium">Recebido</th>

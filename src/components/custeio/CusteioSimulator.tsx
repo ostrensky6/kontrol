@@ -61,7 +61,7 @@ export function CusteioSimulator({
           </div>
         </div>
         <div className="text-right">
-          <div className="text-xs uppercase text-muted-foreground">Preço simulado</div>
+          <div className="text-xs text-muted-foreground">Preço simulado</div>
           <div className="text-2xl font-semibold text-brand-700 dark:text-brand-300">{formatCurrency(resultado.preco)}</div>
         </div>
       </div>

@@ -102,7 +102,7 @@ export default async function EtiquetasPage({
       <main className="app-page-container print:max-w-none print:px-0 print:py-0">
         <div className="no-print flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <p className="text-xs font-semibold text-muted-foreground">
               Estoque · Identificação interna
             </p>
             <div className="mt-1 flex items-center gap-1">
@@ -145,7 +145,7 @@ export default async function EtiquetasPage({
                 <div className="flex gap-3">
                   <QrCode value={url} label={`QR do lote ${lote.id}`} size={112} className="shrink-0 rounded bg-card" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Lote</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Lote</p>
                     <h2 className="mt-1 truncate text-base font-semibold" title={insumo?.especificacao ?? undefined}>
                       {insumo?.especificacao ?? `Lote #${lote.id}`}
                     </h2>
@@ -172,7 +172,7 @@ export default async function EtiquetasPage({
                 <div className="flex gap-3">
                   <QrCode value={url} label={`QR da unidade ${unidade.id}`} size={112} className="shrink-0 rounded bg-card" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Equipamento</p>
+                    <p className="text-xs font-semibold text-muted-foreground">Equipamento</p>
                     <h2 className="mt-1 truncate text-base font-semibold" title={equipamento?.nome ?? undefined}>
                       {equipamento?.nome ?? `Equipamento #${unidade.equipamento_id}`}
                     </h2>

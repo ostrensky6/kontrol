@@ -184,7 +184,7 @@ export default async function RecebimentoPage() {
         <section className="mt-8">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Compras sem pedido</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground">Compras sem pedido</h2>
               <HelpTip title="Compras sem pedido">
                 <p>Itens que chegam direto do fornecedor, inclusive chegadas parciais.</p>
               </HelpTip>
@@ -193,7 +193,7 @@ export default async function RecebimentoPage() {
           </div>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
-              <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b border-border text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Compra</th>
                   <th className="px-4 py-3 text-left">Insumo</th>

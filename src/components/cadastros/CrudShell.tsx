@@ -1104,7 +1104,7 @@ function camposComSecao(campos: Campo[], criando: boolean) {
 
 function TituloSecao({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mt-2 border-b border-border pb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:col-span-2">
+    <h3 className="mt-2 border-b border-border pb-1 text-xs font-semibold text-muted-foreground sm:col-span-2">
       {children}
     </h3>
   );
