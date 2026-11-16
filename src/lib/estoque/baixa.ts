@@ -9,6 +9,8 @@
  * preservado. A escolha de lote segue FEFO (vence antes, sai antes).
  */
 
+import { hojeIso } from "@/lib/formatters";
+
 export type ModeloQuantidadeLote = "LEGADO" | "EMBALAGEM_FECHADA";
 
 export type LoteBaixa = {
@@ -29,17 +31,8 @@ export function normalizarModelo(value: unknown): ModeloQuantidadeLote {
   return value === "EMBALAGEM_FECHADA" ? "EMBALAGEM_FECHADA" : "LEGADO";
 }
 
-/** Data de hoje (aaaa-mm-dd) no fuso do laboratório. */
-export function hojeIso(agora = new Date()) {
-  const partes = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Sao_Paulo",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(agora);
-  const valor = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((parte) => parte.type === tipo)?.value;
-  return `${valor("year")}-${valor("month")}-${valor("day")}`;
-}
+/** Data de hoje no fuso do laboratório: a fonte única fica em formatters. */
+export { hojeIso };
 
 export function validadeEfetiva(validade: string | null | undefined, validadeAposAbertura: string | null | undefined) {
   const datas = [validade, validadeAposAbertura].filter((data): data is string => Boolean(data)).sort();

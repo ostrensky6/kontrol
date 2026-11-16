@@ -19,7 +19,7 @@ export function IconeAcao({ icone: Icone, rotulo }: { icone: LucideIcon; rotulo:
 }
 
 export const CLASSE_BOTAO_ICONE =
-  "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
+  "toque inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50";
 
 export const CLASSE_BOTAO_ICONE_PERIGO =
-  "inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger-strong disabled:cursor-not-allowed disabled:opacity-50";
+  "toque inline-flex size-7 items-center justify-center rounded-md text-muted-foreground hover:bg-danger-soft hover:text-danger-strong disabled:cursor-not-allowed disabled:opacity-50";

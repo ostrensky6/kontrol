@@ -8,6 +8,7 @@ import { pode } from "@/lib/auth/permissao-efetiva";
 import { computarDemandaPlano } from "@/lib/costing/demanda";
 import { falha, mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
 import type { FormState } from "./cadastros";
+import { dataIsoEmDias } from "@/lib/formatters";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
@@ -29,7 +30,7 @@ function leadTimeEfetivo(
 
 function dataPrevistaPorPrazo(prazoDias: number | null): string | null {
   if (!(prazoDias && prazoDias > 0)) return null;
-  return new Date(Date.now() + prazoDias * 86400000).toISOString().slice(0, 10);
+  return dataIsoEmDias(prazoDias);
 }
 
 export async function gerarRascunhosReposicao(_prev: FormState): Promise<FormState> {

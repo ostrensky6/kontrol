@@ -15,7 +15,7 @@ import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
 import { listarEventos } from "@/lib/actions/eventos";
 import { Timeline } from "@/components/common/Timeline";
-import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl } from "@/lib/formatters";
+import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl, hojeIso } from "@/lib/formatters";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
 import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
@@ -151,7 +151,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
 
   const eventos = await listarEventos("pedido_compra", pedidoId);
   const editavel = pedido.status === "solicitado" && podeSolicitar;
-  const hoje = new Date().toISOString().slice(0, 10);
+  const hoje = hojeIso();
   const atrasada =
     ["aprovado", "enviado", "em_transito"].includes(pedido.status) &&
     pedido.data_prevista_entrega != null &&
@@ -455,8 +455,8 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
             <FormComMensagem action={adicionarItemPedido} className="mt-3 flex flex-wrap items-end gap-2">
               <input type="hidden" name="pedido_id" value={pedidoId} />
               <div>
-                <label className="block text-xs text-muted-foreground/80">Insumo</label>
-                <select name="insumo_id" className={inp} defaultValue="">
+                <label htmlFor="adicionarItemPedido-insumo_id" className="block text-xs text-muted-foreground/80">Insumo</label>
+                <select id="adicionarItemPedido-insumo_id" name="insumo_id" className={inp} defaultValue="">
                   <option value="" disabled>Selecione…</option>
                   {(insumos ?? []).map((i) => (
                     <option key={i.id} value={i.id}>{[i.especificacao, rotuloCodigoFabricante(i.codigo_fabricante)].filter(Boolean).join(" · ")}</option>
@@ -464,12 +464,12 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground/80">Frascos</label>
-                <input name="quantidade" type="number" min="1" step="1" className={`${inp} w-24`} />
+                <label htmlFor="adicionarItemPedido-quantidade" className="block text-xs text-muted-foreground/80">Frascos</label>
+                <input id="adicionarItemPedido-quantidade" name="quantidade" type="number" min="1" step="1" className={`${inp} w-24`} />
               </div>
               <div>
-                <label className="block text-xs text-muted-foreground/80">Custo est. por frasco</label>
-                <input name="custo_unitario_estimado" type="number" min="0" step="0.01" className={`${inp} w-28`} />
+                <label htmlFor="adicionarItemPedido-custo_unitario_estimado" className="block text-xs text-muted-foreground/80">Custo est. por frasco</label>
+                <input id="adicionarItemPedido-custo_unitario_estimado" name="custo_unitario_estimado" type="number" min="0" step="0.01" className={`${inp} w-28`} />
               </div>
               <button className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">Adicionar</button>
             </FormComMensagem>

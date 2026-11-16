@@ -114,7 +114,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                           aria-label={`${papel.label}: ${permissao.label}`}
                           title={admin ? "O administrador sempre tem tudo." : undefined}
                           aria-describedby={admin ? "privilegios-admin-nota" : undefined}
-                          className="h-5 w-5 cursor-pointer accent-brand-600 disabled:cursor-not-allowed disabled:opacity-60"
+                          className="h-5 w-5 cursor-pointer accent-brand-600 pointer-coarse:h-6 pointer-coarse:w-6 disabled:cursor-not-allowed disabled:opacity-60"
                         />
                       </td>
                     );

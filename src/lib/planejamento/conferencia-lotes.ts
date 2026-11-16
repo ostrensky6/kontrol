@@ -1,3 +1,5 @@
+import { hojeIso } from "@/lib/formatters";
+
 export type LoteConferencia = {
   id: number;
   insumoId: number;
@@ -16,7 +18,7 @@ export function menorValidadeLote(lote: Pick<LoteConferencia, "validade" | "vali
 
 export function loteEstaVencido(
   lote: Pick<LoteConferencia, "validade" | "validadeAposAbertura">,
-  hoje = new Date().toISOString().slice(0, 10),
+  hoje = hojeIso(),
 ) {
   const validade = menorValidadeLote(lote);
   return validade != null && validade < hoje;

@@ -427,7 +427,7 @@ export function DataTable<TData>({
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
                             className={cn(
-                              "inline-flex items-center gap-1 hover:text-foreground",
+                              "toque-texto inline-flex items-center gap-1 hover:text-foreground",
                               align === "right" && "flex-row-reverse",
                             )}
                           >

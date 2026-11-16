@@ -101,7 +101,7 @@ export function CusteioSimulator({
             step={1}
             value={lote}
             onChange={(event) => setLote(Number(event.target.value))}
-            className="mt-3 w-full accent-brand-600"
+            className="mt-3 w-full accent-brand-600 pointer-coarse:h-8"
           />
         </label>
 
@@ -118,7 +118,7 @@ export function CusteioSimulator({
             step={1}
             value={fator}
             onChange={(event) => setFator(Number(event.target.value))}
-            className="mt-3 w-full accent-primary"
+            className="mt-3 w-full accent-primary pointer-coarse:h-8"
           />
         </label>
       </div>

@@ -204,7 +204,7 @@ export function LoteAcoes({
             : modal === "excluir"
               ? "Motivo da exclusão"
               : "Motivo do ajuste";
-  const btn = "rounded px-2 py-1 text-xs font-medium disabled:opacity-50";
+  const btn = "toque rounded px-2 py-1 text-xs font-medium disabled:opacity-50";
   const loteAtivo = status === "aceito" || status === "em_uso";
   const emEmbalagens = modeloQuantidade === "EMBALAGEM_FECHADA";
 

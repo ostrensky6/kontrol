@@ -20,7 +20,7 @@ export function Breadcrumbs({
         <li>
           <Link
             href="/"
-            className="inline-flex items-center gap-1 font-medium hover:text-foreground"
+            className="toque-texto inline-flex items-center gap-1 font-medium hover:text-foreground pointer-coarse:-mx-2.5 pointer-coarse:px-2.5"
             aria-label="Início"
           >
             <Home className="h-3.5 w-3.5" />
@@ -32,7 +32,7 @@ export function Breadcrumbs({
             <li key={`${item.label}:${index}`} className="inline-flex items-center gap-1.5">
               <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/70" aria-hidden="true" />
               {item.href && !current ? (
-                <Link href={item.href} className="font-medium hover:text-foreground">
+                <Link href={item.href} className="toque-texto font-medium hover:text-foreground">
                   {item.label}
                 </Link>
               ) : (

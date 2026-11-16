@@ -1,6 +1,7 @@
 import type { NextRequest } from "next/server";
 import { CADASTROS } from "@/lib/cadastros/config";
 import { buildCadastrosWorkbook, safeFileName } from "@/lib/cadastros/xlsx";
+import { hojeIso } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -16,7 +17,7 @@ export async function GET(
   try {
     const workbook = await buildCadastrosWorkbook(slug);
     const buffer = await workbook.xlsx.writeBuffer();
-    const filename = `${safeFileName(cfg.titulo)}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    const filename = `${safeFileName(cfg.titulo)}-${hojeIso()}.xlsx`;
 
     return new Response(buffer, {
       headers: {

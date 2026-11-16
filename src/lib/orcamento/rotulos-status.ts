@@ -1,3 +1,5 @@
+import { hojeIso } from "@/lib/formatters";
+
 // Rótulos de status do orçamento e status efetivo das versões finais (propostas).
 
 export const ROTULO_STATUS_VERSAO_FINAL: Record<string, string> = {
@@ -20,7 +22,7 @@ export function rotuloStatusVersaoFinal(status?: string | null) {
 
 /** Data de hoje (AAAA-MM-DD) no fuso do laboratório. */
 export function hojeCalendario(agora: Date = new Date()) {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(agora);
+  return hojeIso(agora);
 }
 
 /**

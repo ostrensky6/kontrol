@@ -23,6 +23,7 @@ import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
 import { garantirEscrita } from "@/lib/supabase/escrita";
+import { hojeIso } from "@/lib/formatters";
 
 const pathDemandas = "/orcamento/demandas";
 
@@ -1021,7 +1022,7 @@ export async function excluirTemplate(formData: FormData) {
   const descricaoBase = template.descricao ?? "";
   const descricao = descricaoBase.includes("Arquivado em ")
     ? descricaoBase
-    : `${descricaoBase}${descricaoBase ? "\n" : ""}Arquivado em ${new Date().toISOString().slice(0, 10)}.`;
+    : `${descricaoBase}${descricaoBase ? "\n" : ""}Arquivado em ${hojeIso()}.`;
   const { data: arquivado, error: arquivarError } = await supabase
     .from("orcamento_projeto_templates")
     .update({ nome, descricao })

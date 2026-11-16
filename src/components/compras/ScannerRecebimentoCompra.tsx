@@ -271,7 +271,7 @@ export function ScannerRecebimentoCompra({
               type="button"
               onClick={iniciarCamera}
               disabled={cameraStatus === "iniciando" || scanPending || recebimentoPending}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              className="toque inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
               {cameraStatus === "iniciando" ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -284,7 +284,7 @@ export function ScannerRecebimentoCompra({
               type="button"
               onClick={() => pararCamera()}
               disabled={cameraStatus === "parada" || recebimentoPending}
-              className="rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
+              className="toque rounded-md px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted disabled:opacity-50"
             >
               Parar câmera
             </button>

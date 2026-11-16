@@ -181,7 +181,7 @@ export function CusteioAmostrasChart({
               step={12}
               value={maxAmostras}
               onChange={(event) => setMaxAmostras(Number(event.target.value))}
-              className="mt-3 w-full accent-brand-600"
+              className="mt-3 w-full accent-brand-600 pointer-coarse:h-8"
             />
           </label>
 

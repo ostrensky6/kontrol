@@ -50,7 +50,7 @@ export function ConfirmActionButton({
   confirmLabel = "Excluir",
   destrutivo = true,
   disabled = false,
-  triggerClassName = "text-xs text-muted-foreground/80 hover:text-danger-strong",
+  triggerClassName = "toque-texto text-xs text-muted-foreground/80 hover:text-danger-strong",
   motivo,
 }: {
   action: (formData: FormData) => void | Promise<void>;

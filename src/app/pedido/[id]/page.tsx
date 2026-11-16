@@ -822,8 +822,8 @@ export default async function PedidoInternoDetalhe({
                   </HelpTip>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
-                  <input
+                  <label htmlFor="registrarAnaliseAdministrativa-fonte_recurso" className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
+                  <input id="registrarAnaliseAdministrativa-fonte_recurso"
                     name="fonte_recurso"
                     required
                     defaultValue={pedido.fonte_recurso ?? (controlados.length > 0 ? "FUNPAR" : "")}
@@ -834,16 +834,16 @@ export default async function PedidoInternoDetalhe({
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-muted-foreground">Rubrica</label>
-                  <input name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarAnaliseAdministrativa-rubrica" className="block text-xs font-medium text-muted-foreground">Rubrica</label>
+                  <input id="registrarAnaliseAdministrativa-rubrica" name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
-                  <textarea name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarAnaliseAdministrativa-conformidade_admin" className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
+                  <textarea id="registrarAnaliseAdministrativa-conformidade_admin" name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs font-medium text-muted-foreground">Observação</label>
-                  <input name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarAnaliseAdministrativa-observacao" className="block text-xs font-medium text-muted-foreground">Observação</label>
+                  <input id="registrarAnaliseAdministrativa-observacao" name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
                   <SubmitButton pendingLabel="Registrando…" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
@@ -1168,8 +1168,8 @@ export default async function PedidoInternoDetalhe({
               <FormComMensagem action={adicionarAnexoPedidoInterno} encType="multipart/form-data" className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Tipo</label>
-                  <select name="tipo" defaultValue="orcamento_previo" className={`${inputCls} mt-1 w-full`}>
+                  <label htmlFor="adicionarAnexoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
+                  <select id="adicionarAnexoPedidoInterno-tipo" name="tipo" defaultValue="orcamento_previo" className={`${inputCls} mt-1 w-full`}>
                     <option value="orcamento_previo">Cotação prévia</option>
                     <option value="proposta">Cotação do fornecedor</option>
                     <option value="print">Print</option>
@@ -1183,21 +1183,21 @@ export default async function PedidoInternoDetalhe({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Título</label>
-                  <input name="titulo" required className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="adicionarAnexoPedidoInterno-titulo" className="block text-xs text-muted-foreground/80">Título</label>
+                  <input id="adicionarAnexoPedidoInterno-titulo" name="titulo" required className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-muted-foreground/80">Arquivo</label>
-                  <input name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="adicionarAnexoPedidoInterno-arquivo" className="block text-xs text-muted-foreground/80">Arquivo</label>
+                  <input id="adicionarAnexoPedidoInterno-arquivo" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx" className={`${inputCls} mt-1 w-full`} />
                   <p className="mt-1 text-[11px] text-muted-foreground">PDF, imagem, DOCX ou XLSX, até 15 MB.</p>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-muted-foreground/80">Link ou referência externa (opcional)</label>
-                  <input name="url" placeholder="https://..." className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="adicionarAnexoPedidoInterno-url" className="block text-xs text-muted-foreground/80">Link ou referência externa (opcional)</label>
+                  <input id="adicionarAnexoPedidoInterno-url" name="url" placeholder="https://..." className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-muted-foreground/80">Observação</label>
-                  <input name="observacao" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="adicionarAnexoPedidoInterno-observacao" className="block text-xs text-muted-foreground/80">Observação</label>
+                  <input id="adicionarAnexoPedidoInterno-observacao" name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
                   <SubmitButton pendingLabel="Enviando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
@@ -1235,8 +1235,8 @@ export default async function PedidoInternoDetalhe({
               <FormComMensagem action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Tipo</label>
-                  <select name="tipo" defaultValue="email" className={`${inputCls} mt-1 w-full`}>
+                  <label htmlFor="registrarComunicacaoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
+                  <select id="registrarComunicacaoPedidoInterno-tipo" name="tipo" defaultValue="email" className={`${inputCls} mt-1 w-full`}>
                     <option value="email">E-mail</option>
                     <option value="reuniao">Reunião</option>
                     <option value="telefone">Telefone</option>
@@ -1245,24 +1245,24 @@ export default async function PedidoInternoDetalhe({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Remetente</label>
-                  <input name="remetente" defaultValue="giacompras2025@gmail.com" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarComunicacaoPedidoInterno-remetente" className="block text-xs text-muted-foreground/80">Remetente</label>
+                  <input id="registrarComunicacaoPedidoInterno-remetente" name="remetente" defaultValue="giacompras2025@gmail.com" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-muted-foreground/80">Destinatários</label>
-                  <input name="destinatarios" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarComunicacaoPedidoInterno-destinatarios" className="block text-xs text-muted-foreground/80">Destinatários</label>
+                  <input id="registrarComunicacaoPedidoInterno-destinatarios" name="destinatarios" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Assunto</label>
-                  <input name="assunto" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarComunicacaoPedidoInterno-assunto" className="block text-xs text-muted-foreground/80">Assunto</label>
+                  <input id="registrarComunicacaoPedidoInterno-assunto" name="assunto" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div>
-                  <label className="block text-xs text-muted-foreground/80">Referência</label>
-                  <input name="referencia" placeholder="ID da mensagem, protocolo, link..." className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarComunicacaoPedidoInterno-referencia" className="block text-xs text-muted-foreground/80">Referência</label>
+                  <input id="registrarComunicacaoPedidoInterno-referencia" name="referencia" placeholder="ID da mensagem, protocolo, link..." className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-xs text-muted-foreground/80">Observação</label>
-                  <input name="observacao" className={`${inputCls} mt-1 w-full`} />
+                  <label htmlFor="registrarComunicacaoPedidoInterno-observacao" className="block text-xs text-muted-foreground/80">Observação</label>
+                  <input id="registrarComunicacaoPedidoInterno-observacao" name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
                   <SubmitButton pendingLabel="Registrando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">

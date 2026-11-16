@@ -307,10 +307,10 @@ export function PlanejamentoConferenciaLotes({
             <input type="hidden" name="lote_id" value={loteEscaneado?.id ?? ""} />
             <input type="hidden" name="quantidade_prevista" value={insumoSelecionado?.quantidadePrevista ?? ""} />
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">
+              <label htmlFor="conferencia-quantidade_conferida" className="block text-xs font-medium text-muted-foreground">
                 Quantidade conferida
               </label>
-              <input
+              <input id="conferencia-quantidade_conferida"
                 name="quantidade_conferida"
                 type="number"
                 step="any"
