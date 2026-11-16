@@ -137,7 +137,7 @@ export default async function AuditoriaPage({
             <Link
               key={t || "todas"}
               href={t ? `/auditoria?tabela=${t}` : "/auditoria"}
-              className={`rounded-full px-3 py-1 ${
+              className={`toque inline-flex items-center rounded-full px-3 py-1 ${
                 (tabela ?? "") === t
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground hover:bg-muted/80"

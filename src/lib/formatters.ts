@@ -109,3 +109,25 @@ export function formatDateTime(value: string | Date | null | undefined) {
   if (Number.isNaN(date.getTime())) return "—";
   return dateTimeFormatter.format(date);
 }
+
+const diaLocalFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIME_ZONE,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+});
+
+/**
+ * Data de hoje (aaaa-mm-dd) no fuso do laboratório. Nunca derive "hoje" de
+ * `toISOString()`: depois das 21h de Brasília o UTC já está no dia seguinte, e
+ * o prazo, o atraso ou a validade sairiam com um dia de erro.
+ */
+export function hojeIso(agora: Date = new Date()): string {
+  return diaLocalFormatter.format(agora);
+}
+
+/** Data (aaaa-mm-dd) daqui a `dias` dias corridos, contados no calendário do laboratório. */
+export function dataIsoEmDias(dias: number, agora: Date = new Date()): string {
+  const [ano, mes, dia] = hojeIso(agora).split("-").map(Number);
+  return new Date(Date.UTC(ano, mes - 1, dia + Math.round(dias))).toISOString().slice(0, 10);
+}

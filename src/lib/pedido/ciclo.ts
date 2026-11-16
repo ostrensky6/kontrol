@@ -10,6 +10,8 @@
  * - horário de Brasília; feriados não entram na conta.
  */
 
+import { hojeIso } from "@/lib/formatters";
+
 export const URGENCIAS_QUE_FURAM_O_CICLO = ["alta", "critica"];
 export const JUSTIFICATIVA_URGENCIA_MINIMA = 15;
 
@@ -22,7 +24,7 @@ export function ehUrgente(urgencia: string | null | undefined): boolean {
 
 /** Data (aaaa-mm-dd) em Brasília para um instante. */
 export function dataEmBrasilia(momento: Date): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit" }).format(momento);
+  return hojeIso(momento);
 }
 
 function partes(data: string) {

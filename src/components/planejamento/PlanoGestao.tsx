@@ -165,7 +165,7 @@ export function ExcluirOuCancelarPlano({
       <>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" aria-label={`Mais ações de ${nome}`}>
+            <Button type="button" variant="ghost" size="icon" className="toque h-7 w-7" aria-label={`Mais ações de ${nome}`}>
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
@@ -212,7 +212,7 @@ export function ExcluirOuCancelarPlano({
 }
 
 const linkAcao =
-  "inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted";
+  "toque inline-flex items-center justify-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted";
 
 /** Ações de linha para listas de planos: Ver e Editar à vista; Excluir ou Cancelar no menu "…". */
 export function PlanoLinhaAcoes({

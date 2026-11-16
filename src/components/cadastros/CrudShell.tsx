@@ -601,7 +601,7 @@ export function CrudShell({
                             type="button"
                             onClick={header.column.getToggleSortingHandler()}
                             className={cn(
-                              "inline-flex items-center gap-1 hover:text-foreground",
+                              "toque-texto inline-flex items-center gap-1 hover:text-foreground",
                               alinhaDir && "flex-row-reverse",
                             )}
                           >

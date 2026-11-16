@@ -89,6 +89,70 @@ for (const tema of TEMAS) {
   }
 }
 
+/**
+ * Janelas e gavetas (auditoria de 16/11, item 7): a varredura das telas não
+ * abre nada, então o formulário dentro de um diálogo ficava sem conferência.
+ * Cada caso abre o diálogo como a pessoa abriria e varre com ele aberto.
+ */
+const DIALOGOS: { nome: string; abrir: (page: Page) => Promise<void> }[] = [
+  {
+    nome: "Novo pedido",
+    abrir: async (page) => {
+      await page.goto("/pedido?novo=1");
+    },
+  },
+  {
+    nome: "Editar usuário",
+    abrir: async (page) => {
+      await page.goto("/usuarios");
+      await page.getByRole("button", { name: "Ações de Admin E2E" }).click();
+      await page.getByRole("menuitem", { name: "Editar" }).click();
+    },
+  },
+  {
+    nome: "Dar baixa no lote",
+    abrir: async (page) => {
+      await page.goto("/estoque/lotes/1");
+      await page.getByRole("button", { name: "Dar baixa" }).click();
+    },
+  },
+  {
+    nome: "Editar laboratório ou área",
+    abrir: async (page) => {
+      await page.goto("/cadastros/coordenacoes");
+      await page.getByRole("row", { name: /LQA/ }).getByRole("button", { name: "Abrir ações do registro" }).click();
+      await page.getByRole("menuitem", { name: "Editar" }).click();
+    },
+  },
+  {
+    nome: "Busca",
+    abrir: async (page) => {
+      await page.goto("/");
+      await page.getByRole("button", { name: "Buscar ou executar", exact: true }).click();
+    },
+  },
+];
+
+for (const tema of TEMAS) {
+  for (const { nome, abrir } of DIALOGOS) {
+    test(`a11y AA (${tema === "light" ? "claro" : "escuro"}): diálogo ${nome}`, async ({ page }) => {
+      await page.addInitScript((valor) => {
+        try {
+          window.localStorage.setItem("theme", valor);
+        } catch {
+          // sem storage, fica no tema padrão
+        }
+      }, tema);
+      await abrir(page);
+      await expect(page.getByRole("dialog").first()).toBeVisible();
+      if (tema === "dark") await expect(page.locator("html")).toHaveClass(/\bdark\b/);
+      const resultado = await scan(page);
+      const reprovam = violacoesQueReprovam(resultado.violations, `diálogo ${nome}`, tema);
+      expect(reprovam, `Violações sérias/críticas no diálogo ${nome} (${tema}):\n${resumo(reprovam)}`).toEqual([]);
+    });
+  }
+}
+
 test("a11y: o gate reprova uma regressão séria introduzida numa fixture", async ({ page }) => {
   // texto cinza-claro sobre branco (contraste ~2:1) é violação "serious" de color-contrast
   await page.setContent(

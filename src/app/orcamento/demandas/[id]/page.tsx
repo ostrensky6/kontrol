@@ -953,8 +953,8 @@ export default async function DemandaDetalhe({
                     </label>
                   )}
                   <div>
-                    <label className="block text-xs text-muted-foreground">Validade (dias)</label>
-                    <input {...hydrationSafe} name="validade_dias" type="number" min="1" step="1" defaultValue="30" className={`${inp} mt-1 w-24`} disabled={!podeEmitir} />
+                    <label htmlFor="emitirOrcamentoFinalDaDemanda-validade_dias" className="block text-xs text-muted-foreground">Validade (dias)</label>
+                    <input id="emitirOrcamentoFinalDaDemanda-validade_dias" {...hydrationSafe} name="validade_dias" type="number" min="1" step="1" defaultValue="30" className={`${inp} mt-1 w-24`} disabled={!podeEmitir} />
                   </div>
                   <ConfirmSubmitButton
                     className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground dark:disabled:bg-muted"

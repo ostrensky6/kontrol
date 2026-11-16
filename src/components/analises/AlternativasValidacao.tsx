@@ -7,7 +7,7 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
-import { formatCurrency } from "@/lib/formatters";
+import { formatCurrency, formatDate } from "@/lib/formatters";
 
 export type AlternativaLinha = {
   id: number;
@@ -127,7 +127,7 @@ export function AlternativasValidacao({
                 {l.alternativa_observacao && (
                   <p className="text-[11px] text-muted-foreground">
                     “{l.alternativa_observacao}”
-                    {l.alternativa_validada_em && ` em ${new Date(l.alternativa_validada_em).toLocaleDateString("pt-BR")}`}
+                    {l.alternativa_validada_em && ` em ${formatDate(l.alternativa_validada_em)}`}
                   </p>
                 )}
                 {podeValidar && <FormValidar linha={l} codigo={codigo} />}

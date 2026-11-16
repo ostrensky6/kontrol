@@ -33,7 +33,7 @@ export function PedidoTrilha({ etapa, className }: { etapa: EtapaPedidoId; class
                 <span
                   className={cn(
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold tabular-nums",
-                    feita && "border-success-strong bg-success-strong text-white",
+                    feita && "border-success-strong bg-success-strong text-white dark:text-neutral-950",
                     atual && "border-primary bg-primary text-primary-foreground ring-4 ring-primary/20",
                     !feita && !atual && "border-border bg-card text-muted-foreground",
                   )}

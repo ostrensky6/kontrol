@@ -6,6 +6,7 @@ import { ESTADO_INICIAL } from "@/lib/erros";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
+import { formatDate } from "@/lib/formatters";
 
 const campo = "mt-1 block min-h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
 
@@ -49,7 +50,7 @@ export function DecidirDisputaForm({ disputaId, candidatos, rotulo }: { disputaI
           {validos.length === 0 && <option value="">Nenhum plano reservado tem esse insumo</option>}
           {validos.map((c) => (
             <option key={c.planejamento_id} value={c.planejamento_id}>
-              {c.nome} · {c.reservado.toLocaleString("pt-BR")} reservado{c.data_inicio_prevista ? ` · início ${new Date(`${c.data_inicio_prevista}T12:00:00`).toLocaleDateString("pt-BR")}` : ""}
+              {c.nome} · {c.reservado.toLocaleString("pt-BR")} reservado{c.data_inicio_prevista ? ` · início ${formatDate(c.data_inicio_prevista)}` : ""}
             </option>
           ))}
         </select>

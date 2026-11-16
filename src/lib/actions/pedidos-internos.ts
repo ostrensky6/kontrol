@@ -21,6 +21,7 @@ import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
 import { faltaJustificativaUrgencia } from "@/lib/pedido/ciclo";
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
+import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
@@ -62,13 +63,12 @@ function comentarioObrigatorio(formData: FormData) {
 }
 
 function hojeData() {
-  return new Date().toISOString().slice(0, 10);
+  return hojeIso();
 }
 
 function adicionarDiasData(dias: number | null) {
   if (!(dias && dias > 0)) return null;
-  const data = new Date(Date.now() + dias * 86400000);
-  return data.toISOString().slice(0, 10);
+  return dataIsoEmDias(dias);
 }
 
 function erroSchemaCache(error: { message?: string; code?: string } | null | undefined) {

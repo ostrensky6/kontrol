@@ -52,7 +52,7 @@ export function SinoAvisos({ className }: { className?: string }) {
             <span
               aria-hidden="true"
               data-testid="sino-contador"
-              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-strong px-1 text-[11px] font-semibold leading-none text-white"
+              className="absolute -right-0.5 -top-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-strong px-1 text-[11px] font-semibold leading-none text-white dark:text-neutral-950"
             >
               {total > 99 ? "99+" : total}
             </span>

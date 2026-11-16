@@ -158,7 +158,7 @@ export default async function NotificacoesPage() {
                     {href && (
                       <Link
                         href={href}
-                        className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/50"
+                        className="toque inline-flex items-center justify-center rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/50"
                       >
                         Abrir
                       </Link>
@@ -169,7 +169,7 @@ export default async function NotificacoesPage() {
                         <button
                           type="submit"
                           aria-label={`Marcar como lida: ${item.titulo}`}
-                          className="rounded-md border border-success-strong/30 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success-strong hover:bg-success-soft"
+                          className="toque inline-flex items-center justify-center rounded-md border border-success-strong/30 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success-strong hover:bg-success-soft"
                         >
                           Lida
                         </button>
@@ -180,7 +180,7 @@ export default async function NotificacoesPage() {
                       <button
                         type="submit"
                         aria-label={`Arquivar: ${item.titulo}`}
-                        className="rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted/50"
+                        className="toque inline-flex items-center justify-center rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground hover:bg-muted/50"
                       >
                         Arquivar
                       </button>

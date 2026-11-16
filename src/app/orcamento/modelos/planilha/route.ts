@@ -2,6 +2,7 @@ import { safeFileName } from "@/lib/cadastros/xlsx";
 import { temPermissao } from "@/lib/auth/permissao-efetiva";
 import { montarPlanilhaCatalogo, type ItemCatalogoExportacao } from "@/lib/orcamento/catalogo-planilha";
 import { createClient } from "@/lib/supabase/server";
+import { hojeIso } from "@/lib/formatters";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -20,7 +21,7 @@ export async function GET() {
 
   const workbook = montarPlanilhaCatalogo((data ?? []) as ItemCatalogoExportacao[]);
   const buffer = await workbook.xlsx.writeBuffer();
-  const filename = `${safeFileName("catalogo-custos-projeto")}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = `${safeFileName("catalogo-custos-projeto")}-${hojeIso()}.xlsx`;
   return new Response(buffer, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

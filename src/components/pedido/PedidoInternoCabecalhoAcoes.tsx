@@ -79,7 +79,7 @@ export function PedidoInternoCabecalhoAcoes({
       {/* Editar */}
       <Dialog open={editando} onOpenChange={setEditando}>
         <DialogTrigger asChild>
-          <button className="inline-flex items-center gap-1 rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
+          <button className="toque inline-flex items-center gap-1 rounded-md border border-input px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted">
             <Pencil className="h-3.5 w-3.5" />
             Editar
           </button>
@@ -92,13 +92,13 @@ export function PedidoInternoCabecalhoAcoes({
           <FormComMensagem action={atualizarPedidoInterno} onSuccess={() => setEditando(false)} className="grid gap-3">
             <input type="hidden" name="pedido_interno_id" value={pedidoId} />
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">Título do pedido</label>
-              <input name="titulo" required defaultValue={titulo} className={inputCls} />
+              <label htmlFor="atualizarPedidoInterno-titulo" className="block text-xs font-medium text-muted-foreground">Título do pedido</label>
+              <input id="atualizarPedidoInterno-titulo" name="titulo" required defaultValue={titulo} className={inputCls} />
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-muted-foreground">Projeto</label>
-                <select name="projeto_id" defaultValue={projetoId ?? ""} className={inputCls}>
+                <label htmlFor="atualizarPedidoInterno-projeto_id" className="block text-xs font-medium text-muted-foreground">Projeto</label>
+                <select id="atualizarPedidoInterno-projeto_id" name="projeto_id" defaultValue={projetoId ?? ""} className={inputCls}>
                   <option value="">Sem projeto (a Supervisão aprova)</option>
                   {projetos.map((projeto) => (
                     <option key={projeto.id} value={projeto.id}>
@@ -109,14 +109,14 @@ export function PedidoInternoCabecalhoAcoes({
                 </select>
               </div>
               <div>
-                <label className="block text-xs font-medium text-muted-foreground">Necessidade</label>
-                <input name="data_necessidade" type="date" defaultValue={dataNecessidade ?? ""} className={inputCls} />
+                <label htmlFor="atualizarPedidoInterno-data_necessidade" className="block text-xs font-medium text-muted-foreground">Necessidade</label>
+                <input id="atualizarPedidoInterno-data_necessidade" name="data_necessidade" type="date" defaultValue={dataNecessidade ?? ""} className={inputCls} />
               </div>
               {urgenciaEditavel ? (
                 <>
                   <div>
-                    <label className="block text-xs font-medium text-muted-foreground">Urgência</label>
-                    <select name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
+                    <label htmlFor="atualizarPedidoInterno-urgencia" className="block text-xs font-medium text-muted-foreground">Urgência</label>
+                    <select id="atualizarPedidoInterno-urgencia" name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
                       <option value="baixa">Baixa</option>
                       <option value="normal">Normal</option>
                       <option value="alta">Alta (fura o ciclo)</option>
@@ -148,8 +148,8 @@ export function PedidoInternoCabecalhoAcoes({
                 </div>
               )}
               <div>
-                <label className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
-                <select name="tipo_demanda" defaultValue={tipoDemanda ?? "laboratorio"} className={inputCls}>
+                <label htmlFor="atualizarPedidoInterno-tipo_demanda" className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
+                <select id="atualizarPedidoInterno-tipo_demanda" name="tipo_demanda" defaultValue={tipoDemanda ?? "laboratorio"} className={inputCls}>
                   <option value="laboratorio">Laboratório</option>
                   <option value="campo">Campo</option>
                   <option value="laboratorio_campo">Lab./campo</option>
@@ -197,8 +197,8 @@ export function PedidoInternoCabecalhoAcoes({
               <input id={`editar-pedido-fonte-${pedidoId}`} name="fonte_recurso" defaultValue={fonteRecurso ?? ""} className={inputCls} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted-foreground">Justificativa</label>
-              <textarea name="justificativa" rows={3} defaultValue={justificativa ?? ""} className={inputCls} />
+              <label htmlFor="atualizarPedidoInterno-justificativa" className="block text-xs font-medium text-muted-foreground">Justificativa</label>
+              <textarea id="atualizarPedidoInterno-justificativa" name="justificativa" rows={3} defaultValue={justificativa ?? ""} className={inputCls} />
             </div>
             <DialogFooter>
               <DialogClose asChild>

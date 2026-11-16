@@ -94,7 +94,7 @@ export default async function InsumosPage({
             <Link
               key={a.codigo}
               href={`/insumos?analise=${encodeURIComponent(a.codigo)}`}
-              className={`rounded-full px-3 py-1 text-xs ${
+              className={`toque inline-flex items-center rounded-full px-3 py-1 text-xs ${
                 a.codigo === atual
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground"

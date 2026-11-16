@@ -55,7 +55,7 @@ function TabsList({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       role="tablist"
-      className={cn("inline-flex h-9 items-center rounded-lg bg-muted p-1 text-muted-foreground", className)}
+      className={cn("inline-flex h-9 items-center rounded-lg bg-muted p-1 text-muted-foreground pointer-coarse:h-11", className)}
       {...props}
     />
   );
@@ -76,7 +76,7 @@ function TabsTrigger({
       aria-selected={selected}
       data-state={selected ? "active" : "inactive"}
       className={cn(
-        "inline-flex h-7 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+        "toque inline-flex h-7 items-center justify-center whitespace-nowrap rounded-md px-3 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
         className,
       )}
       onClick={() => tabs.setValue(value)}

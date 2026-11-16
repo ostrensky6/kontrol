@@ -107,7 +107,7 @@ export function ItemRecebimentoCell({
               setAEstornar(null);
               if (alvo) estornar(alvo.recebimentoId);
             }}
-            className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-white hover:bg-destructive/90"
+            className="rounded-md bg-destructive px-4 py-1.5 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
           >
             Estornar
           </button>

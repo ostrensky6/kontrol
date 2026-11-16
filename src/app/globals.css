@@ -366,6 +366,31 @@ html:not(.dark) .text-brand-500 {
   }
 }
 
+/* Alvo de toque no celular (auditoria de 16/11, item 8). Só em tela de toque:
+   - link ou botão de texto (os sublinhados, ou marcados com .toque-texto)
+     ganha uma área de toque invisível de 10px acima e abaixo, sem mudar a linha
+     nem o desenho;
+   - controle com caixa marcado com .toque passa a ter pelo menos 36px.
+   Em @layer components para as classes de posição (absolute, sticky) continuarem valendo. */
+@layer components {
+  @media (pointer: coarse) {
+    :is(a, button, summary)[class*="underline"],
+    .toque-texto {
+      position: relative;
+    }
+    :is(a, button, summary)[class*="underline"]::after,
+    .toque-texto::after {
+      content: "";
+      position: absolute;
+      inset: -0.625rem 0;
+    }
+    .toque {
+      min-height: 2.25rem;
+      min-width: 2.25rem;
+    }
+  }
+}
+
 /* Tabela padrão: a primeira coluna (o nome) fica fixa ao rolar para o lado
    (revisão de 11/11, 10.3). Fundo opaco, igual ao da linha, para o que rola
    não aparecer por baixo; a sombra só aparece enquanto a tabela está rolada. */

@@ -1,3 +1,5 @@
+import { hojeIso } from "@/lib/formatters";
+
 export type InsumoRow = Record<string, unknown>;
 
 export type LoteInsumo = {
@@ -16,14 +18,6 @@ function dataValida(value: string | null) {
   return data.getUTCFullYear() === ano && data.getUTCMonth() === mes - 1 && data.getUTCDate() === dia ? value : null;
 }
 
-function hojeEmSaoPaulo() {
-  const partes = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date());
-  const valor = (tipo: Intl.DateTimeFormatPartTypes) => partes.find((parte) => parte.type === tipo)?.value;
-  return `${valor("year")}-${valor("month")}-${valor("day")}`;
-}
-
 function menorValidade(lote: LoteInsumo) {
   const datas = [dataValida(lote.validade), dataValida(lote.validade_apos_abertura)].filter(Boolean) as string[];
   return datas.sort()[0] ?? null;
@@ -36,7 +30,7 @@ function elegivel(lote: LoteInsumo, hoje: string) {
     && (validade == null || validade >= hoje);
 }
 
-export function projetarTotaisInsumos(insumos: InsumoRow[], lotes: LoteInsumo[], hoje = hojeEmSaoPaulo()): InsumoRow[] {
+export function projetarTotaisInsumos(insumos: InsumoRow[], lotes: LoteInsumo[], hoje = hojeIso()): InsumoRow[] {
   const totais = new Map<string, { fechadas: number; abertas: number }>();
   for (const lote of lotes) {
     if (!elegivel(lote, hoje) || lote.insumo_id == null) continue;
@@ -59,7 +53,7 @@ export function projetarTotaisInsumos(insumos: InsumoRow[], lotes: LoteInsumo[],
 export function projetarQuantidadeInsumos(
   insumos: InsumoRow[],
   lotes: LoteInsumo[],
-  hoje = hojeEmSaoPaulo(),
+  hoje = hojeIso(),
 ): InsumoRow[] {
   return projetarTotaisInsumos(insumos, lotes, hoje).map((linha) => {
     const { unidades_fechadas, unidades_abertas, ...resto } = linha;

@@ -358,7 +358,7 @@ export default async function OrcamentoDetalhe({
                 <a
                   key={tab.href}
                   href={tab.href}
-                  className="inline-flex items-baseline gap-1.5 rounded-md border border-primary/20 px-2.5 py-1 text-xs text-brand-800 transition hover:border-primary/40 hover:bg-primary/5 hover:text-brand-900 dark:text-brand-300"
+                  className="toque inline-flex items-baseline gap-1.5 rounded-md border border-primary/20 px-2.5 py-1 text-xs pointer-coarse:items-center text-brand-800 transition hover:border-primary/40 hover:bg-primary/5 hover:text-brand-900 dark:text-brand-300"
                 >
                   <span className="font-semibold">{tab.label}</span>
                   <span className="text-xs text-muted-foreground">{tab.meta}</span>
@@ -518,7 +518,7 @@ export default async function OrcamentoDetalhe({
           <section id="composicao-tecnica" className="no-print mt-3 scroll-mt-24">
             <details className="group rounded-md border border-border px-3 py-1.5 text-sm">
               {/* summary vira botão para leitores de tela: só texto aqui; a ajuda fica na linha do overhead. */}
-              <summary className="flex cursor-pointer list-none flex-wrap items-center gap-1.5">
+              <summary className="toque-texto flex cursor-pointer list-none flex-wrap items-center gap-1.5">
                 <ChevronRight className="h-4 w-4 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
                 <span className="font-medium">Como cada bloco é calculado</span>
               </summary>
@@ -590,8 +590,8 @@ export default async function OrcamentoDetalhe({
           <FormEstado action={salvarCabecalho} className="mt-2 grid grid-cols-1 gap-x-3 gap-y-2 sm:grid-cols-2 lg:grid-cols-4" mensagemClassName="sm:col-span-2 lg:col-span-4">
             <input type="hidden" name="orcamento_id" value={orcId} />
             <div className="lg:col-span-2">
-              <label className={lbl}>Cliente cadastrado</label>
-              <select aria-label="Cliente cadastrado" name="cliente_id" defaultValue={orc.cliente_id ?? ""} className={campo}>
+              <label htmlFor="salvarCabecalho-cliente_id" className={lbl}>Cliente cadastrado</label>
+              <select id="salvarCabecalho-cliente_id" aria-label="Cliente cadastrado" name="cliente_id" defaultValue={orc.cliente_id ?? ""} className={campo}>
                 <option value="">— (preencher manualmente abaixo)</option>
                 {(clientes ?? []).map((c) => (
                   <option key={c.id} value={c.id}>{c.nome}</option>
@@ -602,8 +602,8 @@ export default async function OrcamentoDetalhe({
               </p>
             </div>
             <div className="lg:col-span-2">
-              <label className={lbl}>Projeto</label>
-              <select aria-label="Projeto" name="projeto_id" defaultValue={orc.projeto_id ?? ""} className={campo}>
+              <label htmlFor="salvarCabecalho-projeto_id" className={lbl}>Projeto</label>
+              <select id="salvarCabecalho-projeto_id" aria-label="Projeto" name="projeto_id" defaultValue={orc.projeto_id ?? ""} className={campo}>
                 <option value="">—</option>
                 {(projetos ?? []).map((p) => (
                   <option key={p.id} value={p.id}>{p.nome}</option>
@@ -611,31 +611,31 @@ export default async function OrcamentoDetalhe({
               </select>
             </div>
             <div className="sm:col-span-2">
-              <label className={lbl}>Cliente (texto livre, se não cadastrado)</label>
+              <label htmlFor="cabecalho-cliente" className={lbl}>Cliente (texto livre, se não cadastrado)</label>
               <input id="cabecalho-cliente" aria-label="Cliente (texto livre, se não cadastrado)" name="cliente_nome" defaultValue={orc.cliente_nome ?? ""} className={`${campo} scroll-mt-28`} />
             </div>
             <div>
-              <label className={lbl}>CNPJ</label>
-              <input aria-label="CNPJ" name="cliente_cnpj" defaultValue={orc.cliente_cnpj ?? ""} className={campo} />
+              <label htmlFor="salvarCabecalho-cliente_cnpj" className={lbl}>CNPJ</label>
+              <input id="salvarCabecalho-cliente_cnpj" aria-label="CNPJ" name="cliente_cnpj" defaultValue={orc.cliente_cnpj ?? ""} className={campo} />
             </div>
             <div>
-              <label className={lbl}>Contato (e-mail / telefone)</label>
-              <input aria-label="Contato (e-mail / telefone)" name="cliente_contato" defaultValue={orc.cliente_contato ?? ""} className={campo} />
+              <label htmlFor="salvarCabecalho-cliente_contato" className={lbl}>Contato (e-mail / telefone)</label>
+              <input id="salvarCabecalho-cliente_contato" aria-label="Contato (e-mail / telefone)" name="cliente_contato" defaultValue={orc.cliente_contato ?? ""} className={campo} />
             </div>
             <div className="sm:col-span-2">
-              <label className={lbl}>Endereço</label>
-              <input aria-label="Endereço" name="cliente_endereco" defaultValue={orc.cliente_endereco ?? ""} className={campo} />
+              <label htmlFor="salvarCabecalho-cliente_endereco" className={lbl}>Endereço</label>
+              <input id="salvarCabecalho-cliente_endereco" aria-label="Endereço" name="cliente_endereco" defaultValue={orc.cliente_endereco ?? ""} className={campo} />
             </div>
             <div>
-              <label className={lbl}>Data do orçamento</label>
-              <input aria-label="Data do orçamento" name="data_orcamento" type="date" defaultValue={orc.data_orcamento ?? ""} className={campo} />
+              <label htmlFor="salvarCabecalho-data_orcamento" className={lbl}>Data do orçamento</label>
+              <input id="salvarCabecalho-data_orcamento" aria-label="Data do orçamento" name="data_orcamento" type="date" defaultValue={orc.data_orcamento ?? ""} className={campo} />
             </div>
             <div>
-              <label className={lbl}>Validade (dias)</label>
-              <input aria-label="Validade (dias)" name="validade_dias" type="number" min="0" step="1" defaultValue={orc.validade_dias ?? 30} className={campo} />
+              <label htmlFor="salvarCabecalho-validade_dias" className={lbl}>Validade (dias)</label>
+              <input id="salvarCabecalho-validade_dias" aria-label="Validade (dias)" name="validade_dias" type="number" min="0" step="1" defaultValue={orc.validade_dias ?? 30} className={campo} />
             </div>
             <div>
-              <label className={lbl}>Responsável (laboratório)</label>
+              <label htmlFor="cabecalho-responsavel" className={lbl}>Responsável (laboratório)</label>
               <input id="cabecalho-responsavel" aria-label="Responsável (laboratório)" name="responsavel" defaultValue={orc.responsavel ?? ""} className={`${campo} scroll-mt-28`} />
             </div>
             <div>
@@ -644,8 +644,8 @@ export default async function OrcamentoDetalhe({
               <p className="mt-0.5 text-[11px] text-muted-foreground/80">Muda pelas ações da página (revisar, cancelar), não por aqui.</p>
             </div>
             <div className="sm:col-span-2">
-              <label className={lbl}>Observações</label>
-              <textarea aria-label="Observações" name="observacoes" rows={2} defaultValue={orc.observacoes ?? ""} className={`${inp} mt-0.5 w-full`} />
+              <label htmlFor="salvarCabecalho-observacoes" className={lbl}>Observações</label>
+              <textarea id="salvarCabecalho-observacoes" aria-label="Observações" name="observacoes" rows={2} defaultValue={orc.observacoes ?? ""} className={`${inp} mt-0.5 w-full`} />
             </div>
             <div className="sm:col-span-2 lg:col-span-4">
               <SubmitButton size="sm">Salvar dados</SubmitButton>

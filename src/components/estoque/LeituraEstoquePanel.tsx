@@ -498,7 +498,7 @@ export function LeituraEstoquePanel({
               type="button"
               onClick={() => desfazer(ultimo)}
               disabled={pending}
-              className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
+              className="toque inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs hover:bg-muted disabled:opacity-50"
             >
               <Undo2 className="h-3.5 w-3.5" />
               Desfazer a última
