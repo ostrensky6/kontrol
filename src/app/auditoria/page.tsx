@@ -8,6 +8,8 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { resumoDiffAuditoria } from "@/lib/orcamento/auditoria-resumo";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { LIMITE_AUDITORIA, hrefAuditoria, lerFiltroAuditoria, periodoAuditoria } from "@/lib/auditoria/filtro";
+import { Input } from "@/components/ui/input";
 
 export const dynamic = "force-dynamic";
 
@@ -49,7 +51,7 @@ function resumoDiff(acao: string, ant: Record<string, unknown> | null, novo: Rec
 export default async function AuditoriaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tabela?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const leitura = novaLeitura("/auditoria");
   if (!(await pode("auditoria.visualizar"))) {
@@ -62,14 +64,20 @@ export default async function AuditoriaPage({
     );
   }
 
-  const { tabela } = await searchParams;
+  // tabela (os botões), período em dias de Brasília e o cursor que anda para os registros mais antigos
+  const filtro = lerFiltroAuditoria(await searchParams, [...TABELAS, ...Object.keys(LABEL)]);
+  const { tabela } = filtro;
+  const { desde, antesDe } = periodoAuditoria(filtro);
   const supabase = await createClient();
   let q = supabase
     .from("auditoria")
     .select("id, tabela, registro_id, acao, usuario, valor_anterior, valor_novo, criado_em")
     .order("id", { ascending: false })
-    .limit(200);
+    .limit(LIMITE_AUDITORIA);
   if (tabela) q = q.eq("tabela", tabela);
+  if (desde) q = q.gte("criado_em", desde);
+  if (antesDe) q = q.lt("criado_em", antesDe);
+  if (filtro.antes) q = q.lt("id", filtro.antes);
   const [{ data: registros }, podeVerSalarios] = await Promise.all([leitura.de("registros de auditoria", q), podeVerSalario()]);
 
   // insumo de cada registro de estoque (movimento, lote, código de barras), para
@@ -91,6 +99,8 @@ export default async function AuditoriaPage({
     ? await leitura.de("insumos", supabase.from("insumos").select("id, especificacao").in("id", idsInsumos))
     : { data: [] as { id: number; especificacao: string | null }[] };
   const nomeInsumo = new Map((insumosNomes ?? []).map((i) => [Number(i.id), i.especificacao ?? `Insumo #${i.id}`]));
+  // página cheia: pode haver registros mais antigos dentro do mesmo filtro
+  const maisAntigoNaTela = (registros ?? []).length >= LIMITE_AUDITORIA ? Number(registros?.at(-1)?.id) : null;
   const linhas: AuditoriaRow[] = (registros ?? []).map((original) => {
     // Defesa em profundidade: a policy da 0112 já esconde o salário; aqui ele
     // nunca é serializado para o cliente sem a permissão.
@@ -128,7 +138,10 @@ export default async function AuditoriaPage({
               Cada alteração é registrada <b>automaticamente</b>, com o valor anterior e o novo.
               Ninguém pode editar nem apagar esses registros.
             </p>
-            <p>Use os filtros para ver só um tipo de cadastro.</p>
+            <p>
+              Use os botões para ver só um tipo de cadastro e o <b>período</b> para chegar a qualquer data. A tela traz{" "}
+              {LIMITE_AUDITORIA} registros por vez; <b>Ver registros mais antigos</b> segue adiante.
+            </p>
           </HelpTip>
         </div>
 
@@ -136,9 +149,9 @@ export default async function AuditoriaPage({
           {TABELAS.map((t) => (
             <Link
               key={t || "todas"}
-              href={t ? `/auditoria?tabela=${t}` : "/auditoria"}
+              href={hrefAuditoria({ tabela: t, de: filtro.de, ate: filtro.ate })}
               className={`toque inline-flex items-center rounded-full px-3 py-1 ${
-                (tabela ?? "") === t
+                tabela === t
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground hover:bg-muted/80"
               }`}
@@ -148,9 +161,52 @@ export default async function AuditoriaPage({
           ))}
         </nav>
 
+        {/* período: sem ele a trilha só alcançava os 200 registros mais recentes */}
+        <form action="/auditoria" method="get" className="mt-4 flex flex-wrap items-end gap-3">
+          {tabela && <input type="hidden" name="tabela" value={tabela} />}
+          <div>
+            <label htmlFor="auditoria-de" className="block text-xs font-medium text-muted-foreground">
+              De
+            </label>
+            <Input id="auditoria-de" type="date" name="de" defaultValue={filtro.de} className="mt-1 w-40" />
+          </div>
+          <div>
+            <label htmlFor="auditoria-ate" className="block text-xs font-medium text-muted-foreground">
+              Até
+            </label>
+            <Input id="auditoria-ate" type="date" name="ate" defaultValue={filtro.ate} className="mt-1 w-40" />
+          </div>
+          <button type="submit" className="h-9 rounded-md border border-input px-3 text-sm font-medium hover:bg-muted">
+            Filtrar período
+          </button>
+          {(filtro.de || filtro.ate) && (
+            <Link href={hrefAuditoria({ tabela })} className="toque-texto pb-2 text-sm font-medium text-primary underline underline-offset-2">
+              Limpar período
+            </Link>
+          )}
+        </form>
+
         <div className="mt-4">
           <AuditoriaTable rows={linhas} />
         </div>
+
+        {(maisAntigoNaTela || filtro.antes) && (
+          <nav aria-label="Páginas da auditoria" className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+            <p className="text-muted-foreground">
+              {LIMITE_AUDITORIA} registros por página, do mais recente para o mais antigo.
+            </p>
+            {filtro.antes && (
+              <Link href={hrefAuditoria({ ...filtro, antes: null })} className="toque-texto font-medium text-primary underline underline-offset-2">
+                Voltar aos mais recentes
+              </Link>
+            )}
+            {maisAntigoNaTela && (
+              <Link href={hrefAuditoria({ ...filtro, antes: maisAntigoNaTela })} className="toque-texto font-medium text-primary underline underline-offset-2">
+                Ver registros mais antigos
+              </Link>
+            )}
+          </nav>
+        )}
       </main>
     </div>
   );

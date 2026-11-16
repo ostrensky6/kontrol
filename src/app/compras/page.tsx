@@ -8,7 +8,9 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { ListaParcial } from "@/components/common/ListaParcial";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { lerAbertosERecentes } from "@/lib/supabase/lista-recente";
 
 export const dynamic = "force-dynamic";
 
@@ -20,22 +22,70 @@ const STATUS: Record<string, { label: string; cls: string }> = {
   cancelado: { label: "Cancelado", cls: "bg-muted text-muted-foreground" },
 };
 
-export default async function ComprasPage() {
+// compra recebida ou cancelada não muda mais: dessas a lista traz só as mais recentes
+const STATUS_COMPRA_ENCERRADA = ["recebido", "cancelado"];
+const SUGESTOES_NA_TELA = 8;
+const COLUNAS_COMPRA = "id, status, projeto, projeto_id, solicitante, data_solicitacao, criado_em, fornecedores(nome)";
+
+type CompraLida = {
+  id: number;
+  status: string;
+  projeto: string | null;
+  projeto_id: number | null;
+  solicitante: string | null;
+  data_solicitacao: string | null;
+  criado_em: string | null;
+  fornecedores: { nome: string | null } | { nome: string | null }[] | null;
+};
+
+export default async function ComprasPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ encerradas?: string | string[] }>;
+}) {
   const leitura = novaLeitura("/compras");
+  const query = await searchParams;
+  const todasEncerradas = (Array.isArray(query.encerradas) ? query.encerradas[0] : query.encerradas) === "todas";
   const supabase = await createClient();
-  const [{ data: pedidos }, { data: saldo }, { data: projetos }, { data: previsao }] = await Promise.all([
-    leitura.de("compras", supabase
-      .from("pedidos_compra")
-      .select("id, status, projeto, projeto_id, solicitante, data_solicitacao, fornecedores(nome)")
-      .order("criado_em", { ascending: false })),
-    leitura.de("saldo do estoque", supabase.from("v_estoque_saldo").select("*")),
+  const [comprasLidas, { data: projetos }, previsaoLida] = await Promise.all([
+    // em andamento vêm todas, sem corte; a ordem termina em `id` para a leitura em páginas não pular linha
+    leitura.de("compras", lerAbertosERecentes<CompraLida>({
+      abertos: (de, ate) =>
+        supabase
+          .from("pedidos_compra")
+          .select(COLUNAS_COMPRA)
+          .not("status", "in", `(${STATUS_COMPRA_ENCERRADA.join(",")})`)
+          .order("criado_em", { ascending: false })
+          .order("id", { ascending: false })
+          .range(de, ate),
+      encerrados: (de, ate, contar) =>
+        supabase
+          .from("pedidos_compra")
+          .select(COLUNAS_COMPRA, contar ? { count: "exact" } : undefined)
+          .in("status", STATUS_COMPRA_ENCERRADA)
+          .order("criado_em", { ascending: false })
+          .order("id", { ascending: false })
+          .range(de, ate),
+      todos: todasEncerradas,
+    })),
     leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
-    leitura.de("previsão de compra", supabase.from("v_previsao_suprimentos").select("*").order("qtd_sugerida_compra", { ascending: false })),
+    // só o que há para repor, já na unidade do saldo: o banco filtra, ordena e conta (antes vinham a previsão e o saldo inteiros)
+    leitura.de("previsão de compra", supabase
+      .from("v_previsao_suprimentos")
+      .select("insumo_id, especificacao, disponivel, qtd_sugerida_compra, unidade, unidade_saldo, categoria_compra", { count: "exact" })
+      .gt("qtd_sugerida_compra", 0)
+      .order("qtd_sugerida_compra", { ascending: false })
+      .order("insumo_id")
+      .range(0, SUGESTOES_NA_TELA - 1)),
   ]);
+  const pedidos = [...comprasLidas.data].sort(
+    (a, b) => String(b.criado_em ?? "").localeCompare(String(a.criado_em ?? "")) || b.id - a.id,
+  );
   const projetoNome = new Map((projetos ?? []).map((p) => [p.id, p.nome]));
-  const linhas: CompraRow[] = (pedidos ?? []).map((p) => {
+  const linhas: CompraRow[] = pedidos.map((p) => {
     const st = STATUS[p.status] ?? { label: p.status, cls: "" };
-    const fornecedor = (p.fornecedores as { nome: string | null } | null)?.nome ?? "—";
+    const fornecedorLido = Array.isArray(p.fornecedores) ? p.fornecedores[0] : p.fornecedores;
+    const fornecedor = fornecedorLido?.nome ?? "—";
     const projeto = p.projeto_id != null ? projetoNome.get(p.projeto_id) ?? "—" : p.projeto ?? "—";
     return {
       id: p.id as number,
@@ -51,17 +101,18 @@ export default async function ComprasPage() {
   // Sugestões de compra: a mesma fórmula da previsão de suprimentos (saídas no
   // prazo total da compra + segurança − disponível − a caminho), na unidade do saldo
   // (frascos para insumo contado em frascos). EST-7.
-  const unidadeSaldo = new Map((saldo ?? []).map((s) => [s.insumo_id, s.unidade_saldo ?? s.unidade ?? ""]));
-  const sugestoes = (previsao ?? [])
+  const sugestoes = (previsaoLida.data ?? [])
     .filter((p) => Number(p.qtd_sugerida_compra ?? 0) > 0)
+    .slice(0, SUGESTOES_NA_TELA)
     .map((p) => ({
       especificacao: p.especificacao,
       disponivel: Number(p.disponivel ?? 0),
       sugerido: Number(p.qtd_sugerida_compra ?? 0),
-      unidade: unidadeSaldo.get(p.insumo_id) ?? p.unidade ?? "",
+      unidade: p.unidade_saldo ?? p.unidade ?? "",
       categoria: p.categoria_compra,
     }));
-  const sugestoesRender = sugestoes.slice(0, 8);
+  // o total vem do banco: a tela mostra só as primeiras
+  const totalSugestoes = Math.max(Number(previsaoLida.count ?? 0), sugestoes.length);
 
 
   return (
@@ -102,12 +153,12 @@ export default async function ComprasPage() {
         />
 
         {/* sugestões */}
-        {sugestoes.length > 0 && (
+        {totalSugestoes > 0 && (
           <div className="mt-6 rounded-xl border border-warning-strong/30 bg-warning-soft p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-1">
-                  <h2 className="text-sm font-semibold text-warning-strong">Sugestões de reposição ({sugestoes.length})</h2>
+                  <h2 className="text-sm font-semibold text-warning-strong">Sugestões de reposição ({totalSugestoes})</h2>
                   <HelpTip title="Sugestões de reposição">
                     <p>
                       A <b>quantidade sugerida</b> cobre as saídas previstas durante o prazo total da compra
@@ -126,7 +177,7 @@ export default async function ComprasPage() {
             </div>
             <PrazoReposicao className="mt-1" />
             <ul className="mt-2 space-y-1 text-xs text-warning-strong">
-              {sugestoesRender.slice(0, 8).map((s, i) => (
+              {sugestoes.map((s, i) => (
                 <li key={i} className="flex justify-between gap-4">
                   <span className="truncate">
                     {s.categoria === "critico" && "Crítico · "}
@@ -152,7 +203,7 @@ export default async function ComprasPage() {
               </p>
             </HelpTip>
           </span>
-          {sugestoes.length === 0 && (
+          {totalSugestoes === 0 && (
             <Link href="/estoque/situacao" className="font-medium text-primary underline-offset-2 hover:underline">
               Repor pela Situação do estoque
             </Link>
@@ -161,6 +212,15 @@ export default async function ComprasPage() {
 
         <div className="mt-6">
           <ComprasTable rows={linhas} />
+          <ListaParcial
+            className="mt-3"
+            mostrados={comprasLidas.encerrados.mostrados}
+            total={comprasLidas.encerrados.total}
+            oQue="compras recebidas ou canceladas"
+            feminino
+            hrefTodos="/compras?encerradas=todas"
+            hrefRecentes={todasEncerradas ? "/compras" : undefined}
+          />
         </div>
       </main>
     </div>

@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { FiltroChips, gravarFiltroNaUrl } from "@/components/common/FiltroChips";
+import { ListaParcial } from "@/components/common/ListaParcial";
+import { encerradosParciais, type Encerrados } from "@/lib/supabase/lista-recente";
 import { PedidosInternosTable, type PedidoInternoRow } from "./PedidosInternosTable";
 import {
   ETAPAS_PEDIDO,
@@ -15,18 +17,31 @@ import { cn } from "@/lib/utils";
  * Lista de pedidos organizada pelas seis etapas do fluxo. Clicar numa etapa
  * mostra só os pedidos dela; os botões de baixo trocam entre em andamento,
  * concluídos, cancelados e todos.
+ *
+ * Os pedidos em andamento vêm sempre todos. Dos concluídos e cancelados a
+ * página pode trazer só os mais recentes (`encerrados`): nesse caso os botões
+ * deles ficam sem contagem, e a lista diz quantos existem e oferece todos.
  */
 export function PedidosPorEtapa({
   rows,
   podeExcluir,
   filtroInicial,
+  encerrados,
+  todosEncerrados = false,
 }: {
   rows: PedidoInternoRow[];
   podeExcluir: boolean;
   filtroInicial: FiltroEtapa;
+  encerrados?: Encerrados;
+  todosEncerrados?: boolean;
 }) {
   const [filtro, setFiltro] = useState<FiltroEtapa>(filtroInicial);
   const contar = (f: FiltroEtapa) => rows.filter((row) => atendeFiltroEtapa(row.etapa, f)).length;
+  // com a lista de encerrados cortada, a contagem da tela seria menor que a do banco
+  const parcial = encerradosParciais(encerrados);
+  const contarEncerrados = (f: FiltroEtapa) => (parcial ? undefined : contar(f));
+  const mostraEncerrados = filtro === "concluido" || filtro === "cancelado" || filtro === "todos";
+  const etapaNaUrl = filtro === "andamento" ? "" : `etapa=${filtro}`;
   const visiveis = useMemo(() => rows.filter((row) => atendeFiltroEtapa(row.etapa, filtro)), [rows, filtro]);
 
   function mudar(valor: FiltroEtapa) {
@@ -82,9 +97,9 @@ export function PedidosPorEtapa({
           aoMudar={mudar}
           opcoes={[
             { valor: "andamento", rotulo: "Em andamento", contagem: contar("andamento") },
-            { valor: "concluido", rotulo: "Concluídos", contagem: contar("concluido") },
-            { valor: "cancelado", rotulo: "Cancelados", contagem: contar("cancelado") },
-            { valor: "todos", rotulo: "Todos", contagem: rows.length },
+            { valor: "concluido", rotulo: "Concluídos", contagem: contarEncerrados("concluido") },
+            { valor: "cancelado", rotulo: "Cancelados", contagem: contarEncerrados("cancelado") },
+            { valor: "todos", rotulo: "Todos", contagem: contarEncerrados("todos") },
           ]}
         />
         <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -97,6 +112,16 @@ export function PedidosPorEtapa({
         podeExcluir={podeExcluir}
         emptyText={rows.length ? "Nenhum pedido nesta etapa." : "Nenhum pedido ainda. Use “Novo pedido” para começar."}
       />
+
+      {encerrados && mostraEncerrados && (
+        <ListaParcial
+          mostrados={encerrados.mostrados}
+          total={encerrados.total}
+          oQue="pedidos concluídos ou cancelados"
+          hrefTodos={`/pedido?${[etapaNaUrl, "encerrados=todos"].filter(Boolean).join("&")}`}
+          hrefRecentes={todosEncerrados ? `/pedido${etapaNaUrl ? `?${etapaNaUrl}` : ""}` : undefined}
+        />
+      )}
     </div>
   );
 }

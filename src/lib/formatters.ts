@@ -131,3 +131,56 @@ export function dataIsoEmDias(dias: number, agora: Date = new Date()): string {
   const [ano, mes, dia] = hojeIso(agora).split("-").map(Number);
   return new Date(Date.UTC(ano, mes - 1, dia + Math.round(dias))).toISOString().slice(0, 10);
 }
+
+const relogioLocalFormatter = new Intl.DateTimeFormat("en-CA", {
+  timeZone: APP_TIME_ZONE,
+  hourCycle: "h23",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+});
+
+/** Quanto o relógio do laboratório está à frente do UTC naquele instante, em ms (negativo no Brasil). */
+function deslocamentoDoFuso(instante: number): number {
+  const partes = Object.fromEntries(
+    relogioLocalFormatter.formatToParts(new Date(instante)).map((parte) => [parte.type, Number(parte.value)]),
+  );
+  return Date.UTC(partes.year, partes.month - 1, partes.day, partes.hour, partes.minute, partes.second) - instante;
+}
+
+function partesDoDia(dia: string): [number, number, number] | null {
+  const lido = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dia);
+  if (!lido) return null;
+  const [ano, mes, diaDoMes] = [Number(lido[1]), Number(lido[2]), Number(lido[3])];
+  const conferida = new Date(Date.UTC(ano, mes - 1, diaDoMes));
+  // 2026-02-31 não existe: o calendário "corrige" para março e a conta sairia de outro dia
+  if (conferida.getUTCMonth() !== mes - 1 || conferida.getUTCDate() !== diaDoMes) return null;
+  return [ano, mes, diaDoMes];
+}
+
+/**
+ * Instante (ISO, em UTC) em que o dia `aaaa-mm-dd` começa no fuso do
+ * laboratório, para filtrar por dia uma coluna de data e hora: o dia 16 em
+ * Brasília vai das 03h UTC do dia 16 às 03h UTC do dia 17. Data inválida
+ * devolve null.
+ */
+export function inicioDoDiaIso(dia: string): string | null {
+  const partes = partesDoDia(dia);
+  if (!partes) return null;
+  const meiaNoiteUtc = Date.UTC(partes[0], partes[1] - 1, partes[2]);
+  // a segunda passada acerta o dia em que o fuso muda de deslocamento
+  const primeira = meiaNoiteUtc - deslocamentoDoFuso(meiaNoiteUtc);
+  return new Date(meiaNoiteUtc - deslocamentoDoFuso(primeira)).toISOString();
+}
+
+/** Instante em que o dia seguinte a `aaaa-mm-dd` começa: o limite de cima (exclusivo) do dia. */
+export function fimDoDiaIso(dia: string): string | null {
+  const partes = partesDoDia(dia);
+  if (!partes) return null;
+  const seguinte = new Date(Date.UTC(partes[0], partes[1] - 1, partes[2] + 1));
+  const [ano, mes, diaDoMes] = [seguinte.getUTCFullYear(), seguinte.getUTCMonth() + 1, seguinte.getUTCDate()];
+  return inicioDoDiaIso(`${ano}-${String(mes).padStart(2, "0")}-${String(diaDoMes).padStart(2, "0")}`);
+}

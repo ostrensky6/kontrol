@@ -46,6 +46,15 @@ const ETAPA_DO_STATUS: Record<string, EtapaPedidoId> = {
   cancelado: "cancelado",
 };
 
+/**
+ * Status que encerram o pedido (etapas "Concluído" e "Cancelado"). A lista de
+ * pedidos usa para trazer inteiro o que está em andamento e, do que já foi
+ * encerrado, só os mais recentes.
+ */
+export const STATUS_PEDIDO_ENCERRADO: readonly string[] = Object.entries(ETAPA_DO_STATUS)
+  .filter(([, etapa]) => etapa === "concluido" || etapa === "cancelado")
+  .map(([status]) => status);
+
 /** Etapa em que o pedido está. Status desconhecido fica na Solicitação. */
 export function etapaDoPedido(pedido: {
   status: string | null | undefined;
