@@ -25,7 +25,7 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
   it("título de tela de trabalho tem um tamanho só (20 px)", () => {
     // telas de entrada, institucionais e de impressão têm desenho próprio
     const comDesenhoProprio = [
-      "app/login/page.tsx",
+      "app/login/LoginForm.tsx",
       "app/compras/[id]/imprimir/page.tsx",
       "components/layout/InstitutionalPage.tsx",
     ];

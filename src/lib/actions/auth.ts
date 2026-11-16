@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { SENHA_PROVISORIA_LEGADA, senhaProvisoriaVencida } from "@/lib/auth/senha-provisoria";
+import { urlRetornoRecuperacao } from "@/lib/auth/link-email";
+import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import type { FormState } from "./cadastros";
 
 function mensagemErroLogin(error: { code?: string; message?: string } | null) {
@@ -56,9 +58,12 @@ export async function solicitarRedefinicaoSenha(_prev: FormState, formData: Form
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!email) return { ok: false, message: "Informe o e-mail para receber o link de redefinição." };
 
+  // Origem do próprio pedido (ou NEXT_PUBLIC_SITE_URL real): nunca localhost
+  // em produção. O link volta por /auth/confirmar, que abre a sessão.
+  const origem = (await origemPublicaKontrol()) ?? "http://localhost:3000";
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"}/login`,
+    redirectTo: urlRetornoRecuperacao(origem),
   });
 
   if (error) return { ok: false, message: "Não foi possível enviar a redefinição agora." };
@@ -104,7 +109,7 @@ export async function definirSenhaDefinitiva(_prev: FormState, formData: FormDat
         return {
           ok: false,
           message:
-            error.code === "same_password" ? "Escolha uma senha diferente da senha provisória." : error.message,
+            error.code === "same_password" ? "Escolha uma senha diferente da atual." : error.message,
         };
       }
     }
