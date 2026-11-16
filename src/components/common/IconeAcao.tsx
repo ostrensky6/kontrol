@@ -11,7 +11,7 @@ import type { LucideIcon } from "lucide-react";
  */
 export function IconeAcao({ icone: Icone, rotulo }: { icone: LucideIcon; rotulo: string }) {
   return (
-    <span className="inline-flex" title={rotulo}>
+    <span className="relative inline-flex" title={rotulo}>
       <Icone className="size-4" aria-hidden />
       <span className="sr-only">{rotulo}</span>
     </span>

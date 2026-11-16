@@ -181,7 +181,8 @@ export function AnaliseLinhaAcoes({
 
   return (
     <span className="inline-flex items-center gap-1">
-      <Button asChild size="sm">
+      {/* uma ação por linha, repetida em toda a lista: contorno, não botão cheio */}
+      <Button asChild size="sm" variant="outline">
         <Link href={href}>Abrir ficha</Link>
       </Button>
       {podeEditar && (

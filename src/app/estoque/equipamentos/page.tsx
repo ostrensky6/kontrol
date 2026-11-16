@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { QrCode } from "@/components/common/QrCode";
 import { formatDate } from "@/lib/formatters";
 import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
@@ -206,10 +207,7 @@ export default async function EquipamentosPage({
         <AbasEquipamentos ativa="unidades" />
         <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
-              Estoque · Patrimônio físico
-            </p>
-            <div className="mt-1 flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <h1 className="text-xl font-semibold tracking-tight">Equipamentos físicos</h1>
               <HelpTip title="Equipamentos físicos">
                 <p>
@@ -301,9 +299,12 @@ export default async function EquipamentosPage({
         </section>
 
         {podeEditar && !scanId && (
-          <details className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-            <summary className="min-h-10 cursor-pointer py-2 text-sm font-medium">+ Cadastrar unidade física</summary>
-            <div className="mt-3">
+          <details className="group mt-4">
+            <summary className="inline-flex min-h-9 cursor-pointer list-none items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 group-open:border group-open:border-input group-open:bg-card group-open:text-foreground group-open:hover:bg-muted [&::-webkit-details-marker]:hidden">
+              <Plus className="h-4 w-4 transition-transform group-open:rotate-45" aria-hidden="true" />
+              Cadastrar unidade física
+            </summary>
+            <div className="mt-3 rounded-lg border border-border bg-card p-4 shadow-sm">
               {catalogo.length > 0
                 ? <NovaUnidadeForm equipamentos={catalogo} />
                 : <p className="text-sm text-muted-foreground">Cadastre primeiro o equipamento na aba Tipos e custo.</p>}

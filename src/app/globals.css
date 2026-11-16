@@ -327,6 +327,45 @@ html:not(.dark) .text-brand-500 {
   }
 }
 
+/* Texto só para leitor de tela (.sr-only) é absoluto. Dentro de uma tabela que
+   rola para o lado ele escapava da caixa e criava rolagem horizontal na página
+   inteira. A caixa que rola passa a ser a referência dos filhos absolutos.
+   Em @layer components para as classes de posição (sticky, absolute) continuarem valendo. */
+@layer components {
+  .overflow-x-auto,
+  .overflow-auto {
+    position: relative;
+  }
+}
+
+/* "Abrir e fechar" (details): a seta do navegador muda de desenho de um para
+   outro e some quando o resumo é flex. Uma seta só, fina, que gira ao abrir.
+   Resumo desenhado como botão (list-none) fica de fora. */
+@layer components {
+  summary:not(.list-none) {
+    list-style: none;
+  }
+  summary:not(.list-none)::-webkit-details-marker {
+    display: none;
+  }
+  summary:not(.list-none)::before {
+    content: "";
+    display: inline-block;
+    width: 0.42em;
+    height: 0.42em;
+    margin-inline: 0.15em 0.55em;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    opacity: 0.75;
+    transform: translateY(-0.12em) rotate(-45deg);
+    transition: transform 120ms ease;
+    flex: none;
+  }
+  details[open] > summary:not(.list-none)::before {
+    transform: translateY(-0.2em) rotate(45deg);
+  }
+}
+
 /* Tabela padrão: a primeira coluna (o nome) fica fixa ao rolar para o lado
    (revisão de 11/11, 10.3). Fundo opaco, igual ao da linha, para o que rola
    não aparecer por baixo; a sombra só aparece enquanto a tabela está rolada. */

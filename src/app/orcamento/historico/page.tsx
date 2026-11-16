@@ -186,12 +186,12 @@ export default async function HistoricoOrcamentosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
-        <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento" }, { label: "Histórico de Orçamentos" }]} />
+        <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento" }, { label: "Histórico de orçamentos" }]} />
 
         <div className="mt-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Histórico de Orçamentos</h1>
+              <h1 className="text-xl font-semibold tracking-tight">Histórico de orçamentos</h1>
               <HelpTip title="Histórico de orçamentos">
                 <p>
                   Versões de proposta já emitidas. Cada versão guarda os <b>custos, parâmetros e valores
@@ -219,7 +219,7 @@ export default async function HistoricoOrcamentosPage({
         </div>
 
         {/* Barra de filtros: campos de largura fixa, ação logo ao lado; o resto num painel. */}
-        <form role="search" aria-label="Filtrar o histórico" className="mt-5 flex flex-wrap items-center gap-2">
+        <form role="search" aria-label="Filtrar o histórico" className="relative mt-5 flex flex-wrap items-center gap-2">
           <div className="relative w-full sm:w-72">
             <label htmlFor="historico-texto" className="sr-only">Buscar por número, título ou cliente</label>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
@@ -246,7 +246,7 @@ export default async function HistoricoOrcamentosPage({
             placeholder="Cliente"
             className={`${campoCls} w-full sm:w-48`}
           />
-          <details className="relative">
+          <details>
             <summary className={`${campoCls} flex cursor-pointer list-none items-center gap-1.5 font-medium hover:bg-accent [&::-webkit-details-marker]:hidden`}>
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
               Mais filtros
@@ -299,7 +299,7 @@ export default async function HistoricoOrcamentosPage({
 
         {/* Lista: título ocupa o espaço livre; data, situação e preço em colunas fixas, juntos. */}
         <section className="mt-5" aria-label="Versões emitidas">
-          <div className={`hidden gap-x-4 px-4 pb-2 text-xs font-semibold text-muted-foreground md:grid ${COLUNAS_LISTA}`}>
+          <div className={`hidden gap-x-4 px-4 pb-2 text-xs font-semibold text-muted-foreground xl:grid ${COLUNAS_LISTA}`}>
             <span>Proposta</span>
             <span>Emissão</span>
             <span className="flex items-center gap-1">
@@ -368,7 +368,7 @@ export default async function HistoricoOrcamentosPage({
                             />
                           )}
                         </div>
-                        <div className="md:text-right">
+                        <div className="xl:text-right">
                           <p className="font-semibold tabular-nums">{brl(Number(item.total_final ?? 0))}</p>
                           <p className="text-xs tabular-nums">
                             {item.anterior ? (
@@ -457,7 +457,7 @@ export default async function HistoricoOrcamentosPage({
 }
 
 /** Título flexível; emissão, situação, preço e o botão Detalhes em larguras fixas. */
-const COLUNAS_LISTA = "md:grid-cols-[minmax(0,1fr)_7.5rem_13rem_9rem_6.5rem]";
+const COLUNAS_LISTA = "xl:grid-cols-[minmax(0,1fr)_7.5rem_13rem_9rem_6.5rem]";
 
 const campoCls = "h-9 rounded-md border border-input bg-card px-3 text-sm";
 

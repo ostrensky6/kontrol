@@ -41,7 +41,7 @@ export function PedidoItensQuickView({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
+        className="inline-flex items-center whitespace-nowrap gap-1 rounded-md border border-input px-2 py-1 text-xs font-medium text-foreground hover:bg-muted"
         title="Ver itens solicitados"
       >
         <ListChecks className="h-3.5 w-3.5" />

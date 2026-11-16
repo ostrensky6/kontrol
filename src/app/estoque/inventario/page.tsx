@@ -185,8 +185,8 @@ export default async function InventarioPage() {
   const cabecalho = (
     <div>
       <div className="flex items-center gap-1">
-        <h1 className="text-xl font-semibold tracking-tight">Inventário cíclico</h1>
-        <HelpTip title="Inventário cíclico">
+        <h1 className="text-xl font-semibold tracking-tight">Inventário</h1>
+        <HelpTip title="Inventário">
           <p>
             Conferência física do estoque, organizada em <b>contagens</b> (por exemplo, uma por
             semana ou por local).

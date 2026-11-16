@@ -124,7 +124,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.titulo} ${row.projeto} ${row.solicitante} ${row.coordenador}`,
       header: "Pedido",
       cell: ({ row }) => (
-        <div className="min-w-52">
+        <div className="min-w-44">
           <Link href={`/pedido/${row.original.id}`} className="font-medium text-primary hover:underline">
             {row.original.titulo}
           </Link>
@@ -143,7 +143,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       // ordena pela posição no fluxo, não pelo nome do status
       sortingFn: (a, b) => posicaoEtapa(a.original.etapa) - posicaoEtapa(b.original.etapa),
       cell: ({ row }) => (
-        <div className="min-w-44 space-y-1">
+        <div className="min-w-40 space-y-1">
           <EtapaProgresso etapa={row.original.etapa} />
           <StatusBadge status={row.original.status} label={row.original.statusLabel} />
           {row.original.ciclo && row.original.ciclo !== "—" && (
@@ -160,7 +160,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.proximaAcao} ${row.responsavelAtual}`,
       header: "Próximo passo",
       cell: ({ row }) => (
-        <div className="min-w-44">
+        <div className="min-w-40">
           <p className="font-medium text-foreground">{row.original.proximaAcao}</p>
           {row.original.responsavelAtual !== "—" && (
             <p className="text-xs text-muted-foreground">com {row.original.responsavelAtual}</p>

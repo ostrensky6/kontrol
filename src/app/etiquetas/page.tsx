@@ -102,12 +102,9 @@ export default async function EtiquetasPage({
       <main className="app-page-container print:max-w-none print:px-0 print:py-0">
         <div className="no-print flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold text-muted-foreground">
-              Estoque · Identificação interna
-            </p>
-            <div className="mt-1 flex items-center gap-1">
-              <h1 className="text-xl font-semibold tracking-tight">Etiquetas internas</h1>
-              <HelpTip title="Etiquetas internas">
+            <div className="flex items-center gap-1">
+              <h1 className="text-xl font-semibold tracking-tight">Etiquetas</h1>
+              <HelpTip title="Etiquetas">
                 <p>
                   Etiquetas com QR para os lotes em estoque e para os aparelhos do laboratório.{" "}
                   <b>Imprima, recorte e cole</b> na embalagem ou no equipamento.

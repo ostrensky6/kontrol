@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { gargalo, horasBancadaPorAmostra, type Etapa } from "@/lib/costing/engine";
 import { calcularTodas } from "@/lib/costing/loader";
@@ -272,11 +273,10 @@ function AnalisesResumoTable({
         <h2 className="text-sm font-semibold">Catálogo de análises</h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="mx-auto table-auto border-collapse">
+        <table className="w-full table-auto border-collapse">
           <thead>
             <tr className="bg-muted/35">
-              <th className={tableHead}>Código</th>
-              <th className={tableHead}>Análise</th>
+              <th className={tableHead}>Análise e código</th>
               <th className={tableHead}>Status</th>
               <th className={`${tableHead} text-right`}>Etapas</th>
               <th className={`${tableHead} text-right`}>Insumos</th>
@@ -307,9 +307,12 @@ function AnalisesResumoTable({
               const { analise } = item;
               return (
                 <tr key={analise.codigo} className="border-t border-border/70 hover:bg-muted/25">
-                  <td className="whitespace-nowrap px-3 py-2 align-middle font-mono text-xs text-muted-foreground">{analise.codigo}</td>
-                  <td className="min-w-64 px-3 py-2 align-middle">
-                    <p className="text-sm font-medium">{rotuloPrincipal(analise)}</p>
+                  {/* o código fica embaixo do nome: uma coluna a menos e a tabela cabe sem cortar a ação */}
+                  <td className="min-w-40 px-3 py-2 align-middle">
+                    <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="text-sm font-medium hover:underline">
+                      {rotuloPrincipal(analise)}
+                    </Link>
+                    <p className="mt-0.5 font-mono text-xs text-muted-foreground">{analise.codigo}</p>
                     {analise.descricao && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{analise.descricao}</p>}
                   </td>
                   <td className="whitespace-nowrap px-3 py-2 align-middle">
@@ -327,11 +330,11 @@ function AnalisesResumoTable({
                   <td className={tableNumber}>{item.nEquipamentos}</td>
                   <td className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "-"}</td>
                   <td className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "-"}</td>
-                  <td className="max-w-80 px-3 py-2 align-middle">
+                  <td className="min-w-36 max-w-64 px-3 py-2 align-middle">
                     {item.avisos.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {item.avisos.slice(0, 3).map((aviso) => (
-                          <span key={aviso} className="rounded-full bg-warning-soft px-2 py-0.5 text-[11px] text-warning-strong">
+                          <span key={aviso} className="rounded-md bg-warning-soft px-2 py-0.5 text-xs text-warning-strong">
                             {aviso}
                           </span>
                         ))}
@@ -359,5 +362,5 @@ function AnalisesResumoTable({
   );
 }
 
-const tableHead = "whitespace-nowrap px-3 py-2 text-center text-xs font-bold text-muted-foreground";
-const tableNumber = "whitespace-nowrap px-3 py-2 text-right align-middle text-xs tabular-nums";
+const tableHead = "whitespace-nowrap px-2.5 py-2 text-left text-xs font-medium text-muted-foreground";
+const tableNumber = "whitespace-nowrap px-2.5 py-2 text-right align-middle text-xs tabular-nums";
