@@ -207,7 +207,7 @@ export function PedidoItemCamposAssistidos({
   return (
     <>
       <div className={span.tipo}>
-        <label htmlFor={ids.tipo} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</label>
+        <label htmlFor={ids.tipo} className="block text-xs text-muted-foreground/80">Tipo</label>
         <select id={ids.tipo} name="tipo" defaultValue={defaults.tipo ?? "material"} className={`${inputCls} mt-1 w-full`}>
           <option value="material">Material</option>
           <option value="servico">Serviço</option>
@@ -216,7 +216,7 @@ export function PedidoItemCamposAssistidos({
       </div>
       <input type="hidden" name="insumo_id" value={insumoId} />
       <div className={span.categoria}>
-        <label htmlFor={ids.categoria} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Filtro</label>
+        <label htmlFor={ids.categoria} className="block text-xs text-muted-foreground/80">Filtro</label>
         <select id={ids.categoria} value={categoriaFiltro} onChange={(event) => setCategoriaFiltro(event.target.value)} className={inputCls}>
           <option value="">Todas as categorias</option>
           {categorias.map((categoria) => (
@@ -227,7 +227,7 @@ export function PedidoItemCamposAssistidos({
         </select>
       </div>
       <div className={span.insumo}>
-        <label htmlFor={ids.insumoBusca} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Insumo existente</label>
+        <label htmlFor={ids.insumoBusca} className="block text-xs text-muted-foreground/80">Insumo existente</label>
         <input
           id={ids.insumoBusca}
           list={ids.insumos}
@@ -263,7 +263,7 @@ export function PedidoItemCamposAssistidos({
         {selecionado ? <EstoqueDoInsumo estoque={selecionado.estoque} /> : null}
       </div>
       <div className={span.especificacao}>
-        <label htmlFor={ids.especificacao} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Especificação</label>
+        <label htmlFor={ids.especificacao} className="block text-xs text-muted-foreground/80">Especificação</label>
         <input
           id={ids.especificacao}
           name="especificacao"
@@ -274,7 +274,7 @@ export function PedidoItemCamposAssistidos({
         />
       </div>
       <div className={span.quantidade}>
-        <label htmlFor={ids.quantidade} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Qtd</label>
+        <label htmlFor={ids.quantidade} className="block text-xs text-muted-foreground/80">Qtd</label>
         <input
           id={ids.quantidade}
           name="quantidade"
@@ -287,7 +287,7 @@ export function PedidoItemCamposAssistidos({
         />
       </div>
       <div className={span.unidade}>
-        <label htmlFor={ids.unidade} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Unidade</label>
+        <label htmlFor={ids.unidade} className="block text-xs text-muted-foreground/80">Unidade</label>
         <input
           id={ids.unidade}
           name="unidade"
@@ -299,7 +299,7 @@ export function PedidoItemCamposAssistidos({
         <datalist id={ids.unidades}>{unidadeOptions.map((value) => <option key={value} value={value} />)}</datalist>
       </div>
       <div className={span.modelo}>
-        <label htmlFor={ids.modelo} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Marca/modelo</label>
+        <label htmlFor={ids.modelo} className="block text-xs text-muted-foreground/80">Marca/modelo</label>
         <input
           id={ids.modelo}
           name="modelo"
@@ -311,7 +311,7 @@ export function PedidoItemCamposAssistidos({
         <datalist id={ids.modelos}>{modeloOptions.map((value) => <option key={value} value={value} />)}</datalist>
       </div>
       <div className={span.volume}>
-        <label htmlFor={ids.volume} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Volume</label>
+        <label htmlFor={ids.volume} className="block text-xs text-muted-foreground/80">Volume</label>
         <input
           id={ids.volume}
           name="volume"
@@ -323,7 +323,7 @@ export function PedidoItemCamposAssistidos({
         <datalist id={ids.volumes}>{volumeOptions.map((value) => <option key={value} value={value} />)}</datalist>
       </div>
       <div className={span.fornecedor}>
-        <label htmlFor={ids.fornecedor} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fornecedor sugerido</label>
+        <label htmlFor={ids.fornecedor} className="block text-xs text-muted-foreground/80">Fornecedor sugerido</label>
         <input
           id={ids.fornecedor}
           name="fornecedor_sugerido"
@@ -335,7 +335,7 @@ export function PedidoItemCamposAssistidos({
         <datalist id={ids.fornecedores}>{fornecedorOptions.map((value) => <option key={value} value={value} />)}</datalist>
       </div>
       <div className={span.orcamento}>
-        <label htmlFor={ids.orcamento} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Preço estimado (un.)</label>
+        <label htmlFor={ids.orcamento} className="block text-xs text-muted-foreground/80">Preço estimado (un.)</label>
         <input
           id={ids.orcamento}
           name="orcamento_previo"
@@ -348,7 +348,7 @@ export function PedidoItemCamposAssistidos({
         />
       </div>
       <div className={span.observacao}>
-        <label htmlFor={ids.observacao} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Observação</label>
+        <label htmlFor={ids.observacao} className="block text-xs text-muted-foreground/80">Observação</label>
         <input id={ids.observacao} name="observacao" defaultValue={defaults.observacao ?? ""} className={inputCls} />
       </div>
       <details
@@ -358,7 +358,7 @@ export function PedidoItemCamposAssistidos({
         <summary className="cursor-pointer text-sm font-medium">Exigências do item e outros fornecedores (opcional)</summary>
         <div className="mt-2 grid gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
-            <label htmlFor={`${idPrefix}-caracteristicas`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Características indispensáveis</label>
+            <label htmlFor={`${idPrefix}-caracteristicas`} className="block text-xs text-muted-foreground/80">Características indispensáveis</label>
             <textarea
               id={`${idPrefix}-caracteristicas`}
               name="caracteristicas"
@@ -370,7 +370,7 @@ export function PedidoItemCamposAssistidos({
             />
           </div>
           <div>
-            <label htmlFor={`${idPrefix}-exigencia`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Marca ou especificação exigida por protocolo</label>
+            <label htmlFor={`${idPrefix}-exigencia`} className="block text-xs text-muted-foreground/80">Marca ou especificação exigida por protocolo</label>
             <textarea
               id={`${idPrefix}-exigencia`}
               name="exigencia_tecnica"
@@ -384,7 +384,7 @@ export function PedidoItemCamposAssistidos({
             <p id={`${idPrefix}-exigencia-ajuda`} className="mt-1 text-xs text-muted-foreground">Exigência técnica não prova exclusividade.</p>
           </div>
           <div>
-            <label htmlFor={`${idPrefix}-exclusividade`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Fornecedor ou produto exclusivo</label>
+            <label htmlFor={`${idPrefix}-exclusividade`} className="block text-xs text-muted-foreground/80">Fornecedor ou produto exclusivo</label>
             <textarea
               id={`${idPrefix}-exclusividade`}
               name="exclusividade"
@@ -398,7 +398,7 @@ export function PedidoItemCamposAssistidos({
             <p id={`${idPrefix}-exclusividade-ajuda`} className="mt-1 text-xs text-muted-foreground">Anexe a comprovação (carta ou declaração) no pedido.</p>
           </div>
           <div className="sm:col-span-2">
-            <label htmlFor={`${idPrefix}-outros-fornecedores`} className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Outros fornecedores</label>
+            <label htmlFor={`${idPrefix}-outros-fornecedores`} className="block text-xs text-muted-foreground/80">Outros fornecedores</label>
             <input
               id={`${idPrefix}-outros-fornecedores`}
               name="outros_fornecedores"

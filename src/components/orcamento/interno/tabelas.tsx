@@ -16,7 +16,7 @@ import {
 
 export const pct = (n: number) => `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 
-const thBase = "px-2 py-1.5 text-[11px] font-medium uppercase tracking-wide text-muted-foreground";
+const thBase = "px-2 py-1.5 text-xs font-medium text-muted-foreground";
 const th = `${thBase} text-right`;
 const thEsq = `${thBase} text-left`;
 const td = "px-2 py-1.5 text-right tabular-nums";

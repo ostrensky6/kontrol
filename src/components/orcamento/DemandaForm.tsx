@@ -97,7 +97,7 @@ const campoCalculado = "mt-0.5 flex h-8 w-full items-center rounded-md border bo
 const campoOperacional = "h-8 rounded-md border border-warning-strong/30 bg-warning-soft px-2.5 text-sm font-semibold tabular-nums text-warning-strong";
 const areaTexto = `mt-0.5 block min-h-14 w-full rounded-md border bg-card px-2.5 py-1.5 text-sm font-medium ${TOM_ENTRADA}`;
 const grupoCampos = "min-w-0 rounded-md border border-border bg-muted/20 px-2.5 pb-2.5 pt-2";
-const legenda = "float-left mb-1 w-full text-[11px] font-semibold uppercase tracking-wide text-muted-foreground";
+const legenda = "float-left mb-1 w-full text-xs font-semibold text-muted-foreground";
 const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
 const lbl = "block text-xs font-medium text-muted-foreground";
 const secao = "rounded-md border border-border px-3 pb-3 pt-2";
@@ -647,7 +647,7 @@ export function DemandaForm({
           )}
           {previsoesOperacionais.length > 0 && (
             <div className="mt-2 rounded-md border border-border bg-muted/40 p-2">
-              <h4 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Previsão operacional calculada</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground">Previsão operacional calculada</h4>
               <div className="mt-1.5 grid gap-2 md:grid-cols-2 2xl:grid-cols-3">
                 {previsoesOperacionais.map((previsao) => (
                   <div key={previsao.key} className="rounded-md border border-border bg-card px-2.5 py-1.5 text-xs">
@@ -838,7 +838,7 @@ function Legenda({ texto, classe, textoClasse = "" }: { texto: string; classe: s
 function ResumoLaboratorio({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe?: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-1.5">
-      <dt className="whitespace-nowrap text-[11px] font-medium uppercase tracking-wide text-muted-foreground">{titulo}</dt>
+      <dt className="whitespace-nowrap text-xs font-medium text-muted-foreground">{titulo}</dt>
       <dd className="text-sm font-semibold tabular-nums text-foreground">{valor}</dd>
       {detalhe && <dd className="text-xs text-muted-foreground">· {detalhe}</dd>}
     </div>

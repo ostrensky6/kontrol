@@ -19,7 +19,7 @@ export type PlanoContextoValores = {
 
 const inp =
   "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-brand-700 disabled:cursor-not-allowed disabled:bg-muted/40 disabled:text-muted-foreground dark:text-brand-300"; // §8.2: entrada em azul
-const lbl = "block text-[10px] uppercase tracking-wide text-muted-foreground/80";
+const lbl = "block text-xs text-muted-foreground/80";
 
 /**
  * Formulário do contexto operacional. Âncora `#editar`: ao chegar pela ação

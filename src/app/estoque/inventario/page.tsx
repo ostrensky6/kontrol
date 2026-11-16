@@ -259,7 +259,7 @@ export default async function InventarioPage() {
 
         {resumoCiclos.length > 0 && (
           <section aria-label="Contagens abertas" className="mt-6">
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className="mb-2 text-xs font-semibold text-muted-foreground">
               Contagens abertas
             </h2>
             <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card shadow-sm">
@@ -307,11 +307,11 @@ export default async function InventarioPage() {
 
         <section className="mt-8 rounded-xl border border-border bg-card shadow-sm">
           <div className="border-b border-border px-4 py-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Itens contados recentes</h2>
+            <h2 className="text-sm font-semibold text-muted-foreground">Itens contados recentes</h2>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="border-b border-border text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b border-border text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Contagem</th>
                   <th className="px-4 py-3 text-left">Lote ou insumo</th>

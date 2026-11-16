@@ -456,7 +456,7 @@ export default async function OrcamentoModelosPage({
                 <p className="py-1 text-xs text-muted-foreground">Sem registros de valor.</p>
               ) : (
                 <table className="mt-1 w-full text-left text-xs">
-                  <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
+                  <thead className="text-xs text-muted-foreground">
                     <tr>
                       <th className="py-1 pr-3 font-medium">Quando</th>
                       <th className="py-1 pr-3 font-medium">O que</th>
@@ -656,7 +656,7 @@ const campoCls = "h-9 rounded-md border border-input bg-card px-3 text-sm";
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-card px-2 py-2 text-sm";
 
-const cabecalhoTabela = "whitespace-nowrap bg-muted/40 text-[11px] uppercase tracking-wide text-muted-foreground";
+const cabecalhoTabela = "whitespace-nowrap bg-muted/40 text-xs text-muted-foreground";
 
 /** Endereço da página com os filtros dados (vazios ficam de fora). */
 function hrefModelos(filtros: SearchParams) {
@@ -908,7 +908,7 @@ function PendenciasPessoal({ pendencias }: { pendencias: PendenciaPessoal[] }) {
         </HelpTip>
       </div>
       <table className="mt-1 w-full text-left text-xs">
-        <thead className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <thead className="text-xs text-muted-foreground">
           <tr>
             <th className="py-1 pr-3 font-medium">Item</th>
             <th className="py-1 pr-3 text-right font-medium">Informado</th>

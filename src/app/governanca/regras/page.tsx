@@ -146,7 +146,7 @@ export default async function GovernancaOrcamentoPage() {
       <main className="app-page-container">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">
+            <p className="text-xs font-semibold text-brand-700 dark:text-brand-300">
               Governança
             </p>
             <div className="flex items-center gap-1">
@@ -191,7 +191,7 @@ export default async function GovernancaOrcamentoPage() {
                 <col className="w-[8.75rem]" />
                 <col />
               </colgroup>
-              <thead className="bg-muted/50 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
                 <tr>
                   <th className="px-3 py-1.5 font-medium">Ação</th>
                   <th className="px-3 py-1.5 font-medium">Quem pode</th>

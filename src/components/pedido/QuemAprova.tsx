@@ -14,7 +14,7 @@ const MARCA: Record<EtapaAprovacao["situacao"], { simbolo: string; cls: string }
 export function QuemAprova({ etapas }: { etapas: EtapaAprovacao[] }) {
   return (
     <section aria-labelledby="quem-aprova-titulo" className="mt-3 rounded-md border border-border bg-muted/20 p-3" data-testid="quem-aprova">
-      <h3 id="quem-aprova-titulo" className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h3 id="quem-aprova-titulo" className="text-xs font-semibold text-muted-foreground">
         Quem aprova
       </h3>
       <ol className="mt-2 grid gap-2">

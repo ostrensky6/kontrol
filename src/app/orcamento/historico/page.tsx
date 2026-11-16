@@ -299,7 +299,7 @@ export default async function HistoricoOrcamentosPage({
 
         {/* Lista: título ocupa o espaço livre; data, situação e preço em colunas fixas, juntos. */}
         <section className="mt-5" aria-label="Versões emitidas">
-          <div className={`hidden gap-x-4 px-4 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground md:grid ${COLUNAS_LISTA}`}>
+          <div className={`hidden gap-x-4 px-4 pb-2 text-xs font-semibold text-muted-foreground md:grid ${COLUNAS_LISTA}`}>
             <span>Proposta</span>
             <span>Emissão</span>
             <span className="flex items-center gap-1">
@@ -595,7 +595,7 @@ function ComparacaoLadoALado({ atual, anterior }: { atual: VersaoComAnterior; an
     <section className="mt-6 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Comparação lado a lado</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Comparação lado a lado</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             {atual.numero} contra {anterior ? anterior.numero : "primeira versão"}.
           </p>

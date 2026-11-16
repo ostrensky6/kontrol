@@ -54,7 +54,7 @@ function Kpi({
 }) {
   return (
     <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
-      <p className="flex items-center gap-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}{ajuda}</p>
+      <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">{label}{ajuda}</p>
       <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">{valor}</p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground/80">{hint}</p>}
     </div>
@@ -64,7 +64,7 @@ function Kpi({
 const cardCls =
   "rounded-lg border border-border bg-card shadow-sm";
 const thCls =
-  "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+  "px-3 py-2 text-left text-xs font-semibold text-muted-foreground";
 const tdCls = "px-3 py-2 text-sm text-foreground";
 
 export default async function ProjetoHubPage({

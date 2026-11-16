@@ -8,7 +8,7 @@ import { coordenadorDoProjeto, type UsuarioCoordenador } from "./_lib/responsave
 export const dynamic = "force-dynamic";
 
 const thCls =
-  "px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground";
+  "px-3 py-2 text-left text-xs font-semibold text-muted-foreground";
 const tdCls = "px-3 py-2 text-sm text-foreground";
 
 export default async function ProjetosPage() {

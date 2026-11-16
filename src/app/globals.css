@@ -182,27 +182,29 @@ html:not(.dark) .text-brand-500 {
   outline-offset: 3px;
 }
 
-:where(a[href][class*="rounded"][class*="border"][class*="bg-card"], a[href][class*="rounded"][class*="border"][class*="bg-muted"]) {
+:where(a[href][class*="rounded-lg"][class*="border"][class*="bg-card"], a[href][class*="rounded-xl"][class*="border"][class*="bg-card"], a[href][class*="rounded-lg"][class*="border"][class*="bg-muted"], a[href][class*="rounded-xl"][class*="border"][class*="bg-muted"]):not([class*="inline-flex"]) {
   border-color: color-mix(in srgb, var(--primary) 26%, var(--border));
   box-shadow:
     inset 3px 0 0 color-mix(in srgb, var(--primary) 72%, transparent),
     0 1px 2px rgb(15 23 42 / 0.04);
 }
 
-:where(a[href][class*="rounded"][class*="border"][class*="bg-card"], a[href][class*="rounded"][class*="border"][class*="bg-muted"]):hover {
+:where(a[href][class*="rounded-lg"][class*="border"][class*="bg-card"], a[href][class*="rounded-xl"][class*="border"][class*="bg-card"], a[href][class*="rounded-lg"][class*="border"][class*="bg-muted"], a[href][class*="rounded-xl"][class*="border"][class*="bg-muted"]):not([class*="inline-flex"]):hover {
   border-color: color-mix(in srgb, var(--primary) 48%, var(--border));
   box-shadow:
     inset 3px 0 0 var(--primary),
     0 6px 16px -12px rgb(15 23 42 / 0.35);
 }
 
-.dark :where(a[href][class*="rounded"][class*="border"][class*="bg-card"], a[href][class*="rounded"][class*="border"][class*="bg-muted"]) {
+.dark :where(a[href][class*="rounded-lg"][class*="border"][class*="bg-card"], a[href][class*="rounded-xl"][class*="border"][class*="bg-card"], a[href][class*="rounded-lg"][class*="border"][class*="bg-muted"], a[href][class*="rounded-xl"][class*="border"][class*="bg-muted"]):not([class*="inline-flex"]) {
   border-color: color-mix(in srgb, var(--primary) 34%, var(--border));
   box-shadow:
     inset 3px 0 0 color-mix(in srgb, var(--primary) 80%, transparent),
     0 1px 2px rgb(0 0 0 / 0.2);
 }
 
+/* A faixa azul à esquerda marca só o cartão que é link (rounded-lg ou maior).
+   Botão, aba e pílula têm o próprio desenho e ficam sem a faixa. */
 .app-nav-level-2 {
   border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
   background:

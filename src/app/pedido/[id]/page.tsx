@@ -684,7 +684,7 @@ export default async function PedidoInternoDetalhe({
             <div className="flex flex-col-reverse items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
               <div className="min-w-0">
                 <div className="flex items-center gap-1">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-xs font-semibold text-muted-foreground">
                     {encerrado ? "Situação" : "O que falta agora"}
                   </p>
                   <HelpTip title="O que falta agora">
@@ -909,7 +909,7 @@ export default async function PedidoInternoDetalhe({
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Materiais, serviços e equipamentos</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground">Materiais, serviços e equipamentos</h2>
                 <HelpTip title="Itens do pedido">
                   <p>
                     Monte a lista antes de enviar para aprovação. O valor <b>prévio</b> é uma estimativa;
@@ -923,7 +923,7 @@ export default async function PedidoInternoDetalhe({
 
           <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
-              <thead className="border-b border-border bg-transparent text-xs uppercase tracking-wide text-muted-foreground">
+              <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
                 <tr>
                   <th className="px-4 py-3 text-left">Item</th>
                   <th className="px-4 py-3 text-left">Modelo/volume</th>
@@ -1064,7 +1064,7 @@ export default async function PedidoInternoDetalhe({
               {/* Em larguras médias (~1024 px com a barra lateral) a lista e as ações não cabem lado a lado: empilham. */}
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
                 <div className="min-w-0">
-                  <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Conferir e enviar</h3>
+                  <h3 className="text-sm font-semibold text-muted-foreground">Conferir e enviar</h3>
                   <div className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
                     {pendencias.map((item) => (
                       <div key={item.label} className="flex items-start gap-2 text-xs">
@@ -1102,7 +1102,7 @@ export default async function PedidoInternoDetalhe({
           <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <div className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Documentos</h2>
+                <h2 className="text-sm font-semibold text-muted-foreground">Documentos</h2>
                 <HelpTip title="Documentos">
                   <p>Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
                 </HelpTip>
@@ -1165,7 +1165,7 @@ export default async function PedidoInternoDetalhe({
               <FormComMensagem action={adicionarAnexoPedidoInterno} encType="multipart/form-data" className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</label>
+                  <label className="block text-xs text-muted-foreground/80">Tipo</label>
                   <select name="tipo" defaultValue="orcamento_previo" className={`${inputCls} mt-1 w-full`}>
                     <option value="orcamento_previo">Cotação prévia</option>
                     <option value="proposta">Cotação do fornecedor</option>
@@ -1180,20 +1180,20 @@ export default async function PedidoInternoDetalhe({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Título</label>
+                  <label className="block text-xs text-muted-foreground/80">Título</label>
                   <input name="titulo" required className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Arquivo</label>
+                  <label className="block text-xs text-muted-foreground/80">Arquivo</label>
                   <input name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx" className={`${inputCls} mt-1 w-full`} />
                   <p className="mt-1 text-[11px] text-muted-foreground">PDF, imagem, DOCX ou XLSX, até 15 MB.</p>
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Link ou referência externa (opcional)</label>
+                  <label className="block text-xs text-muted-foreground/80">Link ou referência externa (opcional)</label>
                   <input name="url" placeholder="https://..." className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Observação</label>
+                  <label className="block text-xs text-muted-foreground/80">Observação</label>
                   <input name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
@@ -1207,7 +1207,7 @@ export default async function PedidoInternoDetalhe({
 
           <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
             <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Comunicações</h2>
+              <h2 className="text-sm font-semibold text-muted-foreground">Comunicações</h2>
               <HelpTip title="Comunicações">
                 <p>Registro interno de e-mails, reuniões, mensagens e encaminhamentos.</p>
               </HelpTip>
@@ -1232,7 +1232,7 @@ export default async function PedidoInternoDetalhe({
               <FormComMensagem action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
                 <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Tipo</label>
+                  <label className="block text-xs text-muted-foreground/80">Tipo</label>
                   <select name="tipo" defaultValue="email" className={`${inputCls} mt-1 w-full`}>
                     <option value="email">E-mail</option>
                     <option value="reuniao">Reunião</option>
@@ -1242,23 +1242,23 @@ export default async function PedidoInternoDetalhe({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Remetente</label>
+                  <label className="block text-xs text-muted-foreground/80">Remetente</label>
                   <input name="remetente" defaultValue="giacompras2025@gmail.com" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Destinatários</label>
+                  <label className="block text-xs text-muted-foreground/80">Destinatários</label>
                   <input name="destinatarios" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Assunto</label>
+                  <label className="block text-xs text-muted-foreground/80">Assunto</label>
                   <input name="assunto" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div>
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Referência</label>
+                  <label className="block text-xs text-muted-foreground/80">Referência</label>
                   <input name="referencia" placeholder="ID da mensagem, protocolo, link..." className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">
-                  <label className="block text-[10px] uppercase tracking-wide text-muted-foreground/80">Observação</label>
+                  <label className="block text-xs text-muted-foreground/80">Observação</label>
                   <input name="observacao" className={`${inputCls} mt-1 w-full`} />
                 </div>
                 <div className="md:col-span-2">

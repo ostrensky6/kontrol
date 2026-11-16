@@ -84,7 +84,7 @@ function SaldoAcoes({
 }) {
   if (!podeMovimentar) return null;
   return (
-    <span className="inline-flex flex-wrap items-start justify-end gap-1">
+    <span className="inline-flex flex-wrap items-center justify-end gap-x-1 gap-y-0.5">
       <AjusteInventarioButton
         insumoId={row.insumoId}
         especificacao={row.especificacao}

@@ -42,7 +42,7 @@ function Quantidade({ valor, unidade, forte = false }: { valor: number; unidade?
 function Situacao({ linha }: { linha: LinhaEstoqueDisponivel }) {
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <span className={cn("inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold", TOM_SITUACAO[linha.tom])}>
+      <span className={cn("inline-flex whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-semibold", TOM_SITUACAO[linha.tom])}>
         {linha.situacao}
       </span>
       {linha.sugerido > 0 && (
@@ -91,7 +91,7 @@ const colunas: ColumnDef<LinhaEstoqueDisponivel, unknown>[] = [
     accessorKey: "especificacao",
     header: "Insumo",
     cell: ({ row }) => (
-      <div className="min-w-48">
+      <div className="min-w-40">
         {/* F5: o nome abre a ficha do insumo */}
         <Link
           href={hrefFichaInsumo(row.original.insumoId) ?? "/estoque"}

@@ -69,7 +69,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
 
       <div className="mt-4 max-h-[70dvh] overflow-auto rounded-md border border-border">
         <table className="w-full min-w-[980px] border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-muted text-xs uppercase tracking-wide text-muted-foreground shadow-sm">
+          <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground shadow-sm">
             <tr>
               <th scope="col" className="px-3 py-3 text-left">
                 Privilégio
@@ -91,7 +91,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                 <th
                   scope="rowgroup"
                   colSpan={PAPEIS.length + 1}
-                  className="px-3 pb-1 pt-3 text-left text-xs font-bold uppercase tracking-wide text-brand-700 dark:text-brand-300"
+                  className="px-3 pb-1 pt-3 text-left text-xs font-bold text-brand-700 dark:text-brand-300"
                 >
                   {modulo}
                 </th>

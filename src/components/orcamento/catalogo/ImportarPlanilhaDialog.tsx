@@ -143,7 +143,7 @@ export function ImportarPlanilhaDialog({ action }: { action: AcaoImportar }) {
         {linhas.length > 0 && (
           <div className="max-h-[50vh] overflow-auto rounded-md border border-border">
             <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 bg-muted text-[11px] uppercase tracking-wide text-muted-foreground">
+              <thead className="sticky top-0 bg-muted text-xs text-muted-foreground">
                 <tr>
                   <th className="px-2 py-1 font-medium">Resultado</th>
                   <th className="px-2 py-1 font-medium">Rubrica</th>

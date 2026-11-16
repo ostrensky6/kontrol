@@ -442,7 +442,7 @@ export default async function EstoquePage({
         {visao === "lotes" && (
         <>
         <div className="mt-4 flex items-center gap-1">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Lotes em estoque</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Lotes em estoque</h2>
           <HelpTip title="Estados do lote">
             <HelpLegend
               items={[

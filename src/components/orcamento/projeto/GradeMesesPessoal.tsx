@@ -170,7 +170,7 @@ export function GradeMesesPessoal({
       <div className="mt-3 overflow-x-auto rounded-md border border-border">
         <table className="min-w-full text-sm">
           <caption className="sr-only">Meses do pessoal, ano {ano.ano}</caption>
-          <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
             <tr>
               <th scope="col" className="px-3 py-2">Profissional / função</th>
               <th scope="col" className="px-3 py-2 text-right">Valor mensal</th>

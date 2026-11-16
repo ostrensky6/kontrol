@@ -250,7 +250,7 @@ export default async function FundosPage() {
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-[1480px] w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
                 <tr>
                   <th className="px-3 py-2">Orçamento</th>
                   <th className="px-3 py-2 text-right">Total</th>

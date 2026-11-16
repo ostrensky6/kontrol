@@ -359,5 +359,5 @@ function AnalisesResumoTable({
   );
 }
 
-const tableHead = "whitespace-nowrap px-3 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-muted-foreground";
+const tableHead = "whitespace-nowrap px-3 py-2 text-center text-xs font-bold text-muted-foreground";
 const tableNumber = "whitespace-nowrap px-3 py-2 text-right align-middle text-xs tabular-nums";

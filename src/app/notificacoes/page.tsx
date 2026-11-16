@@ -94,19 +94,19 @@ export default async function NotificacoesPage() {
 
       <div className="grid gap-3 sm:grid-cols-3 2xl:grid-cols-4">
         <div className="rounded-md border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Não lidas
           </p>
           <p className="mt-2 text-2xl font-bold text-foreground">{naoLidas}</p>
         </div>
         <div className="rounded-md border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Aguardando sua ação
           </p>
           <p className="mt-2 text-2xl font-bold text-foreground">{aguardandoAcao}</p>
         </div>
         <div className="rounded-md border border-border bg-card p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="text-xs font-semibold text-muted-foreground">
             Estoque e reposição
           </p>
           <p className="mt-2 text-2xl font-bold text-foreground">{estoque}</p>

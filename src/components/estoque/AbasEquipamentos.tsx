@@ -17,7 +17,8 @@ export type AbaEquipamentos = (typeof ABAS_EQUIPAMENTOS)[number]["id"];
  */
 export function AbasEquipamentos({ ativa }: { ativa: AbaEquipamentos }) {
   return (
-    <nav aria-label="Abas de Equipamentos" className="flex flex-wrap gap-2 border-b border-border pb-3">
+    // mesma aparência das outras abas de segundo nível (SubnavAbas): linha embaixo da aba aberta
+    <nav aria-label="Abas de Equipamentos" className="flex gap-1 overflow-x-auto border-b border-border">
       {ABAS_EQUIPAMENTOS.map((aba) => {
         const atual = aba.id === ativa;
         return (
@@ -27,10 +28,10 @@ export function AbasEquipamentos({ ativa }: { ativa: AbaEquipamentos }) {
             aria-current={atual ? "page" : undefined}
             title={aba.descricao}
             className={cn(
-              "inline-flex min-h-9 items-center rounded-full border px-3 text-sm font-medium transition-colors",
+              "-mb-px inline-flex min-h-11 shrink-0 items-center border-b-2 px-3 text-sm font-medium transition-colors",
               atual
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5",
+                ? "border-primary text-foreground"
+                : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
             )}
           >
             {aba.rotulo}

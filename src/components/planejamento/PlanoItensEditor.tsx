@@ -20,7 +20,7 @@ export type PlanoItem = {
 
 const inp =
   "rounded-md border border-input bg-card px-3 py-2 text-sm font-medium text-brand-700 dark:text-brand-300"; // §8.2: entrada em azul
-const lbl = "block text-[10px] uppercase tracking-wide text-muted-foreground/80";
+const lbl = "block text-xs text-muted-foreground/80";
 
 function Mensagem({ state }: { state: FormState }) {
   if (!state.message) return null;

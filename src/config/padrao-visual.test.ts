@@ -57,12 +57,37 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
   });
 
   it("letra menor que 12 px só diminui (meta do plano: zero)", () => {
-    const LIMITE = 157;
+    const LIMITE = 85;
     const total = telas.reduce(
       (soma, arquivo) => soma + (readFileSync(arquivo, "utf8").match(/text-\[(9|10|11)px\]/g)?.length ?? 0),
       0,
     );
     expect(total).toBeLessThanOrEqual(LIMITE);
+  });
+
+  it("maiúsculas forçadas só no papel: tela de trabalho escreve em frase normal (revisão de 16/11)", () => {
+    // documento impresso e página institucional têm desenho próprio; o resto do
+    // app não força maiúsculas em título de coluna, rótulo ou título de seção
+    const comDesenhoProprio = [
+      "app/compras/[id]/imprimir/page.tsx",
+      "components/orcamento/documento/DocumentoProposta.tsx",
+      "components/layout/InstitutionalPage.tsx",
+    ];
+    const comMaiusculas = telas
+      .filter((arquivo) => !comDesenhoProprio.includes(relativo(arquivo)))
+      .filter((arquivo) => /\buppercase\b/.test(readFileSync(arquivo, "utf8")))
+      .map(relativo);
+    expect(comMaiusculas).toEqual([]);
+  });
+
+  it("linha de tabela e etiqueta usam a cor de borda do tema, não a cor do texto", () => {
+    // sem cor declarada, a borda herda a cor do texto e a tabela ganha linhas pretas
+    const tabela = readFileSync(path.join(SRC, "components/ui/table.tsx"), "utf8");
+    const linha = tabela.slice(tabela.indexOf("function TableRow"), tabela.indexOf("function TableHead("));
+    expect(linha).toMatch(/border-b border-border/);
+    const etiqueta = readFileSync(path.join(SRC, "components/ui/badge.tsx"), "utf8");
+    expect(etiqueta).toMatch(/outline: "border-border/);
+    expect(etiqueta).toMatch(/whitespace-nowrap/);
   });
 
   it("cabeçalho padrão em uso só aumenta", () => {

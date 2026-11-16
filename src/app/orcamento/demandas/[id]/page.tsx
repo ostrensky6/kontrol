@@ -385,7 +385,7 @@ export default async function DemandaDetalhe({
   // título da caixa com linha embaixo, para Identificação, Cliente e Amostras não se misturarem.
   const grupo = "min-w-0 rounded-lg border border-foreground/20 bg-muted px-2.5 pb-2.5 pt-2 shadow-sm dark:bg-muted/40";
   const legenda =
-    "float-left mb-2 w-full border-b border-foreground/15 pb-1 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300";
+    "float-left mb-2 w-full border-b border-foreground/15 pb-1 text-xs font-semibold text-brand-700 dark:text-brand-300";
   const grade = "clear-both grid grid-cols-6 gap-x-2 gap-y-1.5";
   const hydrationSafe = { suppressHydrationWarning: true } as const;
   const obrigatorio = <span className="text-danger-strong">*</span>;
@@ -505,7 +505,7 @@ export default async function DemandaDetalhe({
                   <span className="block font-semibold">
                     {indice + 1}. {etapa.label}
                   </span>
-                  <span className="mt-0.5 block text-[10px] uppercase tracking-wide">
+                  <span className="mt-0.5 block text-xs">
                     {etapa.aplicavel ? etapa.status : "Não se aplica"}
                   </span>
                 </a>
@@ -917,7 +917,7 @@ export default async function DemandaDetalhe({
             {/* Total e emissão numa faixa só; título e cliente já estão no cabeçalho. */}
             <div className="flex flex-wrap items-end justify-between gap-4 rounded-md border border-brand-200 bg-brand-50 px-4 py-3 dark:border-brand-900 dark:bg-brand-950/30">
               <div>
-                <p className="flex items-center gap-2 text-[11px] font-medium uppercase tracking-wide text-brand-700 dark:text-brand-300">
+                <p className="flex items-center gap-2 text-xs font-medium text-brand-700 dark:text-brand-300">
                   Total da proposta
                   <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold normal-case tracking-normal ${STATUS_FINAL_CLS[statusFinal]}`}>
                     {LABEL_STATUS_FINAL[statusFinal]}
@@ -950,7 +950,7 @@ export default async function DemandaDetalhe({
                     </label>
                   )}
                   <div>
-                    <label className="block text-[10px] uppercase tracking-wide text-muted-foreground">Validade (dias)</label>
+                    <label className="block text-xs text-muted-foreground">Validade (dias)</label>
                     <input {...hydrationSafe} name="validade_dias" type="number" min="1" step="1" defaultValue="30" className={`${inp} mt-1 w-24`} disabled={!podeEmitir} />
                   </div>
                   <ConfirmSubmitButton
@@ -1240,7 +1240,7 @@ function TabelaSimples({
   return (
     <div className="mt-4 overflow-x-auto rounded-md border border-border">
       <table className="min-w-full divide-y divide-border text-sm">
-        <thead className="bg-muted/50 text-left text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
           <tr>
             {colunas.map((coluna) => (
               <th key={coluna} className="px-3 py-2">
