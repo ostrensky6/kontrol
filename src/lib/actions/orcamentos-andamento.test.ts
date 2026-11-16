@@ -26,8 +26,14 @@ beforeEach(() => {
   leituraOrcamento = { data: { status: "rascunho" }, error: null };
   leituraItens = { data: [{ id: 1 }, { id: 2 }], error: null };
   gravacoes = [];
+  // a ação confere a linha devolvida: update(...).eq(...).select("id")
   updateOrcamento.mockImplementation(() => ({
-    eq: async () => gravacoes.shift() ?? { error: null },
+    eq: () => ({
+      select: async () => {
+        const gravacao = gravacoes.shift() ?? { error: null };
+        return { data: gravacao.error ? null : [{ id: 42 }], error: gravacao.error };
+      },
+    }),
   }));
   from.mockImplementation((tabela: string) => {
     if (tabela === "orcamentos") {

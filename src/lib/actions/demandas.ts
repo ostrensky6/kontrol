@@ -90,6 +90,7 @@ async function marcarEmAnalise(
   demanda: { id: number; status?: string | null },
 ) {
   if (demanda.status === "nova") {
+    // escrita-sem-conferencia: melhor esforço; o módulo já foi criado e a demanda só deixa de aparecer como "nova"
     await supabase.from("demandas_propostas").update({ status: "em_analise" }).eq("id", demanda.id);
   }
 }

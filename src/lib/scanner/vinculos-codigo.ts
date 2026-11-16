@@ -121,15 +121,24 @@ export async function sincronizarCodigosInsumo(
   if (opcoes.remover) {
     const sair = atuais.filter((linha) => !desejados.includes(chaveCodigoBarras(linha.codigo_normalizado)));
     if (sair.length > 0) {
-      const { error } = await supabase
+      const { data: desligados, error } = await supabase
         .from("identificadores")
         .update({ ativo: false })
         .in(
           "id",
           sair.map((linha) => linha.id),
-        );
+        )
+        .select("id");
       if (error) return { adicionados: 0, removidos: 0, erro: mensagemDoBanco(error) };
-      removidos = sair.length;
+      // conta o que o banco devolveu, não o que foi pedido (RLS barra sem erro)
+      removidos = ((desligados ?? []) as unknown[]).length;
+      if (removidos < sair.length) {
+        return {
+          adicionados: 0,
+          removidos,
+          erro: "Nem todos os códigos antigos foram desligados: seu perfil não pode alterar parte deles.",
+        };
+      }
     }
   }
 

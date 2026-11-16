@@ -6,6 +6,7 @@ import { z } from "zod";
 import { usuarioAtual } from "@/lib/auth/roles";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { mensagemDoBanco } from "@/lib/erros";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { normalizarCodigo } from "@/lib/scanner/identificadores";
 import {
   entidadeTipoParaResolucao,
@@ -164,7 +165,7 @@ async function vincularCodigoTriagem(args: {
     identificadorCriadoId = Number(criado.id);
   }
 
-  const { error: updateError } = await args.supabase
+  const { data: resolvida, error: updateError } = await args.supabase
     .from("cadastros_triagem")
     .update({
       status: "resolvido",
@@ -172,16 +173,24 @@ async function vincularCodigoTriagem(args: {
       entidade_id: args.entidadeId,
       resolvido_em: new Date().toISOString(),
     })
-    .eq("id", args.triagem.id);
+    .eq("id", args.triagem.id)
+    .select("id");
 
-  if (updateError) {
+  // sem linha devolvida a triagem não foi resolvida (RLS barra sem erro): desfaz o vínculo criado
+  if (updateError || semLinhasAfetadas(resolvida)) {
     if (identificadorCriadoId != null) {
+      // escrita-sem-conferencia: compensação de melhor esforço; a falha principal já é devolvida abaixo
       await args.supabase
         .from("identificadores")
         .update({ ativo: false })
         .eq("id", identificadorCriadoId);
     }
-    return { ok: false, message: mensagemDoBanco(updateError) };
+    return {
+      ok: false,
+      message: updateError
+        ? mensagemDoBanco(updateError)
+        : "O código não foi resolvido: a triagem não existe mais ou você não tem permissão para resolvê-la.",
+    };
   }
 
   revalidarTriagem();
@@ -343,17 +352,24 @@ export async function arquivarTriagemCodigoDesconhecido(
   if (!parsed.success) return { ok: false, message: "Triagem inválida." };
 
   const supabase = await createClientUntyped();
-  const { error } = await supabase
+  const { data: arquivada, error } = await supabase
     .from("cadastros_triagem")
     .update({
       status: "descartado",
       resolvido_em: new Date().toISOString(),
     })
     .eq("id", parsed.data.triagem_id)
-    .in("status", ["pendente", "em_analise"]);
+    .in("status", ["pendente", "em_analise"])
+    .select("id");
 
   if (error) return { ok: false, message: mensagemDoBanco(error) };
 
   revalidarTriagem();
+  if (semLinhasAfetadas(arquivada)) {
+    return {
+      ok: false,
+      message: "Nada foi arquivado: este código já foi tratado por outra pessoa ou você não tem permissão. A tela foi atualizada.",
+    };
+  }
   redirect("/scanner/triagem?status=arquivado");
 }

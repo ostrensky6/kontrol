@@ -228,7 +228,9 @@ describe("excluirUsuario", () => {
 
   it("devolve a senha provisória já gravada no login mesmo se a marca da lista falhar (KAT-02)", async () => {
     adminFrom.mockReturnValue({ update });
-    eq.mockResolvedValueOnce({ error: { message: "perfil indisponível" } });
+    eq.mockReturnValueOnce({
+      select: vi.fn(async () => ({ data: null, error: { message: "perfil indisponível" } })),
+    });
     const { gerarNovaSenhaProvisoria } = await import("./usuarios");
 
     const result = await gerarNovaSenhaProvisoria({ ok: false }, formulario());
@@ -236,6 +238,18 @@ describe("excluirUsuario", () => {
     expect(result.ok).toBe(true);
     expect(result.senhaProvisoria).toMatch(/^.{4}-.{4}-.{4}$/);
     expect(result.message).toContain("já vale para entrar");
+    expect(result.message).toContain("não foi gravada");
+  });
+
+  it("avisa que a marca não foi gravada quando o banco não altera nenhuma linha", async () => {
+    adminFrom.mockReturnValue({ update });
+    eq.mockReturnValueOnce({ select: vi.fn(async () => ({ data: [], error: null })) });
+    const { gerarNovaSenhaProvisoria } = await import("./usuarios");
+
+    const result = await gerarNovaSenhaProvisoria({ ok: false }, formulario());
+
+    expect(result.ok).toBe(true);
+    expect(result.senhaProvisoria).toMatch(/^.{4}-.{4}-.{4}$/);
     expect(result.message).toContain("não foi gravada");
   });
 

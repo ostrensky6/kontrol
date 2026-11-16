@@ -59,7 +59,18 @@ describe("actions de orcamento de projetos", () => {
     };
     select.mockReturnValue(cadeia);
     single.mockResolvedValue({ data: { status: "rascunho", demanda_id: 5, project_months: 12 }, error: null });
-    update.mockReturnValue(cadeia);
+    // Gravação: o banco devolve a linha gravada (.select("id")); os filtros
+    // continuam registrados no mesmo `eq` para as conferências dos testes.
+    const cadeiaGravacao = {
+      eq: (...args: unknown[]) => {
+        eq(...args);
+        return cadeiaGravacao;
+      },
+      select: () => cadeiaGravacao,
+      then: (resolver: (valor: { data: unknown; error: null }) => unknown) =>
+        resolver({ data: [{ id: 1 }], error: null }),
+    };
+    update.mockReturnValue(cadeiaGravacao);
     insert.mockResolvedValue({ error: null });
     deleteRow.mockReturnValue(cadeia);
     from.mockReturnValue({ select, update, delete: deleteRow, insert });

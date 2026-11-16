@@ -22,6 +22,7 @@ import { exigirPapelOrcamento } from "@/lib/orcamento/governanca";
 import { recusaSemPermissao } from "@/lib/orcamento/permissao-acao";
 import { moduloBloqueadoParaEdicao } from "@/lib/orcamento/ciclo-vida-modulo";
 import { falha, mensagemDoBanco, sucesso, type EstadoAcao } from "@/lib/erros";
+import { garantirEscrita } from "@/lib/supabase/escrita";
 
 const pathDemandas = "/orcamento/demandas";
 
@@ -243,8 +244,8 @@ export async function salvarOrcamentoProjeto(formData: FormData) {
     await exigirPapelOrcamento("revisar_modulo");
   }
 
-  const { error } = await supabase.from("orcamento_projetos").update(patch).eq("id", id);
-  if (error) throw new Error(error.message);
+  const { data: gravado, error } = await supabase.from("orcamento_projetos").update(patch).eq("id", id).select("id");
+  garantirEscrita(error, gravado, "O orçamento de projeto não foi salvo.");
   if (anterior && anterior.status !== novoStatus) {
     const { error: transicaoError } = await supabase.rpc("transicionar_orcamento_projeto", {
       p_orcamento_projeto_id: id,
@@ -278,8 +279,8 @@ export async function salvarParametrosEconomicosProjeto(formData: FormData) {
   }
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
-  const { error } = await supabase.from("orcamento_projetos").update(patch).eq("id", id);
-  if (error) throw new Error(error.message);
+  const { data: gravado, error } = await supabase.from("orcamento_projetos").update(patch).eq("id", id).select("id");
+  garantirEscrita(error, gravado, "O orçamento de projeto não foi salvo.");
   await registrarVersaoParametrosEconomicos(supabase, {
     escopo: "projeto",
     orcamentoProjetoId: id,
@@ -381,7 +382,7 @@ async function atualizarCustoProjetoInterno(formData: FormData) {
   const trocaRubrica = Boolean(rubricaNova) && (atual.rubrica ?? "OU") !== rubricaNova;
   const trocaIdentidade =
     Boolean(atual.catalogo_item_id) && (!mesmoTexto(atual.descricao, descricao) || !mesmoTexto(atual.unidade, unidade));
-  const { error } = await supabase
+  const { data: gravado, error } = await supabase
     .from("orcamento_projeto_custos")
     .update({
       descricao,
@@ -398,8 +399,9 @@ async function atualizarCustoProjetoInterno(formData: FormData) {
       ...(trocaRubrica || trocaIdentidade ? { catalogo_item_id: null, catalogo_valor_base: null } : {}),
     })
     .eq("id", itemId)
-    .eq("orcamento_projeto_id", id);
-  if (error) throw new Error(error.message);
+    .eq("orcamento_projeto_id", id)
+    .select("id");
+  garantirEscrita(error, gravado, "O custo não foi salvo.");
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
 
@@ -428,15 +430,16 @@ async function salvarMesesPessoalProjetoInterno(formData: FormData) {
     const meses = normalizarMeses(formData.getAll(`meses_${item.id}`), mesesProjeto);
     const atuais = normalizarMeses(item.meses_selecionados ?? [], mesesProjeto);
     if (meses.join(",") === atuais.join(",")) continue;
-    const { error } = await supabase
+    const { data: gravado, error } = await supabase
       .from("orcamento_projeto_custos")
       .update({
         meses_selecionados: meses,
         quantidade: meses.length > 0 ? meses.length : Number(item.quantidade) || 1,
       })
       .eq("id", item.id)
-      .eq("orcamento_projeto_id", id);
-    if (error) throw new Error(error.message);
+      .eq("orcamento_projeto_id", id)
+      .select("id");
+    garantirEscrita(error, gravado, "Os meses do pessoal não foram salvos.");
   }
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
@@ -456,8 +459,12 @@ async function salvarDuracaoProjetoInterno(formData: FormData) {
 
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
-  const { error } = await supabase.from("orcamento_projetos").update({ project_months: meses }).eq("id", id);
-  if (error) throw new Error(error.message);
+  const { data: gravado, error } = await supabase
+    .from("orcamento_projetos")
+    .update({ project_months: meses })
+    .eq("id", id)
+    .select("id");
+  garantirEscrita(error, gravado, "A duração do projeto não foi salva.");
 
   const { data: itens, error: itensError } = await supabase
     .from("orcamento_projeto_custos")
@@ -469,12 +476,13 @@ async function salvarDuracaoProjetoInterno(formData: FormData) {
     const atuais = item.meses_selecionados ?? [];
     const dentro = normalizarMeses(atuais, meses);
     if (dentro.length === atuais.length) continue;
-    const { error: itemError } = await supabase
+    const { data: itemGravado, error: itemError } = await supabase
       .from("orcamento_projeto_custos")
       .update({ meses_selecionados: dentro, quantidade: dentro.length > 0 ? dentro.length : Number(item.quantidade) || 1 })
       .eq("id", item.id)
-      .eq("orcamento_projeto_id", id);
-    if (itemError) throw new Error(itemError.message);
+      .eq("orcamento_projeto_id", id)
+      .select("id");
+    garantirEscrita(itemError, itemGravado, "Os meses do pessoal não foram ajustados à nova duração.");
   }
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
@@ -620,11 +628,12 @@ async function salvarViagensProjetoInterno(formData: FormData) {
 
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
-  const { error: inputsError } = await supabase
+  const { data: inputsGravados, error: inputsError } = await supabase
     .from("orcamento_projetos")
     .update({ travel_inputs: inputs as unknown as Json })
-    .eq("id", id);
-  if (inputsError) throw new Error(inputsError.message);
+    .eq("id", id)
+    .select("id");
+  garantirEscrita(inputsError, inputsGravados, "Os parâmetros de viagem não foram salvos.");
 
   // Recalcula a quantidade das linhas VD automatizáveis a partir dos parâmetros.
   const { data: vdItens } = await supabase
@@ -636,12 +645,13 @@ async function salvarViagensProjetoInterno(formData: FormData) {
     const despesa = classificarDespesaViagem(item.descricao, item.categoria);
     const quantidade = calcularQuantidadeViagem(despesa, inputs);
     if (quantidade != null && quantidade > 0) {
-      const { error } = await supabase
+      const { data: gravado, error } = await supabase
         .from("orcamento_projeto_custos")
         .update({ quantidade })
         .eq("id", item.id)
-        .eq("orcamento_projeto_id", id);
-      if (error) throw new Error(error.message);
+        .eq("orcamento_projeto_id", id)
+        .select("id");
+      garantirEscrita(error, gravado, "A quantidade da despesa de viagem não foi recalculada.");
     }
   }
 
@@ -696,11 +706,13 @@ export async function removerAnaliseProjeto(formData: FormData) {
   if (!id || !itemId) return;
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
+  // .select() devolve o que saiu; se nada saiu (já removido), a tela recarrega e mostra o que ficou
   const { error } = await supabase
     .from("orcamento_projeto_analises")
     .delete()
     .eq("id", itemId)
-    .eq("orcamento_projeto_id", id);
+    .eq("orcamento_projeto_id", id)
+    .select("id");
   if (error) throw new Error(error.message);
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
@@ -712,11 +724,13 @@ export async function removerCustoProjeto(formData: FormData) {
   if (!id || !itemId) return;
   const supabase = await createClient();
   const projeto = await assegurarProjetoEditavel(supabase, id);
+  // .select() devolve o que saiu; se nada saiu (já removido), a tela recarrega e mostra o que ficou
   const { error } = await supabase
     .from("orcamento_projeto_custos")
     .delete()
     .eq("id", itemId)
-    .eq("orcamento_projeto_id", id);
+    .eq("orcamento_projeto_id", id)
+    .select("id");
   if (error) throw new Error(error.message);
   revalidarEtapaProjeto(demandaDe(projeto, formData));
 }
@@ -1008,7 +1022,13 @@ export async function excluirTemplate(formData: FormData) {
   const descricao = descricaoBase.includes("Arquivado em ")
     ? descricaoBase
     : `${descricaoBase}${descricaoBase ? "\n" : ""}Arquivado em ${new Date().toISOString().slice(0, 10)}.`;
-  await supabase.from("orcamento_projeto_templates").update({ nome, descricao }).eq("id", templateId);
+  const { data: arquivado, error: arquivarError } = await supabase
+    .from("orcamento_projeto_templates")
+    .update({ nome, descricao })
+    .eq("id", templateId)
+    .select("id");
+  // só registra "arquivado" na trilha quando o modelo foi mesmo arquivado
+  garantirEscrita(arquivarError, arquivado, "O modelo não foi arquivado.");
   await registrarEvento("orcamento_template", templateId, "ativo", "arquivado", "Template arquivado sem remoção física.");
   revalidatePath("/orcamento/modelos");
 }

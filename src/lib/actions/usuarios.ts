@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { semLinhasAfetadas } from "@/lib/supabase/escrita";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { createAdminClient, mensagemErroAdminSupabase } from "@/lib/supabase/admin";
 import { temPapel, usuarioAtual } from "@/lib/auth/roles";
@@ -205,12 +206,16 @@ export async function editarUsuario(_prev: FormState, formData: FormData): Promi
 
     const admin = createAdminClient();
     const supabase = await createClient();
-    const { error } = await supabase
+    const { data: perfilGravado, error } = await supabase
       .from("perfis")
       .update({ nome: nome || null, papel, permissoes: await permissoesDoUsuario(papel, formData) })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
     // perfil recusado: o Auth fica como estava
     if (error) return { ok: false, message: error.message };
+    if (semLinhasAfetadas(perfilGravado)) {
+      return { ok: false, message: "Nada foi salvo: o usuário não existe mais ou seu perfil não pode alterá-lo." };
+    }
 
     // mantém o nome também no Auth (user_metadata)
     const { error: authError } = await admin.auth.admin.updateUserById(id, { user_metadata: { nome } });
@@ -292,10 +297,12 @@ export async function alterarSenhaUsuario(_prev: FormState, formData: FormData):
       }
     }
 
-    const { error: updateError } = await admin
+    const { data: marcado, error: marcarError } = await admin
       .from("perfis")
       .update({ senha_provisoria: exigirTroca })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
+    const updateError = marcarError ?? (semLinhasAfetadas(marcado) ? { message: "perfil não encontrado" } : null);
     revalidatePath("/usuarios");
     if (updateError) {
       return {
@@ -345,10 +352,12 @@ export async function gerarNovaSenhaProvisoria(
     });
     if (error) return { ok: false, message: mensagemErroAdminSupabase(error) };
 
-    const { error: updateError } = await admin
+    const { data: marcado, error: marcarError } = await admin
       .from("perfis")
       .update({ senha_provisoria: true })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
+    const updateError = marcarError ?? (semLinhasAfetadas(marcado) ? { message: "perfil não encontrado" } : null);
     revalidatePath("/usuarios");
     // a senha nova já vale no login: ela volta mesmo que a marcação da lista falhe,
     // senão a pessoa ficaria sem nenhuma senha conhecida
@@ -541,11 +550,15 @@ export async function salvarAssinaturaUsuario(_prev: FormState, formData: FormDa
     .upload(path, arquivo, { contentType: "image/png", upsert: true });
   if (uploadError) return { ok: false, message: uploadError.message };
 
-  const { error } = await supabase
+  const { data: gravada, error } = await supabase
     .from("perfis")
     .update({ assinatura_path: path, assinatura_url: dataUrl })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false, message: error.message };
+  if (semLinhasAfetadas(gravada)) {
+    return { ok: false, message: "A assinatura não foi ligada ao usuário: ele não existe mais ou seu perfil não pode alterá-lo." };
+  }
 
   revalidatePath("/usuarios");
   return { ok: true, message: "Assinatura salva sem fundo." };
@@ -565,11 +578,15 @@ export async function removerAssinaturaUsuario(_prev: FormState, formData: FormD
     const { error: removeError } = await supabase.storage.from(BUCKET_ASSINATURAS).remove([path]);
     if (removeError) return { ok: false, message: "Não foi possível apagar o arquivo da assinatura. Tente novamente." };
   }
-  const { error } = await supabase
+  const { data: limpa, error } = await supabase
     .from("perfis")
     .update({ assinatura_path: null, assinatura_url: null })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
   if (error) return { ok: false, message: error.message };
+  if (semLinhasAfetadas(limpa)) {
+    return { ok: false, message: "A assinatura não foi retirada do cadastro: o usuário não existe mais ou seu perfil não pode alterá-lo." };
+  }
 
   revalidatePath("/usuarios");
   return { ok: true, message: "Assinatura removida." };

@@ -59,7 +59,8 @@ describe("actions de orcamentos", () => {
     select.mockReturnValue({ single, eq });
     eq.mockReturnValue({ single });
     deleteRow.mockReturnValue({ eq: deleteEq });
-    update.mockReturnValue({ eq });
+    // a ação confere a linha devolvida: update(...).eq(...).select("id")
+    update.mockReturnValue({ eq: vi.fn(() => ({ select: vi.fn(async () => ({ data: [{ id: 42 }], error: null })) })) });
     single.mockResolvedValue({ data: { id: 42 }, error: null });
   });
 

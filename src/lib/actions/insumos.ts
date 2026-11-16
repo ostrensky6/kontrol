@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { garantirEscrita } from "@/lib/supabase/escrita";
 
 /** Atualiza as etiquetas de uma linha de insumo_analise (grupo + modo de cobrança). */
 export async function atualizarInsumoLinha(formData: FormData) {
@@ -13,12 +14,13 @@ export async function atualizarInsumoLinha(formData: FormData) {
   const modo_cobranca = modoRaw ? modoRaw : null;
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: gravado, error } = await supabase
     .from("insumo_analise")
     .update({ grupo_escolha, modo_cobranca })
-    .eq("id", id);
+    .eq("id", id)
+    .select("id");
 
-  if (error) throw new Error(error.message);
+  garantirEscrita(error, gravado, "O insumo da análise não foi salvo.");
 
   revalidatePath("/insumos");
   revalidatePath("/custeio");

@@ -359,6 +359,7 @@ export async function vincularCodigoLeitura(input: {
     if (resultado.erro) return { ok: false, message: resultado.erro };
 
     // Triagem pendente deste código: resolvida pelo mesmo vínculo.
+    // escrita-sem-conferencia: nenhuma linha é o caso normal (código sem triagem pendente); o vínculo já foi gravado acima
     await supabase
       .from("cadastros_triagem")
       .update({
