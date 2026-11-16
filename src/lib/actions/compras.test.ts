@@ -561,4 +561,49 @@ describe("recebimento de pedido formal de compra", () => {
     });
     expect(insert).not.toHaveBeenCalled();
   });
+  describe("removerItemPedido (KAT-06)", () => {
+    function montar(resultado: { data: unknown; error: unknown }) {
+      const filtros: Array<[string, unknown]> = [];
+      const cadeia = {
+        eq: vi.fn((coluna: string, valor: unknown) => {
+          filtros.push([coluna, valor]);
+          return cadeia;
+        }),
+        select: vi.fn(async () => resultado),
+      };
+      from.mockImplementation((table: string) =>
+        table === "pedidos_compra_itens" ? { delete: vi.fn(() => cadeia) } : {},
+      );
+      return filtros;
+    }
+    function form(item = "8", pedido = "20") {
+      const fd = new FormData();
+      fd.set("item_id", item);
+      fd.set("pedido_id", pedido);
+      return fd;
+    }
+
+    it("remove só dentro da compra informada e confirma quando a linha saiu", async () => {
+      const filtros = montar({ data: [{ id: 8 }], error: null });
+      const { removerItemPedido } = await import("./compras");
+      await expect(removerItemPedido({ ok: false }, form())).resolves.toEqual({ ok: true, message: "Item removido." });
+      expect(filtros).toEqual([["id", 8], ["pedido_id", 20]]);
+    });
+
+    it("não diz sucesso quando nada saiu (item ausente, de outra compra, já removido ou sem acesso)", async () => {
+      montar({ data: [], error: null });
+      const { removerItemPedido } = await import("./compras");
+      const r = await removerItemPedido({ ok: false }, form());
+      expect(r.ok).toBe(false);
+      expect(r.message).toMatch(/Nada foi removido/);
+      expect(revalidatePath).toHaveBeenCalledWith("/compras/20");
+    });
+
+    it("devolve o erro do banco e recusa sem compra informada", async () => {
+      montar({ data: null, error: { message: "permission denied" } });
+      const { removerItemPedido } = await import("./compras");
+      expect((await removerItemPedido({ ok: false }, form())).ok).toBe(false);
+      expect(await removerItemPedido({ ok: false }, form("8", ""))).toEqual({ ok: false, message: "Item não informado." });
+    });
+  });
 });

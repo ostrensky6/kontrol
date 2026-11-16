@@ -214,8 +214,14 @@ export async function editarUsuario(_prev: FormState, formData: FormData): Promi
 
     // mantém o nome também no Auth (user_metadata)
     const { error: authError } = await admin.auth.admin.updateUserById(id, { user_metadata: { nome } });
-    if (authError) return { ok: false, message: mensagemErroAdminSupabase(authError) };
+    // resultado parcial dito como é: o perfil (função e permissões) já foi salvo
     revalidatePath("/usuarios");
+    if (authError) {
+      return {
+        ok: false,
+        message: `Função e permissões salvas, mas o nome no login não foi atualizado (${mensagemErroAdminSupabase(authError)}). Salve de novo para concluir.`,
+      };
+    }
     return { ok: true, message: "Usuário atualizado." };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
@@ -278,16 +284,26 @@ export async function alterarSenhaUsuario(_prev: FormState, formData: FormData):
           senha_provisoria_expira_em: exigirTroca ? validadeSenhaProvisoria() : null,
         },
       });
-      if (metadataError) return { ok: false, message: mensagemErroAdminSupabase(metadataError) };
+      if (metadataError) {
+        return {
+          ok: false,
+          message: `A senha nova já vale, mas não foi gravado se ela terá de ser trocada no próximo acesso (${mensagemErroAdminSupabase(metadataError)}). Tente de novo.`,
+        };
+      }
     }
 
     const { error: updateError } = await admin
       .from("perfis")
       .update({ senha_provisoria: exigirTroca })
       .eq("id", id);
-    if (updateError) return { ok: false, message: updateError.message };
-
     revalidatePath("/usuarios");
+    if (updateError) {
+      return {
+        ok: false,
+        message: `A senha nova já vale; só a marcação na lista de usuários não foi gravada (${updateError.message}). Tente de novo.`,
+      };
+    }
+
     return {
       ok: true,
       message: exigirTroca
@@ -333,9 +349,16 @@ export async function gerarNovaSenhaProvisoria(
       .from("perfis")
       .update({ senha_provisoria: true })
       .eq("id", id);
-    if (updateError) return { ok: false, message: updateError.message };
-
     revalidatePath("/usuarios");
+    // a senha nova já vale no login: ela volta mesmo que a marcação da lista falhe,
+    // senão a pessoa ficaria sem nenhuma senha conhecida
+    if (updateError) {
+      return {
+        ok: true,
+        message: `Nova senha provisória gerada e já vale para entrar. ${AVISO_SENHA_PROVISORIA} A marca "senha provisória" na lista de usuários não foi gravada (${updateError.message}).`,
+        senhaProvisoria,
+      };
+    }
     return { ok: true, message: `Nova senha provisória gerada. ${AVISO_SENHA_PROVISORIA}`, senhaProvisoria };
   } catch (error) {
     return { ok: false, message: mensagemErroAcao(error) };
@@ -682,14 +705,26 @@ export async function removerUsuario(formData: FormData): Promise<FormState> {
       .select("nome, email, suspenso");
     if (error || (data?.length ?? 0) === 0) {
       // o login volta ao que era só se a pessoa não estava suspensa antes
-      const { data: antes } = await supabase.from("perfis").select("suspenso").eq("id", id).maybeSingle();
-      if (!antes?.suspenso) await admin.auth.admin.updateUserById(id, { ban_duration: "none" });
+      // e a volta é conferida: só se diz "nada foi alterado" quando ela deu certo
+      const { data: antes, error: antesError } = await supabase
+        .from("perfis")
+        .select("suspenso")
+        .eq("id", id)
+        .maybeSingle();
+      let loginRestaurado = !antesError && Boolean(antes?.suspenso);
+      if (!antesError && !antes?.suspenso) {
+        const { error: desfazerError } = await admin.auth.admin.updateUserById(id, { ban_duration: "none" });
+        loginRestaurado = !desfazerError;
+      }
       const ultimoAdmin = error && /administrador ativo|ultimo|último/i.test(error.message);
+      const motivo = ultimoAdmin
+        ? "É o último Administrador ativo: indique outro antes de removê-lo."
+        : "Não foi possível remover o usuário;";
       return {
         ok: false,
-        message: ultimoAdmin
-          ? "É o último Administrador ativo: indique outro antes de removê-lo."
-          : "Não foi possível remover o usuário; nada foi alterado. Tente novamente.",
+        message: loginRestaurado
+          ? `${motivo}${ultimoAdmin ? "" : " nada foi alterado. Tente novamente."}`
+          : `${motivo} Atenção: o login dele ficou bloqueado e não foi possível desbloquear. Use Reativar para liberar o acesso, ou tente remover de novo.`,
       };
     }
     const nome = data?.[0]?.nome || data?.[0]?.email || "Usuário";

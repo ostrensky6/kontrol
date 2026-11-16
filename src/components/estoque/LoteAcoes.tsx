@@ -260,7 +260,7 @@ export function LoteAcoes({
       {compacto && (secundarias.length > 0 || podeDesbloquear) ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="ghost" size="icon" className="h-7 w-7" disabled={pending} aria-label={`Mais ações do lote ${codigoLote}`}>
+            <Button type="button" variant="ghost" size="icon" className="h-11 w-11 md:h-7 md:w-7" disabled={pending} aria-label={`Mais ações do lote ${codigoLote}`}>
               <MoreHorizontal />
             </Button>
           </DropdownMenuTrigger>
@@ -454,14 +454,15 @@ export function LoteAcoes({
                 if (modal === "ajuste") runState(ajustarSaldoLote, { motivo, quantidade_nova: quantidade });
                 if (modal === "excluir") excluirDefinitivo();
               }}
-              className={`rounded-md px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 ${
+              /* KAT-04: cada fundo com o texto pareado ao tema (no escuro os fundos clareiam e o texto escurece) */
+              className={`rounded-md px-4 py-1.5 text-sm font-medium disabled:opacity-50 ${
                 modal === "bloquear"
-                  ? "bg-warning-strong hover:bg-warning-strong/90"
+                  ? "bg-warning-strong text-white hover:bg-warning-strong/90 dark:text-neutral-950"
                   : modal === "aceitar"
-                    ? "bg-brand-600 hover:bg-brand-500"
+                    ? "bg-brand-600 text-white hover:bg-brand-500"
                   : modal === "ajuste"
-                    ? "bg-primary hover:bg-primary/90"
-                    : "bg-destructive hover:bg-destructive/90"
+                    ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "bg-destructive text-destructive-foreground hover:bg-destructive/90"
               }`}
             >
               {pending

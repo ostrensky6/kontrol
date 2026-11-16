@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
+import { type ReactNode, useActionState, useState, useTransition } from "react";
 import { MoreHorizontal, Trash2 } from "lucide-react";
 
 import {
@@ -65,6 +65,32 @@ type DialogAberto =
   | "editar_pre"
   | null;
 
+
+// KAT-09: falha de rede ou do servidor ao chamar a ação não derruba a tela nem fecha o
+// diálogo; o que foi digitado fica, e a pessoa pode tentar de novo.
+const FALHA_TECNICA = "Não foi possível falar com o servidor; nada foi confirmado. Confira a conexão e tente de novo.";
+async function semQuebrar<T extends { ok: boolean; message?: string }>(
+  chamada: () => Promise<T>,
+): Promise<T | { ok: false; message: string }> {
+  try {
+    return await chamada();
+  } catch {
+    return { ok: false, message: FALHA_TECNICA };
+  }
+}
+
+// KAT-07: retorno das ações anunciado a quem usa leitor de tela, erro como alerta e sucesso como status.
+function MensagemAcao({ ok, children }: { ok?: boolean; children: ReactNode }) {
+  return (
+    <p
+      role={ok ? "status" : "alert"}
+      className={`text-xs ${ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}
+    >
+      {children}
+    </p>
+  );
+}
+
 function permissoesEfetivasDaLinha(row: UsuarioRow, papel: string) {
   const base = row.categorias?.[papel] ?? normalizePermissions(papel, {});
   const excecoes =
@@ -96,7 +122,7 @@ function EditarDialog({
 
   function handle(formData: FormData) {
     startTransition(async () => {
-      const res = await editarUsuario(initial, formData);
+      const res = await semQuebrar(() => editarUsuario(initial, formData));
       if (res.ok) {
         setErro("");
         onOpenChange(false);
@@ -274,7 +300,7 @@ function EditarPreAprovadoDialog({
 
   function handle(formData: FormData) {
     startTransition(async () => {
-      const res = await editarPreAprovado(initial, formData);
+      const res = await semQuebrar(() => editarPreAprovado(initial, formData));
       if (res.ok) {
         setErro("");
         toast.success(res.message);
@@ -320,7 +346,7 @@ function EditarPreAprovadoDialog({
               ))}
             </Select>
           </div>
-          {erro && <p className="text-xs text-danger-strong">{erro}</p>}
+          {erro && <MensagemAcao>{erro}</MensagemAcao>}
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
               Cancelar
@@ -358,11 +384,7 @@ function PreAprovarDialog({
         </DialogHeader>
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="pre_aprovado_id" value={row.preAprovadoId ?? ""} />
-          {state.message && (
-            <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
-              {state.message}
-            </p>
-          )}
+          {state.message && <MensagemAcao ok={state.ok}>{state.message}</MensagemAcao>}
           {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
           <DialogFooter>
             <Button type="submit" disabled={pending || state.ok}>
@@ -398,8 +420,11 @@ function AlterarSenhaDialog({
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="id" value={row.id} />
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Nova senha</label>
+            <label htmlFor={`alterar-senha-nova-${row.id}`} className="block text-xs font-medium text-muted-foreground">
+              Nova senha
+            </label>
             <Input
+              id={`alterar-senha-nova-${row.id}`}
               name="senha"
               type="password"
               autoComplete="new-password"
@@ -409,8 +434,11 @@ function AlterarSenhaDialog({
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted-foreground">Confirmar senha</label>
+            <label htmlFor={`alterar-senha-confirmar-${row.id}`} className="block text-xs font-medium text-muted-foreground">
+              Confirmar senha
+            </label>
             <Input
+              id={`alterar-senha-confirmar-${row.id}`}
               name="confirmar"
               type="password"
               autoComplete="new-password"
@@ -430,11 +458,7 @@ function AlterarSenhaDialog({
               </span>
             </span>
           </label>
-          {state.message && (
-            <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
-              {state.message}
-            </p>
-          )}
+          {state.message && <MensagemAcao ok={state.ok}>{state.message}</MensagemAcao>}
           <DialogFooter>
             <Button type="submit" disabled={pending || state.ok}>
               {pending ? "Salvando…" : state.ok ? "Senha atualizada" : "Alterar senha"}
@@ -469,11 +493,7 @@ function SenhaProvisoriaDialog({
         </DialogHeader>
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="id" value={row.id} />
-          {state.message && (
-            <p className={`text-xs ${state.ok ? "text-brand-700 dark:text-brand-300" : "text-danger-strong"}`}>
-              {state.message}
-            </p>
-          )}
+          {state.message && <MensagemAcao ok={state.ok}>{state.message}</MensagemAcao>}
           {state.ok && state.senhaProvisoria && <SenhaProvisoriaGerada senha={state.senhaProvisoria} />}
           <DialogFooter>
             <Button type="submit" disabled={pending || state.ok}>
@@ -510,7 +530,7 @@ function ExcluirDialog({
         <form action={action} {...formularioSemPerda(state)} className="space-y-4">
           <input type="hidden" name="id" value={row.id} />
           <input type="hidden" name="email" value={row.email} />
-          {state.message && !state.ok && <p className="text-xs text-danger-strong">{state.message}</p>}
+          {state.message && !state.ok && <MensagemAcao>{state.message}</MensagemAcao>}
           <DialogFooter>
             <Button type="submit" variant="destructive" disabled={pending}>
               {pending ? "Apagando…" : "Apagar definitivamente"}
@@ -545,7 +565,7 @@ function RemoverDialog({
     if (row.temAcesso) fd.set("id", row.id);
     else fd.set("pre_aprovado_id", String(row.preAprovadoId ?? ""));
     startTransition(async () => {
-      const res = row.temAcesso ? await removerUsuario(fd) : await excluirPreAprovado(fd);
+      const res = await semQuebrar(() => (row.temAcesso ? removerUsuario(fd) : excluirPreAprovado(fd)));
       if (res.ok) {
         setErro("");
         toast.success(res.message, { duration: 10000 });
@@ -596,7 +616,7 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
     fd.set("id", row.id);
     fd.set("suspender", row.suspenso ? "0" : "1");
     startTransition(async () => {
-      const resultado = await alternarSuspensao(fd);
+      const resultado = await semQuebrar(() => alternarSuspensao(fd));
       if (resultado.ok) toast.success(resultado.message);
       else toast.error(resultado.message);
     });

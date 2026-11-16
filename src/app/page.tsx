@@ -68,7 +68,7 @@ type Notificacao = {
 /** Avisos não lidos que entram na tabela; o resto fica em Notificações. */
 const LIMITE_AVISOS = 50;
 
-const vazio = { data: null, count: null };
+const vazio = { data: null, count: null, error: null };
 const semErro = { data: null, error: null };
 
 /** Indicador clicável: leva à lista que explica o número. */
@@ -114,10 +114,10 @@ export default async function Home() {
     pendencias,
     situacaoEstoque,
     sinaisEstoque,
-    { data: previsaoRaw },
+    { data: previsaoRaw, error: erroPrevisao },
     { data: pedidosRaw, error: erroPedidos },
     aCaminho,
-    { data: dashboardRaw },
+    { data: dashboardRaw, error: erroDashboard },
     { data: notificacoesRaw, error: erroNotificacoes },
   ] = await Promise.all([
     // a função do banco mais lotes em quarentena, disputas, códigos e manutenção vencida (F8)
@@ -172,13 +172,16 @@ export default async function Home() {
     }))
     .sort((a, b) => b.peso - a.peso);
 
+  // leitura que falha não vira zero: gráficos somem e os números dizem "sem dado"
   const gastos =
-    verCompras && Array.isArray(dashboard?.gasto_por_projeto_mes)
+    erroDashboard
+      ? null
+      : verCompras && Array.isArray(dashboard?.gasto_por_projeto_mes)
       ? (dashboard.gasto_por_projeto_mes as Array<{ mes: string; projeto: string; gasto: number }>)
       : verCompras
         ? []
         : null;
-  const funil = verOrcamentos
+  const funil = verOrcamentos && !erroDashboard
     ? [
         { status: "Rascunho", total: Number(dashboard?.orcamentos_rascunho ?? 0) },
         { status: "Enviado", total: Number(dashboard?.orcamentos_enviados ?? 0) },
@@ -210,9 +213,9 @@ export default async function Home() {
     indicadores.push({
       href: "/compras",
       label: "Repor",
-      value: comprarAgora.length,
-      detail: "insumos com compra sugerida pela previsão",
-      tone: comprarAgora.length ? "warning" : "neutral",
+      value: erroPrevisao ? "sem dado" : comprarAgora.length,
+      detail: erroPrevisao ? "a leitura da previsão não respondeu" : "insumos com compra sugerida pela previsão",
+      tone: !erroPrevisao && comprarAgora.length ? "warning" : "neutral",
     });
   }
   if (verCompras) {
@@ -223,7 +226,9 @@ export default async function Home() {
       value: erroPedidos ? "sem dado" : pedidos.length,
       detail: erroPedidos
         ? "a leitura das compras não respondeu"
-        : `${formatCompactCurrency(dashboard?.compras_abertas_valor)} estimados em andamento`,
+        : erroDashboard
+          ? "valor estimado sem dado"
+          : `${formatCompactCurrency(dashboard?.compras_abertas_valor)} estimados em andamento`,
       tone: !erroPedidos && pedidos.length ? "info" : "neutral",
     });
   }
@@ -232,9 +237,9 @@ export default async function Home() {
     indicadores.push({
       href: "/orcamento/emitidos",
       label: "Propostas com o cliente",
-      value: enviados,
-      detail: "enviadas aguardando resposta",
-      tone: enviados ? "info" : "neutral",
+      value: erroDashboard ? "sem dado" : enviados,
+      detail: erroDashboard ? "a leitura dos indicadores não respondeu" : "enviadas aguardando resposta",
+      tone: !erroDashboard && enviados ? "info" : "neutral",
     });
   }
 
@@ -268,7 +273,13 @@ export default async function Home() {
     situacaoEstoque && !situacaoEstoque.resumo
       ? "Estoque e validade: sem dado. A leitura do estoque não respondeu por inteiro; abra a Situação do estoque para conferir."
       : null,
+    !situacaoEstoque && erroPrevisao
+      ? "Estoque: sem dado. A leitura da previsão de compra não respondeu; abra Compras para conferir."
+      : null,
     erroPedidos ? "Compras: sem dado. A leitura das compras não respondeu." : null,
+    erroDashboard && (verOrcamentos || verCompras)
+      ? "Indicadores: sem dado. A leitura de propostas e gastos não respondeu."
+      : null,
     !erroPedidos && aCaminho?.erro
       ? "Compras: prazos estimados sem dado. Só as datas informadas nas compras foram usadas para dizer o que está atrasado."
       : null,

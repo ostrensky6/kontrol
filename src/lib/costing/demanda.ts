@@ -1,5 +1,6 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { lerTudo } from "@/lib/supabase/ler-tudo";
 import { consumoInsumo, gargalo, insumosSelecionados, type Etapa, type InsumoLinha } from "./engine";
 
 export type DemandaLinha = {
@@ -43,10 +44,17 @@ export async function computarDemandaPlano(
   supabase: SupabaseClient,
   planId: number,
 ): Promise<DemandaLinha[]> {
-  const { data: itens, error: itensError } = await supabase
-    .from("planejamento_itens")
-    .select("codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual")
-    .eq("planejamento_id", planId);
+  // KAT-05: leituras de mil em mil, com ordem estável; plano grande não pode ser calculado
+  // sobre uma parte das linhas sem aviso
+  type ItemPlano = { codigo_analise: string; n_amostras: unknown; n_controles: unknown; repeticoes: unknown; perda_percentual: unknown };
+  const { data: itens, error: itensError } = await lerTudo<ItemPlano>((de, ate) =>
+    supabase
+      .from("planejamento_itens")
+      .select("id, codigo_analise, n_amostras, n_controles, repeticoes, perda_percentual")
+      .eq("planejamento_id", planId)
+      .order("id")
+      .range(de, ate),
+  );
   // fonte essencial: um erro aqui não pode virar "plano sem demanda"
   if (itensError) throw new Error(`Não foi possível ler as análises do plano: ${itensError.message}`);
 
@@ -54,13 +62,17 @@ export async function computarDemandaPlano(
 
   const codigos = [...new Set(itens.map((i) => i.codigo_analise as string))];
   const [{ data: etapas, error: etapasError }, { data: ia, error: iaError }] = await Promise.all([
-    supabase.from("etapas").select("*").in("codigo_analise", codigos),
-    supabase
-      .from("insumo_analise")
-      .select(
-        "codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
-      )
-      .in("codigo_analise", codigos),
+    lerTudo<Etapa>((de, ate) => supabase.from("etapas").select("*").in("codigo_analise", codigos).order("id").range(de, ate)),
+    lerTudo<unknown>((de, ate) =>
+      supabase
+        .from("insumo_analise")
+        .select(
+          "id, codigo_analise, nome_etapa, nome_atividade, especificacao_insumo, grupo_escolha, alternativa_situacao, quantidade_por_amostra, modo_cobranca, insumo_id, insumos(custo_unitario)",
+        )
+        .in("codigo_analise", codigos)
+        .order("id")
+        .range(de, ate),
+    ),
   ]);
 
   if (etapasError ?? iaError) {
@@ -134,12 +146,16 @@ export async function computarDemandaPlano(
         .from("insumos")
         .select("id, fator_conversao, custo_unitario, quantidade_minima_compra, quantidade_embalagem")
         .in("id", ids),
-      supabase
-        .from("reservas_estoque")
-        .select("insumo_id, quantidade, quantidade_consumida, lote_id")
-        .eq("planejamento_id", planId)
-        .in("status", ["reservado", "parcial"])
-        .in("insumo_id", ids),
+      lerTudo<{ insumo_id: number; quantidade: unknown; quantidade_consumida: unknown; lote_id: number | null }>((de, ate) =>
+        supabase
+          .from("reservas_estoque")
+          .select("id, insumo_id, quantidade, quantidade_consumida, lote_id")
+          .eq("planejamento_id", planId)
+          .in("status", ["reservado", "parcial"])
+          .in("insumo_id", ids)
+          .order("id")
+          .range(de, ate),
+      ),
     ]);
   // saldo ou reserva não lidos não podem virar zero: o plano mostraria falta que não existe
   // sem o cadastro do insumo a conversão de unidade cairia em 1 sem aviso

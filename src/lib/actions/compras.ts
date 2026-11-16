@@ -178,11 +178,24 @@ export async function adicionarItemPedido(_prev: FormState, formData: FormData):
 export async function removerItemPedido(_prev: FormState, formData: FormData): Promise<FormState> {
   const id = Number(formData.get("item_id"));
   const pedido_id = Number(formData.get("pedido_id"));
-  if (!id) return { ok: false, message: "Item não informado." };
+  if (!id || !pedido_id) return { ok: false, message: "Item não informado." };
   const supabase = await createClient();
-  const { error } = await supabase.from("pedidos_compra_itens").delete().eq("id", id);
+  // O item só sai da compra informada, e o sucesso só é dito quando uma linha saiu de fato.
+  const { data, error } = await supabase
+    .from("pedidos_compra_itens")
+    .delete()
+    .eq("id", id)
+    .eq("pedido_id", pedido_id)
+    .select("id");
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível remover o item.") };
   revalidatePath(`/compras/${pedido_id}`);
+  if ((data ?? []).length === 0) {
+    return {
+      ok: false,
+      message:
+        "Nada foi removido: o item já não está nesta compra, a compra saiu de solicitada ou você não tem permissão para alterá-la. A tela foi atualizada.",
+    };
+  }
   return { ok: true, message: "Item removido." };
 }
 

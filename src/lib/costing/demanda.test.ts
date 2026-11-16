@@ -119,6 +119,39 @@ describe("demanda liquida do planejamento", () => {
     // 250 mL necessários; 100 mL já reservados (1 frasco) + 200 mL livres → sem falta
     expect(demanda).toMatchObject({ demanda: 250, disponivel: 200, falta: 0 });
   });
+
+  it("lê o plano inteiro mesmo acima de mil linhas, sem perder a última página (KAT-05)", async () => {
+    const store = getMockSupabaseStore();
+    store.planejamento_itens = Array.from({ length: 1001 }, (_, i) => ({
+      id: i + 1,
+      planejamento_id: 9,
+      codigo_analise: "E2-MUITOS",
+      n_amostras: 1,
+      n_controles: 0,
+      repeticoes: 1,
+      perda_percentual: 0,
+    }));
+    store.etapas = [];
+    store.insumo_analise = [{
+      id: 1,
+      codigo_analise: "E2-MUITOS",
+      nome_etapa: "Preparo",
+      nome_atividade: "Consumo",
+      especificacao_insumo: "Insumo E2",
+      grupo_escolha: null,
+      quantidade_por_amostra: 1,
+      modo_cobranca: "por_amostra",
+      insumo_id: 44,
+      insumos: { custo_unitario: 1 },
+    }];
+    store.v_estoque_saldo = [{ insumo_id: 44, unidade: "mL", disponivel: 0 }];
+    store.insumos = [{ id: 44, fator_conversao: 1, custo_unitario: 1, quantidade_minima_compra: null, quantidade_embalagem: null }];
+    store.reservas_estoque = [];
+
+    const [demanda] = await computarDemandaPlano(createMockSupabaseClient() as never, 9);
+
+    expect(demanda).toMatchObject({ demanda: 1001, falta: 1001 });
+  });
 });
 
 /** Cliente falso: toda consulta à tabela `falha` devolve erro; as outras, lista vazia. */
@@ -127,7 +160,7 @@ function clienteComFalha(falha: string) {
     tabela === falha ? { data: null, error: { message: `sem acesso a ${tabela}` } } : { data: [], error: null };
   const consulta = (tabela: string) => {
     const q: Record<string, unknown> = {};
-    for (const m of ["select", "eq", "in", "order"]) q[m] = () => q;
+    for (const m of ["select", "eq", "in", "order", "range"]) q[m] = () => q;
     q.then = (ok: (v: unknown) => unknown) => Promise.resolve(resposta(tabela)).then(ok);
     return q;
   };
