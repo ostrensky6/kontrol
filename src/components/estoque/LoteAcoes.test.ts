@@ -46,3 +46,16 @@ describe("LoteAcoes", () => {
     expect(page).toContain("estornoDiretoPermitido:");
   });
 });
+
+describe("auditoria integrada de 16/11 (KAT-04, KAT-08)", () => {
+  it("botão de confirmar usa o texto pareado ao fundo, não branco fixo sobre fundo que clareia no escuro", () => {
+    expect(source).toContain("bg-primary text-primary-foreground");
+    expect(source).toContain("bg-destructive text-destructive-foreground");
+    expect(source).toContain("bg-warning-strong text-white hover:bg-warning-strong/90 dark:text-neutral-950");
+    expect(source).not.toMatch(/font-medium text-white disabled:opacity-50 \$\{/);
+  });
+
+  it("menu de mais ações do lote tem 44px no celular e fica compacto no computador", () => {
+    expect(source).toContain('className="h-11 w-11 md:h-7 md:w-7"');
+  });
+});

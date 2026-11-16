@@ -226,6 +226,34 @@ describe("excluirUsuario", () => {
     expect(update).toHaveBeenCalledWith({ senha_provisoria: true });
   });
 
+  it("devolve a senha provisória já gravada no login mesmo se a marca da lista falhar (KAT-02)", async () => {
+    adminFrom.mockReturnValue({ update });
+    eq.mockResolvedValueOnce({ error: { message: "perfil indisponível" } });
+    const { gerarNovaSenhaProvisoria } = await import("./usuarios");
+
+    const result = await gerarNovaSenhaProvisoria({ ok: false }, formulario());
+
+    expect(result.ok).toBe(true);
+    expect(result.senhaProvisoria).toMatch(/^.{4}-.{4}-.{4}$/);
+    expect(result.message).toContain("já vale para entrar");
+    expect(result.message).toContain("não foi gravada");
+  });
+
+  it("edição diz que o perfil foi salvo quando só o nome no login falha (KAT-02)", async () => {
+    updateUserById.mockResolvedValueOnce({ error: { message: "auth fora" } });
+    const formData = new FormData();
+    formData.set("id", "usuario-alvo");
+    formData.set("nome", "Fulana");
+    formData.set("papel", "laboratorio");
+    const { editarUsuario } = await import("./usuarios");
+
+    const result = await editarUsuario({ ok: false }, formData);
+
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain("Função e permissões salvas");
+    expect(result.message).toContain("Salve de novo");
+  });
+
   it("não gera senha provisória para a própria conta nem sem ser administrador", async () => {
     const { gerarNovaSenhaProvisoria } = await import("./usuarios");
 

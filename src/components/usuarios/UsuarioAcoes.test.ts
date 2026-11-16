@@ -34,3 +34,26 @@ describe("edição de usuário", () => {
     expect(tabela).toMatch(/getMobileMeta=\{\(row\) => \([\s\S]*<UsuarioAcoes row=\{row\} \/>/);
   });
 });
+
+describe("auditoria integrada de 16/11 (KAT-03, KAT-07, KAT-09)", () => {
+  it("cada campo de senha tem rótulo ligado por htmlFor/id", () => {
+    for (const campo of ["alterar-senha-nova", "alterar-senha-confirmar"]) {
+      expect(acoes).toContain(`htmlFor={\`${campo}-\${row.id}\`}`);
+      expect(acoes).toContain(`id={\`${campo}-\${row.id}\`}`);
+    }
+    expect(acoes).not.toMatch(/<label className="block[^"]*">(Nova|Confirmar) senha<\/label>/);
+  });
+
+  it("retornos das ações são anunciados (alerta no erro, status no sucesso)", () => {
+    expect(acoes).toContain('role={ok ? "status" : "alert"}');
+    expect(acoes).not.toMatch(/<p className=\{`text-xs \$\{state\.ok/);
+    expect(acoes).not.toMatch(/\{erro && <p className=/);
+  });
+
+  it("falha técnica da ação vira mensagem no diálogo, sem derrubar a tela", () => {
+    expect(acoes).toContain("semQuebrar(() => editarUsuario(");
+    expect(acoes).toContain("semQuebrar(() => editarPreAprovado(");
+    expect(acoes).toContain("semQuebrar(() => (row.temAcesso ? removerUsuario(fd) : excluirPreAprovado(fd)))");
+    expect(acoes).toContain("semQuebrar(() => alternarSuspensao(fd))");
+  });
+});

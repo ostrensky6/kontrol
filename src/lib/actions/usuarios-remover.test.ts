@@ -142,6 +142,22 @@ describe("removerUsuario", () => {
     expect(updateUserById).toHaveBeenNthCalledWith(2, "u1", { ban_duration: "none" });
   });
 
+  it("não promete 'nada foi alterado' quando o desbloqueio do login falha (KAT-02)", async () => {
+    linhasUpdate = { data: null, error: { message: "permission denied" } };
+    updateUserById.mockResolvedValueOnce({ error: null }).mockResolvedValueOnce({ error: { message: "auth fora" } });
+    const { removerUsuario } = await import("./usuarios");
+    const r = await removerUsuario(fd({ id: "u1" }));
+    expect(r.ok).toBe(false);
+    expect(r.message).not.toContain("nada foi alterado");
+    expect(r.message).toContain("ficou bloqueado");
+  });
+
+  it("diz 'nada foi alterado' quando o login foi devolvido", async () => {
+    linhasUpdate = { data: null, error: { message: "permission denied" } };
+    const { removerUsuario } = await import("./usuarios");
+    expect((await removerUsuario(fd({ id: "u1" }))).message).toContain("nada foi alterado");
+  });
+
   it("não remove a si mesmo", async () => {
     usuarioAtual.mockResolvedValue({ id: "u1" });
     const { removerUsuario } = await import("./usuarios");

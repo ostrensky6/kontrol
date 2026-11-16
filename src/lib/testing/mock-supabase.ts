@@ -1224,6 +1224,7 @@ class MockQuery {
   private mutation: null | { type: "insert" | "update" | "delete" | "upsert"; payload?: Row | Row[] } = null;
   private columns: string[] | null = null;
   private erro: MockErro | null = null;
+  private faixa: { de: number; ate: number } | null = null;
 
   constructor(
     private table: string,
@@ -1273,7 +1274,9 @@ class MockQuery {
     return this;
   }
 
-  range() {
+  // como o PostgREST: .range(de, ate) devolve só aquela fatia (a leitura em páginas depende disso)
+  range(de: number, ate: number) {
+    this.faixa = { de, ate };
     return this;
   }
 
@@ -1422,7 +1425,8 @@ class MockQuery {
         : this.mutation?.type === "delete"
           ? removidos
           : linhasDaTabela(this.table).filter((row) => this.matches(row));
-    const linhas = source.map((row) => withRelations(this.table, row));
+    const fatia = this.faixa && !this.mutation ? source.slice(this.faixa.de, this.faixa.ate + 1) : source;
+    const linhas = fatia.map((row) => withRelations(this.table, row));
     // Tabelas com coluna sigilosa: devolve só as colunas pedidas, como o
     // PostgREST faria (as demais tabelas mantêm o comportamento anterior).
     if (COLUNAS_SIGILOSAS[this.table] && this.columns) {

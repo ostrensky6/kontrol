@@ -16,7 +16,8 @@
 - Branch de producao: `main`
 - Baseline estavel pos-auditoria: `efa20f15205ea3d12b7bd9b0f72444d27561173a`
 - Tag local do baseline: `baseline-producao-pos-auditoria-20260704`
-- Main atual validada apos blindagem: `1f03603c69c7915c5e702b0115525eaa71da80e1`
+- Referencia historica (julho/2026, nao e a main atual): main validada apos blindagem `1f03603c69c7915c5e702b0115525eaa71da80e1`.
+- Main e versao que estao no ar: abrir `https://kontrol-atgc.vercel.app/api/versao`, que mostra versao, commit e migration esperada do deploy servido pelo endereco oficial. E a prova de qual release o alias serve; nao copiar o commit para este documento.
 - Fluxo atual: deploy automatico pela integracao GitHub/Vercel do projeto `kontrol` na branch `main`.
 - Antes de publicar, rode `npm run prod:check`.
 

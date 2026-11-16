@@ -66,7 +66,7 @@ type CompraFormalItemRaw = {
 
 export default async function RecebimentoPage() {
   const supabase = await createClientUntyped();
-  const [{ data: itensData }, { data: insumos }, { data: comprasData }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
+  const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
       .select(
@@ -131,6 +131,8 @@ export default async function RecebimentoPage() {
     };
   });
 
+  // leitura que falha não vira fila vazia nem contagem zero
+  const semDado = Boolean(erroItens || erroCompras);
   const prontos = rows.filter((row) => row.podeReceber).length;
   const comprasFormais = ((comprasData ?? []) as unknown as CompraFormalItemRaw[]).filter(
     (item) =>
@@ -161,7 +163,7 @@ export default async function RecebimentoPage() {
           <div className="grid min-w-56 grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-muted-foreground">Aguardando</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{rows.length + comprasFormais.length}</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{semDado ? "sem dado" : rows.length + comprasFormais.length}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="flex items-center gap-1 text-muted-foreground">
@@ -171,14 +173,20 @@ export default async function RecebimentoPage() {
                 </HelpTip>
               </p>
               <p className="mt-1 text-xl font-semibold tabular-nums text-leaf-700 dark:text-leaf-400">
-                {prontos + (podeReceberCompra ? comprasFormais.length : 0)}
+                {semDado ? "sem dado" : prontos + (podeReceberCompra ? comprasFormais.length : 0)}
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-6">
-          <RecebimentoItensTable rows={rows} insumos={insumos ?? []} />
+          {erroItens ? (
+            <p role="alert" className="rounded-xl border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
+              Pedidos: sem dado. A leitura da fila de pedidos não respondeu; recarregue a página antes de concluir que não há nada para receber.
+            </p>
+          ) : (
+            <RecebimentoItensTable rows={rows} insumos={insumos ?? []} />
+          )}
         </div>
 
         <section className="mt-8">
@@ -189,7 +197,7 @@ export default async function RecebimentoPage() {
                 <p>Itens que chegam direto do fornecedor, inclusive chegadas parciais.</p>
               </HelpTip>
             </div>
-            <span className="text-sm tabular-nums text-muted-foreground">{comprasFormais.length} pendente(s)</span>
+            <span className="text-sm tabular-nums text-muted-foreground">{erroCompras ? "sem dado" : `${comprasFormais.length} pendente(s)`}</span>
           </div>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
             <table className="w-full text-sm">
@@ -245,8 +253,16 @@ export default async function RecebimentoPage() {
                     </tr>
                   );
                 })}
-                {comprasFormais.length === 0 && (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Nenhuma compra pendente.</td></tr>
+                {erroCompras ? (
+                  <tr>
+                    <td colSpan={5} role="alert" className="px-4 py-6 text-center text-muted-foreground">
+                      Compras: sem dado. A leitura das compras não respondeu; recarregue a página antes de concluir que não há nada para receber.
+                    </td>
+                  </tr>
+                ) : (
+                  comprasFormais.length === 0 && (
+                    <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Nenhuma compra pendente.</td></tr>
+                  )
                 )}
               </tbody>
             </table>
