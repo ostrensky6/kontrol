@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { acessoDaRota } from "@/config/acesso-modulos";
 import { emailAutoLoginDev, ROTA_DEV_LOGIN } from "@/lib/auth/dev-auto-login";
+import { ROTA_CONFIRMAR_LINK } from "@/lib/auth/link-email";
 
 const PUBLICAS = ["/login", "/auth", "/aprovar"];
 
@@ -62,6 +63,14 @@ export async function updateSession(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const publica = PUBLICAS.some((p) => path.startsWith(p));
 
+  // Link do e-mail que caiu na raiz ou no /login (endereço de volta antigo ou
+  // "Site URL" do Supabase): manda o código para quem abre a sessão.
+  if (!user && (path === "/" || path === "/login") && request.nextUrl.searchParams.has("code")) {
+    const url = request.nextUrl.clone();
+    url.pathname = ROTA_CONFIRMAR_LINK;
+    return NextResponse.redirect(url);
+  }
+
   if (!user && !publica) {
     const url = request.nextUrl.clone();
     if (emailAutoLoginDev()) {
@@ -88,7 +97,13 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
   // Já trocou a senha mas ainda tenta acessar a página de troca → home.
-  if (user && user.app_metadata?.senha_provisoria !== true && path.startsWith("/trocar-senha")) {
+  // Exceção: quem chegou pelo link de recuperação define a senha nova ali.
+  if (
+    user &&
+    user.app_metadata?.senha_provisoria !== true &&
+    path.startsWith("/trocar-senha") &&
+    request.nextUrl.searchParams.get("recuperacao") !== "1"
+  ) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

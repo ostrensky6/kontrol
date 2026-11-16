@@ -9,12 +9,16 @@ const getUser = vi.fn();
 const updateUser = vi.fn();
 const updateUserById = vi.fn();
 const perfilUpdate = vi.fn();
+const resetPasswordForEmail = vi.fn(async () => ({ error: null }));
 
 vi.mock("next/navigation", () => ({ redirect }));
 vi.mock("@/lib/supabase/server", () => ({
   createClient: vi.fn(async () => ({
-    auth: { signInWithPassword, signOut, getUser, updateUser },
+    auth: { signInWithPassword, signOut, getUser, updateUser, resetPasswordForEmail },
   })),
+}));
+vi.mock("next/headers", () => ({
+  headers: vi.fn(async () => new Headers({ host: "kontrol-atgc.vercel.app", "x-forwarded-proto": "https" })),
 }));
 vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: vi.fn(() => ({
@@ -24,7 +28,7 @@ vi.mock("@/lib/supabase/admin", () => ({
   mensagemErroAdminSupabase: (error: { message?: string }) => String(error?.message ?? "erro"),
 }));
 
-const { entrar, definirSenhaDefinitiva } = await import("./auth");
+const { entrar, definirSenhaDefinitiva, solicitarRedefinicaoSenha } = await import("./auth");
 
 function loginForm(senha: string) {
   const formData = new FormData();
@@ -132,7 +136,7 @@ describe("troca da senha provisória", () => {
     updateUser.mockResolvedValue({ error: { code: "same_password", message: "same" } });
     await expect(definirSenhaDefinitiva({ ok: false }, formSenha())).resolves.toEqual({
       ok: false,
-      message: "Escolha uma senha diferente da senha provisória.",
+      message: "Escolha uma senha diferente da atual.",
     });
     expect(updateUserById).not.toHaveBeenCalled();
     expect(perfilUpdate).not.toHaveBeenCalled();
@@ -142,5 +146,16 @@ describe("troca da senha provisória", () => {
     updateUser.mockResolvedValue({ error: { code: "weak_password", message: "fraca" } });
     await expect(definirSenhaDefinitiva({ ok: false }, formSenha())).resolves.toEqual({ ok: false, message: "fraca" });
     expect(perfilUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("recuperação de senha por e-mail", () => {
+  it("o link volta para /auth/confirmar no endereço do app, não para localhost nem /login", async () => {
+    const formData = new FormData();
+    formData.set("email", "Sandra@Example.com");
+    await expect(solicitarRedefinicaoSenha({ ok: false }, formData)).resolves.toMatchObject({ ok: true });
+    expect(resetPasswordForEmail).toHaveBeenCalledWith("sandra@example.com", {
+      redirectTo: "https://kontrol-atgc.vercel.app/auth/confirmar?type=recovery",
+    });
   });
 });
