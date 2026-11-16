@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { createClient } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
@@ -51,6 +50,8 @@ import {
   modalidadeExigeProjeto,
   normalizarModalidadeOrcamento,
 } from "@/lib/orcamento/orcamento-economico";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -133,6 +134,7 @@ export default async function DemandaDetalhe({
     sub?: string;
   }>;
 }) {
+  const leitura = novaLeitura("/orcamento/demandas/[id]");
   const { id } = await params;
   const {
     erro_emissao: erroEmissao,
@@ -146,32 +148,32 @@ export default async function DemandaDetalhe({
   const demandaId = Number(id);
   const supabase = await createClient();
 
-  const { data: demanda } = await supabase
+  const { data: demanda } = await leitura.de("demandas", supabase
     .from("demandas_propostas")
     .select("*")
     .eq("id", demandaId)
-    .single();
-  if (!demanda) notFound();
+    .single());
+  if (!demanda) semRegistro(leitura);
 
   const [{ data: clientes }, { data: projetos }, { data: orcamentos }, { data: orcProjetos }, { data: versoesFinais }] =
     await Promise.all([
-      supabase.from("clientes").select("id, nome, cnpj, contato, email, telefone, endereco").eq("ativo", true).order("nome"),
-      supabase.from("projetos").select("id, nome").order("nome"),
-      supabase
+      leitura.de("clientes", supabase.from("clientes").select("id, nome, cnpj, contato, email, telefone, endereco").eq("ativo", true).order("nome")),
+      leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
+      leitura.de("orçamentos de laboratório", supabase
         .from("orcamentos")
         .select("id, status, data_orcamento, orcamento_itens(id, codigo_analise, n_amostras, custo_unitario, preco_unitario)")
         .eq("demanda_id", demandaId)
-        .order("id"),
-      supabase
+        .order("id")),
+      leitura.de("orçamentos de projeto", supabase
         .from("orcamento_projetos")
         .select("id, status, reformulacao_de_versao_id, data_orcamento, titulo, projeto_sem_custo_justificativa, impostos, margem_lucro, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(id, codigo_analise, n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(id, rubrica, descricao, unidade, categoria, quantidade, custo_unitario, preco_unitario, meses_selecionados)")
         .eq("demanda_id", demandaId)
-        .order("id"),
-      supabase
+        .order("id")),
+      leitura.de("versões da proposta", supabase
         .from("orcamento_final_versoes")
         .select("id, versao, numero, status, total_final, valido_ate, criado_em")
         .eq("demanda_id", demandaId)
-        .order("versao", { ascending: false }),
+        .order("versao", { ascending: false })),
     ]);
 
   const modalidadeCanonica = normalizarModalidadeOrcamento(demanda.modalidade);
@@ -217,7 +219,7 @@ export default async function DemandaDetalhe({
   const reformulacaoDeId = orcamentosProjeto.find((o) => o.reformulacao_de_versao_id)?.reformulacao_de_versao_id ?? null;
   const versaoReformulada = reformulacaoDeId ? (versoesFinais ?? []).find((v) => v.id === reformulacaoDeId) ?? null : null;
   // com projeto: percentuais do projeto; sem projeto: os da proposta ou os padrões (0118)
-  const { data: parametrosGlobais } = await supabase.from("parametros").select("chave, valor");
+  const { data: parametrosGlobais } = await leitura.de("parâmetros", supabase.from("parametros").select("chave, valor"));
   const parametrosProposta = resolverParametrosProposta({
     projeto: projetoReferencia,
     proposta: demanda as Record<string, unknown>,
@@ -435,6 +437,7 @@ export default async function DemandaDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs
           items={[
             { label: "Orçamentos", href: "/orcamento/demandas" },

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { insumosSemCustoDosItens } from "@/lib/orcamento/insumos-sem-custo";
-import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
@@ -34,6 +33,8 @@ import type { Json } from "@/lib/supabase/database.types";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import { vizinhasEtapa } from "@/lib/orcamento/etapas-proposta";
 import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -77,37 +78,38 @@ export default async function OrcamentoDetalhe({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erro_exclusao?: string; aviso?: string }>;
 }) {
+  const leitura = novaLeitura("/orcamento/[id]");
   const { id } = await params;
   const { erro_exclusao: erroExclusao, aviso } = await searchParams;
   const orcId = Number(id);
   const supabase = await createClient();
 
-  const { data: orc } = await supabase
+  const { data: orc } = await leitura.de("orçamentos de laboratório", supabase
     .from("orcamentos")
     .select("*")
     .eq("id", orcId)
-    .single();
-  if (!orc) notFound();
+    .single());
+  if (!orc) semRegistro(leitura);
 
   const [{ data: itensRaw }, { data: analises }, { breakdowns }, { data: clientes }, { data: projetos }] =
     await Promise.all([
-      supabase
+      leitura.de("itens do orçamento", supabase
         .from("orcamento_itens")
         .select("id, codigo_analise, n_amostras, custo_unitario, preco_unitario, valor_snapshot")
         .eq("orcamento_id", orcId)
-        .order("id"),
-      supabase.from("analises").select("codigo, nome").eq("ativo", true).eq("ofertavel", true).order("codigo"),
+        .order("id")),
+      leitura.de("análises", supabase.from("analises").select("codigo, nome").eq("ativo", true).eq("ofertavel", true).order("codigo")),
       calcularTodas({}, (orc.fonte_custo_insumos === "custo_medio_ponderado" ? "custo_medio_ponderado" : "custo_padrao") as FonteCustoInsumos),
-      supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome"),
-      supabase.from("projetos").select("id, nome").order("nome"),
+      leitura.de("clientes", supabase.from("clientes").select("id, nome").eq("ativo", true).order("nome")),
+      leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
     ]);
 
   const { data: demanda } = orc.demanda_id
-    ? await supabase
+    ? await leitura.de("demandas", supabase
         .from("demandas_propostas")
         .select("id, titulo, modalidade, status, matriz_amostra, responsavel_interno")
         .eq("id", orc.demanda_id)
-        .single()
+        .single())
     : { data: null };
 
   const projetoNome =
@@ -219,14 +221,14 @@ export default async function OrcamentoDetalhe({
   const botaoSecundario = buttonVariants({ variant: "outline" });
   const operacaoRecalculoId = randomUUID();
   // Proposta aprovada gera o plano sozinha (0122); aqui só o link para ele.
-  const { data: planoGerado } = await supabase
+  const { data: planoGerado } = await leitura.de("planejamentos", supabase
     .from("planejamento")
     .select("id")
     .eq("orcamento_id", orcId)
     .neq("status_operacional", "cancelado")
     .order("id", { ascending: false })
     .limit(1)
-    .maybeSingle();
+    .maybeSingle());
   const [podeRecalcular, podeRevisar, podeCancelar] = await Promise.all([
     podeOrcamento("recalcular_custos"),
     podeOrcamento("revisar_modulo"),
@@ -251,6 +253,7 @@ export default async function OrcamentoDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="print-area app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="no-print flex flex-wrap items-center justify-between gap-2">
           <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento/demandas" }, { label: `Custos laboratoriais nº ${orc.id}` }]} />
           <div className="flex flex-wrap items-center gap-2">

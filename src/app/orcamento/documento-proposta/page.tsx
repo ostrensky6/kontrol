@@ -8,6 +8,8 @@ import { salvarEmpresaEmissora, salvarSecaoPadrao } from "@/lib/actions/orcament
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { podeOrcamento } from "@/lib/orcamento/governanca";
 import { createClient } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -25,18 +27,19 @@ export default async function DocumentoPropostaPage({
 }: {
   searchParams: Promise<{ empresa?: string }>;
 }) {
+  const leitura = novaLeitura("/orcamento/documento-proposta");
   const { empresa: empresaParam } = await searchParams;
   const empresaAtiva = EMPRESAS.find((e) => e.codigo === empresaParam) ?? EMPRESAS[0];
   const [podeCadastro, podeTextos] = await Promise.all([pode("cadastros.editar"), podeOrcamento("emitir_final")]);
   const supabase = await createClient();
   const [{ data: empresa }, { data: secoes }] = await Promise.all([
-    supabase.from("empresas_emissoras").select("*").eq("codigo", empresaAtiva.codigo).maybeSingle(),
-    supabase
+    leitura.de("empresas emissoras", supabase.from("empresas_emissoras").select("*").eq("codigo", empresaAtiva.codigo).maybeSingle()),
+    leitura.de("seções padrão da proposta", supabase
       .from("proposta_secoes_padrao")
       .select("chave, titulo, texto, ordem, ativo")
       .eq("empresa_codigo", empresaAtiva.codigo)
       .order("ordem")
-      .order("chave"),
+      .order("chave")),
   ]);
 
   const campo = "mt-1 h-8";
@@ -45,6 +48,7 @@ export default async function DocumentoPropostaPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento" }, { label: "Documento da proposta" }]} />
         <div className="mt-3 flex items-center gap-1">
           <h1 className="text-xl font-semibold tracking-tight">Documento da proposta</h1>

@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -43,6 +42,8 @@ import { STATUS_APROVADOS, STATUS_VIVOS, estaVencida } from "@/lib/orcamento/tra
 import { entradaDoSnapshot, mascararPessoalVisao, montarFundos, montarVisaoInterna } from "@/lib/orcamento/visao-interna";
 import type { Json } from "@/lib/supabase/database.types";
 import { createClient } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -104,6 +105,7 @@ export default async function OrcamentoFinalPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ erro?: string; aba?: string; sub?: string }>;
 }) {
+  const leitura = novaLeitura("/orcamento/final/[id]");
   const [{ id }, { erro, aba: abaParam, sub }] = await Promise.all([params, searchParams]);
   const aba = abaParam === "documento" ? "documento" : "interno";
   const versaoId = Number(id);
@@ -123,42 +125,42 @@ export default async function OrcamentoFinalPage({
   const podeVerPessoal = podePessoalOrcamento || podeSalarioTecnicos;
   const supabase = await createClient();
 
-  const { data: versao } = await supabase.from("orcamento_final_versoes").select("*").eq("id", versaoId).single();
-  if (!versao) notFound();
+  const { data: versao } = await leitura.de("versões da proposta", supabase.from("orcamento_final_versoes").select("*").eq("id", versaoId).single());
+  if (!versao) semRegistro(leitura);
 
   const [{ data: planoGerado }, { data: linksRaw }, { data: outrasVersoes }, { data: demandaAtual }, { data: acompanhamento }] =
     await Promise.all([
       // Proposta aprovada gera o plano sozinha (0122); cancelado não conta (0126).
-      supabase
+      leitura.de("planejamentos", supabase
         .from("planejamento")
         .select("id, status_operacional")
         .eq("orcamento_final_versao_id", versaoId)
         .neq("status_operacional", "cancelado")
         .order("id", { ascending: false })
         .limit(1)
-        .maybeSingle(),
-      supabase
+        .maybeSingle()),
+      leitura.de("links de aprovação", supabase
         .from("orcamento_projeto_links")
         .select("id, criado_em, revogado, aprovado_em, aprovado_por")
         .eq("orcamento_final_versao_id", versaoId)
-        .order("id", { ascending: false }),
-      supabase
+        .order("id", { ascending: false })),
+      leitura.de("versões da proposta", supabase
         .from("orcamento_final_versoes")
         .select("id, numero, versao, status")
         .eq("demanda_id", versao.demanda_id)
-        .neq("id", versaoId),
-      supabase
+        .neq("id", versaoId)),
+      leitura.de("demandas", supabase
         .from("demandas_propostas")
         .select("id, titulo, instituicao, cliente_nome, cliente_cnpj, cliente_contato, cliente_email, cliente_telefone, cliente_endereco, modalidade, escopo_preliminar, descricao, matriz_amostra, quantidade_amostras_estimada, prazo_tecnico_dias")
         .eq("id", versao.demanda_id)
-        .single(),
-      supabase
+        .single()),
+      leitura.de("acompanhamento dos fundos", supabase
         .from("orcamento_fundos_acompanhamento")
         .select("valor_recebido, impostos_pagos, incubacao_paga, reserva_gasta, investimento_gasto, reserva_saldo_ajustado, investimento_saldo_ajustado")
         .eq("orcamento_final_versao_id", versaoId)
         .order("atualizado_em", { ascending: false })
         .limit(1)
-        .maybeSingle(),
+        .maybeSingle()),
     ]);
 
   const links = (linksRaw ?? []) as LinkPublicoResumo[];
@@ -269,6 +271,7 @@ export default async function OrcamentoFinalPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground print:min-h-0">
       <main className="print-area app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="no-print">
           <Breadcrumbs
             items={[

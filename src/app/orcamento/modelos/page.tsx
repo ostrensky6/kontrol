@@ -43,6 +43,8 @@ import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { precoCatalogoMascarado } from "@/lib/cadastros/salario";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +128,7 @@ export default async function OrcamentoModelosPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const leitura = novaLeitura("/orcamento/modelos");
   const filtros = await searchParams;
   const supabase = await createClient();
   const [
@@ -136,32 +139,32 @@ export default async function OrcamentoModelosPage({
     podeSalario,
     { data: vinculosData },
   ] = await Promise.all([
-    supabase
+    leitura.de("modelos de orçamento", supabase
       .from("orcamento_projeto_templates")
       .select("id, nome, descricao, itens, parametros, origem, criado_em")
-      .order("criado_em", { ascending: false }),
+      .order("criado_em", { ascending: false })),
     // Preço de PE (pessoas nominais) vem mascarado (NULL) do banco para quem
     // não tem "Valores de pessoal no orçamento" (0137). Já vem ordenado.
-    supabase.rpc("orcamento_projeto_catalogo_listar"),
+    leitura.de("catálogo de custos", supabase.rpc("orcamento_projeto_catalogo_listar")),
     // Editar o catálogo: "Modelos e catálogos" (0138, mesma regra da RLS da 0124).
     podeOrcamento("gerir_modelos"),
     temPermissao("orcamentos.pessoal"),
     temPermissao("tecnicos.salario.ver"),
     // Itens ligados aos cadastros de Insumos e Técnicos (0179), sem valores.
-    supabase.rpc("orcamento_projeto_catalogo_vinculos"),
+    leitura.de("vínculos do catálogo de custos", supabase.rpc("orcamento_projeto_catalogo_vinculos")),
   ]);
   const podeVerPessoal = podePessoal || podeSalario;
   const vinculos = mapaVinculos(vinculosData);
   // Opções para ligar: só para quem edita o catálogo; técnicos só para quem vê salário.
   const [{ data: insumosData }, { data: tecnicosData }] = podeEditarCatalogo
     ? await Promise.all([
-        supabase
+        leitura.de("insumos", supabase
           .from("insumos")
           .select("id, especificacao, unidade, custo_total_embalagem, custo_unitario")
           .eq("ativo", true)
-          .order("especificacao"),
+          .order("especificacao")),
         podeSalario
-          ? supabase.from("tecnicos").select("id, nome, processo").eq("ativo", true).order("nome")
+          ? leitura.de("técnicos", supabase.from("tecnicos").select("id, nome, processo").eq("ativo", true).order("nome"))
           : Promise.resolve({ data: null }),
       ])
     : [{ data: null }, { data: null }];
@@ -178,12 +181,12 @@ export default async function OrcamentoModelosPage({
   const catalogo = ((catalogoCompleto ?? []) as CatalogoItem[]).slice(0, 400);
   const itemHistorico = filtros.historico ? catalogo.find((item) => item.id === filtros.historico) : undefined;
   const { data: historicoData } = itemHistorico
-    ? await supabase.rpc("catalogo_projeto_historico", { p_id: itemHistorico.id })
+    ? await leitura.de("histórico do catálogo", supabase.rpc("catalogo_projeto_historico", { p_id: itemHistorico.id }))
     : { data: null };
   const historico = (historicoData ?? []) as HistoricoValor[];
   // Pendências de pessoal: só quem pode decidir (catálogo + pessoal) as vê.
   const { data: pendenciasData } =
-    podeEditarCatalogo && podeVerPessoal ? await supabase.rpc("catalogo_projeto_pendencias") : { data: null };
+    podeEditarCatalogo && podeVerPessoal ? await leitura.de("pendências do catálogo", supabase.rpc("catalogo_projeto_pendencias")) : { data: null };
   const pendencias = (pendenciasData ?? []) as PendenciaPessoal[];
 
   const templatesFiltrados = filtrarTemplates((templates ?? []) as TemplateProjeto[], filtros);
@@ -216,6 +219,7 @@ export default async function OrcamentoModelosPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <Link href="/orcamento" className="text-xs text-muted-foreground hover:underline">Orçamentos</Link>

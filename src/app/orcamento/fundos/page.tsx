@@ -14,6 +14,8 @@ import {
   type FundosPrevistos,
 } from "@/lib/orcamento/fundos";
 import { createClient } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +71,7 @@ type FundoLinha = {
 const inputCls = "h-8 w-full min-w-0 rounded-md border border-input bg-card px-2 text-right text-xs font-semibold tabular-nums text-brand-700 focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-200 dark:text-brand-300 dark:focus:ring-brand-900";
 
 export default async function FundosPage() {
+  const leitura = novaLeitura("/orcamento/fundos");
   const supabase = await createClient();
   const podeEditar = await pode("orcamentos.fundos");
   const db = supabase as unknown as {
@@ -102,21 +105,21 @@ export default async function FundosPage() {
 
   const [{ data: demandasData }, { data: parametrosData }, { data: acompanhamentosData }] = versaoIds.length
     ? await Promise.all([
-        db
+        leitura.de("demandas", db
           .from("demandas_propostas")
           .select("id, titulo, cliente_nome, responsavel_interno")
           .in("id", demandaIds)
-          .order("id"),
-        db
+          .order("id")),
+        leitura.de("parâmetros aplicados", db
           .from("orcamento_parametros_aplicados")
           .select("orcamento_final_versao_id, parametros_snapshot, criado_em")
           .in("orcamento_final_versao_id", versaoIds)
-          .order("criado_em", { ascending: false }),
-        db
+          .order("criado_em", { ascending: false })),
+        leitura.de("acompanhamento dos fundos", db
           .from("orcamento_fundos_acompanhamento")
           .select("id, orcamento_final_versao_id, valor_recebido, impostos_pagos, incubacao_paga, reserva_gasta, investimento_gasto, reserva_saldo_ajustado, investimento_saldo_ajustado, saldo_ajustado_motivo, observacao, atualizado_em")
           .in("orcamento_final_versao_id", versaoIds)
-          .order("atualizado_em", { ascending: false }),
+          .order("atualizado_em", { ascending: false })),
       ])
     : [{ data: [] }, { data: [] }, { data: [] }];
 
@@ -190,6 +193,7 @@ export default async function FundosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Orçamentos", href: "/orcamento" }, { label: "Fundos e taxas" }]} />
 
         <div className="mt-4 flex flex-wrap items-end justify-between gap-3">

@@ -6,6 +6,8 @@ import { origemPublicaKontrol } from "@/lib/scanner/origem";
 import { gerarUrlCurtaKontrol } from "@/lib/scanner/urls";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +61,7 @@ export default async function EtiquetasPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const leitura = novaLeitura("/etiquetas");
   const params = await searchParams;
   const tipo = filtroTipo(params.tipo);
   const id = idFiltro(params.id);
@@ -69,17 +72,17 @@ export default async function EtiquetasPage({
 
   const [{ data: lotesData }, { data: equipamentosData }] = await Promise.all([
     carregarLotes
-      ? supabase
+      ? leitura.de("lotes", supabase
           .from("lotes_estoque")
           .select("id, codigo_lote, validade, quantidade_atual, status, insumos(especificacao, unidade)")
           .not("status", "in", "(consumido,descartado)")
-          .order("id", { ascending: true })
+          .order("id", { ascending: true }))
       : Promise.resolve({ data: [] }),
     carregarEquipamentos
-      ? supabase
+      ? leitura.de("unidades de equipamento", supabase
           .from("equipamento_unidades")
           .select("id, codigo_patrimonio, numero_serie, equipamento_id, equipamentos(nome)")
-          .order("id", { ascending: true })
+          .order("id", { ascending: true }))
       : Promise.resolve({ data: [] }),
   ]);
 
@@ -100,6 +103,7 @@ export default async function EtiquetasPage({
         }
       `}</style>
       <main className="app-page-container print:max-w-none print:px-0 print:py-0">
+        <AvisoLeitura falhas={leitura.falhas} className="no-print" />
         <div className="no-print flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-1">

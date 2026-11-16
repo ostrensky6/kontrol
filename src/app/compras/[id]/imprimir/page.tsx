@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 
 import { PrintButton } from "@/components/orcamento/PrintButton";
 import { formatCurrency, formatDate } from "@/lib/formatters";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -36,22 +37,23 @@ type ItensQuery = {
 };
 
 export default async function PedidoCompraImprimivel({ params }: { params: Promise<{ id: string }> }) {
+  const leitura = novaLeitura("/compras/[id]/imprimir");
   const { id } = await params;
   const pedidoId = Number(id);
   const supabase = await createClientUntyped();
 
   const [{ data: pedido }, { data: itens }] = await Promise.all([
-    supabase
+    leitura.de("compras", supabase
       .from("pedidos_compra")
       .select("id, status, solicitante, aprovador, projeto, data_solicitacao, data_aprovacao, data_prevista_entrega, observacao, fornecedores(nome, contato, cnpj, endereco, telefone, email)")
       .eq("id", pedidoId)
-      .single(),
-    (supabase.from("pedidos_compra_itens") as unknown as ItensQuery)
+      .single()),
+    leitura.de("itens das compras", (supabase.from("pedidos_compra_itens") as unknown as ItensQuery)
       .select("id, quantidade, quantidade_recebida, custo_unitario_estimado, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade)")
       .eq("pedido_id", pedidoId)
-      .order("id"),
+      .order("id")),
   ]);
-  if (!pedido) notFound();
+  if (!pedido) semRegistro(leitura);
 
   const fornecedor = pedido.fornecedores as unknown as {
     nome: string | null;
@@ -69,6 +71,7 @@ export default async function PedidoCompraImprimivel({ params }: { params: Promi
   return (
     <div className="min-h-dvh bg-transparent font-sans text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <main className="print-area app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="no-print flex flex-wrap items-center justify-between gap-3">
           <Link href={`/compras/${pedidoId}`} className="rounded-md border border-input px-4 py-2 text-sm font-medium hover:bg-muted">
             Voltar à compra

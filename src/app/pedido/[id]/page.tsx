@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
@@ -54,6 +53,8 @@ import {
   type PedidoInternoStatus,
 } from "@/lib/pedido/status";
 import { formatCurrency as brl, formatDate, formatDateTime, formatNumber as fmt } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -338,16 +339,17 @@ export default async function PedidoInternoDetalhe({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const leitura = novaLeitura("/pedido/[id]");
   const { id } = await params;
   const pedidoId = Number(id);
   const supabase = await createClientUntyped();
 
-  const { data: pedido } = await supabase
+  const { data: pedido } = await leitura.de("pedidos", supabase
     .from("pedidos_internos")
     .select("*, projetos(nome), pedidos_compra(id, status)")
     .eq("id", pedidoId)
-    .single();
-  if (!pedido) notFound();
+    .single());
+  if (!pedido) semRegistro(leitura);
 
   const [
     { data: itens },
@@ -366,39 +368,39 @@ export default async function PedidoInternoDetalhe({
     areas,
     usuario,
   ] = await Promise.all([
-    supabase
+    leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
       .select("id, tipo, especificacao, modelo, volume, quantidade, unidade, quantidade_em, conteudo_embalagem, orcamento_previo, fornecedor_sugerido, observacao, caracteristicas, exigencia_tecnica, exclusividade, outros_fornecedores, insumo_id, quantidade_recebida, divergencia_recebimento, recebido_em, recebido_por, lote_id, insumos(especificacao, unidade, controlado, codigo_fabricante), pedidos_internos_item_recebimentos(id, lote_id, quantidade, codigo_lote, fornecedor, validade, responsavel, recebido_em)")
       .eq("pedido_interno_id", pedidoId)
-      .order("id"),
-    supabase
+      .order("id")),
+    leitura.de("insumos", supabase
       .from("insumos")
       .select("id, especificacao, nome_item, categoria_compra, unidade, unidade_consumo, fabricante, codigo_fabricante, custo_unitario, quantidade_embalagem, custo_total_embalagem, sinonimos, tipo_insumos(nome), fornecedores!insumos_fornecedor_id_fkey(nome)")
       .eq("ativo", true)
-      .order("especificacao"),
-    supabase
+      .order("especificacao")),
+    leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
       .select("insumo_id, especificacao, unidade, modelo, volume, fornecedor_sugerido")
       .not("insumo_id", "is", null)
       .order("id", { ascending: false })
-      .limit(500),
-    supabase.from("fornecedores").select("id, nome").eq("ativo", true).order("nome"),
-    supabase.from("projetos").select("id, nome, coordenador").order("nome"),
-    supabase
+      .limit(500)),
+    leitura.de("fornecedores", supabase.from("fornecedores").select("id, nome").eq("ativo", true).order("nome")),
+    leitura.de("projetos", supabase.from("projetos").select("id, nome, coordenador").order("nome")),
+    leitura.de("aprovações do pedido", supabase
       .from("pedidos_internos_aprovacoes")
       .select("id, etapa, decisao, responsavel, papel, comentario, status_origem, status_destino, criado_em")
       .eq("pedido_interno_id", pedidoId)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("documentos do pedido", supabase
       .from("pedidos_internos_anexos")
       .select("id, etapa, tipo, titulo, url, arquivo_nome, storage_bucket, storage_path, mime_type, tamanho_bytes, hash_sha256, observacao, usuario, criado_em")
       .eq("pedido_interno_id", pedidoId)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("mensagens do pedido", supabase
       .from("pedidos_internos_comunicacoes")
       .select("id, etapa, tipo, remetente, destinatarios, assunto, referencia, observacao, usuario, criado_em")
       .eq("pedido_interno_id", pedidoId)
-      .order("criado_em", { ascending: false }),
+      .order("criado_em", { ascending: false })),
     listarEventos("pedido_interno", pedidoId),
     pode("pedido.aprovar"),
     pode("compras.cancelar"),
@@ -463,11 +465,11 @@ export default async function PedidoInternoDetalhe({
     : { equivalentes: new Map<number, never[]>() };
   const insumoRows = ((insumos ?? []) as unknown as InsumoPedidoRaw[]) ?? [];
   const historicoRows = ((historicoItens ?? []) as unknown as PedidoItemHistorico[]) ?? [];
-  const { data: lotesLegado } = await supabase
+  const { data: lotesLegado } = await leitura.de("lotes", supabase
     .from("lotes_estoque")
     .select("insumo_id")
     .neq("modelo_quantidade", "EMBALAGEM_FECHADA")
-    .gt("quantidade_atual", 0);
+    .gt("quantidade_atual", 0));
   // Estoque na hora de pedir: só enquanto ainda se mexe nos itens antes da compra.
   // Leitura incompleta não vira "sem saldo": o quadro simplesmente não aparece.
   const leituraEstoque = antesDaCompra ? await lerEstoqueParaPedido(supabase) : null;
@@ -592,6 +594,7 @@ export default async function PedidoInternoDetalhe({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Pedidos", href: "/pedido" }, { label: pedidoInternoNumero(pedido.id) }]} />
         <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
           <div>

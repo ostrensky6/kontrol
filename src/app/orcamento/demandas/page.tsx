@@ -8,6 +8,8 @@ import { carregarLinhasOrcamentos, type OrcamentoFila } from "@/lib/orcamento/or
 import { FASES, faseDoOrcamento, resumirFases, valorDoOrcamento } from "@/lib/orcamento/fase-orcamento";
 import { PageShell } from "@/components/app/PageShell";
 import { PageHeader } from "@/components/app/PageHeader";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +36,16 @@ export default async function DemandasPage({
 }: {
   searchParams: Promise<{ status?: string }>;
 }) {
+  const leitura = novaLeitura("/orcamento/demandas");
   const { status: statusFiltro } = await searchParams;
   const supabase = await createClient();
   const [{ data: demandas }, { data: projetos }, linhasFunil] =
     await Promise.all([
-      supabase
+      leitura.de("demandas", supabase
         .from("demandas_propostas")
         .select("id, titulo, cliente_id, cliente_nome, modalidade, status, prioridade, data_solicitacao, prazo_esperado, projeto_id, descricao, escopo_preliminar, matriz_amostra, quantidade_amostras_estimada, prazo_tecnico_dias, criado_em")
-        .order("criado_em", { ascending: false }),
-      supabase.from("projetos").select("id, nome").order("nome"),
+        .order("criado_em", { ascending: false })),
+      leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
       carregarLinhasOrcamentos(),
     ]);
   // Módulos e propostas de cada orçamento: dão a fase e o valor da linha.
@@ -88,6 +91,7 @@ export default async function DemandasPage({
 
   return (
     <PageShell>
+      <AvisoLeitura falhas={leitura.falhas} />
       <PageHeader
         title="Orçamentos"
         description={

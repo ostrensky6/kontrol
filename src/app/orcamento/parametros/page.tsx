@@ -16,6 +16,8 @@ import {
   formatDateTime,
   formatPercent,
 } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -89,21 +91,22 @@ const PARAMETROS_LAB: Array<{
 ];
 
 export default async function ParametrosEconomicosPage() {
+  const leitura = novaLeitura("/orcamento/parametros");
   const supabase = await createClient();
   const [{ data: parametros }, { data: versoes }, { data: orcamentosProjeto }, { breakdowns, params }] = await Promise.all([
-    supabase.from("parametros").select("chave, valor, atualizado_em"),
-    supabase
+    leitura.de("parâmetros", supabase.from("parametros").select("chave, valor, atualizado_em")),
+    leitura.de("versões dos parâmetros econômicos", supabase
       .from("parametros_economicos_versoes")
       .select("id, escopo, orcamento_projeto_id, versao, origem, criado_em, criado_por, parametros")
       .order("criado_em", { ascending: false })
-      .limit(12),
-    supabase
+      .limit(12)),
+    leitura.de("orçamentos de projeto", supabase
       .from("orcamento_projetos")
       .select(
         "id, demanda_id, titulo, status, cliente_nome, data_orcamento, impostos, impostos_legacy, incubacao, reserva, investimentos, lucro, margem_lucro, orcamento_projeto_analises(n_amostras, custo_unitario), orcamento_projeto_custos(rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)",
       )
       .order("criado_em", { ascending: false })
-      .limit(8),
+      .limit(8)),
     calcularTodas(),
   ]);
 
@@ -216,6 +219,7 @@ export default async function ParametrosEconomicosPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <Link

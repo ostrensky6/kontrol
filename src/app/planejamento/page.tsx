@@ -12,6 +12,8 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { avaliarGestaoPlano } from "@/lib/planejamento/gestao";
 import { formatDate, formatPeriodo } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -68,25 +70,29 @@ export default async function PlanejamentoPage({
 }: {
   searchParams: Promise<{ excluido?: string }>;
 }) {
+  const leitura = novaLeitura("/planejamento");
   const { excluido } = await searchParams;
   const planoExcluido = Number(excluido) > 0 ? Number(excluido) : null;
   const supabase = await createClientUntyped();
+  // leitura-sem-aviso: o erro é lido adiante (há alternativa para banco sem as colunas novas) e anotado com leitura.anotar
   const planejamentoQuery = supabase.from("planejamento") as unknown as PlanejamentoQuery;
   const [planosResult, { data: projetos }, podeGerir, aguardando] = await Promise.all([
     planejamentoQuery
       .select("id, nome, data_alvo, data_inicio_prevista, data_fim_prevista, prioridade, responsavel, planejado_por, reservado_por, criado_em, projeto_id, status_operacional, planejamento_itens(count), reservas_estoque(status, quantidade_consumida)")
       .order("criado_em", { ascending: false }),
-    supabase.from("projetos").select("id, nome").order("nome"),
+    leitura.de("projetos", supabase.from("projetos").select("id, nome").order("nome")),
     pode("planejamento.editar"),
     // o que espera a pessoa no Planejamento: planos em rascunho e disputas de reserva
     carregarPendencias(),
   ]);
   const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PLANEJAMENTO);
-  const { data: planos } = erroSchemaCache(planosResult.error)
+  const planosLidos = erroSchemaCache(planosResult.error)
     ? await planejamentoQuery
         .select("id, nome, data_alvo, responsavel, criado_em, projeto_id, status_operacional, planejamento_itens(count), reservas_estoque(status, quantidade_consumida)")
         .order("criado_em", { ascending: false })
     : planosResult;
+  await leitura.anotar("planejamentos", planosLidos.error);
+  const { data: planos } = planosLidos;
   const projetoNome = new Map((projetos ?? []).map((p) => [p.id, p.nome]));
   const linhas: PlanoRow[] = (planos ?? []).map((p) => {
     const itens = (p.planejamento_itens as { count: number }[])?.[0]?.count ?? 0;
@@ -113,6 +119,7 @@ export default async function PlanejamentoPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         {/* a lista vem primeiro; o formulário de novo plano abre pelo botão (L14) */}
         <CriarPorBotao
           rotulo="Novo plano"

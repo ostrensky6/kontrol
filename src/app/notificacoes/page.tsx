@@ -10,6 +10,8 @@ import {
 } from "@/lib/actions/notificacoes";
 import { caminhoNotificacao, destinoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
 import { createClient } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 type Notificacao = {
   id: number;
@@ -46,17 +48,18 @@ function badgeClass(status: string) {
 }
 
 export default async function NotificacoesPage() {
+  const leitura = novaLeitura("/notificacoes");
   const supabase = await createClient();
   // Só os avisos destinados a este usuário (por pessoa, papel ou permissão),
   // com o estado de leitura dele (0128).
-  const { data } = await supabase
+  const { data } = await leitura.de("avisos", supabase
     .from("v_minhas_notificacoes")
     .select(
       "id,tipo,titulo,corpo,entidade_tipo,entidade_id,papel_destino,permissao_destino,usuario_destino,status,criado_em",
     )
     .neq("status", "arquivada")
     .order("criado_em", { ascending: false })
-    .limit(80);
+    .limit(80));
 
   // avisos gravados pelo banco ainda trazem palavras antigas: o glossário (10.5) vale aqui também
   const notificacoes = ((data ?? []) as Notificacao[]).map((n) => ({ ...n, titulo: noGlossario(n.titulo), corpo: noGlossario(n.corpo) }));
@@ -70,6 +73,7 @@ export default async function NotificacoesPage() {
 
   return (
     <PageShell>
+      <AvisoLeitura falhas={leitura.falhas} />
       <PageHeader
         title="Notificações"
         help={

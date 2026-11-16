@@ -6,6 +6,8 @@ import {
   type TriagemPendenteView,
 } from "@/components/scanner/TriagemResolucaoCard";
 import { createClientUntyped } from "@/lib/supabase/server";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +33,7 @@ export default async function ScannerTriagemPage({
 }: {
   searchParams: Promise<SearchParams>;
 }) {
+  const leitura = novaLeitura("/scanner/triagem");
   const { status } = await searchParams;
   const supabase = await createClientUntyped();
   const [
@@ -39,18 +42,18 @@ export default async function ScannerTriagemPage({
     { data: lotesRaw },
     { data: locaisRaw },
   ] = await Promise.all([
-    supabase
+    leitura.de("códigos em triagem", supabase
       .from("cadastros_triagem")
       .select("id, codigo, formato, tipo_sugerido, criado_em")
       .in("status", ["pendente", "em_analise"])
-      .order("criado_em", { ascending: true }),
-    supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao").limit(200),
-    supabase
+      .order("criado_em", { ascending: true })),
+    leitura.de("insumos", supabase.from("insumos").select("id, especificacao").eq("ativo", true).order("especificacao").limit(200)),
+    leitura.de("lotes", supabase
       .from("lotes_estoque")
       .select("id, codigo_lote, insumos(especificacao)")
       .order("id", { ascending: false })
-      .limit(200),
-    supabase.from("locais").select("id, nome").order("nome").limit(200),
+      .limit(200)),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome").limit(200)),
   ]);
 
   const triagens = (triagensRaw ?? []) as TriagemPendenteView[];
@@ -74,6 +77,7 @@ export default async function ScannerTriagemPage({
 
   return (
     <main className="app-page-container">
+      <AvisoLeitura falhas={leitura.falhas} />
       <PageHeader
         breadcrumbs={[
           { label: "Estoque", href: "/estoque" },

@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { HelpTip } from "@/components/common/HelpTip";
@@ -13,6 +12,8 @@ import { STATUS_PROJETO } from "../_lib/status";
 import { coordenadorDoProjeto, responsavelDoProjeto, type UsuarioCoordenador } from "../_lib/responsavel";
 import { temPapel } from "@/lib/auth/roles";
 import { VinculosProjeto, type VinculoPessoa } from "@/components/projetos/VinculosProjeto";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -72,19 +73,20 @@ export default async function ProjetoHubPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const leitura = novaLeitura("/projetos/[id]");
   const { id: idRaw } = await params;
   const id = Number(idRaw);
-  if (!Number.isFinite(id)) notFound();
+  if (!Number.isFinite(id)) semRegistro(leitura);
 
   const supabase = await createClient();
 
-  const { data: projeto } = await supabase
+  const { data: projeto } = await leitura.de("projetos", supabase
     .from("projetos")
     .select("id, nome, cliente_id, responsavel, coordenador, coordenador_nome, status, data_inicio, data_fim, descricao")
     .eq("id", id)
-    .single();
+    .single());
 
-  if (!projeto) notFound();
+  if (!projeto) semRegistro(leitura);
 
   // quem aprova os pedidos do projeto é o usuário indicado como coordenador (0136/0169)
   // (coordenador_id ainda não está nos tipos gerados: lido à parte)
@@ -95,7 +97,7 @@ export default async function ProjetoHubPage({
     .maybeSingle();
   const coordenadorId = (linhaCoordenador as { coordenador_id: string | null } | null)?.coordenador_id ?? null;
   const { data: usuarioCoordenador } = coordenadorId
-    ? await supabase.from("perfis").select("id, nome, email, suspenso").eq("id", coordenadorId)
+    ? await leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso").eq("id", coordenadorId))
     : { data: [] };
   const coordenador = coordenadorDoProjeto(
     { ...projeto, coordenador_id: coordenadorId },
@@ -106,7 +108,7 @@ export default async function ProjetoHubPage({
   // 0160: só o Admin vê e altera quem atua no projeto.
   const ehAdmin = await temPapel("admin");
   const vinculos = ehAdmin
-    ? (((await supabase.rpc("vinculos_projeto" as never, { p_projeto_id: id } as never)).data ?? []) as VinculoPessoa[])
+    ? (((await leitura.de("pessoas do projeto", supabase.rpc("vinculos_projeto" as never, { p_projeto_id: id } as never))).data ?? []) as VinculoPessoa[])
     : null;
 
   const [
@@ -120,44 +122,44 @@ export default async function ProjetoHubPage({
     { data: parametrosGlobais },
   ] = await Promise.all([
     projeto.cliente_id != null
-      ? supabase.from("clientes").select("id, nome").eq("id", projeto.cliente_id).single()
+      ? leitura.de("clientes", supabase.from("clientes").select("id, nome").eq("id", projeto.cliente_id).single())
       : Promise.resolve({ data: null }),
-    supabase
+    leitura.de("orçamentos de laboratório", supabase
       .from("orcamentos")
       .select("id, tipo, status, data_orcamento, demanda_id, orcamento_itens(n_amostras, custo_unitario, preco_unitario)")
       .eq("projeto_id", id)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("orçamentos de projeto", supabase
       .from("orcamento_projetos")
       .select(
         "id, demanda_id, titulo, status, data_orcamento, margem_lucro, impostos, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)",
       )
       .eq("projeto_id", id)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("planejamentos", supabase
       .from("planejamento")
       .select("id, nome, data_alvo, criado_em, status_operacional, planejamento_itens(n_amostras), reservas_estoque(status, quantidade_consumida)")
       .eq("projeto_id", id)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("compras", supabase
       .from("pedidos_compra")
       .select("id, status, data_solicitacao, fornecedor_id, pedidos_compra_itens(quantidade, custo_unitario_estimado)")
       .eq("projeto_id", id)
-      .order("criado_em", { ascending: false }),
-    supabase
+      .order("criado_em", { ascending: false })),
+    leitura.de("demandas", supabase
       .from("demandas_propostas")
       .select("id, titulo, status, data_solicitacao, param_impostos, param_incubacao, param_reserva, param_investimentos, param_lucro")
       .eq("projeto_id", id)
-      .order("criado_em", { ascending: false }),
-    supabase.from("fornecedores").select("id, nome"),
-    supabase.from("parametros").select("chave, valor"),
+      .order("criado_em", { ascending: false })),
+    leitura.de("fornecedores", supabase.from("fornecedores").select("id, nome")),
+    leitura.de("parâmetros", supabase.from("parametros").select("chave, valor")),
   ]);
   // ORC-9/ORC2-5: "orçado" = propostas aprovadas em vigor (uma por orçamento),
   // pelo total congelado na emissão; o status dos módulos não chega a "aprovado".
-  const { data: propostasVigentes } = await supabase
+  const { data: propostasVigentes } = await leitura.de("proposta aprovada", supabase
     .from("v_proposta_aprovada_vigente")
     .select("versao_id, total_final")
-    .eq("projeto_id", id);
+    .eq("projeto_id", id));
 
   const fornecedorNome = new Map((fornecedores ?? []).map((f) => [f.id, f.nome]));
 
@@ -235,6 +237,7 @@ export default async function ProjetoHubPage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Projetos", href: "/projetos" }, { label: projeto.nome }]} />
 
         {/* Header */}

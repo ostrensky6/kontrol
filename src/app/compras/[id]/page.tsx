@@ -1,4 +1,3 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -20,6 +19,8 @@ import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl 
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
 import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -86,31 +87,32 @@ function formatarDuracao(ms: number) {
 }
 
 export default async function PedidoDetalhe({ params }: { params: Promise<{ id: string }> }) {
+  const leitura = novaLeitura("/compras/[id]");
   const { id } = await params;
   const pedidoId = Number(id);
   const supabase = await createClientUntyped();
 
-  const { data: pedido } = await supabase
+  const { data: pedido } = await leitura.de("compras", supabase
     .from("pedidos_compra")
     .select("*, fornecedores(nome)")
     .eq("id", pedidoId)
-    .single();
-  if (!pedido) notFound();
+    .single());
+  if (!pedido) semRegistro(leitura);
 
   const semFornecedor = pedido.status === "solicitado" && pedido.fornecedor_id == null;
   const [consultaItens, { data: insumos }, podeAprovar, podeReceber, podeCancelar, podeSolicitar, { data: locais }, { data: fornecedores }] = await Promise.all([
-    (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
+    leitura.de("itens das compras", (supabase.from("pedidos_compra_itens") as unknown as PedidoCompraItensQuery)
       .select("id, quantidade, quantidade_recebida, divergencia_recebimento, custo_unitario_estimado, lote_id, pedido_interno_item_id, insumo_id, quantidade_em, conteudo_embalagem, quantidade_nao_atendida, destino_pendencia, compra_pendencia_id, insumos(especificacao, unidade, codigo_fabricante), pedidos_internos_itens(pedido_interno_id, fornecedor_sugerido), pedidos_compra_item_recebimentos(id, lote_id, quantidade, codigo_lote, validade, responsavel, recebido_em, estornado_em)", { count: "exact" })
       .eq("pedido_id", pedidoId)
-      .order("id"),
-    supabase.from("insumos").select("id, especificacao, codigo_fabricante").eq("ativo", true).order("especificacao"),
+      .order("id")),
+    leitura.de("insumos", supabase.from("insumos").select("id, especificacao, codigo_fabricante").eq("ativo", true).order("especificacao")),
     pode("compras.aprovar"),
     pode("compras.receber"),
     pode("compras.cancelar"),
     pode("compras.solicitar"),
-    supabase.from("locais").select("id, nome").order("nome"),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
     semFornecedor
-      ? supabase.from("fornecedores").select("id, nome, ativo").order("nome")
+      ? leitura.de("fornecedores", supabase.from("fornecedores").select("id, nome, ativo").order("nome"))
       : Promise.resolve({ data: [] as { id: number; nome: string; ativo: boolean }[] }),
   ]);
   const { data: itens } = consultaItens;
@@ -135,14 +137,14 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
         .filter((v): v is number => v != null),
     ),
   ];
-  const { data: internosDaCompra } = await supabase
+  const { data: internosDaCompra } = await leitura.de("pedidos", supabase
     .from("pedidos_internos")
     .select("id, status")
     .or(
       idsInternosDosItens.length > 0
         ? `pedido_compra_id.eq.${pedidoId},id.in.(${idsInternosDosItens.join(",")})`
         : `pedido_compra_id.eq.${pedidoId}`,
-    );
+    ));
   const pedidoInternoPendente = pedidoQueSeguraCompra(
     ((internosDaCompra ?? []) as { id: number; status: string | null }[]),
   );
@@ -176,6 +178,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Compras", href: "/compras" }, { label: `Compra #${pedido.id}` }]} />
         <div className="mt-2 flex items-center justify-between">
           <div className="flex items-center gap-2">

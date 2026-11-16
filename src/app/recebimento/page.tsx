@@ -14,6 +14,8 @@ import { ScannerRecebimentoCompra } from "@/components/compras/ScannerRecebiment
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import { formatNumber } from "@/lib/formatters";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -65,6 +67,7 @@ type CompraFormalItemRaw = {
 };
 
 export default async function RecebimentoPage() {
+  const leitura = novaLeitura("/recebimento");
   const supabase = await createClientUntyped();
   const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
     supabase
@@ -74,7 +77,7 @@ export default async function RecebimentoPage() {
       )
       .is("recebido_em", null)
       .order("id", { ascending: false }),
-    supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao"),
+    leitura.de("insumos", supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao")),
     supabase
       .from("pedidos_compra_itens")
       .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!inner(id, status, fornecedores(nome))")
@@ -82,7 +85,7 @@ export default async function RecebimentoPage() {
       .order("id", { ascending: false }),
     pode("compras.receber"),
     pode("recebimento.registrar"),
-    supabase.from("locais").select("id, nome").order("nome"),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
   ]);
   const locais = ((locaisData ?? []) as { id: number; nome: string | null }[]).map((local) => ({
     id: Number(local.id),
@@ -144,6 +147,7 @@ export default async function RecebimentoPage() {
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-1">

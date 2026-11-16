@@ -42,6 +42,8 @@ import { lerConsumoManual, type RevisaoConsumoManual } from "@/lib/actions/consu
 import { RegistrarConsumoManualForm } from "@/components/estoque/RegistrarConsumoManualForm";
 import { ConsumoMensalPainel } from "@/components/estoque/ConsumoMensalPainel";
 import { lerConsumoMensal, lerPrevisaoInsumo } from "@/lib/estoque/consumo-mensal";
+import { AvisoLeitura } from "@/components/common/AvisoLeitura";
+import { novaLeitura } from "@/lib/supabase/leitura";
 
 export const dynamic = "force-dynamic";
 
@@ -102,6 +104,7 @@ export default async function EstoquePage({
     situacao?: string | string[];
   }>;
 }) {
+  const leitura = novaLeitura("/estoque");
   const query = await searchParams;
   // alertas e custos mudaram de lugar (D1, L10): os links antigos levam ao novo
   const destino = destinoAntigoDoEstoque(query);
@@ -125,7 +128,7 @@ export default async function EstoquePage({
     lerTudo<Tables<"v_estoque_saldo">>((de, ate) =>
       supabase.from("v_estoque_saldo").select("*").order("especificacao").order("insumo_id").range(de, ate),
     ),
-    supabase.from("v_alertas_estoque").select("insumo_id, tipo"),
+    leitura.de("alertas do estoque", supabase.from("v_alertas_estoque").select("insumo_id, tipo")),
     lerTudo<Record<string, unknown>>((de, ate) =>
       supabaseSemTipos
         .from("lotes_estoque")
@@ -136,9 +139,9 @@ export default async function EstoquePage({
         .range(de, ate),
     ),
     // a mesma previsão da Situação do estoque: a caminho, aguardando aprovação e repor
-    supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente"),
+    leitura.de("previsão de compra", supabase.from("v_previsao_suprimentos").select("insumo_id, qtd_sugerida_compra, qtd_pedida_aberta, qtd_pedida_pendente")),
     // janela do "vence em breve": a mesma de v_alertas_estoque (padrão 60 dias)
-    supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
+    leitura.de("parâmetros", supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias")),
     lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_compra_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
     lerTudo<{ lote_id: number | null }>((de, ate) => supabase.from("pedidos_internos_item_recebimentos").select("id, lote_id").order("id").range(de, ate)),
     lerTudo<Pick<Tables<"reservas_estoque">, "lote_id" | "quantidade" | "quantidade_consumida" | "status">>((de, ate) =>
@@ -256,6 +259,7 @@ export default async function EstoquePage({
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
+        <AvisoLeitura falhas={leitura.falhas} />
         <PageHeader
           title="Saldo e lotes"
           description="Saldo por insumo e lotes, com entrada e baixa."
