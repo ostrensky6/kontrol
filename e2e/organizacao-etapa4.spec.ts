@@ -27,7 +27,7 @@ test("Início: Aguardando você, cinco números, tabela e gráficos, nessa ordem
   const aguardando = main.getByRole("heading", { name: "Aguardando você" });
   const numeros = main.getByRole("region", { name: "Indicadores" });
   const atencao = main.getByRole("heading", { name: "Precisa de atenção hoje" });
-  const graficos = main.getByRole("heading", { name: "Dashboard executivo" });
+  const graficos = main.getByRole("heading", { name: "Indicadores" });
   expect(await topo(aguardando)).toBeLessThan(await topo(numeros));
   expect(await topo(numeros)).toBeLessThan(await topo(atencao));
   expect(await topo(atencao)).toBeLessThan(await topo(graficos));

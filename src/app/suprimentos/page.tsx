@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 import { redirect } from "next/navigation";
 
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
@@ -98,8 +99,9 @@ export default async function ComprasVisaoGeralPage({
           {podeCriarPedido && (
             <Link
               href="/pedido?novo=1"
-              className="inline-flex h-8 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
             >
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Novo pedido
             </Link>
           )}

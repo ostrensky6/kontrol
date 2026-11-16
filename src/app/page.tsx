@@ -357,7 +357,7 @@ export default async function Home() {
       </SectionCard>
 
       {(gastosComDado !== null || funilComDado !== null) && (
-        <SectionCard title="Dashboard executivo">
+        <SectionCard title="Indicadores">
           <ExecutiveCharts gastos={gastosComDado} funil={funilComDado} />
         </SectionCard>
       )}

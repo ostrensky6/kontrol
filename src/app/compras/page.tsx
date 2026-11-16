@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Plus } from "lucide-react";
 
 import { createClient } from "@/lib/supabase/server";
 import { ComprasTable, type CompraRow } from "@/components/compras/ComprasTable";
@@ -89,7 +90,8 @@ export default async function ComprasPage() {
             </HelpTip>
           }
           actions={
-            <Link href="/pedido?novo=1" className="text-sm font-semibold text-primary underline underline-offset-2">
+            <Link href="/pedido?novo=1" className="inline-flex min-h-9 items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <Plus className="h-4 w-4" aria-hidden="true" />
               Novo pedido
             </Link>
           }
@@ -135,25 +137,22 @@ export default async function ComprasPage() {
           </div>
         )}
 
-        <div className="mt-6 rounded-xl border border-info-strong/30 bg-info-soft p-4">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold text-info-strong">Repor pelo pedido</h2>
-                <HelpTip title="Repor pelo pedido">
-                  <p>
-                    A reposição começa como um <b>pedido</b> com os itens em falta. Depois de
-                    aprovado, ele vira a compra e segue até a chegada.
-                  </p>
-                </HelpTip>
-              </div>
-            </div>
-            {sugestoes.length === 0 && (
-              <Link href="/estoque/situacao" className="text-sm font-semibold text-info-strong underline underline-offset-2">
-                Repor pela Situação do estoque
-              </Link>
-            )}
-          </div>
+        {/* uma linha: a reposição começa pelo pedido; o botão de gerar fica na Situação do estoque (D6) */}
+        <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <h2 className="font-medium text-foreground">Repor pelo pedido</h2>
+            <HelpTip title="Repor pelo pedido">
+              <p>
+                A reposição começa como um <b>pedido</b> com os itens em falta. Depois de
+                aprovado, ele vira a compra e segue até a chegada.
+              </p>
+            </HelpTip>
+          </span>
+          {sugestoes.length === 0 && (
+            <Link href="/estoque/situacao" className="font-medium text-primary underline-offset-2 hover:underline">
+              Repor pela Situação do estoque
+            </Link>
+          )}
         </div>
 
         <div className="mt-6">

@@ -219,7 +219,8 @@ export function PainelSituacaoEstoque({
       </div>
 
       {mostrar === "graficos" ? null : ativos.length > 0 ? (
-        <div className="grid min-w-0 items-start gap-3 md:grid-cols-2 xl:grid-cols-3">
+        // em colunas (e não em grade) os quadros de alturas diferentes se encaixam sem deixar buraco
+        <div className="min-w-0 gap-3 md:columns-2 xl:columns-3 [&>*]:mb-3 [&>*]:break-inside-avoid">
           {ativos.map((alerta) => (
             <QuadroAlerta key={alerta.chave} alerta={alerta} />
           ))}

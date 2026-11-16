@@ -46,7 +46,7 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Início", item: "Tabela: avisos não lidos (origem Aviso)", onde: [tela("app/page.tsx", "linhasDeAvisos("), tela("app/page.tsx", '{ rotulo: "Notificações", href: "/notificacoes" }')] },
   { area: "Início", item: "Tabela: colunas Origem, Item, Situação, Prazo e Ação", onde: [tela("components/dashboard/TabelaAtencaoHoje.tsx", "Origem\n"), tela("components/dashboard/TabelaAtencaoHoje.tsx", "Prazo\n"), tela("components/dashboard/TabelaAtencaoHoje.tsx", "Ação\n")] },
   { area: "Início", item: "Tabela: Ver todos", onde: [tela("components/dashboard/TabelaAtencaoHoje.tsx", "Ver todos (")] },
-  { area: "Início", item: "Dashboard executivo (gastos por mês e funil)", onde: [tela("app/page.tsx", "<ExecutiveCharts")] },
+  { area: "Início", item: "Indicadores, antes Dashboard executivo (gastos por mês e funil)", onde: [tela("app/page.tsx", "<ExecutiveCharts")] },
   { area: "Início", item: "Notificações", onde: [busca("/notificacoes"), tela("components/layout/SinoAvisos.tsx", 'href="/notificacoes"')] },
   // ── Barra do topo ──
   { area: "Barra", item: "Busca (Ctrl K)", onde: [tela("components/layout/BarraSuperior.tsx", "abrirPaletaComandos")] },

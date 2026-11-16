@@ -260,9 +260,11 @@ export function DataTable<TData>({
 
   return (
     <div>
-      <div className="flex flex-wrap items-center gap-2">
-        {/* largo o bastante para o exemplo da busca caber inteiro (zoom de 90% a 125%) */}
-        <div className="relative w-full sm:w-96">
+      {/* "Mais filtros" abre embaixo da barra, a partir da esquerda dela: assim o painel cabe na tela em qualquer largura */}
+      <div className="relative flex flex-wrap items-center gap-2">
+        {/* largo o bastante para o exemplo da busca caber inteiro (zoom de 90% a 125%);
+            encolhe até 16rem quando os filtros não cabem na mesma linha */}
+        <div className="relative w-full sm:w-auto sm:min-w-64 sm:max-w-96 sm:flex-1">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -325,7 +327,7 @@ export function DataTable<TData>({
             <>
               {filters.slice(0, limite).map((filter) => seletor(filter, false))}
               {extras.length > 0 && (
-                <details className="relative">
+                <details>
                   <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent [&::-webkit-details-marker]:hidden">
                     <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
                     Mais filtros
@@ -411,7 +413,7 @@ export function DataTable<TData>({
                         compact && "h-8 px-2.5",
                         // título curto não quebra ("A caminho"); o comprido quebra em duas linhas equilibradas
                         typeof header.column.columnDef.header === "string" &&
-                          header.column.columnDef.header.length <= 14 &&
+                          header.column.columnDef.header.length <= 10 &&
                           "whitespace-nowrap",
                         align === "right" && "text-right",
                         align === "center" && "text-center",
@@ -488,7 +490,8 @@ export function DataTable<TData>({
             className={cn("rounded-lg border border-border bg-card shadow-sm", compact ? "p-3 text-sm" : "p-4")}
           >
             <div className="flex items-start justify-between gap-3">
-              <div>
+              {/* e-mail e nome comprido quebram dentro do cartão em vez de empurrar a tela para o lado */}
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <div className="font-medium">
                   {(() => {
                     const titulo = getMobileTitle?.(row.original) ?? row.id;

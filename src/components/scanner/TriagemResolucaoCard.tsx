@@ -85,24 +85,24 @@ export function TriagemResolucaoCard({
           <h2 className="text-sm font-semibold text-foreground">
             Vincular a cadastro existente
           </h2>
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="font-medium text-foreground">Tipo</span>
             <select
               name="entidade_tipo"
-              className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+              className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
             >
               <option value="insumo">Insumo</option>
               <option value="lote">Lote existente</option>
               <option value="local">Local</option>
             </select>
           </label>
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="font-medium text-foreground">ID da entidade</span>
             <input
               name="entidade_id"
               type="number"
               min="1"
-              className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+              className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
               list={`entidades-${triagem.id}`}
               required
             />
@@ -138,63 +138,63 @@ export function TriagemResolucaoCard({
           <h2 className="text-sm font-semibold text-foreground">
             Criar novo insumo
           </h2>
-          <label className="grid gap-1 text-sm">
+          <label className="grid min-w-0 gap-1 text-sm">
             <span className="font-medium text-foreground">Especificação</span>
             <input
               name="especificacao"
-              className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+              className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
               required
             />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
-            <label className="grid gap-1 text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-foreground">Un. estoque</span>
               <input
                 name="unidade"
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
                 required
               />
             </label>
-            <label className="grid gap-1 text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-foreground">Un. consumo</span>
               <input
                 name="unidade_consumo"
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
                 required
               />
             </label>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <label className="grid gap-1 text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-foreground">Fator</span>
               <input
                 name="fator_conversao"
                 type="number"
                 min="0.000001"
                 step="any"
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
                 required
               />
             </label>
-            <label className="grid gap-1 text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-foreground">Qtd. embalagem</span>
               <input
                 name="quantidade_embalagem"
                 type="number"
                 min="0.000001"
                 step="any"
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
                 required
               />
             </label>
-            <label className="grid gap-1 text-sm">
+            <label className="grid min-w-0 gap-1 text-sm">
               <span className="font-medium text-foreground">Valor embalagem</span>
               <input
                 name="custo_total_embalagem"
                 type="number"
                 min="0"
                 step="any"
-                className="h-9 rounded-md border border-border bg-card px-2 text-sm"
+                className="h-9 w-full min-w-0 rounded-md border border-border bg-card px-2 text-sm"
               />
             </label>
           </div>

@@ -53,7 +53,7 @@ export default async function ProjetosPage() {
           </div>
           <Link
             href="/cadastros/projetos"
-            className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300"
+            className="inline-flex min-h-9 items-center rounded-md border border-input bg-card px-3 py-2 text-sm font-medium hover:bg-muted"
           >
             Cadastrar / editar projetos
           </Link>
@@ -135,6 +135,7 @@ export default async function ProjetosPage() {
                     </td>
                     <td className={tdCls}>
                       {(() => {
+                        if (!p.status) return <span className="text-muted-foreground">—</span>;
                         const s = STATUS_PROJETO[p.status] ?? { label: p.status, cls: "bg-muted text-muted-foreground" };
                         return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
                       })()}

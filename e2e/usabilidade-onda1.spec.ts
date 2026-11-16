@@ -70,7 +70,7 @@ test("página inicial mostra o que pede atenção antes dos gráficos, sem atalh
   await page.goto("/");
   const main = page.getByRole("main");
   const atencao = main.getByRole("heading", { name: "Precisa de atenção hoje" });
-  const graficos = main.getByRole("heading", { name: "Dashboard executivo" });
+  const graficos = main.getByRole("heading", { name: "Indicadores" });
   await expect(atencao).toBeVisible();
   await expect(graficos).toBeVisible();
   expect((await atencao.boundingBox())!.y).toBeLessThan((await graficos.boundingBox())!.y);

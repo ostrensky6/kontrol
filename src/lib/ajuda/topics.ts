@@ -307,7 +307,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Equipamentos: calibração e manutenção",
         itens: [
           "Equipamentos é uma tela só, em Estoque, com três abas: Unidades (cada aparelho, a manutenção e os avisos), Tipos e custo (o cadastro de equipamentos e o custo por dia) e Previsão de compra (o que a equipe vai precisar comprar).",
-          "Na aba Unidades, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use '+ Cadastrar unidade física' para incluir uma.",
+          "Na aba Unidades, cada aparelho físico é uma unidade, com patrimônio ou número de série. Use 'Cadastrar unidade física' para incluir uma.",
           "Na ficha da unidade, 'Definir frequência e aviso' diz de quantos em quantos dias a calibração ou manutenção é feita e com quantos dias de antecedência avisar.",
           "Depois de cada serviço, use 'Registrar manutenção ou calibração'. Se o certificado traz a próxima data, informe-a; senão o Kontrol soma a frequência.",
           "Os avisos aparecem no topo da página quando o vencimento se aproxima e ficam lá até alguém agendar o serviço ou clicar em 'Encaminhar' e dizer o que foi decidido.",
@@ -563,7 +563,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Registre o que o cliente solicitou e o contexto.",
           "Complemente com escopo e prazo para calcular o orçamento.",
           "Criar o orçamento não emite a proposta. Revise os custos e, quando a etapa se aplicar, confira os Parâmetros econômicos antes de seguir para Proposta final.",
-          "A emissão é uma ação separada na etapa Proposta final. Para consultar uma versão já emitida, use o Histórico de Orçamentos.",
+          "A emissão é uma ação separada na etapa Proposta final. Para consultar uma versão já emitida, use o Histórico de orçamentos.",
         ],
       },
       {
@@ -669,7 +669,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Em 'Histórico de Orçamentos', busque por 'Número, título ou cliente' e clique em 'Filtrar'. Confira a versão (v1, v2…) e a data de emissão.",
+          "Em 'Histórico de orçamentos', busque por 'Número, título ou cliente' e clique em 'Filtrar'. Confira a versão (v1, v2…) e a data de emissão.",
           "Clique no número da proposta ou abra 'Detalhes' → 'Abrir / PDF' para consultar a emissão.",
           "Se houver uma versão anterior disponível, abra 'Detalhes' → 'Comparar com a anterior' para ver as duas lado a lado.",
         ],

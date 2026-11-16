@@ -247,7 +247,7 @@ export default async function OrcamentoModelosPage({
           key={JSON.stringify(filtros)}
           role="search"
           aria-label="Filtrar modelos e catálogo"
-          className="mt-4 flex flex-wrap items-center gap-2"
+          className="relative mt-4 flex flex-wrap items-center gap-2"
         >
           {filtros.rubrica && <input type="hidden" name="rubrica" value={filtros.rubrica} />}
           <div className="relative w-full sm:w-72">
@@ -262,7 +262,7 @@ export default async function OrcamentoModelosPage({
               className={`${campoCls} w-full pl-8`}
             />
           </div>
-          <details className="relative">
+          <details>
             <summary className={`${campoCls} flex cursor-pointer list-none items-center gap-1.5 font-medium hover:bg-accent [&::-webkit-details-marker]:hidden`}>
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
               Mais filtros
