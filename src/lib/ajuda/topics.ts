@@ -407,6 +407,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Organizar a fila de pedidos com numeração sequencial única (Nº 0001, 0002…), que nunca se repete.",
           "Conduzir cada pedido pelas seis etapas: solicitação, aprovação, administrativo, cotação, compra e entrega, e pagamento.",
           "Na lista, os cartões das etapas mostram quantos pedidos há em cada uma; clique num cartão para ver só os pedidos dela. 'Em andamento', 'Concluídos', 'Cancelados' e 'Todos' trocam o conjunto.",
+          "Os pedidos em andamento aparecem sempre todos. Dos concluídos e cancelados a lista traz os 300 mais recentes; quando há mais, ela avisa e 'Mostrar todos' traz o resto.",
           "Cada linha mostra a barra das etapas (verde = cumprida, amarelo = atual), o status por escrito e o próximo passo, com quem está.",
         ],
       },
@@ -820,7 +821,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Como usar",
         itens: [
-          "Filtre por entidade, período ou usuário para localizar um evento.",
+          "Filtre pelo tipo de cadastro (os botões) e pelo período (De e Até, em dias de Brasília); a busca da tabela acha o usuário ou o registro.",
+          "A tela traz 200 registros por vez, do mais recente para o mais antigo; 'Ver registros mais antigos' segue adiante dentro do mesmo filtro.",
           "Use a trilha para reconstruir a sequência de mudanças de um registro.",
           "Para orçamentos, Governança → Regras do orçamento mostra quem pode fazer cada ação sensível e quem alterou cada campo.",
         ],

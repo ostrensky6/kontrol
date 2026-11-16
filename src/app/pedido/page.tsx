@@ -1,10 +1,11 @@
 import { cicloLiberaEm, dataEmBrasilia, rotuloCiclo, rotuloData } from "@/lib/pedido/ciclo";
 import { rotuloUso } from "@/lib/pedido/natureza";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import type { PedidoInternoRow } from "@/components/pedido/PedidosInternosTable";
 import { PedidosPorEtapa } from "@/components/pedido/PedidosPorEtapa";
-import { etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
+import { STATUS_PEDIDO_ENCERRADO, etapaDoPedido, filtroEtapaValido } from "@/lib/pedido/etapas";
 import { proximoPasso } from "@/lib/pedido/proximo-passo";
 import { coordenadorDoProjeto, type UsuarioCoordenador } from "@/app/projetos/_lib/responsavel";
 import { AguardandoVoce } from "@/components/dashboard/AguardandoVoce";
@@ -19,6 +20,7 @@ import { statusInfo } from "@/components/app/status";
 import { HelpTip } from "@/components/common/HelpTip";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { lerAbertosERecentes } from "@/lib/supabase/lista-recente";
 
 const URGENCIA_LABEL: Record<string, string> = {
   baixa: "Baixa",
@@ -79,6 +81,40 @@ const LABEL_MODALIDADE: Record<string, string> = {
   outra: "Outra",
 };
 
+const COLUNAS_PEDIDO =
+  "id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)";
+// banco ainda sem as colunas novas: a lista abre com o que existia antes
+const COLUNAS_PEDIDO_ANTIGAS =
+  "id, titulo, status, solicitante, data_necessidade, urgencia, pedido_compra_id, criado_em, projetos(nome, coordenador), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)";
+
+/**
+ * Pedidos em andamento vêm todos, sem corte; dos concluídos e cancelados, só
+ * os mais recentes (ou todos, quando a pessoa pede). A ordem termina em `id`
+ * para a leitura em páginas não pular linha.
+ */
+function lerPedidos(supabase: SupabaseClient, colunas: string, todosEncerrados: boolean) {
+  const encerrados = `(${STATUS_PEDIDO_ENCERRADO.join(",")})`;
+  return lerAbertosERecentes<PedidoInternoListRow>({
+    abertos: (de, ate) =>
+      supabase
+        .from("pedidos_internos")
+        .select(colunas)
+        .not("status", "in", encerrados)
+        .order("criado_em", { ascending: false })
+        .order("id", { ascending: false })
+        .range(de, ate),
+    encerrados: (de, ate, contar) =>
+      supabase
+        .from("pedidos_internos")
+        .select(colunas, contar ? { count: "exact" } : undefined)
+        .in("status", [...STATUS_PEDIDO_ENCERRADO])
+        .order("criado_em", { ascending: false })
+        .order("id", { ascending: false })
+        .range(de, ate),
+    todos: todosEncerrados,
+  });
+}
+
 function pendenciasPedido(row: PedidoInternoListRow) {
   const pendencias: string[] = [];
   const docsCotacao = (row.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
@@ -91,18 +127,16 @@ function pendenciasPedido(row: PedidoInternoListRow) {
 export default async function PedidoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[] }>;
+  searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[]; encerrados?: string | string[] }>;
 }) {
   const leitura = novaLeitura("/pedido");
   const query = await searchParams;
   const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
   const abrirNovo = query.novo === "1";
+  const todosEncerrados = (Array.isArray(query.encerrados) ? query.encerrados[0] : query.encerrados) === "todos";
   const supabase = await createClientUntyped();
   const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp] = await Promise.all([
-    supabase
-      .from("pedidos_internos")
-      .select("id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
-      .order("criado_em", { ascending: false }),
+    lerPedidos(supabase, COLUNAS_PEDIDO, todosEncerrados),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
     lerAreasPedido(supabase),
@@ -113,18 +147,19 @@ export default async function PedidoPage({
   ]);
   const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
   const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PEDIDOS);
-  const { data: pedidos } = pedidosFull.error
-    ? await leitura.de("pedidos", supabase
-        .from("pedidos_internos")
-        .select("id, titulo, status, solicitante, data_necessidade, urgencia, pedido_compra_id, criado_em, projetos(nome, coordenador), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)")
-        .order("criado_em", { ascending: false }))
+  const pedidosLidos = pedidosFull.error
+    ? await leitura.de("pedidos", lerPedidos(supabase, COLUNAS_PEDIDO_ANTIGAS, todosEncerrados))
     : pedidosFull;
+  // em andamento e encerrados vêm de duas leituras: a lista segue do mais novo para o mais antigo
+  const pedidos = [...pedidosLidos.data].sort(
+    (a, b) => String(b.criado_em).localeCompare(String(a.criado_em)) || b.id - a.id,
+  );
   const { data: projetos } = projetosFull.error
     ? await leitura.de("projetos", supabase.from("projetos").select("id, nome, coordenador").order("nome"))
     : projetosFull;
 
   const hojeBrasilia = dataEmBrasilia(new Date());
-  const rows: PedidoInternoRow[] = ((pedidos ?? []) as unknown as PedidoInternoListRow[]).map((pedido) => {
+  const rows: PedidoInternoRow[] = pedidos.map((pedido) => {
     const itens = ((pedido.pedidos_internos_itens ?? []) as PedidoItemView[]) ?? [];
     const total = itens.reduce(
       (acc, item) => acc + Number(item.quantidade ?? 0) * Number(item.orcamento_previo ?? 0),
@@ -221,7 +256,14 @@ export default async function PedidoPage({
         </div>
 
         <div className="mt-5">
-          <PedidosPorEtapa key={filtroEtapa} rows={rows} podeExcluir={podeExcluir} filtroInicial={filtroEtapa} />
+          <PedidosPorEtapa
+            key={filtroEtapa}
+            rows={rows}
+            podeExcluir={podeExcluir}
+            filtroInicial={filtroEtapa}
+            encerrados={pedidosLidos.encerrados}
+            todosEncerrados={todosEncerrados}
+          />
         </div>
       </main>
     </div>

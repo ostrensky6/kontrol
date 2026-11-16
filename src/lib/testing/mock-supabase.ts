@@ -1002,7 +1002,7 @@ function withRelations(table: string, row: Row): Row {
 }
 
 type MockErro = { message: string; code?: string };
-type MockResultado = { data: unknown; error: MockErro | null };
+type MockResultado = { data: unknown; error: MockErro | null; count?: number | null };
 
 /**
  * Sessão simulada. `papel` troca SOMENTE a avaliação de permissão granular
@@ -1225,13 +1225,16 @@ class MockQuery {
   private columns: string[] | null = null;
   private erro: MockErro | null = null;
   private faixa: { de: number; ate: number } | null = null;
+  private contar = false;
 
   constructor(
     private table: string,
     private sessao: SessaoMock = {},
   ) {}
 
-  select(columns?: string) {
+  select(columns?: string, opcoes?: { count?: "exact" | "planned" | "estimated" }) {
+    // como o PostgREST: com `count`, a resposta diz quantas linhas atendem ao filtro, antes da faixa
+    this.contar = Boolean(opcoes?.count);
     // `select()` sem argumento equivale a "*" no supabase-js.
     this.columns = (columns ?? "*").split(",").map((coluna) => coluna.trim()).filter(Boolean);
     const sigilosas = COLUNAS_SIGILOSAS[this.table];
@@ -1434,9 +1437,10 @@ class MockQuery {
       return {
         data: linhas.map((row) => Object.fromEntries(colunas.map((coluna) => [coluna, row[coluna]]))),
         error: null,
+        ...(this.contar ? { count: source.length } : {}),
       };
     }
-    return { data: linhas, error: null };
+    return { data: linhas, error: null, ...(this.contar ? { count: source.length } : {}) };
   }
 
   private matches(row: Row) {
