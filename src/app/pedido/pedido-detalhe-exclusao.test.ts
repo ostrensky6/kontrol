@@ -25,10 +25,15 @@ vi.mock("@/lib/supabase/server", () => ({
 }));
 import PedidoInternoDetalhe from "./[id]/page";
 import { PedidoInternoCabecalhoAcoes } from "@/components/pedido/PedidoInternoCabecalhoAcoes";
+import { PedidoCabecalho } from "@/components/pedido/detalhe/PedidoCabecalho";
 
 function cabecalho(node: unknown): ReactElement | undefined {
   if (!isValidElement<{ children?: React.ReactNode }>(node)) return;
   if (node.type === PedidoInternoCabecalhoAcoes) return node;
+  // o topo do pedido é uma parte da tela: abre a parte para achar as ações dentro dela
+  if (node.type === PedidoCabecalho) {
+    return cabecalho(PedidoCabecalho(node.props as Parameters<typeof PedidoCabecalho>[0]));
+  }
   return Children.toArray(node.props.children).map(cabecalho).find(Boolean);
 }
 

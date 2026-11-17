@@ -5,16 +5,21 @@ const page = readFileSync(
   new URL("../../app/orcamento/demandas/[id]/page.tsx", import.meta.url),
   "utf8",
 );
+// O formulário dos dados é uma parte da tela do orçamento (auditoria de 16/11, item 12).
+const dados = readFileSync(new URL("./demanda/DemandaDados.tsx", import.meta.url), "utf8");
 const componentUrl = new URL("./SalvarDemandaForm.tsx", import.meta.url);
 const component = existsSync(componentUrl) ? readFileSync(componentUrl, "utf8") : "";
 
 describe("SalvarDemandaForm", () => {
   it("mantem a pagina server e limita o cliente ao formulario de salvamento", () => {
     expect(page).not.toMatch(/^\s*["']use client["']/);
-    expect(page).toContain('import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";');
-    expect(page).toMatch(/<SalvarDemandaForm[\s>]/);
-    expect(page).toContain("</SalvarDemandaForm>");
+    expect(page).toMatch(/<DemandaDados[\s>]/);
+    expect(dados).not.toMatch(/^\s*["']use client["']/);
+    expect(dados).toContain('import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";');
+    expect(dados).toMatch(/<SalvarDemandaForm[\s>]/);
+    expect(dados).toContain("</SalvarDemandaForm>");
     expect(page).not.toContain("<form action={salvarDemanda}");
+    expect(dados).not.toContain("<form action={salvarDemanda}");
   });
 
   it("preserva integralmente os campos atuais da demanda", () => {
@@ -41,7 +46,7 @@ describe("SalvarDemandaForm", () => {
       "escopo_preliminar",
       "observacoes",
     ]) {
-      expect(page).toContain(`name="${name}"`);
+      expect(dados).toContain(`name="${name}"`);
     }
   });
 
