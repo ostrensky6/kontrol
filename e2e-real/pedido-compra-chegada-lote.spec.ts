@@ -27,6 +27,16 @@ async function avancar(page: Page, cliente: Cliente, pedidoId: number, botao: st
   await page.reload();
 }
 
+/**
+ * A tela leu tudo do banco. O item da compra aponta para a compra por duas
+ * chaves (0130); trazer um junto do outro sem dizer qual fazia o banco recusar
+ * a leitura, e só aqui, com o PostgREST de verdade, isso aparece.
+ */
+async function semLeituraFalha(page: Page) {
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+  await expect(page.getByText("Parte desta tela não carregou")).toHaveCount(0);
+}
+
 test("pedido vira compra, a compra chega e a chegada vira lote no estoque", async ({ page }) => {
   test.setTimeout(300_000);
   page.setDefaultTimeout(30_000);
@@ -159,11 +169,15 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   // ---- 7. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
   //         e Chegadas registra pela compra sem ninguém trocar de tela
   await page.goto(`/pedido/${pedidoId}`);
+  await semLeituraFalha(page);
   const noPedido = page.getByTestId("chegada-pela-compra");
   await expect(noPedido.getByRole("button", { name: "Registrar chegada" })).toBeVisible();
   await expect(noPedido.getByRole("link", { name: `Compra #${compraId}` })).toHaveAttribute("href", `/compras/${compraId}`);
 
   await page.goto("/recebimento");
+  await semLeituraFalha(page);
+  // o bloco das compras sem pedido também lê o item junto da compra
+  await expect(page.getByText("sem dado", { exact: true })).toHaveCount(0);
   await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
   const linhaDaChegada = page.getByRole("row").filter({ hasText: insumoNome });
   await expect(linhaDaChegada).toHaveCount(1);
@@ -203,6 +217,10 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.goto("/recebimento");
   await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
   await expect(page.getByRole("row").filter({ hasText: insumoNome }).getByRole("button", { name: "Registrar chegada" })).toHaveCount(0);
+
+  // a página do projeto soma as compras com os itens (a mesma ligação, no sentido inverso)
+  await page.goto(`/projetos/${projeto!.id}`);
+  await semLeituraFalha(page);
 
   // ---- 8. o que chegou aparece no estoque e na ficha do lote
   await page.goto(`/estoque/lotes/${lote.id}`);

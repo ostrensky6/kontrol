@@ -88,7 +88,7 @@ export default async function RecebimentoPage() {
     leitura.de("insumos", supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao")),
     supabase
       .from("pedidos_compra_itens")
-      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!inner(id, status, fornecedores(nome))")
+      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status, fornecedores(nome))")
       .is("pedido_interno_item_id", null)
       .order("id", { ascending: false }),
     pode("compras.receber"),

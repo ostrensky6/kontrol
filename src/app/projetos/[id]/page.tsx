@@ -141,7 +141,7 @@ export default async function ProjetoHubPage({
       .order("criado_em", { ascending: false })),
     leitura.de("compras", supabase
       .from("pedidos_compra")
-      .select("id, status, data_solicitacao, fornecedor_id, pedidos_compra_itens(quantidade, custo_unitario_estimado)")
+      .select("id, status, data_solicitacao, fornecedor_id, pedidos_compra_itens!pedidos_compra_itens_pedido_id_fkey(quantidade, custo_unitario_estimado)")
       .eq("projeto_id", id)
       .order("criado_em", { ascending: false })),
     leitura.de("demandas", supabase

@@ -16,9 +16,16 @@ export function compraAceitaChegada(status: string | null | undefined) {
   return COMPRA_ACEITA_CHEGADA.includes(String(status ?? ""));
 }
 
-/** Colunas de `pedidos_compra_itens` que o diálogo "Registrar chegada" usa. */
+/**
+ * Colunas de `pedidos_compra_itens` que o diálogo "Registrar chegada" usa.
+ *
+ * O item da compra aponta para `pedidos_compra` por duas colunas: `pedido_id`
+ * (a compra dele) e `compra_pendencia_id` (a nova compra da pendência, 0130).
+ * Sem dizer qual, o banco recusa a leitura (PGRST201); por isso o nome da
+ * chave vai escrito. A guarda `embed-compra-guarda.test.ts` cobra isso.
+ */
 export const COLUNAS_ITEM_COMPRA_DO_PEDIDO =
-  "id, pedido_id, pedido_interno_item_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_compra!inner(id, status)";
+  "id, pedido_id, pedido_interno_item_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade), pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status)";
 
 export type ItemCompraDoPedidoRaw = {
   id: number;
