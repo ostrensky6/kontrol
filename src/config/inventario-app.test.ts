@@ -72,6 +72,20 @@ const INVENTARIO: ItemDoInventario[] = [
   // "Nova compra" (compra sem pedido) e o campo "Projeto ou campanha" dela saíram com o sim de Antonio em
   // 11/11/2026 17:26 UTC: toda compra nasce de um pedido aprovado. As compras avulsas já feitas continuam na lista.
   { area: "Compras", item: "Novo pedido a partir de Compras com fornecedor", onde: [tela("app/compras/page.tsx", 'href="/pedido?novo=1"')] },
+  // compra única na tela (proposta 2 do item 10 da auditoria de 16/11, aprovada em 17/11/2026):
+  // o que saiu da tela da compra nascida de pedido tem de continuar alcançável no pedido
+  { area: "Compras", item: "Pedido: quadro Compra (fornecedor, situação, previsão e chegada)", onde: [tela("app/pedido/[id]/page.tsx", "<PedidoCompraPainel"), tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "Previsão de entrega")] },
+  { area: "Compras", item: "Pedido: definir o fornecedor da compra", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "action={definirFornecedorCompra}")] },
+  { area: "Compras", item: "Pedido: aprovar a compra que ficou solicitada", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<AprovarCompra"), tela("components/compras/PedidoAcoes.tsx", "action={aprovarPedido} label=\"Aprovar compra\"")] },
+  { area: "Compras", item: "Pedido: Instituição enviou ao fornecedor", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", '"Instituição enviou ao fornecedor"'), tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<MarcarCompraEnviada")] },
+  { area: "Compras", item: "Pedido: Encerrar com pendência", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<EncerrarComPendencia")] },
+  { area: "Compras", item: "Pedido: Imprimir / PDF da compra", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "/imprimir`")] },
+  { area: "Compras", item: "Pedido: Fechar com fornecedor e Encaminhar à instituição", onde: [tela("components/pedido/PedidoInternoAcoes.tsx", 'label="Fechar com fornecedor"'), tela("components/pedido/PedidoInternoAcoes.tsx", 'label="Encaminhar à instituição"')] },
+  // a compra sem pedido (pendência de outra compra) segue na própria tela, com os botões dela
+  { area: "Compras", item: "Compra sem pedido: Aprovar, Marcar enviado e Encerrar com pendência", onde: [tela("components/compras/PedidoAcoes.tsx", 'label="Aprovar"'), tela("components/compras/PedidoAcoes.tsx", 'label="Marcar enviado"'), tela("components/compras/PedidoAcoes.tsx", "<EncerrarComPendencia pedidoId={pedidoId} />"), tela("app/compras/[id]/page.tsx", "<PedidoAcoes")] },
+  { area: "Compras", item: "Compra sem pedido: Definir fornecedor", onde: [tela("app/compras/[id]/page.tsx", "action={definirFornecedorCompra}")] },
+  { area: "Compras", item: "Cancelar compra (na tela da compra, com ou sem pedido)", onde: [tela("components/compras/PedidoAcoes.tsx", "<BotaoCancelarCompra pedidoId={pedidoId} />"), tela("components/compras/PedidoAcoes.tsx", 'label="Cancelar compra"')] },
+  { area: "Compras", item: "Compra: Imprimir / PDF e Registrar chegada na tela da compra", onde: [tela("app/compras/[id]/page.tsx", "/imprimir`"), tela("app/compras/[id]/page.tsx", "<ScannerRecebimentoCompra")] },
   { area: "Compras", item: "Recebimento", onde: [barra("compras", "/recebimento", "Recebimento")] },
   { area: "Compras", item: "Prazos de compra", onde: [barra("compras", "/suprimentos/prazos", "Prazos de compra")] },
   // ── Estoque ──

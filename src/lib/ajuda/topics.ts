@@ -191,7 +191,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Visão geral: o quadro 'Aguardando você' e o quadro 'Andamento dos pedidos', com as seis etapas.",
           "Pedidos: cada pedido e a etapa em que está, da solicitação ao pagamento.",
-          "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'.",
+          "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'. A linha abre o pedido, já no quadro 'Compra'.",
           "Recebimento: registrar o que chegou, numa lista só. A coluna Origem diz se a linha vem de um pedido ou de uma compra sem pedido (como a nova compra de uma pendência). A chegada cria o lote no Estoque.",
           "Prazos de compra: quanto tempo cada compra levou, do pedido à chegada.",
           "O Estoque é um módulo próprio na barra lateral, logo abaixo de Compras. O Planejamento fica em Projetos, porque o plano vem antes da compra.",
@@ -471,6 +471,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Toda compra tem 3 orçamentos de fornecedores diferentes (inclusive FUNPAR e Petrobras). Registre cada um no quadro 'Orçamentos' do pedido, com valor, prazo e o documento anexado. 'Marcar cotações recebidas' só libera com os 3.",
           "Antes da aprovação final, escolha um orçamento. Se não for o de menor valor, escreva a justificativa (prazo, qualidade, exclusividade). Quem escolheu, quando e por quê ficam registrados, e o fornecedor escolhido vai para a compra.",
           "Caminho único: a compra ligada ao pedido é aprovada junto com ele, quando o pedido chega a 'Aprovado para compra'. Não há segunda aprovação em Compras.",
+          "A compra é conduzida no pedido, no quadro 'Compra': fornecedor, situação, previsão de entrega, chegada, pendência e 'Imprimir / PDF'. A tela da compra fica para consulta.",
+          "'Fechar com fornecedor' já marca a compra como enviada e calcula a previsão de entrega (o prazo do orçamento escolhido ou, sem ele, o prazo do cadastro). Pela Fundação ou Universidade são dois momentos: 'Encaminhar à instituição' e, quando ela fizer o pedido, 'Instituição enviou ao fornecedor', no quadro 'Compra'.",
+          "Se o orçamento escolhido trouxe só o nome do fornecedor, o quadro 'Compra' avisa e deixa escolher o fornecedor do cadastro (ou cadastrar).",
           "Pagamento só depois da entrega: materiais e equipamentos precisam ter a chegada registrada; serviço precisa de 'Confirmar entrega (serviço prestado)'. Diária é paga antes da viagem.",
           "Pagar antes da entrega só com acordo específico: 'Registrar exceção (pagar antes)' pede o acordo por escrito (com quem, o quê e por quê) e fica registrado com quem e quando.",
           "Acompanhe documentos, comunicações, aprovações e a linha do tempo dentro do pedido.",
@@ -497,7 +500,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/compras",
     resumo: "A compra de cada pedido: fornecedor, envio e chegada.",
     intro:
-      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra a chegada, que põe o material no Estoque. Fica em Compras → Compras com fornecedor.",
+      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele. A compra que nasceu de um pedido é conduzida no próprio pedido, no quadro 'Compra'; esta lista reúne todas e a tela da compra serve para consulta e impressão. Fica em Compras → Compras com fornecedor.",
     secoes: [
       {
         titulo: "Para que serve",
@@ -511,16 +514,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
-          "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
+          "A compra nasce no pedido (botão 'Formalizar em compras'). Em Compras → Compras com fornecedor, a linha abre o pedido, já no quadro 'Compra'. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
+          "No pedido, confira o fornecedor no quadro 'Compra' e use 'Fechar com fornecedor': a compra já fica como enviada, com a previsão de entrega.",
           "Ao chegar, clique em 'Registrar chegada' na linha do item, em Compras → Recebimento, no pedido ou na compra. É o mesmo registro nos três lugares: dá entrada no estoque e marca o item do pedido como recebido.",
-          "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
+          "Se faltar algo, encerre com pendência no quadro 'Compra' do pedido e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
         ],
       },
       {
         titulo: "Boas práticas",
         itens: [
-          "A compra ligada a um pedido é aprovada junto com ele, sem segunda aprovação aqui. Compra criada direto em Compras ainda passa pela aprovação administrativa.",
+          "A compra ligada a um pedido é aprovada junto com ele, sem segunda aprovação aqui.",
+          "A compra sem pedido (a nova compra de uma pendência ou a reposição automática) segue na própria tela, com 'Aprovar', 'Marcar enviado' e 'Encerrar com pendência'.",
+          "'Cancelar compra' fica na tela da compra, enquanto nada chegou.",
           "Aproveite os rascunhos automáticos para não esquecer reposições críticas.",
           "Receba sempre pela compra ou pelo pedido, assim o rastreio do lote fica completo.",
           "Cheque divergências de quantidade no recebimento antes de fechar o pedido.",

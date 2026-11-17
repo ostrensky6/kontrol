@@ -57,7 +57,14 @@ import {
   chegadasPelaCompra,
   type ItemCompraDoPedidoRaw,
 } from "@/lib/pedido/chegada-pela-compra";
+import {
+  COLUNAS_COMPRA_DO_PEDIDO,
+  pedidoMostraPainelDaCompra,
+  chegadaDaCompra,
+  type CompraDoPedido,
+} from "@/lib/pedido/compra-do-pedido";
 import { PedidoCabecalho } from "@/components/pedido/detalhe/PedidoCabecalho";
+import { PedidoCompraPainel } from "@/components/pedido/detalhe/PedidoCompraPainel";
 import { PedidoPainelAgora } from "@/components/pedido/detalhe/PedidoPainelAgora";
 import { PedidoResumo } from "@/components/pedido/detalhe/PedidoResumo";
 import { PedidoItens } from "@/components/pedido/detalhe/PedidoItens";
@@ -79,7 +86,7 @@ export default async function PedidoInternoDetalhe({
 
   const { data: pedido } = await leitura.de("pedidos", supabase
     .from("pedidos_internos")
-    .select("*, projetos(nome), pedidos_compra(id, status)")
+    .select(`*, projetos(nome), pedidos_compra(${COLUNAS_COMPRA_DO_PEDIDO})`)
     .eq("id", pedidoId)
     .single());
   if (!pedido) semRegistro(leitura);
@@ -103,6 +110,7 @@ export default async function PedidoInternoDetalhe({
     podeReceberCompra,
     { data: locais },
     { data: itensDaCompra },
+    podeAprovarCompra,
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -154,6 +162,7 @@ export default async function PedidoInternoDetalhe({
           .eq("pedido_id", pedido.pedido_compra_id)
           .order("id"))
       : Promise.resolve({ data: [] }),
+    pode("compras.aprovar"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -184,7 +193,7 @@ export default async function PedidoInternoDetalhe({
     coordenador_email?: string | null;
   } | null;
   const projeto = projetoRow?.nome ?? "—";
-  const compraFormal = pedido.pedidos_compra as { id: number; status: string } | null;
+  const compraFormal = pedido.pedidos_compra as CompraDoPedido | null;
   // Quem aprovou fica gravado no pedido; antes disso vale o que o banco aponta
   // (usuário coordenador do projeto), nunca o nome escrito à mão no cadastro.
   const coordenadorProjeto =
@@ -415,6 +424,22 @@ export default async function PedidoInternoDetalhe({
             temDocumentoFiscal={temDocumentoFiscal}
           />
         </section>
+
+        {/* compra única na tela: a compra que nasceu do pedido é conduzida aqui */}
+        {compraFormal && pedidoMostraPainelDaCompra(pedido.status) && (
+          <PedidoCompraPainel
+            pedidoId={pedidoId}
+            pedidoStatus={pedido.status}
+            compra={compraFormal}
+            chegada={itensDaCompra ? chegadaDaCompra(itensDaCompra as unknown as ItemCompraDoPedidoRaw[]) : null}
+            orcamentoEscolhido={orcamentos?.find((orcamento) => orcamento.escolhida) ?? null}
+            fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
+              .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
+              .map((f) => ({ id: f.id, nome: f.nome }))}
+            podeAprovarCompra={podeAprovarCompra}
+            hoje={hojeBrasilia}
+          />
+        )}
 
         <PedidoItens
           total={total}

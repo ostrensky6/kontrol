@@ -11,6 +11,8 @@ import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { ListaParcial } from "@/components/common/ListaParcial";
 import { novaLeitura } from "@/lib/supabase/leitura";
 import { lerAbertosERecentes } from "@/lib/supabase/lista-recente";
+import { hrefDoPedidoQueConduz, pedidoQueConduzCompra } from "@/lib/pedido/compra-do-pedido";
+import { pedidoInternoNumero } from "@/lib/pedido/status";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +27,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 // compra recebida ou cancelada não muda mais: dessas a lista traz só as mais recentes
 const STATUS_COMPRA_ENCERRADA = ["recebido", "cancelado"];
 const SUGESTOES_NA_TELA = 8;
+const LOTE_PEDIDOS_DE_ORIGEM = 200;
 const COLUNAS_COMPRA = "id, status, projeto, projeto_id, solicitante, data_solicitacao, criado_em, fornecedores(nome)";
 
 type CompraLida = {
@@ -82,14 +85,39 @@ export default async function ComprasPage({
     (a, b) => String(b.criado_em ?? "").localeCompare(String(a.criado_em ?? "")) || b.id - a.id,
   );
   const projetoNome = new Map((projetos ?? []).map((p) => [p.id, p.nome]));
+  // Compra única na tela: a compra que nasceu de pedido abre o pedido, já no
+  // quadro "Compra". A leitura vai em lotes para a lista de ids caber no endereço.
+  const idsDasCompras = pedidos.map((p) => p.id);
+  const lotesDeIds: number[][] = [];
+  for (let i = 0; i < idsDasCompras.length; i += LOTE_PEDIDOS_DE_ORIGEM) {
+    lotesDeIds.push(idsDasCompras.slice(i, i + LOTE_PEDIDOS_DE_ORIGEM));
+  }
+  const pedidosLidos = await Promise.all(
+    lotesDeIds.map((lote) =>
+      leitura.de("pedidos das compras", supabase
+        .from("pedidos_internos")
+        .select("id, status, pedido_compra_id")
+        .in("pedido_compra_id", lote)),
+    ),
+  );
+  const pedidosPorCompra = new Map<number, { id: number; status: string | null }[]>();
+  for (const pedido of pedidosLidos.flatMap((lido) => lido.data ?? [])) {
+    if (pedido.pedido_compra_id == null) continue;
+    const lista = pedidosPorCompra.get(pedido.pedido_compra_id) ?? [];
+    lista.push({ id: pedido.id, status: pedido.status });
+    pedidosPorCompra.set(pedido.pedido_compra_id, lista);
+  }
   const linhas: CompraRow[] = pedidos.map((p) => {
     const st = STATUS[p.status] ?? { label: p.status, cls: "" };
     const fornecedorLido = Array.isArray(p.fornecedores) ? p.fornecedores[0] : p.fornecedores;
     const fornecedor = fornecedorLido?.nome ?? "—";
     const projeto = p.projeto_id != null ? projetoNome.get(p.projeto_id) ?? "—" : p.projeto ?? "—";
+    const condutor = pedidoQueConduzCompra(pedidosPorCompra.get(p.id) ?? []);
     return {
       id: p.id as number,
       pedido: `#${p.id} · ${formatDate(p.data_solicitacao)}`,
+      href: condutor ? hrefDoPedidoQueConduz(condutor) : `/compras/${p.id}`,
+      origem: condutor ? pedidoInternoNumero(condutor.id) : "—",
       fornecedor,
       projeto,
       solicitante: p.solicitante ?? "—",
@@ -128,6 +156,11 @@ export default async function ComprasPage({
               <p>
                 Toda compra nasce de um <b>pedido</b>: ela é criada quando o pedido chega a “Aprovado para compra” e
                 é aprovada junto com ele. Para pedir algo, use <b>Novo pedido</b> em Compras → Pedidos.
+              </p>
+              <p>
+                A linha abre o pedido, já no quadro <b>Compra</b>: é lá que se define o fornecedor, se fecha com ele
+                (a compra já fica como enviada) e se encerra com pendência. A compra sem pedido, como a nova compra
+                de uma pendência, abre a própria tela.
               </p>
               <p>
                 Cada compra segue as situações abaixo. Quem registra a chegada cadastra o lote e ele já fica

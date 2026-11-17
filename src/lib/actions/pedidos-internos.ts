@@ -876,7 +876,7 @@ export async function aprovarCompraFinal(_prev: FormState, formData: FormData): 
 export async function fecharComFornecedor(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
   const u = await usuarioAtual();
-  return mudarStatus({
+  const resultado = await mudarStatus({
     pedidoId: Number(formData.get("pedido_interno_id")),
     para: "compra_fechada",
     permitidoDe: ["aprovado_para_compra"],
@@ -885,6 +885,13 @@ export async function fecharComFornecedor(_prev: FormState, formData: FormData):
     decisao: "aprovado",
     dados: { modalidade_definida_por: u?.nome ?? u?.email ?? null },
   });
+  if (resultado.ok) {
+    // 0182: o banco marca a compra ligada como enviada na mesma gravação
+    revalidatePath("/compras");
+    revalidatePath("/recebimento");
+    revalidatePath("/suprimentos");
+  }
+  return resultado;
 }
 
 export async function encaminharInstituicao(_prev: FormState, formData: FormData): Promise<FormState> {

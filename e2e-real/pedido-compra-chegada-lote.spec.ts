@@ -156,15 +156,101 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await avancar(page, cliente, pedidoId, "Enviar para aprovação final", "aguardando_aprovacao_final");
   await avancar(page, cliente, pedidoId, "Aprovar compra final", "aprovado_para_compra");
 
-  // ---- 6. caminho único (0170): a compra é aprovada junto com o pedido e vai ao fornecedor
-  const statusDaCompra = async () => {
-    const { data } = await cliente.from("pedidos_compra").select("status").eq("id", compraId).single();
-    return (data as { status: string } | null)?.status ?? null;
+  // ---- 6. compra única na tela (0170 e 0182): a compra é aprovada junto com o pedido e é
+  //         conduzida no quadro "Compra" do pedido, sem ninguém abrir a tela da compra
+  const lerCompra = async () => {
+    const { data } = await cliente
+      .from("pedidos_compra")
+      .select("status, fornecedor_id, data_prevista_entrega")
+      .eq("id", compraId)
+      .single();
+    return data as { status: string; fornecedor_id: number | null; data_prevista_entrega: string | null } | null;
   };
+  const statusDaCompra = async () => (await lerCompra())?.status ?? null;
   await expect.poll(statusDaCompra, { message: "a compra é aprovada junto com o pedido", timeout: 30_000 }).toBe("aprovado");
+
+  const painel = page.getByTestId("painel-compra");
+  await expect(painel.getByRole("heading", { name: `Compra #${compraId}` })).toBeVisible();
+  await expect(painel.getByTestId("painel-compra-situacao")).toHaveText("Aprovado");
+  await expect(painel.getByRole("link", { name: "Imprimir / PDF" })).toHaveAttribute("href", `/compras/${compraId}/imprimir`);
+  // o orçamento escolhido trouxe só o nome digitado: a compra nasceu sem fornecedor e o quadro avisa
+  await expect(painel.getByTestId("painel-compra-fornecedor")).toHaveText("Falta definir");
+  await expect(painel.getByTestId("painel-compra-sem-fornecedor")).toContainText(
+    `traz só o nome “${cotacoes[0].fornecedor}”, que não está no cadastro de fornecedores.`,
+  );
+  // antes de fechar não há botão de envio: "Fechar com fornecedor" envia a compra junto
+  await expect(painel.getByTestId("painel-compra-envio")).toContainText("já marca esta compra como enviada");
+  await expect(painel.getByRole("button", { name: "Marcar compra como enviada" })).toHaveCount(0);
+
+  // o fornecedor entra no cadastro com o mesmo nome e um prazo médio: o quadro já o aponta
+  const prazoDoFornecedor = 9;
+  const { data: fornecedor, error: erroFornecedor } = await cliente
+    .from("fornecedores")
+    .insert({ nome: cotacoes[0].fornecedor, prazo_medio_dias: prazoDoFornecedor })
+    .select("id")
+    .single();
+  expect(erroFornecedor).toBeNull();
+  const fornecedorId = Number((fornecedor as { id: number } | null)?.id);
+  await page.reload();
+  const semFornecedor = painel.getByTestId("painel-compra-sem-fornecedor");
+  await expect(semFornecedor).toContainText(`traz o nome “${cotacoes[0].fornecedor}”, que está no cadastro.`);
+  await expect(semFornecedor.getByLabel("Fornecedor da compra")).toHaveValue(String(fornecedorId));
+  await semFornecedor.getByRole("button", { name: "Definir fornecedor", exact: true }).click();
+  // a compra já está aprovada: preencher o que ficou em branco vale com "Aprovar compras"
+  await expect
+    .poll(async () => (await lerCompra())?.fornecedor_id ?? null, { message: "o fornecedor definido no pedido grava na compra", timeout: 30_000 })
+    .toBe(fornecedorId);
+  await page.reload();
+  await expect(painel.getByTestId("painel-compra-fornecedor")).toHaveText(cotacoes[0].fornecedor);
+  await expect(painel.getByTestId("painel-compra-sem-fornecedor")).toHaveCount(0);
+
+  // "Fechar com fornecedor" fecha o pedido e, pelo gatilho da 0182, envia a compra na mesma gravação
+  const hojeEmBrasilia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const somarDias = (dia: string, dias: number) => {
+    const data = new Date(`${dia}T12:00:00Z`);
+    data.setUTCDate(data.getUTCDate() + dias);
+    return data.toISOString().slice(0, 10);
+  };
+  const antesDeFechar = hojeEmBrasilia();
+  await avancar(page, cliente, pedidoId, "Fechar com fornecedor", "compra_fechada");
+  await expect.poll(statusDaCompra, { message: "fechar o pedido envia a compra (0182)", timeout: 30_000 }).toBe("enviado");
+  // sem prazo no orçamento nem no insumo, vale o prazo médio do fornecedor da compra
+  const previstas = [antesDeFechar, hojeEmBrasilia()].map((dia) => somarDias(dia, prazoDoFornecedor));
+  expect(previstas).toContain(String((await lerCompra())?.data_prevista_entrega).slice(0, 10));
+  const { data: eventosDoEnvio, error: erroEventos } = await cliente
+    .from("eventos_status")
+    .select("de_status, para_status, observacao")
+    .eq("entidade", "pedido_compra")
+    .eq("entidade_id", compraId)
+    .eq("para_status", "enviado");
+  expect(erroEventos).toBeNull();
+  expect(eventosDoEnvio).toHaveLength(1);
+  expect((eventosDoEnvio![0] as { observacao: string | null }).observacao).toContain(`fechamento do pedido interno #${pedidoId}`);
+
+  await semLeituraFalha(page);
+  await expect(painel.getByTestId("painel-compra-situacao")).toHaveText("Enviado");
+  await expect(painel.getByTestId("painel-compra-previsao")).not.toHaveText("sem previsão");
+  await expect(painel.getByTestId("painel-compra-envio")).toHaveCount(0);
+
+  // a tela da compra virou consulta: aponta para o pedido e não tem botão de etapa
   await page.goto(`/compras/${compraId}`);
-  await page.getByRole("button", { name: "Marcar enviado", exact: true }).click();
-  await expect.poll(statusDaCompra, { timeout: 30_000 }).toBe("enviado");
+  await semLeituraFalha(page);
+  const nota = page.getByTestId("compra-conduzida-no-pedido");
+  await expect(nota.getByRole("link", { name: /^Abrir o pedido Nº/ })).toHaveAttribute("href", `/pedido/${pedidoId}#compra`);
+  await expect(page.getByRole("button", { name: "Marcar enviado", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Aprovar", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Imprimir / PDF" })).toBeVisible();
+
+  // a lista de compras abre o pedido, já no quadro "Compra"
+  await page.goto("/compras");
+  await semLeituraFalha(page);
+  await page.getByPlaceholder(/^Buscar compra, pedido/).fill(cotacoes[0].fornecedor);
+  const linhaDaCompra = page.getByRole("row").filter({ hasText: cotacoes[0].fornecedor });
+  await expect(linhaDaCompra).toHaveCount(1);
+  await expect(linhaDaCompra.getByRole("link", { name: new RegExp(`^#${compraId}\\b`) })).toHaveAttribute(
+    "href",
+    `/pedido/${pedidoId}#compra`,
+  );
 
   // ---- 7. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
   //         e Chegadas registra pela compra sem ninguém trocar de tela

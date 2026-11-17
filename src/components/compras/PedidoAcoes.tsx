@@ -98,7 +98,12 @@ const DESTINOS = [
   },
 ] as const;
 
-function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
+/**
+ * "Encerrar com pendência": dá destino ao que faltou de uma compra recebida em
+ * parte. Fica na tela da compra sem pedido e, na compra que nasceu de pedido,
+ * no painel "Compra" do pedido (compra única na tela, 17/11/2026).
+ */
+export function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
   const router = useRouter();
   const [state, formAction] = useActionState<FormState, FormData>(encerrarPedidoComPendencia, {
     ok: false,
@@ -160,6 +165,44 @@ function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
   );
 }
 
+function BotaoCancelarCompra({ pedidoId }: { pedidoId: number }) {
+  return (
+    <Botao pedidoId={pedidoId} action={cancelarPedido} label="Cancelar compra"
+      cls="rounded-md border border-input px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-50"
+      motivo={{ rotulo: "Motivo do cancelamento", placeholder: "Ex.: fornecedor não atende" }}
+      confirmacao={{
+        titulo: `Cancelar a compra #${pedidoId}?`,
+        mensagem: "A compra sai do ciclo de compras e não pode ser reaberta. O histórico e o motivo ficam registrados.",
+        confirmLabel: "Cancelar compra",
+      }} />
+  );
+}
+
+const CLASSE_BOTAO_ENVIO =
+  "rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50";
+
+/**
+ * Registra o envio da compra ao fornecedor a partir do painel "Compra" do
+ * pedido: é o mesmo "Marcar enviado" (mesma permissão e mesma gravação), com o
+ * rótulo do momento ("Instituição enviou ao fornecedor").
+ */
+export function MarcarCompraEnviada({ pedidoId, label }: { pedidoId: number; label: string }) {
+  return <Botao pedidoId={pedidoId} action={marcarEnviado} label={label} cls={CLASSE_BOTAO_ENVIO} />;
+}
+
+const CLASSE_BOTAO_APROVAR =
+  "rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50";
+
+/**
+ * Aprova, a partir do painel "Compra" do pedido, a compra que ficou solicitada
+ * depois da aprovação final (ela atende outro pedido, ou o outro pedido foi
+ * cancelado). É o mesmo "Aprovar" da tela da compra: o banco recusa e diz qual
+ * pedido falta quando algum de origem ainda não foi aprovado.
+ */
+export function AprovarCompra({ pedidoId }: { pedidoId: number }) {
+  return <Botao pedidoId={pedidoId} action={aprovarPedido} label="Aprovar compra" cls={CLASSE_BOTAO_APROVAR} />;
+}
+
 export function PedidoAcoes({
   pedidoId,
   status,
@@ -167,6 +210,7 @@ export function PedidoAcoes({
   podeCancelar,
   temRecebimento = false,
   pedidoInternoPendente = null,
+  conduzidaNoPedido = false,
 }: {
   pedidoId: number;
   status: string;
@@ -178,8 +222,22 @@ export function PedidoAcoes({
   temRecebimento?: boolean;
   /** Pedido interno de origem que ainda não chegou a "Aprovado para compra" (0130, D1). */
   pedidoInternoPendente?: { id: number; rotulo: string } | null;
+  /**
+   * Compra que nasceu de pedido (compra única na tela, 17/11/2026): aprovação,
+   * envio e pendência são feitos no pedido. Aqui fica só o cancelamento, que o
+   * pedido não oferece depois de aprovado.
+   */
+  conduzidaNoPedido?: boolean;
 }) {
   if (status === "recebido" || status === "cancelado") return null;
+  if (conduzidaNoPedido) {
+    if (temRecebimento || !podeCancelar) return null;
+    return (
+      <div className="flex flex-wrap items-start gap-3">
+        <BotaoCancelarCompra pedidoId={pedidoId} />
+      </div>
+    );
+  }
   if (!podeAprovar && !podeCancelar)
     return (
       <p className="text-xs text-muted-foreground/80">
@@ -204,25 +262,14 @@ export function PedidoAcoes({
         </p>
       )}
       {status === "solicitado" && podeAprovar && !seguraPeloPedido && (
-        <Botao pedidoId={pedidoId} action={aprovarPedido} label="Aprovar"
-          cls="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50" />
+        <Botao pedidoId={pedidoId} action={aprovarPedido} label="Aprovar" cls={CLASSE_BOTAO_APROVAR} />
       )}
       {status === "aprovado" && podeAprovar && !seguraPeloPedido && (
-        <Botao pedidoId={pedidoId} action={marcarEnviado} label="Marcar enviado"
-          cls="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50" />
+        <Botao pedidoId={pedidoId} action={marcarEnviado} label="Marcar enviado" cls={CLASSE_BOTAO_ENVIO} />
       )}
       {temRecebimento ? (
         podeAprovar && <EncerrarComPendencia pedidoId={pedidoId} />
-      ) : podeCancelar && (
-        <Botao pedidoId={pedidoId} action={cancelarPedido} label="Cancelar compra"
-          cls="rounded-md border border-input px-4 py-2 text-sm text-foreground hover:bg-muted disabled:opacity-50"
-          motivo={{ rotulo: "Motivo do cancelamento", placeholder: "Ex.: fornecedor não atende" }}
-          confirmacao={{
-            titulo: `Cancelar a compra #${pedidoId}?`,
-            mensagem: "A compra sai do ciclo de compras e não pode ser reaberta. O histórico e o motivo ficam registrados.",
-            confirmLabel: "Cancelar compra",
-          }} />
-      )}
+      ) : podeCancelar && <BotaoCancelarCompra pedidoId={pedidoId} />}
     </div>
   );
 }

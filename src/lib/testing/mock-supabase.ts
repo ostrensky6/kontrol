@@ -400,10 +400,51 @@ const baseStore = (): Store => {
       aprovacao_area_em: null,
       pedido_compra_id: 9401,
       // o mock não resolve junções: a compra ligada vem junto
-      pedidos_compra: { id: 9401, status: "enviado" },
+      pedidos_compra: {
+        id: 9401,
+        status: "enviado",
+        fornecedor_id: 71,
+        data_prevista_entrega: "2099-12-01",
+        fornecedores: { nome: "Fornecedor E2E" },
+      },
       criado_em: "2026-11-03T13:00:00.000Z",
       atualizado_em: "2026-11-14T14:00:00.000Z",
     },
+    // 2.1.9: compra pela Fundação, aprovada junto com o pedido e ainda sem fornecedor
+    // (o orçamento escolhido trouxe só o nome digitado); um item chegou em parte
+    {
+      id: 505,
+      titulo: "Kit de extração pela Fundação E2E",
+      status: "encaminhado_instituicao",
+      solicitante: "e2e@example.com",
+      projeto_id: 1,
+      natureza: "material_consumo_geral",
+      objetivo: "projeto",
+      tipo_demanda: "laboratorio",
+      justificativa: "Kits para as extrações do projeto.",
+      urgencia: "normal",
+      urgencia_justificativa: null,
+      ciclo_pagamento: null,
+      data_necessidade: null,
+      modalidade_compra: "fundacao",
+      instituicao_destino: "FUNPAR",
+      area_id: null,
+      aprovacao_area_em: null,
+      pedido_compra_id: 9403,
+      pedidos_compra: { id: 9403, status: "aprovado", fornecedor_id: null, data_prevista_entrega: null, fornecedores: null },
+      criado_em: "2026-11-06T13:00:00.000Z",
+      atualizado_em: "2026-11-15T14:00:00.000Z",
+    },
+  ],
+  // 2.1.9: orçamentos do pedido 505; o escolhido tem só o nome digitado, igual ao de um fornecedor cadastrado
+  pedidos_internos_cotacoes: [
+    { id: 50501, pedido_interno_id: 505, fornecedor_id: null, fornecedor_nome: "fornecedor e2e", valor_total: 400, prazo_entrega_dias: 10, validade: null, condicoes: null, anexo_id: null, escolhida: true, escolhida_por: "admin@example.com", escolhida_em: "2026-11-10T13:00:00.000Z", justificativa_escolha: null, registrada_por: "admin@example.com", registrada_em: "2026-11-09T13:00:00.000Z" },
+    { id: 50502, pedido_interno_id: 505, fornecedor_id: null, fornecedor_nome: "Distribuidora B E2E", valor_total: 450, prazo_entrega_dias: null, validade: null, condicoes: null, anexo_id: null, escolhida: false, escolhida_por: null, escolhida_em: null, justificativa_escolha: null, registrada_por: "admin@example.com", registrada_em: "2026-11-09T13:05:00.000Z" },
+    { id: 50503, pedido_interno_id: 505, fornecedor_id: null, fornecedor_nome: "Distribuidora C E2E", valor_total: 500, prazo_entrega_dias: null, validade: null, condicoes: null, anexo_id: null, escolhida: false, escolhida_por: null, escolhida_em: null, justificativa_escolha: null, registrada_por: "admin@example.com", registrada_em: "2026-11-09T13:10:00.000Z" },
+  ],
+  fornecedores: [
+    { id: 71, nome: "Fornecedor E2E", ativo: true, prazo_medio_dias: 15 },
+    { id: 72, nome: "Fornecedor da pendência E2E", ativo: true, prazo_medio_dias: null },
   ],
   // item da compra 9401, que atende o item 5041 do pedido 504
   pedidos_compra_itens: [
@@ -419,6 +460,22 @@ const baseStore = (): Store => {
       lote_id: null,
       insumos: { especificacao: "Mix PCR", unidade: "uL", codigo_fabricante: null },
       pedidos_compra: { id: 9401, status: "enviado", fornecedores: { nome: "Fornecedor E2E" } },
+      pedidos_internos_itens: { pedido_interno_id: 504, fornecedor_sugerido: null },
+    },
+    // 2.1.9: item da compra 9403 (pedido 505), recebido em parte
+    {
+      id: 94031,
+      pedido_id: 9403,
+      pedido_interno_item_id: 5051,
+      insumo_id: 1,
+      quantidade: 4,
+      quantidade_recebida: 1,
+      quantidade_em: "unidade",
+      conteudo_embalagem: null,
+      lote_id: null,
+      insumos: { especificacao: "Mix PCR", unidade: "uL", codigo_fabricante: null },
+      pedidos_compra: { id: 9403, status: "aprovado", fornecedores: null },
+      pedidos_internos_itens: { pedido_interno_id: 505, fornecedor_sugerido: null },
     },
     // 2.1.8: nova compra de uma pendência; não nasceu de pedido e entra na mesma fila de Recebimento
     {
@@ -461,6 +518,27 @@ const baseStore = (): Store => {
       quantidade: 3,
       unidade: "uL",
       orcamento_previo: 50,
+      recebido_em: null,
+    },
+    // 2.1.9: item do pedido 505 (compra pela Fundação), recebido em parte
+    {
+      id: 5051,
+      pedido_interno_id: 505,
+      tipo: "material",
+      especificacao: "Kit de extração",
+      insumo_id: 1,
+      insumos: { especificacao: "Mix PCR", unidade: "uL", controlado: false, codigo_fabricante: null },
+      pedidos_internos: {
+        id: 505,
+        titulo: "Kit de extração pela Fundação E2E",
+        status: "encaminhado_instituicao",
+        pedido_compra_id: 9403,
+        projetos: { nome: "Projeto E2E" },
+      },
+      quantidade: 4,
+      quantidade_recebida: 1,
+      unidade: "uL",
+      orcamento_previo: 100,
       recebido_em: null,
     },
     {
@@ -632,7 +710,13 @@ const baseStore = (): Store => {
       referencia: 10,
     },
   ],
-  pedidos_compra: [],
+  // 2.1.9: as compras do roteiro de compra única. 9401 e 9403 nasceram de pedido (504 e 505);
+  // 9402 é a nova compra de uma pendência e não tem pedido.
+  pedidos_compra: [
+    { id: 9401, status: "enviado", projeto: "Projeto E2E", projeto_id: 1, solicitante: "e2e@example.com", aprovador: "admin@example.com", data_solicitacao: "2026-11-05", data_aprovacao: "2026-11-10", data_prevista_entrega: "2099-12-01", criado_em: "2026-11-05T13:00:00.000Z", fornecedor_id: 71, compra_origem_id: null, fornecedores: { nome: "Fornecedor E2E" } },
+    { id: 9402, status: "aprovado", projeto: "Projeto E2E", projeto_id: 1, solicitante: "e2e@example.com", aprovador: "admin@example.com", data_solicitacao: "2026-11-08", data_aprovacao: "2026-11-09", data_prevista_entrega: null, criado_em: "2026-11-08T13:00:00.000Z", fornecedor_id: 72, compra_origem_id: 9400, fornecedores: { nome: "Fornecedor da pendência E2E" } },
+    { id: 9403, status: "aprovado", projeto: "Projeto E2E", projeto_id: 1, solicitante: "e2e@example.com", aprovador: "admin@example.com", data_solicitacao: "2026-11-06", data_aprovacao: "2026-11-12", data_prevista_entrega: null, criado_em: "2026-11-06T13:00:00.000Z", fornecedor_id: null, compra_origem_id: null, fornecedores: null },
+  ],
   planejamento: [],
   planejamento_itens: [],
   demandas: [],
@@ -1312,6 +1396,7 @@ class MockQuery {
   private inFilters: { column: string; values: unknown[] }[] = [];
   private notFilters: { column: string; values: string[] }[] = [];
   private isFilters: { column: string; value: null }[] = [];
+  private orFilters: { column: string; operator: string; values: string[] }[][] = [];
   private comparisonFilters: { column: string; operator: "gt" | "gte" | "lt" | "lte"; value: unknown }[] = [];
   private mutation: null | { type: "insert" | "update" | "delete" | "upsert"; payload?: Row | Row[] } = null;
   private columns: string[] | null = null;
@@ -1362,6 +1447,26 @@ class MockQuery {
   is(column: string, value: null) {
     // Suporta apenas `.is(coluna, null)`, o unico uso no app.
     this.isFilters.push({ column, value });
+    return this;
+  }
+
+  /**
+   * `.or("a.eq.1,b.in.(2,3)")`: basta uma das condições. Só os formatos que o
+   * app usa (`eq`, `in` e `is.null`), separados por vírgula fora dos parênteses.
+   */
+  or(expressao: string) {
+    const partes = expressao.match(/(?:[^,(]|\([^)]*\))+/g) ?? [];
+    this.orFilters.push(
+      partes.map((parte) => {
+        const [column, operator, ...resto] = parte.trim().split(".");
+        const valor = resto.join(".");
+        return {
+          column,
+          operator,
+          values: operator === "in" ? valor.replace(/[()]/g, "").split(",").map((v) => v.trim()) : [valor],
+        };
+      }),
+    );
     return this;
   }
 
@@ -1542,6 +1647,13 @@ class MockQuery {
       this.inFilters.every((filter) => filter.values.some((value) => valoresIguais(valorDaColuna(row, filter.column), value))) &&
       this.notFilters.every((filter) => !filter.values.includes(String(valorDaColuna(row, filter.column)))) &&
       this.isFilters.every((filter) => (valorDaColuna(row, filter.column) ?? null) === filter.value) &&
+      this.orFilters.every((alternativas) =>
+        alternativas.some((filter) => {
+          const valor = valorDaColuna(row, filter.column);
+          if (filter.operator === "is") return (valor ?? null) === null;
+          return filter.values.some((esperado) => valoresIguais(valor, esperado));
+        }),
+      ) &&
       this.comparisonFilters.every((filter) => {
         const comparison = compararValores(valorDaColuna(row, filter.column), filter.value);
         if (filter.operator === "gt") return comparison > 0;
