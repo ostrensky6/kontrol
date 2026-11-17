@@ -22,7 +22,8 @@ describe("insumos disponíveis para novas operações", () => {
   }
 
   it("preserva só o vínculo atual ao editar item histórico", () => {
-    const fonte = readFileSync(resolve("src/app/pedido/[id]/page.tsx"), "utf8");
+    // a lista de itens do pedido é uma parte da tela (auditoria de 16/11, item 12)
+    const fonte = readFileSync(resolve("src/components/pedido/detalhe/PedidoItens.tsx"), "utf8");
 
     expect(fonte.match(/catalogoComVinculoAtual\(catalogoItens, item\)/g)).toHaveLength(2);
   });

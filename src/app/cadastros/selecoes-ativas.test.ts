@@ -7,7 +7,7 @@ const analiseSource = readFileSync(
 );
 const cadastroSource = readFileSync(new URL("./[slug]/CadastroPagina.tsx", import.meta.url), "utf8");
 const crudSource = readFileSync(
-  new URL("../../components/cadastros/CrudShell.tsx", import.meta.url),
+  new URL("../../components/cadastros/crud/CampoInput.tsx", import.meta.url),
   "utf8",
 );
 

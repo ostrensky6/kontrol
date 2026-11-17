@@ -1,338 +1,66 @@
-import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerEquivalentesComSaldo } from "@/lib/estoque/equivalentes";
 import { lerEstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
-import { rotuloNatureza, rotuloObjetivo, rotuloUso, separarSinonimos } from "@/lib/pedido/natureza";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { usuarioAtual } from "@/lib/auth/roles";
-import { aguardaLaboratorio, etapasAprovacao, lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
-import { lerAreasPedido } from "@/lib/pedido/areas";
-import { ETAPAS_ANTES_DO_PAGAMENTO, lerPendenciaPagamento, podeConfirmarEntrega } from "@/lib/pedido/pagamento";
 import {
-  ETAPAS_COM_ORCAMENTOS,
-  lerOrcamentos,
-  motivoSemAprovacaoFinal,
-  motivoSemCotacoesRecebidas,
-  resumirOrcamentos,
-} from "@/lib/pedido/orcamentos";
-import { PedidoOrcamentos } from "@/components/pedido/PedidoOrcamentos";
-import { datasDoCiclo, cicloLiberaEm, dataEmBrasilia, ehUrgente, explicarCicloHoje, faltaJustificativaUrgencia, motivoCicloTravado, prazoDoCiclo, rotuloCiclo, rotuloData, rotuloPrazo } from "@/lib/pedido/ciclo";
-import { QuemAprova } from "@/components/pedido/QuemAprova";
+  aguardaLaboratorio,
+  etapasAprovacao,
+  lerAprovadores,
+  travaDoEnvio,
+  usuarioDecide,
+} from "@/lib/pedido/aprovadores";
+import { lerAreasPedido } from "@/lib/pedido/areas";
+import {
+  ETAPAS_ANTES_DO_PAGAMENTO,
+  lerPendenciaPagamento,
+  podeConfirmarEntrega,
+} from "@/lib/pedido/pagamento";
+import { ETAPAS_COM_ORCAMENTOS, lerOrcamentos, resumirOrcamentos } from "@/lib/pedido/orcamentos";
+import {
+  datasDoCiclo,
+  cicloLiberaEm,
+  dataEmBrasilia,
+  ehUrgente,
+  faltaJustificativaUrgencia,
+  motivoCicloTravado,
+} from "@/lib/pedido/ciclo";
 import { PedidoTrilha } from "@/components/pedido/PedidoTrilha";
 import { etapaDoPedido } from "@/lib/pedido/etapas";
 import { proximoPasso } from "@/lib/pedido/proximo-passo";
-import { cn } from "@/lib/utils";
-import {
-  adicionarAnexoPedidoInterno,
-  adicionarItemPedidoInterno,
-  registrarAnaliseAdministrativa,
-  registrarComunicacaoPedidoInterno,
-  removerAnexoPedidoInterno,
-  removerItemPedidoInterno,
-} from "@/lib/actions/pedidos-internos";
-import { PedidoInternoAcoes } from "@/components/pedido/PedidoInternoAcoes";
-import { PedidoInternoCabecalhoAcoes } from "@/components/pedido/PedidoInternoCabecalhoAcoes";
-import { ItemRecebimentoCell } from "@/components/pedido/ItemRecebimentoCell";
-import { PedidoItemEditar } from "@/components/pedido/PedidoItemEditar";
-import { PedidoItemCamposAssistidos, type PedidoItemCatalogo } from "@/components/pedido/PedidoItemCamposAssistidos";
 import { Timeline } from "@/components/common/Timeline";
-import { HelpTip } from "@/components/common/HelpTip";
-import { FormComMensagem } from "@/components/pedido/FormComMensagem";
-import { SubmitButton } from "@/components/common/SubmitButton";
-import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
-import { statusInfo } from "@/components/app/status";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
 import { STATUS_DE_AJUSTE, lerSituacaoReenvio, textoReenvio } from "@/lib/pedido/reenvio";
 import { listarEventos } from "@/lib/actions/eventos";
 import {
-  PEDIDO_INTERNO_STATUS,
   pedidoInternoNumero,
   pedidoInternoSituacao,
   podeMarcarRecebida,
   type PedidoInternoStatus,
 } from "@/lib/pedido/status";
-import { formatCurrency as brl, formatDate, formatDateTime, formatNumber as fmt } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import {
+  type FornecedorRaw,
+  type InsumoPedidoRaw,
+  type PedidoInternoAnexo,
+  type PedidoInternoAprovacao,
+  type PedidoInternoComunicacao,
+  type PedidoInternoItem,
+  type PedidoItemHistorico,
+  montarCatalogoItens,
+  montarFornecedoresPedido,
+} from "@/lib/pedido/detalhe";
+import { PedidoCabecalho } from "@/components/pedido/detalhe/PedidoCabecalho";
+import { PedidoPainelAgora } from "@/components/pedido/detalhe/PedidoPainelAgora";
+import { PedidoResumo } from "@/components/pedido/detalhe/PedidoResumo";
+import { PedidoItens } from "@/components/pedido/detalhe/PedidoItens";
+import { PedidoDocumentos } from "@/components/pedido/detalhe/PedidoDocumentos";
+import { PedidoComunicacoes } from "@/components/pedido/detalhe/PedidoComunicacoes";
+import { PedidoAprovacoes } from "@/components/pedido/detalhe/PedidoAprovacoes";
 
 export const dynamic = "force-dynamic";
-
-type PedidoInternoItem = {
-  id: number;
-  tipo: string;
-  especificacao: string;
-  modelo: string | null;
-  volume: string | null;
-  quantidade: number;
-  unidade: string | null;
-  /** 0123: "embalagem" = quantidade em frascos fechados de conteudo_embalagem. */
-  quantidade_em?: string | null;
-  conteudo_embalagem?: number | null;
-  orcamento_previo: number | null;
-  fornecedor_sugerido: string | null;
-  observacao: string | null;
-  caracteristicas?: string | null;
-  exigencia_tecnica?: string | null;
-  exclusividade?: string | null;
-  outros_fornecedores?: string | null;
-  insumo_id: number | null;
-  quantidade_recebida: number | null;
-  divergencia_recebimento: string | null;
-  recebido_em: string | null;
-  recebido_por: string | null;
-  lote_id: number | null;
-  insumos: { especificacao: string | null; unidade: string | null; controlado?: boolean | null; codigo_fabricante?: string | null } | null;
-  pedidos_internos_item_recebimentos?: PedidoInternoItemRecebimento[] | null;
-};
-
-type PedidoInternoItemRecebimento = {
-  id: number;
-  lote_id: number | null;
-  quantidade: number;
-  codigo_lote: string | null;
-  fornecedor: string | null;
-  validade: string | null;
-  responsavel: string | null;
-  recebido_em: string;
-};
-
-type InsumoPedidoRaw = {
-  id: number;
-  especificacao: string | null;
-  nome_item?: string | null;
-  categoria_compra?: string | null;
-  unidade: string | null;
-  unidade_consumo?: string | null;
-  fabricante?: string | null;
-  codigo_fabricante?: string | null;
-  custo_unitario?: number | null;
-  quantidade_embalagem?: number | null;
-  custo_total_embalagem?: number | null;
-  sinonimos?: string | null;
-  tipo_insumos?: { nome: string | null } | { nome: string | null }[] | null;
-  fornecedores?: { nome: string | null } | { nome: string | null }[] | null;
-};
-
-type PedidoItemHistorico = {
-  insumo_id: number | null;
-  especificacao: string | null;
-  unidade: string | null;
-  modelo: string | null;
-  volume: string | null;
-  fornecedor_sugerido: string | null;
-};
-
-type FornecedorRaw = {
-  id?: number;
-  nome: string | null;
-};
-
-type PedidoInternoAprovacao = {
-  id: number;
-  etapa: string;
-  decisao: string;
-  responsavel: string | null;
-  papel: string | null;
-  comentario: string | null;
-  status_origem: string | null;
-  status_destino: string | null;
-  criado_em: string;
-};
-
-type PedidoInternoAnexo = {
-  id: number;
-  etapa: string | null;
-  tipo: string;
-  titulo: string;
-  url: string | null;
-  arquivo_nome?: string | null;
-  storage_bucket?: string | null;
-  storage_path?: string | null;
-  mime_type?: string | null;
-  tamanho_bytes?: number | null;
-  hash_sha256?: string | null;
-  observacao: string | null;
-  usuario: string | null;
-  criado_em: string;
-  downloadUrl?: string | null;
-};
-
-type PedidoInternoComunicacao = {
-  id: number;
-  etapa: string | null;
-  tipo: string;
-  remetente: string | null;
-  destinatarios: string | null;
-  assunto: string | null;
-  referencia: string | null;
-  observacao: string | null;
-  usuario: string | null;
-  criado_em: string;
-};
-
-const URGENCIA_LABEL: Record<string, string> = {
-  baixa: "Baixa",
-  normal: "Normal",
-  alta: "Alta",
-  critica: "Crítica",
-};
-
-const ANEXO_TIPO_LABEL: Record<string, string> = {
-  orcamento_previo: "Cotação prévia",
-  proposta: "Cotação do fornecedor",
-  print: "Print",
-  email: "E-mail",
-  termo_referencia: "Termo de referência",
-  oficio: "Ofício",
-  boleto: "Boleto",
-  nota_fiscal: "Nota fiscal",
-  comprovante: "Comprovante",
-  outro: "Outro",
-};
-
-const COMUNICACAO_TIPO_LABEL: Record<string, string> = {
-  email: "E-mail",
-  reuniao: "Reunião",
-  telefone: "Telefone",
-  mensagem: "Mensagem",
-  outro: "Outro",
-};
-
-const DECISAO_LABEL: Record<string, string> = {
-  aprovado: "Aprovado",
-  reprovado: "Reprovado",
-  devolvido: "Devolvido",
-  registrado: "Registrado",
-};
-
-/** Etapas e status gravados como código (ex.: "em_validacao") viram o rótulo do fluxo. */
-function rotuloEtapa(valor: string | null | undefined) {
-  if (!valor) return null;
-  return PEDIDO_INTERNO_STATUS[valor as PedidoInternoStatus]?.label ?? valor;
-}
-
-function itemTipoLabel(tipo: string | null | undefined) {
-  if (tipo === "servico") return "Serviço";
-  if (tipo === "equipamento") return "Equipamento";
-  return "Material";
-}
-
-function pushOpcao(map: Map<number, Set<string>>, id: number, value: string | null | undefined) {
-  const valor = String(value ?? "").trim();
-  if (!valor) return;
-  const set = map.get(id) ?? new Set<string>();
-  set.add(valor);
-  map.set(id, set);
-}
-
-function primeiraRelacao<T>(value: T | T[] | null | undefined): T | null {
-  if (Array.isArray(value)) return value[0] ?? null;
-  return value ?? null;
-}
-
-function montarCatalogoItens(
-  insumos: InsumoPedidoRaw[],
-  historico: PedidoItemHistorico[],
-  insumosLegado: Set<number>,
-): PedidoItemCatalogo[] {
-  const unidades = new Map<number, Set<string>>();
-  const modelos = new Map<number, Set<string>>();
-  const volumes = new Map<number, Set<string>>();
-  const fornecedores = new Map<number, Set<string>>();
-
-  for (const insumo of insumos) {
-    pushOpcao(unidades, insumo.id, insumo.unidade);
-    pushOpcao(unidades, insumo.id, insumo.unidade_consumo);
-    pushOpcao(modelos, insumo.id, insumo.fabricante);
-    pushOpcao(modelos, insumo.id, insumo.codigo_fabricante);
-    pushOpcao(fornecedores, insumo.id, primeiraRelacao(insumo.fornecedores)?.nome);
-    if (insumo.quantidade_embalagem && insumo.unidade) {
-      pushOpcao(volumes, insumo.id, `${insumo.quantidade_embalagem} ${insumo.unidade}`);
-    }
-  }
-
-  for (const item of historico) {
-    if (!item.insumo_id) continue;
-    pushOpcao(unidades, item.insumo_id, item.unidade);
-    pushOpcao(modelos, item.insumo_id, item.modelo);
-    pushOpcao(volumes, item.insumo_id, item.volume);
-    pushOpcao(fornecedores, item.insumo_id, item.fornecedor_sugerido);
-  }
-
-  return insumos.map((insumo) => ({
-    id: insumo.id,
-    especificacao: insumo.especificacao,
-    nomeItem: insumo.nome_item,
-    categoriaCompra: insumo.categoria_compra,
-    tipoInsumo: primeiraRelacao(insumo.tipo_insumos)?.nome,
-    unidade: insumo.unidade,
-    fabricante: insumo.fabricante,
-    codigoFabricante: insumo.codigo_fabricante,
-    custoUnitario: insumo.custo_unitario,
-    // Mesma regra de kontrol_private.modelo_quantidade_insumo (0123): conta em frascos
-    // quando há volume do frasco e unidade, e não restam lotes antigos por volume.
-    emFrascos: !insumosLegado.has(insumo.id) && Number(insumo.quantidade_embalagem) > 0 && Boolean(insumo.unidade?.trim()),
-    conteudoEmbalagem: insumo.quantidade_embalagem ?? null,
-    custoEmbalagem:
-      insumo.custo_total_embalagem ??
-      (insumo.custo_unitario != null && insumo.quantidade_embalagem
-        ? insumo.custo_unitario * insumo.quantidade_embalagem
-        : null),
-    unidades: [...(unidades.get(insumo.id) ?? [])],
-    modelos: [...(modelos.get(insumo.id) ?? [])],
-    volumes: [...(volumes.get(insumo.id) ?? [])],
-    fornecedores: [...(fornecedores.get(insumo.id) ?? [])],
-    sinonimos: separarSinonimos(insumo.sinonimos),
-  }));
-}
-
-function catalogoComVinculoAtual(
-  catalogo: PedidoItemCatalogo[],
-  item: PedidoInternoItem,
-): PedidoItemCatalogo[] {
-  if (!item.insumo_id || catalogo.some((insumo) => insumo.id === item.insumo_id)) return catalogo;
-  return [
-    {
-      id: item.insumo_id,
-      especificacao: `${item.insumos?.especificacao ?? item.especificacao} (inativo)`,
-      unidade: item.insumos?.unidade ?? item.unidade,
-    },
-    ...catalogo,
-  ];
-}
-
-function montarFornecedoresPedido(fornecedores: FornecedorRaw[], insumos: InsumoPedidoRaw[], historico: PedidoItemHistorico[]) {
-  const opcoes = new Set<string>();
-  for (const fornecedor of fornecedores) {
-    const nome = String(fornecedor.nome ?? "").trim();
-    if (nome) opcoes.add(nome);
-  }
-  for (const insumo of insumos) {
-    const nome = String(primeiraRelacao(insumo.fornecedores)?.nome ?? "").trim();
-    if (nome) opcoes.add(nome);
-  }
-  for (const item of historico) {
-    const nome = String(item.fornecedor_sugerido ?? "").trim();
-    if (nome) opcoes.add(nome);
-  }
-  return [...opcoes].sort((a, b) => a.localeCompare(b, "pt-BR"));
-}
-
-function Referencia({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex justify-between gap-3 border-b border-border/60 pb-2 last:border-b-0 last:pb-0">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="max-w-48 text-right font-medium">{children}</dd>
-    </div>
-  );
-}
 
 export default async function PedidoInternoDetalhe({
   params,
@@ -499,7 +227,6 @@ export default async function PedidoInternoDetalhe({
   // aprova). Depois de formalizado, o pedido volta para ajuste antes de mudar a
   // lista (a compra formal acompanha). Mesma regra do servidor.
   const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado"].includes(pedido.status));
-  const inputCls = "rounded-md border border-input bg-card px-3 py-2 text-sm";
 
   // Recebimento é uma marca paralela: o pedido está recebido quando tem itens e
   // todos foram recebidos individualmente.
@@ -596,71 +323,20 @@ export default async function PedidoInternoDetalhe({
       <main className="app-page-container">
         <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Pedidos", href: "/pedido" }, { label: pedidoInternoNumero(pedido.id) }]} />
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-mono text-xs font-medium text-muted-foreground/80">{pedidoInternoNumero(pedido.id)}</p>
-              <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusMeta.className}`}>
-                {statusMeta.label}
-              </span>
-            </div>
-            <h1 className="text-xl font-semibold tracking-tight">{pedido.titulo}</h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Projeto: {projeto} · Solicitante: {pedido.solicitante ?? "—"}
-              {pedido.data_necessidade ? ` · Necessidade: ${formatDate(pedido.data_necessidade)}` : ""}
-              {pedido.urgencia ? ` · Urgência: ${URGENCIA_LABEL[pedido.urgencia] ?? pedido.urgencia}` : ""}
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {pedido.natureza ? `${rotuloNatureza(pedido.natureza)} · ` : ""}
-              {pedido.objetivo ? `Objetivo: ${rotuloObjetivo(pedido.objetivo)} · ` : ""}
-              Uso: {rotuloUso(pedido.tipo_demanda)} · Coordenador: {coordenadorProjeto}
-              {pedido.aprovador_coordenador_diferente ? " · aprovado por substituto" : ""}
-              {pedido.modalidade_compra ? ` · Modalidade: ${modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra}` : ""}
-            </p>
-            {pedido.justificativa && (
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{pedido.justificativa}</p>
-            )}
-            {ehUrgente(pedido.urgencia) && pedido.urgencia_justificativa && (
-              <p className="mt-1 max-w-3xl text-sm text-warning-strong">
-                <span aria-hidden="true">! </span>Urgente: {pedido.urgencia_justificativa}
-              </p>
-            )}
-            {avisoControlado && (
-              <p className="mt-1 max-w-3xl text-sm text-warning-strong" data-testid="controlado-funpar">
-                <span aria-hidden="true">! </span>{avisoControlado}
-              </p>
-            )}
-            <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
-              {pedido.ciclo_pagamento
-                ? `${datasCiclo.solicitadoEm ? `Solicitado em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.solicitadoEm)))} · ` : ""}${datasCiclo.aprovadoEm ? `Aprovado pela coordenação em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.aprovadoEm)))} (esta data define o ciclo) · ` : ""}Ciclo de compras: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
-                : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado"].includes(pedido.status)
-                  ? explicarCicloHoje(dataEmBrasilia(new Date()), ehUrgente(pedido.urgencia))
-                  : null}
-            </p>
-          </div>
-          <div className="flex flex-col items-start gap-2 sm:items-end">
-            <span className="text-xs text-muted-foreground">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
-            <PedidoInternoCabecalhoAcoes
-              pedidoId={pedidoId}
-              numero={pedidoInternoNumero(pedido.id)}
-              titulo={pedido.titulo}
-              projetoId={pedido.projeto_id}
-              dataNecessidade={pedido.data_necessidade}
-              urgencia={pedido.urgencia}
-              urgenciaJustificativa={pedido.urgencia_justificativa ?? null}
-              tipoDemanda={pedido.tipo_demanda}
-              natureza={pedido.natureza}
-              objetivo={pedido.objetivo}
-              areaId={pedido.area_id ?? null}
-              areas={areas}
-              fonteRecurso={pedido.fonte_recurso}
-              justificativa={pedido.justificativa}
-              projetos={projetos ?? []}
-              status={pedido.status}
-              podeExcluir={podeGerir && pedido.pedido_compra_id === null}
-            />
-          </div>
-        </div>
+        <PedidoCabecalho
+          pedido={pedido}
+          statusMeta={statusMeta}
+          projeto={projeto}
+          coordenadorProjeto={coordenadorProjeto}
+          modalidadeLabel={modalidadeLabel}
+          avisoControlado={avisoControlado}
+          datasCiclo={datasCiclo}
+          cicloTravadoAte={cicloTravadoAte}
+          pedidoId={pedidoId}
+          areas={areas}
+          projetos={projetos}
+          podeGerir={podeGerir}
+        />
 
         <section aria-label="Andamento do pedido" className="mt-3 rounded-lg border border-border bg-card px-3 py-4 shadow-sm">
           <PedidoTrilha etapa={etapa} />
@@ -677,630 +353,80 @@ export default async function PedidoInternoDetalhe({
         </section>
 
         <section className="mt-3 grid items-start gap-3 lg:grid-cols-[minmax(0,1.15fr)_minmax(20rem,.85fr)]">
-          <div
-            data-testid="painel-agora"
-            className={cn(
-              "rounded-lg border bg-card p-4 shadow-sm",
-              vez.tom === "sua" ? "border-primary/60 ring-1 ring-primary/30" : "border-border",
-            )}
-          >
-            <div className="flex flex-col-reverse items-start gap-2 sm:flex-row sm:justify-between sm:gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-1">
-                  <p className="text-xs font-semibold text-muted-foreground">
-                    {encerrado ? "Situação" : "O que falta agora"}
-                  </p>
-                  <HelpTip title="O que falta agora">
-                    <p>
-                      Este quadro diz o próximo passo do pedido, com quem ele está e o que vem depois. Quando
-                      o passo depende de você, aparece <b>Sua vez</b> e os botões ficam aqui mesmo.
-                    </p>
-                    <p>A trilha acima mostra as seis etapas: as cumpridas levam um visto e a atual fica em destaque.</p>
-                  </HelpTip>
-                </div>
-                <h2 className="mt-0.5 text-lg font-semibold leading-6">{proxima.acao}</h2>
-                {proxima.responsavel !== "—" && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    Com: <b className="font-medium text-foreground">{proxima.responsavel}</b>
-                  </p>
-                )}
-              </div>
-              <span
-                data-testid="vez"
-                className={cn(
-                  "inline-flex shrink-0 items-center rounded-full px-3 py-1 text-sm font-semibold",
-                  vez.tom === "sua"
-                    ? "bg-primary text-primary-foreground"
-                    : vez.tom === "espera"
-                      ? "bg-warning-soft text-warning-strong"
-                      : "bg-muted text-muted-foreground",
-                )}
-              >
-                {vez.rotulo}
-              </span>
-            </div>
-            {vez.texto && <p className="mt-2 max-w-2xl text-sm text-foreground">{vez.texto}</p>}
-            <div className="mt-3">
-              {statusMeta && !editavel && (
-                <PedidoInternoAcoes
-                  pedidoId={pedidoId}
-                  status={pedido.status}
-                  podeGerir={podeGerir}
-                  podeEnviarValidacao={rascunhoCompleto}
-                  temCompraFormal={Boolean(compraFormal)}
-                  motivoSemValidacao={
-                    podeValidar
-                      ? undefined
-                      : `Quem aprova: ${aprovadores?.coordenador?.nome ?? "coordenador do projeto"}. Na ausência, o Administrador.`
-                  }
-                  aguardandoLaboratorio={esperaLaboratorio}
-                  podeDecidirLaboratorio={podeDecidirLaboratorio}
-                  motivoCicloTravado={motivoCiclo}
-                  pendenciaPagamento={pendenciaPagamento}
-                  podeConfirmarEntrega={podeConfirmar}
-                  motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
-                  motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
-                  controlado={controlados.length > 0}
-                />
-              )}
-              {pendenciaPagamento && (
-                <p className="mt-2 text-xs text-warning-strong" data-testid="pendencia-pagamento">
-                  <span aria-hidden="true">⏳ </span>
-                  {pendenciaPagamento}
-                </p>
-              )}
-              {pedido.entrega_confirmada_em && (
-                <p className="mt-2 text-xs text-muted-foreground" data-testid="entrega-confirmada">
-                  <span aria-hidden="true">✓ </span>
-                  Entrega confirmada em {formatDateTime(pedido.entrega_confirmada_em)} por {pedido.entrega_confirmada_por ?? "—"}
-                  {pedido.entrega_observacao ? `: ${pedido.entrega_observacao}` : "."}
-                </p>
-              )}
-              {pedido.excecao_pagamento && (
-                <p className="mt-2 text-xs text-warning-strong" data-testid="excecao-pagamento">
-                  <span aria-hidden="true">! </span>
-                  Exceção registrada por {pedido.excecao_pagamento_por ?? "—"}
-                  {pedido.excecao_pagamento_em ? ` em ${formatDateTime(pedido.excecao_pagamento_em)}` : ""}: pagamento antes da entrega.
-                  Acordo: {pedido.excecao_pagamento}
-                </p>
-              )}
-              {editavel && (
-                <a
-                  href="#envio"
-                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-sm font-medium text-foreground hover:bg-muted"
-                >
-                  Conferir e enviar, no fim da lista de itens
-                </a>
-              )}
-              {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && (
-                <p className="text-sm text-muted-foreground">
-                  Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos”.
-                </p>
-              )}
-            </div>
-            {proxima.depois && (
-              <p className="mt-3 border-t border-border/70 pt-3 text-sm text-muted-foreground" data-testid="depois">
-                <b className="font-medium text-foreground">Depois:</b> {proxima.depois}
-              </p>
-            )}
-            {etapasQuemAprova.length > 0 && <QuemAprova etapas={etapasQuemAprova} />}
-            {editavel && (aprovadores?.falta_coordenador || aprovadores?.falta_laboratorio) && (
-              <p className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm" data-testid="resolver-trava">
-                {aprovadores.falta_coordenador && pedido.projeto_id != null && (
-                  <Link href={`/cadastros/projetos?focus=${pedido.projeto_id}`} className="font-medium text-primary hover:underline">
-                    Indicar o coordenador do projeto
-                  </Link>
-                )}
-                {aprovadores.falta_laboratorio && (
-                  <Link href="/cadastros/coordenacoes" className="font-medium text-primary hover:underline">
-                    Indicar a coordenação do laboratório
-                  </Link>
-                )}
-              </p>
-            )}
-            {comOrcamentos && (
-              <PedidoOrcamentos
-                pedidoId={pedidoId}
-                status={pedido.status}
-                orcamentos={orcamentos}
-                podeGerir={podeGerir}
-                fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
-                  .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
-                  .map((f) => ({ id: f.id, nome: f.nome }))}
-                anexos={anexoRowsBase
-                  .filter((a) => ["orcamento_previo", "proposta", "print", "email"].includes(a.tipo))
-                  .map((a) => ({ id: a.id, titulo: a.titulo }))}
-              />
-            )}
-            {pedido.status === "formalizado" && podeGerir && (
-              <FormComMensagem action={registrarAnaliseAdministrativa} className="mt-5 grid gap-3 rounded-lg border border-border bg-muted/20 p-4 md:grid-cols-2">
-                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <div className="flex items-center gap-1 md:col-span-2">
-                  <h3 className="text-sm font-semibold">Análise administrativa</h3>
-                  <HelpTip title="Análise administrativa">
-                    <p>Confirme recurso, rubrica e conformidade antes de liberar cotação.</p>
-                  </HelpTip>
-                </div>
-                <div>
-                  <label htmlFor="registrarAnaliseAdministrativa-fonte_recurso" className="block text-xs font-medium text-muted-foreground">Fonte do recurso</label>
-                  <input id="registrarAnaliseAdministrativa-fonte_recurso"
-                    name="fonte_recurso"
-                    required
-                    defaultValue={pedido.fonte_recurso ?? (controlados.length > 0 ? "FUNPAR" : "")}
-                    className={`${inputCls} mt-1 w-full`}
-                  />
-                  {controlados.length > 0 && (
-                    <p className="mt-1 text-xs text-warning-strong">Produto controlado: a fonte tem que ser a FUNPAR.</p>
-                  )}
-                </div>
-                <div>
-                  <label htmlFor="registrarAnaliseAdministrativa-rubrica" className="block text-xs font-medium text-muted-foreground">Rubrica</label>
-                  <input id="registrarAnaliseAdministrativa-rubrica" name="rubrica" required defaultValue={pedido.rubrica ?? ""} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="registrarAnaliseAdministrativa-conformidade_admin" className="block text-xs font-medium text-muted-foreground">Conformidades administrativas</label>
-                  <textarea id="registrarAnaliseAdministrativa-conformidade_admin" name="conformidade_admin" required defaultValue={pedido.conformidade_admin ?? ""} rows={3} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="registrarAnaliseAdministrativa-observacao" className="block text-xs font-medium text-muted-foreground">Observação</label>
-                  <input id="registrarAnaliseAdministrativa-observacao" name="observacao" defaultValue={pedido.observacao_compras ?? ""} className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <SubmitButton pendingLabel="Registrando…" className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                    Registrar análise administrativa
-                  </SubmitButton>
-                </div>
-              </FormComMensagem>
-            )}
-            {aguardandoChegada && (
-              <div className="mt-3 rounded-lg border border-leaf-300 bg-leaf-50 p-3 text-sm text-leaf-800 dark:border-leaf-900 dark:bg-leaf-950/30 dark:text-leaf-300">
-                <span className="inline-flex items-center gap-1">
-                  <span>
-                    Receba os itens na tabela ou em{" "}
-                    <Link href="/recebimento" className="font-medium underline">
-                      Recebimento
-                    </Link>
-                    .
-                  </span>
-                  <HelpTip title="Quando o recebimento termina">
-                    <p>
-                      A etapa de recebimento só fecha quando <b>todos</b> os materiais e equipamentos do
-                      pedido forem lançados no estoque.
-                    </p>
-                  </HelpTip>
-                </span>
-              </div>
-            )}
-          </div>
+          <PedidoPainelAgora
+            vez={vez}
+            encerrado={encerrado}
+            proxima={proxima}
+            statusMeta={statusMeta}
+            editavel={editavel}
+            pedidoId={pedidoId}
+            pedido={pedido}
+            podeGerir={podeGerir}
+            rascunhoCompleto={rascunhoCompleto}
+            compraFormal={compraFormal}
+            podeValidar={podeValidar}
+            aprovadores={aprovadores}
+            esperaLaboratorio={esperaLaboratorio}
+            podeDecidirLaboratorio={podeDecidirLaboratorio}
+            motivoCiclo={motivoCiclo}
+            pendenciaPagamento={pendenciaPagamento}
+            podeConfirmar={podeConfirmar}
+            resumoOrcamentos={resumoOrcamentos}
+            controlados={controlados}
+            etapasQuemAprova={etapasQuemAprova}
+            comOrcamentos={comOrcamentos}
+            orcamentos={orcamentos}
+            fornecedores={fornecedores}
+            anexoRowsBase={anexoRowsBase}
+            aguardandoChegada={aguardandoChegada}
+          />
 
-          <aside className="rounded-lg border border-border bg-card p-3 text-sm shadow-sm">
-            <h2 className="text-sm font-semibold">Resumo do pedido</h2>
-            <div className="mt-2 grid grid-cols-3 gap-2 text-center text-xs">
-              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
-                <p className="text-muted-foreground">Itens</p>
-                <p className="text-base font-semibold tabular-nums">{linhas.length}</p>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
-                <p className="text-muted-foreground">Recebidos</p>
-                <p className="text-base font-semibold tabular-nums">{itensFisicos.length ? `${itensRecebidos}/${itensFisicos.length}` : "—"}</p>
-              </div>
-              <div className="rounded-md border border-border bg-muted/30 px-2 py-2">
-                <p className="text-muted-foreground">Valor prévio</p>
-                <p className="text-base font-semibold tabular-nums">{brl(total)}</p>
-              </div>
-            </div>
-            <dl className="mt-3 grid gap-x-5 gap-y-1.5 text-xs sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-              <Referencia label="Compra">
-                {compraFormal ? (
-                  <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">
-                    #{compraFormal.id} · {statusInfo(compraFormal.status).label}
-                  </Link>
-                ) : "—"}
-              </Referencia>
-              <Referencia label="Modalidade">{pedido.modalidade_compra ? modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra : "—"}</Referencia>
-              <Referencia label="Instituição">{pedido.instituicao_destino ?? "—"}</Referencia>
-              <Referencia label="Protocolo">{pedido.protocolo_externo ?? "—"}</Referencia>
-              <Referencia label="Fonte">{pedido.fonte_recurso ?? "—"}</Referencia>
-              <Referencia label="Rubrica">{pedido.rubrica ?? "—"}</Referencia>
-              <Referencia label="Doc. cotação">{temDocumentoCotacao ? "registrado" : "pendente"}</Referencia>
-              <Referencia label="Doc. fiscal">{temDocumentoFiscal ? "registrado" : "pendente"}</Referencia>
-            </dl>
-          </aside>
+          <PedidoResumo
+            linhas={linhas}
+            itensFisicos={itensFisicos}
+            itensRecebidos={itensRecebidos}
+            total={total}
+            compraFormal={compraFormal}
+            pedido={pedido}
+            modalidadeLabel={modalidadeLabel}
+            temDocumentoCotacao={temDocumentoCotacao}
+            temDocumentoFiscal={temDocumentoFiscal}
+          />
         </section>
 
-        <section className="mt-4">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold text-muted-foreground">Materiais, serviços e equipamentos</h2>
-                <HelpTip title="Itens do pedido">
-                  <p>
-                    Monte a lista antes de enviar para aprovação. O valor <b>prévio</b> é uma estimativa;
-                    o preço final vem da cotação.
-                  </p>
-                </HelpTip>
-              </div>
-            </div>
-            <p className="text-sm text-muted-foreground">Total prévio: <b>{brl(total)}</b></p>
-          </div>
-
-          <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Item</th>
-                  <th className="px-4 py-3 text-left">Modelo/volume</th>
-                  <th className="px-4 py-3 text-right">Qtd</th>
-                  <th className="px-4 py-3 text-right">Prévio un.</th>
-                  <th className="px-4 py-3 text-left">Fornecedor</th>
-                  <th className="px-4 py-3 text-left">Recebimento</th>
-                  {podeEditarItens && <th className="px-4 py-3 text-right">Ação</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                {linhas.map((item) => (
-                  <tr key={item.id}>
-                    <td className="max-w-sm px-4 py-2.5">
-                      <p className="font-medium">{item.especificacao}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {itemTipoLabel(item.tipo)}
-                        {item.insumos?.especificacao ? ` · vinculado: ${item.insumos.especificacao}` : ""}
-                      </p>
-                      {item.insumos?.codigo_fabricante ? (
-                        <p className="text-xs" data-testid="item-codigo-fabricante">
-                          <span className="font-medium">Código do fabricante:</span> <span className="font-mono">{item.insumos.codigo_fabricante}</span>
-                        </p>
-                      ) : null}
-                      {item.caracteristicas ? (
-                        <p className="text-xs"><span className="font-medium">Indispensável:</span> {item.caracteristicas}</p>
-                      ) : null}
-                      {item.exigencia_tecnica ? (
-                        <p className="text-xs"><span className="font-medium">Exigido por protocolo:</span> {item.exigencia_tecnica}</p>
-                      ) : null}
-                      {item.exclusividade ? (
-                        <p className="text-xs"><span className="font-medium">Exclusividade:</span> {item.exclusividade}</p>
-                      ) : null}
-                      {item.insumo_id != null && (equivalentes.get(item.insumo_id) ?? []).slice(0, 2).map((eq) => (
-                        <p key={eq.insumo_id} className="text-xs text-info-strong" data-testid="equivalente-com-saldo">
-                          Já há no estoque, mesmo tipo: {eq.especificacao}{eq.fabricante ? ` (${eq.fabricante})` : ""} · {fmt(eq.disponivel)} {eq.unidade ?? ""}
-                        </p>
-                      ))}
-                    </td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {[item.modelo, item.volume].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">
-                      {item.quantidade_em === "embalagem" && item.conteudo_embalagem
-                        ? `${fmt(item.quantidade)} ${Number(item.quantidade) === 1 ? "frasco" : "frascos"} de ${fmt(item.conteudo_embalagem)} ${item.insumos?.unidade ?? ""}`.trim()
-                        : `${fmt(item.quantidade)} ${item.unidade ?? item.insumos?.unidade ?? ""}`}
-                    </td>
-                    <td className="px-4 py-2.5 text-right tabular-nums">{brl(item.orcamento_previo)}</td>
-                    <td className="px-4 py-2.5 text-muted-foreground">
-                      {item.fornecedor_sugerido ?? "—"}
-                      {item.outros_fornecedores ? <span className="block text-xs">Outros: {item.outros_fornecedores}</span> : null}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <ItemRecebimentoCell
-                        item={{
-                          id: item.id,
-                          pedidoId,
-                          especificacao: item.especificacao,
-                          quantidade: Number(item.quantidade),
-                          quantidadeRecebida: item.quantidade_recebida,
-                          compraFormalId: compraFormal?.id ?? null,
-                          unidade: item.unidade ?? item.insumos?.unidade ?? null,
-                          insumoId: item.insumo_id,
-                          fornecedorSugerido: item.fornecedor_sugerido,
-                          orcamentoPrevio: item.orcamento_previo,
-                        }}
-                        insumos={catalogoComVinculoAtual(catalogoItens, item).map((insumo) => ({ ...insumo, codigo_fabricante: insumo.codigoFabricante }))}
-                        podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
-                        recebidoEm={item.recebido_em}
-                        recebidoPor={item.recebido_por}
-                        recebimentos={(item.pedidos_internos_item_recebimentos ?? [])
-                          .map((recebimento) => ({
-                            id: recebimento.id,
-                            loteId: recebimento.lote_id,
-                            quantidade: Number(recebimento.quantidade),
-                            codigoLote: recebimento.codigo_lote,
-                            fornecedor: recebimento.fornecedor,
-                            validade: recebimento.validade,
-                            responsavel: recebimento.responsavel,
-                            recebidoEm: recebimento.recebido_em,
-                          }))
-                          .sort((a, b) => Date.parse(b.recebidoEm) - Date.parse(a.recebidoEm))}
-                      />
-                      {item.lote_id && (
-                        <Link href={`/estoque/lotes/${item.lote_id}`} className="mt-1 block text-xs text-primary hover:underline">
-                          Lote #{item.lote_id}
-                        </Link>
-                      )}
-                      {item.divergencia_recebimento && (
-                        <p className="mt-1 text-[11px] text-warning-strong">{item.divergencia_recebimento}</p>
-                      )}
-                      {aguardandoChegada && compraFormal && !item.recebido_em && (
-                        <p className="mt-1 text-[11px] text-muted-foreground">
-                          Registrar a chegada pela <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">compra</Link>.
-                        </p>
-                      )}
-                    </td>
-                    {podeEditarItens && (
-                      <td className="px-4 py-2.5 text-right">
-                        <div className="flex items-center justify-end gap-3">
-                          <PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoComVinculoAtual(catalogoItens, item)} fornecedores={fornecedoresPedido} />
-                          <FormComMensagem action={removerItemPedidoInterno} className="flex flex-col items-end">
-                            <input type="hidden" name="item_id" value={item.id} />
-                            <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                            <button className="text-xs text-danger-strong hover:underline">Remover</button>
-                          </FormComMensagem>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                ))}
-                {linhas.length === 0 && (
-                  <tr>
-                    <td colSpan={podeEditarItens ? 7 : 6} className="px-4 py-6 text-center text-muted-foreground/80">
-                      Nenhum material, serviço ou equipamento informado.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {editavel && (
-            <FormComMensagem action={adicionarItemPedidoInterno} className="mt-3 grid gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
-              <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-              <div className="grid gap-3 md:grid-cols-12">
-                <PedidoItemCamposAssistidos catalogo={catalogoItens} fornecedores={fornecedoresPedido} idPrefix="novo-item" />
-                <div className="flex items-end md:col-span-4 xl:col-span-2">
-                  <button className="h-9 w-full rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                    Adicionar item
-                  </button>
-                </div>
-              </div>
-            </FormComMensagem>
-          )}
-          {editavel && (
-            <div id="envio" className="mt-3 scroll-mt-20 rounded-lg border border-border bg-card p-3 shadow-sm">
-              {/* Em larguras médias (~1024 px com a barra lateral) a lista e as ações não cabem lado a lado: empilham. */}
-              <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-muted-foreground">Conferir e enviar</h3>
-                  <div className="mt-2 grid gap-x-4 gap-y-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                    {pendencias.map((item) => (
-                      <div key={item.label} className="flex items-start gap-2 text-xs">
-                        <span className={`mt-0.5 h-2.5 w-2.5 shrink-0 rounded-full ${item.ok ? "bg-brand-500" : "bg-warning-strong"}`} />
-                        <span className={item.ok ? "text-muted-foreground" : "font-medium text-warning-strong"}>
-                          {item.label}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  {avisoReenvio && (
-                    <p className="mt-2 text-xs text-muted-foreground" data-testid="aviso-reenvio">
-                      <span aria-hidden="true">↺ </span>
-                      {avisoReenvio}
-                    </p>
-                  )}
-                </div>
-                <div className="flex justify-start border-t border-border/70 pt-3 xl:justify-end xl:border-t-0 xl:pt-0">
-                  <PedidoInternoAcoes
-                    pedidoId={pedidoId}
-                    status={pedido.status}
-                    podeGerir={podeGerir}
-                    podeCancelar={podeCancelar}
-                    temCompraFormal={Boolean(compraFormal)}
-                    podeEnviarValidacao={rascunhoCompleto}
-                    motivoSemEnvio={travaEnvio ?? undefined}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-        </section>
+        <PedidoItens
+          total={total}
+          podeEditarItens={podeEditarItens}
+          linhas={linhas}
+          equivalentes={equivalentes}
+          pedidoId={pedidoId}
+          compraFormal={compraFormal}
+          catalogoItens={catalogoItens}
+          aguardandoChegada={aguardandoChegada}
+          podeRegistrarRecebimento={podeRegistrarRecebimento}
+          fornecedoresPedido={fornecedoresPedido}
+          editavel={editavel}
+          pendencias={pendencias}
+          avisoReenvio={avisoReenvio}
+          pedido={pedido}
+          podeGerir={podeGerir}
+          podeCancelar={podeCancelar}
+          rascunhoCompleto={rascunhoCompleto}
+          travaEnvio={travaEnvio}
+        />
 
         <section className="mt-4 grid items-start gap-4 lg:grid-cols-2">
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-1">
-                <h2 className="text-sm font-semibold text-muted-foreground">Documentos</h2>
-                <HelpTip title="Documentos">
-                  <p>Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
-                </HelpTip>
-              </div>
-              <span className={`rounded-md px-2 py-1 text-xs ${temDocumentoCotacao ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-                {anexoRows.length} anexo(s)
-              </span>
-            </div>
+          <PedidoDocumentos
+            temDocumentoCotacao={temDocumentoCotacao}
+            anexoRows={anexoRows}
+            editavel={editavel}
+            pedidoId={pedidoId}
+          />
 
-            <div className="mt-3 space-y-2">
-              {anexoRows.map((anexo) => (
-                <div key={anexo.id} className="rounded-lg border border-border p-3 text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-medium">{anexo.titulo}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {ANEXO_TIPO_LABEL[anexo.tipo] ?? anexo.tipo} · {rotuloEtapa(anexo.etapa) ?? "sem etapa"} · {formatDateTime(anexo.criado_em)}
-                      </p>
-                      {anexo.downloadUrl || anexo.url ? (
-                        <a href={(anexo.downloadUrl ?? anexo.url) as string} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
-                          {anexo.downloadUrl ? "Abrir arquivo" : "Abrir referência"}
-                        </a>
-                      ) : anexo.storage_path ? (
-                        <span className="mt-1 inline-block cursor-not-allowed text-xs text-muted-foreground/80" aria-disabled="true">
-                          Arquivo indisponível no momento
-                        </span>
-                      ) : null}
-                      {(anexo.arquivo_nome || anexo.storage_path) && (
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {anexo.arquivo_nome ?? "Arquivo preparado"}
-                          {anexo.mime_type ? ` · ${anexo.mime_type}` : ""}
-                          {anexo.tamanho_bytes ? ` · ${Math.round(anexo.tamanho_bytes / 1024)} KB` : ""}
-                        </p>
-                      )}
-                      {anexo.observacao && <p className="mt-1 text-xs text-muted-foreground">{anexo.observacao}</p>}
-                    </div>
-                    {editavel && (
-                      <FormComMensagem action={removerAnexoPedidoInterno} className="text-right">
-                        <input type="hidden" name="anexo_id" value={anexo.id} />
-                        <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                        <ConfirmSubmitButton
-                          className="text-xs text-danger-strong hover:underline"
-                          titulo="Remover o documento?"
-                          mensagem={`"${anexo.titulo}" sai da lista de documentos deste pedido e o arquivo é apagado.`}
-                          confirmLabel="Remover"
-                          destrutivo
-                        >
-                          Remover
-                        </ConfirmSubmitButton>
-                      </FormComMensagem>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {anexoRows.length === 0 && <p className="text-sm text-muted-foreground/80">Nenhum documento registrado.</p>}
-            </div>
-
-            <details className="mt-3 border-t border-border/70 pt-3">
-              <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">Registrar documento</summary>
-              <FormComMensagem action={adicionarAnexoPedidoInterno} encType="multipart/form-data" className="mt-3 grid gap-3 md:grid-cols-2">
-                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <div>
-                  <label htmlFor="adicionarAnexoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
-                  <select id="adicionarAnexoPedidoInterno-tipo" name="tipo" defaultValue="orcamento_previo" className={`${inputCls} mt-1 w-full`}>
-                    <option value="orcamento_previo">Cotação prévia</option>
-                    <option value="proposta">Cotação do fornecedor</option>
-                    <option value="print">Print</option>
-                    <option value="email">E-mail</option>
-                    <option value="termo_referencia">Termo de referência</option>
-                    <option value="oficio">Ofício</option>
-                    <option value="boleto">Boleto</option>
-                    <option value="nota_fiscal">Nota fiscal</option>
-                    <option value="comprovante">Comprovante</option>
-                    <option value="outro">Outro</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="adicionarAnexoPedidoInterno-titulo" className="block text-xs text-muted-foreground/80">Título</label>
-                  <input id="adicionarAnexoPedidoInterno-titulo" name="titulo" required className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="adicionarAnexoPedidoInterno-arquivo" className="block text-xs text-muted-foreground/80">Arquivo</label>
-                  <input id="adicionarAnexoPedidoInterno-arquivo" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx" className={`${inputCls} mt-1 w-full`} />
-                  <p className="mt-1 text-[11px] text-muted-foreground">PDF, imagem, DOCX ou XLSX, até 15 MB.</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="adicionarAnexoPedidoInterno-url" className="block text-xs text-muted-foreground/80">Link ou referência externa (opcional)</label>
-                  <input id="adicionarAnexoPedidoInterno-url" name="url" placeholder="https://..." className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="adicionarAnexoPedidoInterno-observacao" className="block text-xs text-muted-foreground/80">Observação</label>
-                  <input id="adicionarAnexoPedidoInterno-observacao" name="observacao" className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <SubmitButton pendingLabel="Enviando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                    Registrar documento
-                  </SubmitButton>
-                </div>
-              </FormComMensagem>
-            </details>
-          </div>
-
-          <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold text-muted-foreground">Comunicações</h2>
-              <HelpTip title="Comunicações">
-                <p>Registro interno de e-mails, reuniões, mensagens e encaminhamentos.</p>
-              </HelpTip>
-            </div>
-
-            <div className="mt-3 space-y-2">
-              {comunicacaoRows.map((comunicacao) => (
-                <div key={comunicacao.id} className="rounded-lg border border-border p-3 text-sm">
-                  <p className="font-medium">{comunicacao.assunto ?? COMUNICACAO_TIPO_LABEL[comunicacao.tipo] ?? comunicacao.tipo}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    {COMUNICACAO_TIPO_LABEL[comunicacao.tipo] ?? comunicacao.tipo} · {comunicacao.remetente ?? "—"} → {comunicacao.destinatarios ?? "—"} · {formatDateTime(comunicacao.criado_em)}
-                  </p>
-                  {comunicacao.referencia && <p className="mt-1 text-xs text-primary">{comunicacao.referencia}</p>}
-                  {comunicacao.observacao && <p className="mt-1 text-xs text-muted-foreground">{comunicacao.observacao}</p>}
-                </div>
-              ))}
-              {comunicacaoRows.length === 0 && <p className="text-sm text-muted-foreground/80">Nenhuma comunicação registrada.</p>}
-            </div>
-
-            <details className="mt-3 border-t border-border/70 pt-3">
-              <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">Registrar comunicação</summary>
-              <FormComMensagem action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
-                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <div>
-                  <label htmlFor="registrarComunicacaoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
-                  <select id="registrarComunicacaoPedidoInterno-tipo" name="tipo" defaultValue="email" className={`${inputCls} mt-1 w-full`}>
-                    <option value="email">E-mail</option>
-                    <option value="reuniao">Reunião</option>
-                    <option value="telefone">Telefone</option>
-                    <option value="mensagem">Mensagem</option>
-                    <option value="outro">Outro</option>
-                  </select>
-                </div>
-                <div>
-                  <label htmlFor="registrarComunicacaoPedidoInterno-remetente" className="block text-xs text-muted-foreground/80">Remetente</label>
-                  <input id="registrarComunicacaoPedidoInterno-remetente" name="remetente" defaultValue="giacompras2025@gmail.com" className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="registrarComunicacaoPedidoInterno-destinatarios" className="block text-xs text-muted-foreground/80">Destinatários</label>
-                  <input id="registrarComunicacaoPedidoInterno-destinatarios" name="destinatarios" className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div>
-                  <label htmlFor="registrarComunicacaoPedidoInterno-assunto" className="block text-xs text-muted-foreground/80">Assunto</label>
-                  <input id="registrarComunicacaoPedidoInterno-assunto" name="assunto" className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div>
-                  <label htmlFor="registrarComunicacaoPedidoInterno-referencia" className="block text-xs text-muted-foreground/80">Referência</label>
-                  <input id="registrarComunicacaoPedidoInterno-referencia" name="referencia" placeholder="ID da mensagem, protocolo, link..." className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <label htmlFor="registrarComunicacaoPedidoInterno-observacao" className="block text-xs text-muted-foreground/80">Observação</label>
-                  <input id="registrarComunicacaoPedidoInterno-observacao" name="observacao" className={`${inputCls} mt-1 w-full`} />
-                </div>
-                <div className="md:col-span-2">
-                  <SubmitButton pendingLabel="Registrando…" className="h-9 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
-                    Registrar comunicação
-                  </SubmitButton>
-                </div>
-              </FormComMensagem>
-            </details>
-          </div>
+          <PedidoComunicacoes comunicacaoRows={comunicacaoRows} pedidoId={pedidoId} />
         </section>
 
-        <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
-          <h2 className="text-sm font-semibold">Aprovações e decisões</h2>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
-            {aprovacaoRows.map((aprovacao) => (
-              <div key={aprovacao.id} className="rounded-lg border border-border p-3 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium">{rotuloEtapa(aprovacao.etapa) ?? "—"}</p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {aprovacao.responsavel ?? "—"} · {aprovacao.papel ?? "—"} · {formatDateTime(aprovacao.criado_em)}
-                    </p>
-                  </div>
-                  <span className="rounded-md bg-muted px-2 py-1 text-xs">{DECISAO_LABEL[aprovacao.decisao] ?? aprovacao.decisao}</span>
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {rotuloEtapa(aprovacao.status_origem) ?? "início"} → {rotuloEtapa(aprovacao.status_destino) ?? "—"}
-                </p>
-                {aprovacao.comentario && (
-                  <p className="mt-2 text-xs leading-5 text-foreground">{aprovacao.comentario}</p>
-                )}
-              </div>
-            ))}
-            {aprovacaoRows.length === 0 && (
-              <p className="text-sm text-muted-foreground/80">Nenhuma aprovação formal registrada ainda.</p>
-            )}
-          </div>
-        </section>
+        <PedidoAprovacoes aprovacaoRows={aprovacaoRows} />
 
         <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold">Linha do tempo</h2>

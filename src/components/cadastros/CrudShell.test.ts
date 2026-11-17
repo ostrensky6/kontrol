@@ -1,8 +1,18 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
-import { enviarExclusaoSePermitida } from "./CrudShell";
+import { enviarExclusaoSePermitida } from "./crud/AcoesDaLinha";
 
-const source = readFileSync(new URL("./CrudShell.tsx", import.meta.url), "utf8");
+// O cadastro é uma tela só, dividida em arquivos (auditoria de 16/11, item 12):
+// a tabela fica em CrudShell.tsx e as peças em ./crud. O texto é lido na ordem da tela.
+const ARQUIVOS = [
+  "./CrudShell.tsx",
+  "./crud/apoio.ts",
+  "./crud/AcoesDaLinha.tsx",
+  "./crud/CadastroDrawer.tsx",
+  "./crud/LotesInsumoResumo.tsx",
+  "./crud/CampoInput.tsx",
+];
+const source = ARQUIVOS.map((arquivo) => readFileSync(new URL(arquivo, import.meta.url), "utf8")).join("\n");
 
 describe("CrudShell: quantidade no cadastro de insumos", () => {
   it("nao depende mais do fluxo de estoque em quarentena para o cadastro", () => {
