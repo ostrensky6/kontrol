@@ -420,6 +420,26 @@ const baseStore = (): Store => {
       insumos: { especificacao: "Mix PCR", unidade: "uL", codigo_fabricante: null },
       pedidos_compra: { id: 9401, status: "enviado", fornecedores: { nome: "Fornecedor E2E" } },
     },
+    // 2.1.8: nova compra de uma pendência; não nasceu de pedido e entra na mesma fila de Recebimento
+    {
+      id: 94021,
+      pedido_id: 9402,
+      pedido_interno_item_id: null,
+      insumo_id: 1,
+      quantidade: 4,
+      quantidade_recebida: 1,
+      quantidade_em: "embalagem",
+      conteudo_embalagem: 500,
+      lote_id: null,
+      insumos: { especificacao: "Mix PCR", unidade: "uL", codigo_fabricante: null },
+      pedidos_compra: {
+        id: 9402,
+        status: "aprovado",
+        projeto: "Projeto E2E",
+        compra_origem_id: 9400,
+        fornecedores: { nome: "Fornecedor da pendência E2E" },
+      },
+    },
   ],
   pedidos_internos_itens: [
     // 2.1.7: item de pedido que virou compra já enviada; a chegada é registrada na própria linha

@@ -192,7 +192,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Visão geral: o quadro 'Aguardando você' e o quadro 'Andamento dos pedidos', com as seis etapas.",
           "Pedidos: cada pedido e a etapa em que está, da solicitação ao pagamento.",
           "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'.",
-          "Recebimento: registrar o que chegou. A chegada cria o lote no Estoque.",
+          "Recebimento: registrar o que chegou, numa lista só. A coluna Origem diz se a linha vem de um pedido ou de uma compra sem pedido (como a nova compra de uma pendência). A chegada cria o lote no Estoque.",
           "Prazos de compra: quanto tempo cada compra levou, do pedido à chegada.",
           "O Estoque é um módulo próprio na barra lateral, logo abaixo de Compras. O Planejamento fica em Projetos, porque o plano vem antes da compra.",
           "Notificações não ficam nesta barra: os avisos vêm de todos os módulos e abrem pelo sino, no topo de qualquer tela.",

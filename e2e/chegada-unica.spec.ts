@@ -76,3 +76,49 @@ test("sem a permissão de registrar chegada de compras, a linha continua apontan
   await expect(page.getByTestId("chegada-pela-compra")).toHaveCount(0);
   await expect(page.getByRole("link", { name: "Registrar chegada em Compras" })).toHaveAttribute("href", "/compras/9401");
 });
+
+test("Recebimento tem uma lista só: a compra sem pedido fica na mesma tabela, com a origem escrita", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/recebimento");
+  // um título, uma tabela: o bloco separado "Compras sem pedido" deixou de existir
+  await expect(page.getByRole("heading", { name: "Compras sem pedido" })).toHaveCount(0);
+  await expect(page.getByRole("table")).toHaveCount(1);
+  await expect(page.getByRole("columnheader", { name: "Origem" })).toBeVisible();
+
+  const doPedido = page.getByRole("row").filter({ hasText: "Mix PCR da compra E2E" });
+  await expect(doPedido.getByRole("link", { name: "Nº 0504" })).toHaveAttribute("href", "/pedido/504");
+
+  const daCompra = page.getByRole("row").filter({ hasText: "Pendência da compra #9400" });
+  await expect(daCompra.getByRole("link", { name: "Compra #9402" })).toHaveAttribute("href", "/compras/9402");
+  await expect(daCompra).toContainText("4 frascos de 500 uL");
+  await expect(daCompra).toContainText("recebido 1");
+  await expect(daCompra).toContainText("Fornecedor da pendência E2E");
+
+  await daCompra.getByRole("button", { name: "Registrar chegada" }).click();
+  const chegada = page.getByRole("dialog", { name: "Registrar chegada do item" });
+  await expect(chegada.locator('[name="item_id"]')).toHaveValue("94021");
+  await expect(chegada.locator('[name="pedido_id"]')).toHaveValue("9402");
+  // faltam 3 dos 4 frascos
+  await expect(chegada.locator('[name="quantidade_recebida"]')).toHaveValue("3");
+  await chegada.getByRole("button", { name: "Cancelar" }).click();
+});
+
+test("a busca de Recebimento acha a compra sem pedido pelo número e pelo fornecedor", async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/recebimento");
+  const busca = page.getByPlaceholder(/^Buscar item, pedido/);
+  await busca.fill("Compra #9402");
+  await expect(page.getByRole("row").filter({ hasText: "Pendência da compra #9400" })).toHaveCount(1);
+  await expect(page.getByRole("row").filter({ hasText: "Mix PCR da compra E2E" })).toHaveCount(0);
+  await busca.fill("Fornecedor da pendência");
+  await expect(page.getByRole("row").filter({ hasText: "Pendência da compra #9400" })).toHaveCount(1);
+});
+
+test("sem a permissão, a compra sem pedido aparece na lista e diz o que falta", async ({ page }) => {
+  await comoCategoria(page, "laboratorio");
+  await page.setViewportSize({ width: 1366, height: 850 });
+  await page.goto("/recebimento");
+  const daCompra = page.getByRole("row").filter({ hasText: "Pendência da compra #9400" });
+  await expect(daCompra).toContainText("Requer a permissão “Registrar chegada de compras”");
+  await expect(daCompra.getByRole("button", { name: "Registrar chegada" })).toHaveCount(0);
+});

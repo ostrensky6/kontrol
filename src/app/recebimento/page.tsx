@@ -10,7 +10,6 @@ import {
   RecebimentoItensTable,
   type RecebimentoItemRow,
 } from "@/components/pedido/RecebimentoItensTable";
-import { ScannerRecebimentoCompra } from "@/components/compras/ScannerRecebimentoCompra";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import {
@@ -20,10 +19,9 @@ import {
   compraAceitaChegada,
   type ItemCompraDoPedidoRaw,
 } from "@/lib/pedido/chegada-pela-compra";
-import { formatNumber } from "@/lib/formatters";
+import { statusInfo } from "@/components/app/status";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -70,6 +68,9 @@ type CompraFormalItemRaw = {
   pedidos_compra: {
     id: number;
     status: string;
+    projeto: string | null;
+    /** compra encerrada com pendência que esta compra repõe (0130) */
+    compra_origem_id: number | null;
     fornecedores: { nome: string | null } | null;
   } | null;
 };
@@ -88,7 +89,7 @@ export default async function RecebimentoPage() {
     leitura.de("insumos", supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao")),
     supabase
       .from("pedidos_compra_itens")
-      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status, fornecedores(nome))")
+      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status, projeto, compra_origem_id, fornecedores(nome))")
       .is("pedido_interno_item_id", null)
       .order("id", { ascending: false }),
     pode("compras.receber"),
@@ -115,14 +116,16 @@ export default async function RecebimentoPage() {
     ? chegadasPelaCompra((comprasDosPedidos ?? []) as unknown as ItemCompraDoPedidoRaw[])
     : new Map<number, never>();
 
-  const rows: RecebimentoItemRow[] = itens.map((item) => {
+  const linhasDePedido: RecebimentoItemRow[] = itens.map((item) => {
     const pedido = item.pedidos_internos!;
     const status = pedido.status;
     return {
       id: item.id,
+      origem: "pedido",
+      origemRotulo: pedidoInternoNumero(pedido.id),
+      origemHref: `/pedido/${pedido.id}`,
+      origemDetalhe: pedido.titulo,
       pedidoId: pedido.id,
-      pedidoNumero: pedidoInternoNumero(pedido.id),
-      pedidoTitulo: pedido.titulo,
       especificacao: item.especificacao,
       quantidade: Number(item.quantidade),
       quantidadeRecebida: item.quantidade_recebida,
@@ -154,15 +157,58 @@ export default async function RecebimentoPage() {
     };
   });
 
-  // leitura que falha não vira fila vazia nem contagem zero
-  const semDado = Boolean(erroItens || erroCompras);
-  const prontos = rows.filter((row) => row.podeReceber || row.compraItem).length;
+  // Chegada única: a compra que não nasceu de pedido (por exemplo, a nova
+  // compra de uma pendência) entra na mesma fila, com a origem escrita.
   const comprasFormais = ((comprasData ?? []) as unknown as CompraFormalItemRaw[]).filter(
     (item) =>
       item.pedidos_compra &&
       compraAceitaChegada(item.pedidos_compra.status) &&
       Number(item.quantidade_recebida ?? 0) < Number(item.quantidade),
   );
+  const linhasDeCompra: RecebimentoItemRow[] = comprasFormais.map((item) => {
+    const compra = item.pedidos_compra!;
+    const insumo = item.insumos;
+    const recebido = Number(item.quantidade_recebida ?? 0);
+    return {
+      id: item.id,
+      origem: "compra",
+      origemRotulo: `Compra #${item.pedido_id}`,
+      origemHref: `/compras/${item.pedido_id}`,
+      origemDetalhe: compra.compra_origem_id ? `Pendência da compra #${compra.compra_origem_id}` : "Compra sem pedido",
+      pedidoId: item.pedido_id,
+      especificacao: insumo?.especificacao ?? `Insumo #${item.insumo_id}`,
+      quantidade: Number(item.quantidade),
+      quantidadeRotulo: rotuloQuantidadeItem(item, insumo?.unidade),
+      quantidadeRecebida: recebido,
+      compraFormalId: item.pedido_id,
+      unidade: insumo?.unidade ?? null,
+      insumoId: item.insumo_id,
+      fornecedorSugerido: compra.fornecedores?.nome ?? null,
+      orcamentoPrevio: null,
+      projeto: compra.projeto?.trim() || "—",
+      status: compra.status,
+      statusLabel: statusInfo(compra.status).label,
+      podeReceber: false,
+      compraItem: podeReceberCompra
+        ? {
+            id: item.id,
+            pedidoId: item.pedido_id,
+            quantidade: Number(item.quantidade),
+            quantidadeRecebida: recebido,
+            insumoId: item.insumo_id,
+            insumoDescricao: insumo?.especificacao ?? null,
+            unidade: insumo?.unidade ?? null,
+            emFrascos: emFrascos(item),
+            conteudoEmbalagem: item.conteudo_embalagem == null ? null : Number(item.conteudo_embalagem),
+          }
+        : null,
+    };
+  });
+  const rows = [...linhasDePedido, ...linhasDeCompra];
+
+  // leitura que falha não vira fila vazia nem contagem zero
+  const semDado = Boolean(erroItens || erroCompras);
+  const prontos = rows.filter((row) => row.podeReceber || row.compraItem).length;
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -174,8 +220,12 @@ export default async function RecebimentoPage() {
               <h1 className="text-xl font-semibold tracking-tight">Recebimento</h1>
               <HelpTip title="Recebimento">
                 <p>
-                  Tudo o que está para chegar, de pedidos e de compras. Cada entrega vira um{" "}
+                  Tudo o que está para chegar, numa lista só. Cada entrega vira um{" "}
                   <b>lote já disponível no estoque</b>; o que faltar continua na fila até chegar tudo.
+                </p>
+                <p>
+                  A coluna <b>Origem</b> diz de onde vem a linha: do pedido ou de uma compra sem pedido, como a nova
+                  compra de uma pendência.
                 </p>
                 <p>
                   Quem registra a chegada não aceita o próprio lote: o aceite fica com outra pessoa.
@@ -187,7 +237,7 @@ export default async function RecebimentoPage() {
           <div className="grid min-w-56 grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="text-muted-foreground">Aguardando</p>
-              <p className="mt-1 text-xl font-semibold tabular-nums">{semDado ? "sem dado" : rows.length + comprasFormais.length}</p>
+              <p className="mt-1 text-xl font-semibold tabular-nums">{semDado ? "sem dado" : rows.length}</p>
             </div>
             <div className="rounded-lg border border-border bg-card p-3">
               <p className="flex items-center gap-1 text-muted-foreground">
@@ -197,13 +247,18 @@ export default async function RecebimentoPage() {
                 </HelpTip>
               </p>
               <p className="mt-1 text-xl font-semibold tabular-nums text-leaf-700 dark:text-leaf-400">
-                {semDado ? "sem dado" : prontos + (podeReceberCompra ? comprasFormais.length : 0)}
+                {semDado ? "sem dado" : prontos}
               </p>
             </div>
           </div>
         </div>
 
         <div className="mt-6">
+          {erroCompras && !erroItens ? (
+            <p role="alert" className="mb-3 rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+              Compras sem pedido: sem dado. A leitura das compras não respondeu; recarregue a página antes de concluir que não há mais nada para receber.
+            </p>
+          ) : null}
           {erroItens ? (
             <p role="alert" className="rounded-xl border border-border bg-card px-4 py-6 text-center text-sm text-muted-foreground">
               Pedidos: sem dado. A leitura da fila de pedidos não respondeu; recarregue a página antes de concluir que não há nada para receber.
@@ -212,86 +267,6 @@ export default async function RecebimentoPage() {
             <RecebimentoItensTable rows={rows} insumos={insumos ?? []} locais={locais} />
           )}
         </div>
-
-        <section className="mt-8">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-1">
-              <h2 className="text-sm font-semibold text-muted-foreground">Compras sem pedido</h2>
-              <HelpTip title="Compras sem pedido">
-                <p>Itens que chegam direto do fornecedor, inclusive chegadas parciais.</p>
-              </HelpTip>
-            </div>
-            <span className="text-sm tabular-nums text-muted-foreground">{erroCompras ? "sem dado" : `${comprasFormais.length} pendente(s)`}</span>
-          </div>
-          <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Compra</TableHead>
-                  <TableHead>Insumo</TableHead>
-                  <TableHead>Fornecedor</TableHead>
-                  <TableHead className="text-right">Recebido</TableHead>
-                  <TableHead className="text-right">Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {comprasFormais.map((item) => {
-                  const insumo = item.insumos;
-                  const pedido = item.pedidos_compra;
-                  const recebido = Number(item.quantidade_recebida ?? 0);
-                  return (
-                    <TableRow key={item.id}>
-                      <TableCell className="font-mono text-xs">#{item.pedido_id}</TableCell>
-                      <TableCell>
-                        <span className="block font-medium">{insumo?.especificacao ?? `Insumo #${item.insumo_id}`}</span>
-                        {insumo?.codigo_fabricante ? (
-                          <span className="block text-xs text-muted-foreground">
-                            Código do fabricante: <span className="font-mono">{insumo.codigo_fabricante}</span>
-                          </span>
-                        ) : null}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{pedido?.fornecedores?.nome ?? "—"}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {formatNumber(recebido)} de {rotuloQuantidadeItem(item, insumo?.unidade)}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        {podeReceberCompra ? (
-                          <ScannerRecebimentoCompra
-                            item={{
-                              id: item.id,
-                              pedidoId: item.pedido_id,
-                              quantidade: Number(item.quantidade),
-                              quantidadeRecebida: recebido,
-                              insumoId: item.insumo_id,
-                              insumoDescricao: insumo?.especificacao ?? null,
-                              unidade: insumo?.unidade ?? null,
-                              emFrascos: emFrascos(item),
-                              conteudoEmbalagem: item.conteudo_embalagem == null ? null : Number(item.conteudo_embalagem),
-                            }}
-                            locais={locais}
-                          />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">Requer a permissão “Registrar chegada de compras”</span>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-                {erroCompras ? (
-                  <TableRow>
-                    <TableCell colSpan={5} role="alert" className="py-6 text-center text-muted-foreground">
-                      Compras: sem dado. A leitura das compras não respondeu; recarregue a página antes de concluir que não há nada para receber.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  comprasFormais.length === 0 && (
-                    <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Nenhuma compra pendente.</TableCell></TableRow>
-                  )
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </section>
       </main>
     </div>
   );
