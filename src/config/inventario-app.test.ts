@@ -207,6 +207,8 @@ const RETIRADOS: Retirado[] = [
   { item: "Editar pedido: campo Urgência preenchido por quem pede", sim: "relatório de ajustes de Compras, ajuste 2, 17/11/2026 13:51 UTC", arquivo: "components/pedido/PedidoInternoCabecalhoAcoes.tsx", naoContem: 'name="urgencia' },
   { item: "Novo pedido: campo Fonte sugerida", sim: "relatório de ajustes de Compras, ajuste 3, 17/11/2026 13:51 UTC (fonte e rubrica são do administrativo)", arquivo: "components/pedido/NovoPedidoDialog.tsx", naoContem: "fonte_recurso" },
   { item: "Editar pedido: campo Fonte sugerida", sim: "relatório de ajustes de Compras, ajuste 3, 17/11/2026 13:51 UTC", arquivo: "components/pedido/PedidoInternoCabecalhoAcoes.tsx", naoContem: "fonte_recurso" },
+  { item: "Pedido e Recebimento: formulário antigo de chegada pelo item, sem compra", sim: "auditoria de 16/11, item 10, proposta 1, cartão de 17/11/2026 12:48 UTC; contagem em produção às 15:13 UTC sem nenhum pedido aprovado sem compra; autorização de 17/11/2026 15:17 UTC (a chegada é registrada pela compra)", arquivo: "components/pedido/ItemRecebimentoCell.tsx", naoContem: "ReceberItemPedidoInterno" },
+  { item: "Ação de chegada pelo item do pedido, sem compra", sim: "auditoria de 16/11, item 10, proposta 1, cartão de 17/11/2026 12:48 UTC; autorização de 17/11/2026 15:17 UTC (a função continua no banco)", arquivo: "lib/actions/pedidos-internos.ts", naoContem: "export async function receberItemPedidoInterno" },
 ];
 
 /** Por que o item retirado voltou; null quando continua fora. */

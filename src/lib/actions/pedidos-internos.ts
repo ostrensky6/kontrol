@@ -11,10 +11,6 @@ import { usuarioAtual } from "@/lib/auth/roles";
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { registrarEvento } from "./eventos";
 import { enviarAvisosDoPedidoAgora } from "@/lib/notifications/envio-imediato";
-import {
-  PEDIDO_INTERNO_AGUARDANDO_CHEGADA,
-  type PedidoInternoStatus,
-} from "@/lib/pedido/status";
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
@@ -28,8 +24,6 @@ const SEM_PERMISSAO: FormState = {
   ok: false,
   message: "Seu perfil não tem permissão para esta etapa. Peça ao administrador para liberar em Usuários.",
 };
-const MSG_VALIDADE_CRITICO = "Validade é obrigatória para receber insumo crítico.";
-const UUID_RECEBIMENTO = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const BUCKET_ANEXOS_PEDIDOS = "pedidos-internos-anexos";
 const TAMANHO_MAXIMO_ANEXO = 15 * 1024 * 1024;
 const MIME_TYPES_ANEXO = new Set([
@@ -1067,98 +1061,6 @@ export async function registrarExcecaoPagamento(_prev: FormState, formData: Form
   revalidatePath("/pedido");
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Exceção registrada. O pagamento pode seguir antes da entrega." };
-}
-
-/**
- * Recebimento por item: lança o item em estoque (lote para o insumo
- * correspondente) e marca o item como recebido. Exige um insumo cadastrado
- * vinculado ao item ou escolhido no recebimento. Só é permitido após a compra
- * ser aprovada.
- */
-export async function receberItemPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
-  const itemId = numero(formData, "item_id");
-  const pedidoId = numero(formData, "pedido_interno_id");
-  if (!itemId || !pedidoId) return { ok: false, message: "Item inválido." };
-  const operacaoId = texto(formData, "operacao_id");
-  if (!operacaoId || !UUID_RECEBIMENTO.test(operacaoId)) {
-    return { ok: false, message: "Identificador da operação de recebimento inválido." };
-  }
-  const supabase = await createClient();
-  const u = await usuarioAtual();
-
-  const { data: item } = await supabase
-    .from("pedidos_internos_itens")
-    .select("id, insumo_id, quantidade, quantidade_recebida, unidade, especificacao, fornecedor_sugerido, orcamento_previo, recebido_em, pedidos_internos(status, projetos(nome))")
-    .eq("id", itemId)
-    .eq("pedido_interno_id", pedidoId)
-    .single();
-  if (!item) return { ok: false, message: "Item não encontrado." };
-
-  const pedido = item.pedidos_internos as unknown as {
-    status: string;
-    projetos: { nome: string | null } | null;
-  } | null;
-  if (!pedido || !PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(pedido.status as PedidoInternoStatus)) {
-    return { ok: false, message: "Só é possível receber itens após a compra ser aprovada." };
-  }
-
-  const insumoId = numero(formData, "insumo_id") ?? item.insumo_id;
-  if (!insumoId) {
-    return { ok: false, message: "Vincule o item a um insumo cadastrado para lançar em estoque." };
-  }
-  const { data: insumoRecebido } = await supabase
-    .from("insumos")
-    .select("categoria_compra")
-    .eq("id", insumoId)
-    .single();
-  const validade = texto(formData, "validade");
-  if (insumoRecebido?.categoria_compra === "critico" && !validade) {
-    return { ok: false, message: MSG_VALIDADE_CRITICO };
-  }
-
-  const quantidade = numero(formData, "quantidade") ?? Number(item.quantidade);
-  if (!(quantidade > 0)) return { ok: false, message: "Quantidade recebida deve ser maior que zero." };
-  const custo = numero(formData, "custo") ?? item.orcamento_previo;
-  const fornecedor = texto(formData, "fornecedor") ?? item.fornecedor_sugerido;
-
-  const responsavel = u?.nome ?? u?.email ?? null;
-  const { error } = await supabase.rpc("receber_item_pedido_interno" as never, {
-    p_pedido_id: pedidoId,
-    p_item_id: itemId,
-    p_insumo_id: insumoId,
-    p_quantidade: quantidade,
-    p_operacao_id: operacaoId,
-    p_validade: validade ?? undefined,
-    p_custo: custo ?? undefined,
-    p_codigo: texto(formData, "codigo") ?? undefined,
-    p_fornecedor: fornecedor ?? undefined,
-    p_projeto: pedido.projetos?.nome ?? undefined,
-    p_responsavel: responsavel ?? undefined,
-  } as never);
-  if (error) return { ok: false, message: mensagemDoBanco(error) };
-  enviarAvisosDoPedidoAgora(pedidoId);
-
-  const { data: itemAtualizado } = await supabase
-    .from("pedidos_internos_itens")
-    .select("quantidade, quantidade_recebida, unidade")
-    .eq("id", itemId)
-    .eq("pedido_interno_id", pedidoId)
-    .single();
-  revalidatePath("/recebimento");
-  revalidatePath("/estoque");
-  revalidatePath("/pedido");
-  revalidatePath(`/pedido/${pedidoId}`);
-  if (!itemAtualizado) return { ok: true, message: "Recebimento registrado." };
-
-  const totalRecebido = Number(itemAtualizado.quantidade_recebida ?? 0);
-  const totalSolicitado = Number(itemAtualizado.quantidade);
-  const parcial = totalRecebido < totalSolicitado;
-  return {
-    ok: true,
-    message: parcial
-      ? `Recebimento parcial registrado. Saldo pendente: ${totalSolicitado - totalRecebido} ${itemAtualizado.unidade ?? ""}.`
-      : "Item recebido integralmente e lançado em estoque.",
-  };
 }
 
 /**

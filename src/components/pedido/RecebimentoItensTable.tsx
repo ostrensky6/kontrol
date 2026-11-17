@@ -41,7 +41,8 @@ export type RecebimentoItemRow = {
   projeto: string;
   status: string;
   statusLabel: string;
-  podeReceber: boolean;
+  /** item de pedido que espera a chegada sem compra ligada: não há chegada a registrar aqui */
+  semCompra: boolean;
   /** item da compra que já pode chegar: recebe aqui, com o diálogo da compra */
   compraItem?: ItemCompraRecebivel | null;
 };
@@ -64,7 +65,7 @@ function quantidadeDaLinha(row: RecebimentoItemRow) {
 }
 
 /** A ação da linha: o mesmo "Registrar chegada" para pedido e para compra. */
-function AcaoDaLinha({ row, insumos, locais }: { row: RecebimentoItemRow; insumos: Insumo[]; locais: Local[] }) {
+function AcaoDaLinha({ row, locais }: { row: RecebimentoItemRow; locais: Local[] }) {
   if (row.origem === "compra") {
     return row.compraItem ? (
       <div data-testid="chegada-da-compra">
@@ -84,12 +85,8 @@ function AcaoDaLinha({ row, insumos, locais }: { row: RecebimentoItemRow; insumo
         quantidadeRecebida: row.quantidadeRecebida,
         compraFormalId: row.compraFormalId,
         unidade: row.unidade,
-        insumoId: row.insumoId,
-        fornecedorSugerido: row.fornecedorSugerido,
-        orcamentoPrevio: row.orcamentoPrevio,
       }}
-      insumos={insumos}
-      podeReceber={row.podeReceber}
+      semCompra={row.semCompra}
       recebimentos={row.recebimentos}
       chegadaPelaCompra={row.compraItem ? { item: row.compraItem, locais } : null}
     />
@@ -151,7 +148,7 @@ function colunas(insumos: Insumo[], locais: Local[]): ColumnDef<RecebimentoItemR
       header: "Recebimento",
       meta: { align: "right" },
       enableSorting: false,
-      cell: ({ row }) => <AcaoDaLinha row={row.original} insumos={insumos} locais={locais} />,
+      cell: ({ row }) => <AcaoDaLinha row={row.original} locais={locais} />,
     },
   ];
 }
@@ -196,7 +193,7 @@ export function RecebimentoItensTable({
       getMobileMeta={(row) => (
         <div className="flex flex-col items-end gap-1.5">
           <StatusBadge status={row.status} />
-          <AcaoDaLinha row={row} insumos={insumos} locais={locais} />
+          <AcaoDaLinha row={row} locais={locais} />
         </div>
       )}
     />
