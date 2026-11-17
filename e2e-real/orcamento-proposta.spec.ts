@@ -79,7 +79,7 @@ test("orçamento de projeto vira proposta emitida, com o documento do cliente", 
   expect(erroVersoes).toBeNull();
   expect(versoes).toHaveLength(1);
   const versao = versoes![0] as { id: number; numero: string; versao: number; status: string; total_final: number; total_projeto_custo: number };
-  expect(versao.status).toBe("emitida");
+  expect(versao.status).toBe("emitido");
   expect(versao.versao).toBe(1);
   expect(Number(versao.total_projeto_custo)).toBeCloseTo(3000, 2);
   expect(Number(versao.total_final)).toBeCloseTo(4285.71, 2);
