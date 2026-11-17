@@ -4,7 +4,7 @@
  * etapa (onde o pedido está) e o status (o detalhe, por escrito).
  *
  * A ordem segue o fluxo único do Kontrol: solicitação → aprovações →
- * autorização administrativa → cotações → compra e entrega → pagamento.
+ * autorização administrativa → cotações → fechamento de compra → pagamento.
  * A entrega vem antes do pagamento (0170, D6).
  */
 
@@ -13,7 +13,8 @@ export const ETAPAS_PEDIDO = [
   { id: "aprovacao", rotulo: "Aprovação", descricao: "coordenador do projeto e do laboratório" },
   { id: "administrativo", rotulo: "Administrativo", descricao: "fonte de recurso e autorização" },
   { id: "cotacao", rotulo: "Cotação", descricao: "três orçamentos e aprovação final" },
-  { id: "compra", rotulo: "Compra e entrega", descricao: "da compra até o material chegar" },
+  // "Fechamento de compra" desde 17/11/2026 (antes, "Compra e entrega"): relatório de ajustes de Compras, ajuste 1
+  { id: "compra", rotulo: "Fechamento de compra", descricao: "da compra até o material chegar" },
   { id: "pagamento", rotulo: "Pagamento", descricao: "nota fiscal e comprovante" },
 ] as const;
 

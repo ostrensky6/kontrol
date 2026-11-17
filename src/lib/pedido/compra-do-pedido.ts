@@ -8,7 +8,7 @@ import type { ItemCompraDoPedidoRaw } from "@/lib/pedido/chegada-pela-compra";
  * (pedido, compra e lista de compras) precisam dizer do mesmo jeito.
  */
 
-/** Etapas do pedido em que o painel "Compra" aparece: de "Compra e entrega" em diante. */
+/** Etapas do pedido em que o painel "Compra" aparece: de "Fechamento de compra" em diante. */
 export const PEDIDO_COM_PAINEL_DA_COMPRA = [
   "aprovado_para_compra",
   "compra_fechada",
@@ -35,7 +35,7 @@ export function hrefDoPainelDaCompra(pedidoId: number) {
   return `/pedido/${pedidoId}#${ANCORA_PAINEL_COMPRA}`;
 }
 
-/** O pedido já mostra o painel "Compra"? Antes de "Compra e entrega" a compra ainda espera a aprovação do pedido. */
+/** O pedido já mostra o painel "Compra"? Antes de "Fechamento de compra" a compra ainda espera a aprovação do pedido. */
 export function pedidoMostraPainelDaCompra(status: string | null | undefined) {
   return PEDIDO_COM_PAINEL_DA_COMPRA.includes(String(status ?? ""));
 }

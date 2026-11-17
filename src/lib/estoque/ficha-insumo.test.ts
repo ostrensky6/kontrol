@@ -146,7 +146,7 @@ describe("pedidos e compras em andamento", () => {
     expect(lista[1]).toMatchObject({
       origem: "pedido",
       href: "/pedido/502",
-      situacao: "Compra e entrega",
+      situacao: "Fechamento de compra",
       quantidade: "5 L",
       previsao: "2026-11-20",
       previsaoInformada: true,

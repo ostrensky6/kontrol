@@ -24,11 +24,11 @@ describe("compra única na tela: o pedido conduz a compra", () => {
   it("a lista de compras e a tela da compra abrem o pedido já no painel", () => {
     expect(hrefDoPainelDaCompra(504)).toBe("/pedido/504#compra");
     expect(hrefDoPedidoQueConduz({ id: 504, status: "compra_fechada" })).toBe("/pedido/504#compra");
-    // antes de "Compra e entrega" o pedido ainda não tem o painel: o link abre o pedido
+    // antes de "Fechamento de compra" o pedido ainda não tem o painel: o link abre o pedido
     expect(hrefDoPedidoQueConduz({ id: 504, status: "orcamentos" })).toBe("/pedido/504");
   });
 
-  it("o painel aparece no pedido de 'Compra e entrega' em diante", () => {
+  it("o painel aparece no pedido de 'Fechamento de compra' em diante", () => {
     for (const status of ["aprovado_para_compra", "compra_fechada", "encaminhado_instituicao", "aguardando_pagamento_nf", "compra_concluida"]) {
       expect(pedidoMostraPainelDaCompra(status)).toBe(true);
     }

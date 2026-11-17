@@ -18,10 +18,10 @@ test("pedido do ciclo seguinte trava a formalização com o motivo", async ({ pa
     page.getByText("Ele segue para compras a partir de 01/12/2099. Só pedido urgente, com justificativa, fura o ciclo.").first(),
   ).toBeVisible();
 
-  // a urgência não muda num pedido validado (contornaria a trava)
+  // quem pede não muda a urgência (contornaria a trava): Editar só mostra e aponta para quem define (0183)
   await page.getByRole("button", { name: "Editar" }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByTestId("urgencia-fixa")).toContainText("Urgência: Normal. Ela só muda com o pedido em rascunho ou devolvido para ajuste.");
+  await expect(dialog.getByTestId("urgencia-fixa")).toContainText("Urgência: Normal. Quem define é o administrativo, pelo botão “Definir urgência” do pedido.");
   await expect(dialog.getByLabel("Urgência")).toHaveCount(0);
 });
 

@@ -160,7 +160,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
   // pedido (pendência de outra compra) continua com os botões dela.
   const pedidoCondutor = pedidoQueConduzCompra(pedidosDeOrigem);
   const semFornecedorNoPedido = pedidoCondutor != null && compraSemFornecedor(pedido);
-  // antes de "Compra e entrega" o pedido ainda não mostra o quadro "Compra"
+  // antes de "Fechamento de compra" o pedido ainda não mostra o quadro "Compra"
   const quadroNoPedido = pedidoCondutor != null && pedidoMostraPainelDaCompra(pedidoCondutor.status);
 
   const eventos = await listarEventos("pedido_compra", pedidoId);
@@ -268,7 +268,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
             <span>
               {quadroNoPedido
                 ? `Esta compra nasceu do pedido ${pedidoInternoNumero(pedidoCondutor.id)} e é conduzida lá: fornecedor, envio ao fornecedor e pendência ficam no quadro “Compra” do pedido. Esta tela serve para consulta e impressão.`
-                : `Esta compra nasceu do pedido ${pedidoInternoNumero(pedidoCondutor.id)} e segue com ele: é aprovada junto com o pedido e o fornecedor vem do orçamento escolhido. O quadro “Compra” aparece no pedido na etapa “Compra e entrega”. Esta tela serve para consulta e impressão.`}
+                : `Esta compra nasceu do pedido ${pedidoInternoNumero(pedidoCondutor.id)} e segue com ele: é aprovada junto com o pedido e o fornecedor vem do orçamento escolhido. O quadro “Compra” aparece no pedido na etapa “Fechamento de compra”. Esta tela serve para consulta e impressão.`}
             </span>
             <Link
               href={hrefDoPedidoQueConduz(pedidoCondutor)}

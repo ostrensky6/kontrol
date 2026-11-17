@@ -51,7 +51,8 @@ export function AguardandoVoce({
       ) : (
         <ul className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           {pendencias.map((p) => (
-            <li key={p.chave} className="rounded-md border border-border/70 p-3">
+            // min-w-0: sem ele o título comprido de um registro alarga a coluna e a página rola para o lado no celular
+            <li key={p.chave} className="min-w-0 rounded-md border border-border/70 p-3">
               <Link
                 href={p.href}
                 className="group flex items-start justify-between gap-3 rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2"

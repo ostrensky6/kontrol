@@ -1390,6 +1390,16 @@ function valorHoraPessoalTotalMock() {
   }, 0);
 }
 
+/** Mesma recusa do gatilho pedidos_internos_proteger_urgencia (0183). */
+const ERRO_URGENCIA_DIRETA: MockErro = {
+  message: 'A urgência do pedido é definida por quem tem a permissão "Definir urgência do pedido", não por quem pede. Crie o pedido sem urgência.',
+  code: "42501",
+};
+
+function urgenciaDeQuemPede(row: Row) {
+  return String(row.urgencia ?? "normal") !== "normal" || Boolean(String(row.urgencia_justificativa ?? "").trim());
+}
+
 class MockQuery {
   private filters: { column: string; value: unknown }[] = [];
   private neqFilters: { column: string; value: unknown }[] = [];
@@ -1519,10 +1529,16 @@ class MockQuery {
         return this;
       }
     }
+    if (this.table === "pedidos_internos" && rows.some((row) => urgenciaDeQuemPede(row))) {
+      this.erro = ERRO_URGENCIA_DIRETA;
+      return this;
+    }
     const inserted = rows.map((row) => ({
       id: row.id ?? nextId(this.table),
       criado_em: row.criado_em ?? new Date().toISOString(),
       status: row.status ?? "rascunho",
+      // 0025/0183: o pedido nasce Normal; a urgência vem depois, de quem tem a permissão
+      ...(this.table === "pedidos_internos" ? { urgencia: "normal", urgencia_justificativa: null } : {}),
       // Espelha os defaults da tabela planejamento (0029/0111).
       ...(this.table === "planejamento"
         ? { status_operacional: "rascunho", reserva_desatualizada: false }
@@ -1544,6 +1560,11 @@ class MockQuery {
   }
 
   update(payload: Row) {
+    if (this.table === "pedidos_internos" && ("urgencia" in payload || "urgencia_justificativa" in payload)) {
+      // 0183: só a função definir_urgencia_pedido_interno grava a urgência
+      this.erro = ERRO_URGENCIA_DIRETA;
+      return this;
+    }
     this.mutation = { type: "update", payload };
     return this;
   }
@@ -2555,6 +2576,78 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           pedido.aprovacao_area_por = "admin@example.com";
         }
         return { data: { pedido_id: pedido.id, decisao: args.p_decisao }, error: null };
+      }
+      // 0183: a urgência é definida só por quem tem a permissão (mesmas regras do banco)
+      if (fn === "definir_urgencia_pedido_interno") {
+        if (!mockTemPermissao("pedido.urgencia", sessao)) {
+          return { data: null, error: { message: "Sem permissão para esta ação (pedido.urgencia). Peça ao administrador para liberar em Usuários.", code: "42501" } };
+        }
+        const urgencia = String(args.p_urgencia ?? "").trim().toLowerCase();
+        if (!["baixa", "normal", "alta", "critica"].includes(urgencia)) {
+          return { data: null, error: { message: "Urgência inválida: use Baixa, Normal, Alta ou Crítica.", code: "22023" } };
+        }
+        const urgente = urgencia === "alta" || urgencia === "critica";
+        const justificativa = urgente ? String(args.p_justificativa ?? "").trim() || null : null;
+        if (urgente && (justificativa?.length ?? 0) < 15) {
+          return { data: null, error: { message: "Pedido urgente fura o ciclo do dia 10 e precisa de justificativa: escreva por que não pode esperar o próximo ciclo.", code: "22023" } };
+        }
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        if (["compra_concluida", "cancelado"].includes(String(pedido.status))) {
+          return { data: null, error: { message: "Pedido concluído ou cancelado não muda de urgência.", code: "22023" } };
+        }
+        const anterior = String(pedido.urgencia ?? "normal");
+        if (anterior === urgencia && (String(pedido.urgencia_justificativa ?? "").trim() || null) === justificativa) {
+          return { data: { pedido_id: pedido.id, urgencia, alterado: false, ciclo: pedido.ciclo_pagamento ?? null }, error: null };
+        }
+        const eraUrgente = anterior === "alta" || anterior === "critica";
+        // o ciclo só é refeito enquanto o pedido espera em "validado": urgente vem para o mês corrente
+        if (pedido.status === "validado" && pedido.ciclo_pagamento && urgente && !eraUrgente) {
+          pedido.ciclo_pagamento = `${new Date().toISOString().slice(0, 7)}-01`;
+        }
+        const agora = new Date().toISOString();
+        Object.assign(pedido, {
+          urgencia,
+          urgencia_justificativa: justificativa,
+          urgencia_definida_por: "admin@example.com",
+          urgencia_definida_em: agora,
+          atualizado_em: agora,
+        });
+        const rotulo: Record<string, string> = { baixa: "Baixa", normal: "Normal", alta: "Alta", critica: "Crítica" };
+        store.eventos_status = [...(store.eventos_status ?? []), {
+          id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: null,
+          para_status: pedido.status, usuario: "admin@example.com", criado_em: agora,
+          observacao: `Urgência: ${rotulo[anterior] ?? anterior} → ${rotulo[urgencia]}${justificativa ? `. Motivo: ${justificativa}` : "."}`,
+        }];
+        return { data: { pedido_id: pedido.id, urgencia, alterado: true, ciclo: pedido.ciclo_pagamento ?? null }, error: null };
+      }
+      // Etapas do pedido (0127/0169/0172): versão simples, o bastante para o
+      // "Novo pedido" enviar para aprovação. As regras completas estão nos testes SQL.
+      if (fn === "registrar_etapa_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const destino = String(args.p_status_destino ?? "");
+        if (destino === "em_validacao") {
+          const aprovadores = mockAprovadoresPedido(pedido);
+          const trava = aprovadores.falta_coordenador ?? aprovadores.falta_laboratorio;
+          if (trava) return { data: null, error: { message: String(trava), code: "22023" } };
+          if (["alta", "critica"].includes(String(pedido.urgencia)) && String(pedido.urgencia_justificativa ?? "").trim().length < 15) {
+            return { data: null, error: { message: "Pedido urgente fura o ciclo do dia 10 e precisa de justificativa: escreva por que não pode esperar o próximo ciclo.", code: "22023" } };
+          }
+        }
+        const agora = new Date().toISOString();
+        const origem = pedido.status;
+        Object.assign(pedido, (args.p_dados ?? {}) as Row, { status: destino, atualizado_em: agora });
+        store.pedidos_internos_aprovacoes = [...(store.pedidos_internos_aprovacoes ?? []), {
+          id: nextId("pedidos_internos_aprovacoes"), pedido_interno_id: pedido.id, etapa: args.p_etapa ?? destino,
+          decisao: args.p_decisao ?? "registrado", responsavel: "admin@example.com", papel: "admin",
+          comentario: args.p_observacao ?? null, status_origem: origem, status_destino: destino, criado_em: agora,
+        }];
+        store.eventos_status = [...(store.eventos_status ?? []), {
+          id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: origem,
+          para_status: destino, usuario: "admin@example.com", observacao: args.p_observacao ?? null, criado_em: agora,
+        }];
+        return { data: { status_origem: origem, status_destino: destino }, error: null };
       }
       // 0175 (D5): reenvio depois do ajuste mantém as aprovações se nada mudou
       if (fn === "reenvio_mantem_aprovacoes" || fn === "reenviar_pedido_interno") {

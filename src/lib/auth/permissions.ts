@@ -85,6 +85,7 @@ export type PermissaoUsuario =
   | "pedido.ver"
   | "pedido.criar"
   | "pedido.aprovar"
+  | "pedido.urgencia"
   | "compras.ver"
   | "compras.receber"
   | "compras.cancelar"
@@ -147,6 +148,7 @@ export const PERMISSOES: Array<{
   { key: "pedido.ver", modulo: "Compras", label: "Acessar Pedidos", descricao: "Ver a visão geral de Compras, os pedidos e suas etapas." },
   { key: "pedido.criar", modulo: "Compras", label: "Criar pedidos", descricao: "Abrir pedidos, anexar documentos e enviar para aprovação." },
   { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Aprovar, devolver, formalizar e conduzir as etapas de compra." },
+  { key: "pedido.urgencia", modulo: "Compras", label: "Definir urgência do pedido", descricao: "Dizer se o pedido é urgente. A urgência fura o ciclo de compras do dia 10; quem pede não a define." },
   { key: "compras.ver", modulo: "Compras", label: "Acessar Compras", descricao: "Ver as compras com fornecedor e os prazos de compra." },
   { key: "compras.solicitar", modulo: "Compras", label: "Solicitar compras", descricao: "Criar compras, incluir itens e gerar reposição." },
   { key: "compras.aprovar", modulo: "Compras", label: "Aprovar compras", descricao: "Aprovar, enviar ao fornecedor e encerrar compras com pendência." },
@@ -255,7 +257,7 @@ const CADASTRO: PermissaoUsuario[] = [
 /**
  * Administrativo (0180): organização, planejamento geral, compras (todas as
  * etapas, inclusive a autorização administrativa e o pagamento) e financeiro.
- * Mesma lista da migration 0180.
+ * Mesma lista da migration 0180, mais "Definir urgência do pedido" (0183).
  */
 const ADMINISTRATIVO: PermissaoUsuario[] = [
   "cadastros.ver",
@@ -270,6 +272,7 @@ const ADMINISTRATIVO: PermissaoUsuario[] = [
   "pedido.ver",
   "pedido.criar",
   "pedido.aprovar",
+  "pedido.urgencia",
   "compras.ver",
   "compras.solicitar",
   "compras.aprovar",

@@ -191,8 +191,11 @@ describe("seis funções (06/11/2026, migration 0146)", () => {
       expect(linha, papel).not.toBeNull();
       const gravado = JSON.parse(linha![1]) as Record<string, boolean>;
       const padrao = new Set(defaultPermissionsForRole(papel));
-      expect(Object.keys(gravado).sort()).toEqual(PERMISSOES.map((p) => p.key).sort());
+      // chave criada depois da 0146 não está na linha dela: no banco, chave ausente vale "não"
+      const criadasDepois = ["pedido.urgencia"]; // 0183
+      expect(Object.keys(gravado).sort()).toEqual(PERMISSOES.map((p) => p.key).filter((chave) => !criadasDepois.includes(chave)).sort());
       for (const [chave, pode] of Object.entries(gravado)) expect(pode, `${papel} ${chave}`).toBe(padrao.has(chave as never));
+      for (const chave of criadasDepois) expect(padrao.has(chave as never), `${papel} ${chave}`).toBe(false);
     }
     // aditiva: troca CHECK, não remove tabela, coluna, RLS nem trigger
     const semComentarios = sql.replace(/--.*$/gm, "");
@@ -220,10 +223,23 @@ describe("Administrativo (13/11/2026, migration 0180)", () => {
     }
   });
 
-  it("a lista do código é a mesma da migration 0180", () => {
+  it("a lista do código é a da migration 0180 mais a permissão da urgência (0183)", () => {
     const sql = readFileSync("supabase/migrations/0180_funcao_administrativo_remover_usuario.sql", "utf8");
     const bloco = sql.slice(sql.indexOf("from unnest(array["), sql.indexOf("]::text[]) as k"));
-    const doSql = [...bloco.matchAll(/'([a-z_.]+)'/g)].map((m) => m[1]).sort();
-    expect(doSql).toEqual([...defaultPermissionsForRole("administrativo")].sort());
+    const da0180 = [...bloco.matchAll(/'([a-z_.]+)'/g)].map((m) => m[1]);
+    // 0183: "Definir urgência do pedido" entra marcada só para o Administrativo
+    const sql0183 = readFileSync("supabase/migrations/0183_urgencia_definida_por_permissao.sql", "utf8");
+    expect(sql0183).toMatch(/\|\| '\{"pedido\.urgencia": true\}'::jsonb\s+where papel = 'administrativo'/);
+    expect([...da0180, "pedido.urgencia"].sort()).toEqual([...defaultPermissionsForRole("administrativo")].sort());
+  });
+
+  it("definir a urgência do pedido é só do Administrativo (e do Administrador, que tem tudo)", async () => {
+    const { PERMISSOES } = await import("./permissions");
+    expect(PERMISSOES.find((p) => p.key === "pedido.urgencia")?.label).toBe("Definir urgência do pedido");
+    for (const papel of ["laboratorio", "compra", "cadastro", "coordenador", "gestor"] as const) {
+      expect(defaultPermissionsForRole(papel), papel).not.toContain("pedido.urgencia");
+    }
+    expect(defaultPermissionsForRole("administrativo")).toContain("pedido.urgencia");
+    expect(defaultPermissionsForRole("admin")).toContain("pedido.urgencia");
   });
 });

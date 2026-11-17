@@ -80,6 +80,56 @@ function uniq(values: Array<string | null | undefined>) {
   return [...new Set(values.map((value) => String(value ?? "").trim()).filter(Boolean))];
 }
 
+type LayoutItem = "page" | "dialog" | "painel";
+type CampoComLargura = "tipo" | "categoria" | "especificacao" | "quantidade" | "unidade" | "modelo" | "volume" | "insumo" | "fornecedor" | "orcamento" | "observacao";
+
+/**
+ * Largura de cada campo na grade de 12 colunas. "page" aperta os campos na tela
+ * larga (xl); "painel" é a mesma grade sem esse aperto, porque a janela do
+ * "Novo pedido" é mais estreita que a tela; "dialog" é a grade de 2 colunas.
+ */
+const SPANS: Record<LayoutItem, Record<CampoComLargura, string>> = {
+  page: {
+    tipo: "md:col-span-2 xl:col-span-1",
+    categoria: "md:col-span-3 xl:col-span-2",
+    especificacao: "md:col-span-6 xl:col-span-4",
+    quantidade: "md:col-span-2",
+    unidade: "md:col-span-2 xl:col-span-1",
+    modelo: "md:col-span-3 xl:col-span-2",
+    volume: "md:col-span-3 xl:col-span-2",
+    insumo: "md:col-span-4 xl:col-span-3",
+    fornecedor: "md:col-span-4 xl:col-span-3",
+    orcamento: "md:col-span-2",
+    observacao: "md:col-span-8 xl:col-span-5",
+  },
+  painel: {
+    tipo: "md:col-span-2",
+    categoria: "md:col-span-3",
+    insumo: "md:col-span-7",
+    especificacao: "md:col-span-6",
+    quantidade: "md:col-span-3",
+    unidade: "md:col-span-3",
+    modelo: "md:col-span-3",
+    volume: "md:col-span-3",
+    fornecedor: "md:col-span-4",
+    orcamento: "md:col-span-2",
+    observacao: "md:col-span-12",
+  },
+  dialog: {
+    tipo: "",
+    categoria: "",
+    especificacao: "sm:col-span-2",
+    quantidade: "",
+    unidade: "",
+    modelo: "",
+    volume: "",
+    insumo: "",
+    fornecedor: "",
+    orcamento: "",
+    observacao: "sm:col-span-2",
+  },
+};
+
 export function PedidoItemCamposAssistidos({
   catalogo,
   fornecedores = [],
@@ -87,13 +137,21 @@ export function PedidoItemCamposAssistidos({
   defaults = {},
   layout = "page",
   idPrefix = layout,
+  obrigatorios = true,
 }: {
   catalogo: PedidoItemCatalogo[];
   fornecedores?: string[];
   unidadesPadrao?: string[];
   defaults?: PedidoItemDefaults;
-  layout?: "page" | "dialog";
+  /** "page": faixa larga do pedido; "dialog": janela estreita; "painel": dentro do "Novo pedido" */
+  layout?: LayoutItem;
   idPrefix?: string;
+  /**
+   * Especificação e quantidade obrigatórias para o navegador. No "Novo pedido"
+   * os campos ficam dentro do formulário do pedido e a lista de itens é
+   * conferida à parte: ali vai `false`, para o envio não travar em campo vazio.
+   */
+  obrigatorios?: boolean;
 }) {
   const [insumoId, setInsumoId] = useState(defaults.insumoId ? String(defaults.insumoId) : "");
   const [insumoBusca, setInsumoBusca] = useState(() => {
@@ -148,19 +206,7 @@ export function PedidoItemCamposAssistidos({
     fornecedores: `pedido-item-fornecedores-${idPrefix}`,
   };
 
-  const span = {
-    tipo: layout === "page" ? "md:col-span-2 xl:col-span-1" : "",
-    categoria: layout === "page" ? "md:col-span-3 xl:col-span-2" : "",
-    especificacao: layout === "page" ? "md:col-span-6 xl:col-span-4" : "sm:col-span-2",
-    quantidade: layout === "page" ? "md:col-span-2" : "",
-    unidade: layout === "page" ? "md:col-span-2 xl:col-span-1" : "",
-    modelo: layout === "page" ? "md:col-span-3 xl:col-span-2" : "",
-    volume: layout === "page" ? "md:col-span-3 xl:col-span-2" : "",
-    insumo: layout === "page" ? "md:col-span-4 xl:col-span-3" : "",
-    fornecedor: layout === "page" ? "md:col-span-4 xl:col-span-3" : "",
-    orcamento: layout === "page" ? "md:col-span-2" : "",
-    observacao: layout === "page" ? "md:col-span-8 xl:col-span-5" : "sm:col-span-2",
-  };
+  const span = SPANS[layout];
 
   function preencherInsumo(insumo: PedidoItemCatalogo) {
     setInsumoId(String(insumo.id));
@@ -267,7 +313,7 @@ export function PedidoItemCamposAssistidos({
         <input
           id={ids.especificacao}
           name="especificacao"
-          required
+          required={obrigatorios}
           value={especificacao}
           onChange={(event) => setEspecificacao(event.target.value)}
           className={inputCls}
@@ -281,7 +327,7 @@ export function PedidoItemCamposAssistidos({
           type="number"
           min="0.0001"
           step="any"
-          required
+          required={obrigatorios}
           defaultValue={defaults.quantidade ?? 1}
           className={inputCls}
         />
@@ -352,7 +398,7 @@ export function PedidoItemCamposAssistidos({
         <input id={ids.observacao} name="observacao" defaultValue={defaults.observacao ?? ""} className={inputCls} />
       </div>
       <details
-        className={`${layout === "page" ? "md:col-span-12" : "sm:col-span-2"} rounded-md border border-border px-3 py-2`}
+        className={`${layout === "dialog" ? "sm:col-span-2" : "md:col-span-12"} rounded-md border border-border px-3 py-2`}
         open={Boolean(defaults.caracteristicas || defaults.exigenciaTecnica || defaults.exclusividade || defaults.outrosFornecedores)}
       >
         <summary className="cursor-pointer text-sm font-medium">Exigências do item e outros fornecedores (opcional)</summary>
@@ -365,7 +411,7 @@ export function PedidoItemCamposAssistidos({
               rows={2}
               maxLength={2000}
               defaultValue={defaults.caracteristicas ?? ""}
-              placeholder="Ex.: baixa retenção (low binding), livre de DNA e RNA, estéril, rack com 96"
+              placeholder="Ex.: livre de DNA e RNA, estéril, rack com 96"
               className={inputCls}
             />
           </div>
@@ -415,8 +461,8 @@ export function PedidoItemCamposAssistidos({
 }
 
 function rotuloInsumo(insumo: PedidoItemCatalogo) {
-  // Sinônimos entram no rótulo para a busca da lista achar "low binding" em
-  // "baixa retenção" (a lista do navegador procura dentro do texto).
+  // Sinônimos entram no rótulo para a busca da lista achar "tip" em
+  // "ponteira" (a lista do navegador procura dentro do texto).
   // O código do fabricante vem logo depois do nome: digitar o código acha o
   // produto exato, sem confundir tamanho, cor ou embalagem.
   const base = uniq([

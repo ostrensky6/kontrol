@@ -195,11 +195,12 @@ select pg_temp.exigir_erro(
 select public.formalizar_pedido_interno(current_setting('t0176.u')::bigint);
 select public.cancelar_pedido_interno_operacional(current_setting('t0176.c')::bigint, null, 'TS-0176 cancelado');
 
--- a urgência não muda num pedido validado (contornaria a trava)
+-- a urgência não muda direto num pedido validado (contornaria a trava); desde a
+-- 0183 a recusa vem da regra da permissão "Definir urgência do pedido"
 select pg_temp.exigir_erro(
   format('update public.pedidos_internos set urgencia = ''alta'', urgencia_justificativa = ''Precisa sair antes do ciclo.'' where id = %s',
          current_setting('t0176.a')),
-  '42501', 'urgência só muda');
+  '42501', 'Definir urgência do pedido');
 
 reset role;
 do $$

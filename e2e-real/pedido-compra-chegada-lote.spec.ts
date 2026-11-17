@@ -71,7 +71,8 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     .single();
   expect(erroProjeto).toBeNull();
 
-  // ---- 1. o pedido nasce na tela
+  // ---- 1. o pedido nasce na tela já com o item e segue direto para aprovação, sem rascunho
+  // (relatório de ajustes de Compras de 17/11/2026, ajuste 4)
   await page.goto("/pedido");
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const novo = page.getByRole("dialog");
@@ -79,30 +80,47 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await novo.getByLabel("Projeto").selectOption(String(projeto!.id));
   await novo.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
   await novo.getByLabel("Objetivo").selectOption("projeto");
-  // urgência fura o ciclo do dia 10 (0172/0176): o roteiro não depende do dia em que roda
-  await novo.getByLabel("Urgência").selectOption("alta");
-  await novo.getByLabel(/Por que é urgente/).fill("Roteiro automático: precisa seguir no mesmo dia.");
+  // quem pede não define a urgência nem sugere a fonte do recurso (ajustes 2 e 3)
+  await expect(novo.getByLabel("Urgência")).toHaveCount(0);
+  await expect(novo.getByLabel(/Fonte sugerida/)).toHaveCount(0);
   await novo.getByLabel("Justificativa técnica").fill("Ponteiras para as coletas do roteiro automático.");
-  await novo.getByRole("button", { name: "Criar rascunho" }).click();
+  // item ligado ao insumo cadastrado: a lista de insumos carrega quando o formulário abre
+  const camposItem = novo.getByTestId("novo-pedido-item-campos");
+  await expect(camposItem).toBeVisible();
+  await novo.locator("#pedido-item-insumo-selecao-novo-pedido-item").selectOption(String(insumo!.id));
+  await camposItem.locator('[name="quantidade"]').fill("5");
+  await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
+  await expect(novo.getByTestId("novo-pedido-itens")).toContainText(insumoNome);
+  await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
   expect(pedidoId).toBeGreaterThan(0);
 
-  // ---- 2. item ligado ao insumo cadastrado
-  await page.locator("#pedido-item-insumo-selecao-novo-item").selectOption(String(insumo!.id));
-  await page.locator('form:has(#pedido-item-insumo-selecao-novo-item) [name="quantidade"]').fill("5");
-  await page.getByRole("button", { name: "Adicionar item", exact: true }).click();
-  await expect
-    .poll(async () => {
-      const { data } = await cliente.from("pedidos_internos_itens").select("id, insumo_id").eq("pedido_interno_id", pedidoId);
-      return (data ?? []).map((item) => (item as { insumo_id: number | null }).insumo_id);
-    })
-    .toEqual([insumo!.id]);
-  await page.reload();
+  // o banco gravou o pedido, o item e a etapa de uma vez; a urgência nasce Normal e a fonte, vazia
+  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("em_validacao");
+  const { data: itensGravados } = await cliente.from("pedidos_internos_itens").select("insumo_id, quantidade").eq("pedido_interno_id", pedidoId);
+  expect((itensGravados ?? []).map((item) => [(item as { insumo_id: number | null }).insumo_id, Number((item as { quantidade: number }).quantidade)])).toEqual([[insumo!.id, 5]]);
+  const { data: nascido } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, fonte_recurso").eq("id", pedidoId).single();
+  expect(nascido).toEqual({ urgencia: "normal", urgencia_justificativa: null, fonte_recurso: null });
   await expect(page.getByRole("cell", { name: new RegExp(insumoNome) }).first()).toBeVisible();
 
+  // ---- 2. a urgência é de quem tem a permissão "Definir urgência do pedido" (0183). Ela fura o ciclo do
+  // dia 10 (0172/0176): com isso o roteiro não depende do dia em que roda
+  await page.getByRole("button", { name: "Definir urgência" }).click();
+  const urgencia = page.getByRole("dialog");
+  await urgencia.getByLabel("Urgência").selectOption("alta");
+  await urgencia.getByLabel(/Por que é urgente/).fill("Roteiro automático: precisa seguir no mesmo dia.");
+  await urgencia.getByRole("button", { name: "Salvar urgência" }).click();
+  await expect
+    .poll(async () => {
+      const { data } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, urgencia_definida_por").eq("id", pedidoId).single();
+      return data;
+    }, { message: "Definir urgência deveria gravar a urgência e quem a definiu", timeout: 30_000 })
+    .toEqual({ urgencia: "alta", urgencia_justificativa: "Roteiro automático: precisa seguir no mesmo dia.", urgencia_definida_por: ADMIN });
+  await page.reload();
+  await expect(page.getByText("Urgente: Roteiro automático: precisa seguir no mesmo dia.")).toBeVisible();
+
   // ---- 3. coordenação do projeto e formalização (aqui nasce a compra)
-  await avancar(page, cliente, pedidoId, "Enviar para aprovação", "em_validacao");
   await avancar(page, cliente, pedidoId, "Aprovar pedido", "validado");
   await avancar(page, cliente, pedidoId, "Formalizar em compras", "formalizado");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();

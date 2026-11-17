@@ -12,8 +12,9 @@ test("edição de usuário agrupa permissões e mantém ações acessíveis", as
 
   await expect(dialog.getByLabel("Nome")).toHaveValue("Admin E2E");
   await expect(dialog.getByLabel("Função")).toHaveValue("admin");
-  // 38 desde a 0137 ("Valores de pessoal no orçamento").
-  await expect(dialog.locator('input[name="permissoes"]')).toHaveCount(38);
+  // 39 desde a 0183 ("Definir urgência do pedido"); eram 38 desde a 0137.
+  await expect(dialog.locator('input[name="permissoes"]')).toHaveCount(39);
+  await expect(dialog.getByLabel("Definir urgência do pedido")).toHaveCount(1);
   // um grupo por módulo, na ordem da barra lateral
   await expect(dialog.locator("details")).toHaveCount(7); // Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros, Governança
   await expect(dialog.getByRole("button", { name: "Salvar" })).toBeVisible();

@@ -26,8 +26,6 @@ type Opcao = {
   coordenador_email?: string | null;
 };
 
-/** 0176: mudar a urgência de um pedido validado contornaria a trava do ciclo */
-const URGENCIA_EDITAVEL_EM = ["rascunho", "ajuste_solicitante", "ajuste_compras"];
 const URGENCIA_ROTULO: Record<string, string> = { baixa: "Baixa", normal: "Normal", alta: "Alta", critica: "Crítica" };
 
 const inputCls =
@@ -40,13 +38,11 @@ export function PedidoInternoCabecalhoAcoes({
   projetoId,
   dataNecessidade,
   urgencia,
-  urgenciaJustificativa = null,
   tipoDemanda,
   natureza = null,
   objetivo = null,
   areaId = null,
   areas = [],
-  fonteRecurso,
   justificativa,
   projetos,
   status,
@@ -57,23 +53,20 @@ export function PedidoInternoCabecalhoAcoes({
   titulo: string;
   projetoId: number | null;
   dataNecessidade: string | null;
+  /** só para mostrar: quem define é quem tem "Definir urgência do pedido" (0183) */
   urgencia: string | null;
-  /** 0172: por que é urgente (obrigatória para alta ou crítica) */
-  urgenciaJustificativa?: string | null;
   tipoDemanda: string | null;
   natureza?: string | null;
   objetivo?: string | null;
   /** 0169: laboratório ou área (obrigatório para material de consumo de laboratório) */
   areaId?: number | null;
   areas?: { id: number; nome: string; coordenador_nome?: string | null }[];
-  fonteRecurso: string | null;
   justificativa: string | null;
   projetos: Opcao[];
   status: string;
   podeExcluir: boolean;
 }) {
   const [editando, setEditando] = useState(false);
-  const urgenciaEditavel = URGENCIA_EDITAVEL_EM.includes(status);
   return (
     <div className="flex items-center gap-2">
       {/* Editar */}
@@ -112,41 +105,13 @@ export function PedidoInternoCabecalhoAcoes({
                 <label htmlFor="atualizarPedidoInterno-data_necessidade" className="block text-xs font-medium text-muted-foreground">Necessidade</label>
                 <input id="atualizarPedidoInterno-data_necessidade" name="data_necessidade" type="date" defaultValue={dataNecessidade ?? ""} className={inputCls} />
               </div>
-              {urgenciaEditavel ? (
-                <>
-                  <div>
-                    <label htmlFor="atualizarPedidoInterno-urgencia" className="block text-xs font-medium text-muted-foreground">Urgência</label>
-                    <select id="atualizarPedidoInterno-urgencia" name="urgencia" defaultValue={urgencia ?? "normal"} className={inputCls}>
-                      <option value="baixa">Baixa</option>
-                      <option value="normal">Normal</option>
-                      <option value="alta">Alta (fura o ciclo)</option>
-                      <option value="critica">Crítica (fura o ciclo)</option>
-                    </select>
-                  </div>
-                  <div className="sm:col-span-2">
-                    <label className="block text-xs font-medium text-muted-foreground">
-                      Por que é urgente? (obrigatório para Alta ou Crítica)
-                      <textarea
-                        name="urgencia_justificativa"
-                        defaultValue={urgenciaJustificativa ?? ""}
-                        maxLength={1000}
-                        rows={2}
-                        className={inputCls}
-                      />
-                    </label>
-                  </div>
-                </>
-              ) : (
-                <div className="sm:col-span-2" data-testid="urgencia-fixa">
-                  {/* 0176: a urgência só muda em rascunho ou devolvido para ajuste */}
-                  <input type="hidden" name="urgencia" value={urgencia ?? "normal"} />
-                  <input type="hidden" name="urgencia_justificativa" value={urgenciaJustificativa ?? ""} />
-                  <p className="text-xs text-muted-foreground">
-                    Urgência: {URGENCIA_ROTULO[urgencia ?? "normal"] ?? urgencia}. Ela só muda com o pedido em rascunho ou
-                    devolvido para ajuste.
-                  </p>
-                </div>
-              )}
+              <div className="sm:col-span-2" data-testid="urgencia-fixa">
+                {/* 0183: quem pede não define a urgência; ela fura o ciclo do dia 10 */}
+                <p className="text-xs text-muted-foreground">
+                  Urgência: {URGENCIA_ROTULO[urgencia ?? "normal"] ?? urgencia}. Quem define é o administrativo, pelo botão
+                  “Definir urgência” do pedido.
+                </p>
+              </div>
               <div>
                 <label htmlFor="atualizarPedidoInterno-tipo_demanda" className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
                 <select id="atualizarPedidoInterno-tipo_demanda" name="tipo_demanda" defaultValue={tipoDemanda ?? "laboratorio"} className={inputCls}>
@@ -191,10 +156,6 @@ export function PedidoInternoCabecalhoAcoes({
                   ))}
                 </select>
               </div>
-            </div>
-            <div>
-              <label htmlFor={`editar-pedido-fonte-${pedidoId}`} className="block text-xs font-medium text-muted-foreground">Fonte sugerida (opcional; o administrativo define)</label>
-              <input id={`editar-pedido-fonte-${pedidoId}`} name="fonte_recurso" defaultValue={fonteRecurso ?? ""} className={inputCls} />
             </div>
             <div>
               <label htmlFor="atualizarPedidoInterno-justificativa" className="block text-xs font-medium text-muted-foreground">Justificativa</label>
