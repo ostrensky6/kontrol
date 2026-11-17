@@ -9,6 +9,7 @@ import { computarDemandaPlano } from "@/lib/costing/demanda";
 import { falha, mensagemDoBanco, type EstadoAcao } from "@/lib/erros";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias } from "@/lib/formatters";
+import { COMPRA_ACEITA_FORNECEDOR } from "@/lib/pedido/compra-do-pedido";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
@@ -201,31 +202,61 @@ export async function removerItemPedido(_prev: FormState, formData: FormData): P
 }
 
 /**
- * Define o fornecedor de uma compra ainda solicitada. A formalização do pedido
- * interno cria a compra sem fornecedor; sem ele a impressão sai incompleta.
- * A RLS (0127) já restringe a alteração a `solicitado` para quem só solicita.
+ * Define o fornecedor de uma compra. A formalização do pedido interno cria a
+ * compra sem fornecedor; sem ele a impressão sai incompleta.
+ *
+ * Enquanto a compra está solicitada, vale a escolha de quem edita (a RLS da
+ * 0127 restringe a alteração a `solicitado` para quem só solicita). Depois
+ * disso só se preenche o que ficou em branco: o orçamento escolhido tinha só o
+ * nome digitado, e a compra foi aprovada junto com o pedido sem fornecedor
+ * (compra única na tela, 17/11/2026). Nunca troca o fornecedor de uma compra
+ * já aprovada, e preencher exige "Aprovar compras".
  */
 export async function definirFornecedorCompra(_prev: FormState, formData: FormData): Promise<FormState> {
   const pedidoId = Number(formData.get("pedido_id"));
   const fornecedorId = Number(formData.get("fornecedor_id"));
+  // o painel "Compra" do pedido manda o pedido de origem para a tela dele se atualizar
+  const pedidoInternoId = Number(formData.get("pedido_interno_id") ?? 0);
   if (!(pedidoId > 0)) return { ok: false, message: "Compra não informada." };
   if (!(fornecedorId > 0)) return { ok: false, message: "Escolha o fornecedor." };
   const [podeSolicitar, podeAprovar] = await Promise.all([pode("compras.solicitar"), pode("compras.aprovar")]);
   if (!podeSolicitar && !podeAprovar) return SEM_PERMISSAO;
   const supabase = await createClient();
-  const { data, error } = await supabase
+  const solicitada = await supabase
     .from("pedidos_compra")
     .update({ fornecedor_id: fornecedorId })
     .eq("id", pedidoId)
     .eq("status", "solicitado")
     .select("id");
-  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível definir o fornecedor.") };
-  if ((data ?? []).length === 0) {
-    return { ok: false, message: "Só é possível definir o fornecedor enquanto a compra está solicitada." };
+  if (solicitada.error) {
+    return { ok: false, message: mensagemDoBanco(solicitada.error, "Não foi possível definir o fornecedor.") };
+  }
+  let gravou = (solicitada.data ?? []).length > 0;
+  if (!gravou && podeAprovar) {
+    const emBranco = await supabase
+      .from("pedidos_compra")
+      .update({ fornecedor_id: fornecedorId })
+      .eq("id", pedidoId)
+      .is("fornecedor_id", null)
+      .in("status", COMPRA_ACEITA_FORNECEDOR.filter((status) => status !== "solicitado"))
+      .select("id");
+    if (emBranco.error) {
+      return { ok: false, message: mensagemDoBanco(emBranco.error, "Não foi possível definir o fornecedor.") };
+    }
+    gravou = (emBranco.data ?? []).length > 0;
+  }
+  if (!gravou) {
+    return {
+      ok: false,
+      message: podeAprovar
+        ? "O fornecedor só muda enquanto a compra está solicitada. Depois disso só é possível preencher o que ficou em branco."
+        : "Só é possível definir o fornecedor enquanto a compra está solicitada.",
+    };
   }
   revalidatePath(`/compras/${pedidoId}`);
   revalidatePath(`/compras/${pedidoId}/imprimir`);
   revalidatePath("/compras");
+  if (pedidoInternoId > 0) revalidatePath(`/pedido/${pedidoInternoId}`);
   return { ok: true, message: "Fornecedor definido." };
 }
 

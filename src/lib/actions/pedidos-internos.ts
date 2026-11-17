@@ -18,7 +18,8 @@ import {
 import { naturezaValida, objetivoValido } from "@/lib/pedido/natureza";
 import { lerAprovadores, travaDoEnvio, usuarioDecide } from "@/lib/pedido/aprovadores";
 import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
-import { faltaJustificativaUrgencia } from "@/lib/pedido/ciclo";
+import { ehUrgente, faltaJustificativaUrgencia } from "@/lib/pedido/ciclo";
+import { CAMPOS_ITEM_NOVO_PEDIDO, faltaNosItens, lerItensNovoPedido } from "@/lib/pedido/itens-novo-pedido";
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
@@ -231,23 +232,51 @@ async function mudarStatus({
   return { ok: true, message: "Etapa atualizada." };
 }
 
+/**
+ * "Novo pedido" (relatório de ajustes de Compras de 17/11/2026):
+ * - os itens entram no próprio formulário e "Enviar para aprovação" grava o
+ *   pedido, os itens e já envia (ajuste 4); "Guardar rascunho" fica para quem
+ *   quer terminar depois;
+ * - quem pede não define a urgência (ajuste 2): o pedido nasce Normal e o banco
+ *   recusa outra coisa (0183);
+ * - a fonte do recurso é do administrativo (ajuste 3): o formulário não a pede.
+ *
+ * Se o pedido for gravado e o envio não sair (projeto sem coordenador, por
+ * exemplo), ele fica como rascunho e a pessoa cai nele com o aviso, em vez de
+ * perder o que preencheu.
+ */
 export async function criarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const u = await usuarioAtual();
-  const titulo = texto(formData, "titulo") ?? "Pedido sem título";
+  const enviar = texto(formData, "acao") === "enviar";
+  const tituloInformado = texto(formData, "titulo");
+  const titulo = tituloInformado ?? "Pedido sem título";
   const projeto_id = numero(formData, "projeto_id");
   const data_necessidade = texto(formData, "data_necessidade");
   const justificativa = texto(formData, "justificativa");
-  const urgencia = texto(formData, "urgencia") ?? "normal";
-  // 0172 (D1): urgência fura o ciclo do dia 10 e precisa de justificativa
-  const urgencia_justificativa = texto(formData, "urgencia_justificativa");
-  const faltaUrgencia = faltaJustificativaUrgencia(urgencia, urgencia_justificativa);
-  if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
-  const fonte_recurso = texto(formData, "fonte_recurso");
   const tipo_demanda = texto(formData, "tipo_demanda") ?? "laboratorio";
   const natureza = naturezaValida(texto(formData, "natureza"));
   // 0169: laboratório ou área (a coordenação dele aprova material de consumo de laboratório)
   const area_id = numero(formData, "area_id");
   const objetivo = objetivoValido(texto(formData, "objetivo"));
+
+  const lidos = lerItensNovoPedido(
+    texto(formData, "itens_json"),
+    Object.fromEntries(CAMPOS_ITEM_NOVO_PEDIDO.map((campo) => [campo, formData.get(campo)])),
+  );
+  if (lidos.erro) return { ok: false, message: lidos.erro };
+  if (enviar) {
+    // as mesmas exigências do "Conferir e enviar" do pedido, antes de gravar qualquer coisa
+    if (!tituloInformado) return { ok: false, message: "Informe o título do pedido." };
+    if (!natureza) return { ok: false, message: "Escolha o tipo de material ou despesa." };
+    if (!objetivo) return { ok: false, message: "Escolha o objetivo do pedido." };
+    if (natureza === "material_consumo_lab" && !area_id) {
+      return { ok: false, message: "Material de consumo de laboratório precisa do laboratório ou área." };
+    }
+    if (!justificativa) return { ok: false, message: "Escreva a justificativa técnica antes de enviar para aprovação." };
+  }
+  const faltaItens = faltaNosItens(lidos.itens, enviar);
+  if (faltaItens) return { ok: false, message: faltaItens };
+
   const supabase = await createClientUntyped();
   let coordenador_projeto_nome: string | null = null;
   let coordenador_projeto_email: string | null = null;
@@ -269,9 +298,6 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     coordenador_projeto_email,
     data_necessidade,
     justificativa,
-    urgencia,
-    urgencia_justificativa,
-    fonte_recurso,
     solicitante: u?.email ?? null,
   };
   let { data, error } = await supabase
@@ -285,8 +311,6 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
       projeto_id,
       data_necessidade,
       justificativa,
-      urgencia,
-      fonte_recurso,
       solicitante: u?.email ?? null,
     };
     const retry = await supabase.from("pedidos_internos").insert(legado).select("id").single();
@@ -295,9 +319,29 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   }
   if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível criar o pedido.") };
   if (!data) return { ok: false, message: "Não foi possível criar o pedido." };
-  await registrarEvento("pedido_interno", data.id, null, "rascunho", "Pedido registrado.");
+  const pedidoId = Number(data.id);
+  await registrarEvento("pedido_interno", pedidoId, null, "rascunho", "Pedido registrado.");
+
+  // Daqui em diante o pedido existe: o que falhar vira aviso no próprio pedido,
+  // nunca uma segunda tentativa que criaria outro pedido igual.
+  let aviso: "itens" | "envio" | null = null;
+  if (lidos.itens.length > 0) {
+    const { data: gravados, error: erroItens } = await supabase
+      .from("pedidos_internos_itens")
+      .insert(lidos.itens.map((item) => ({ pedido_interno_id: pedidoId, ...item })))
+      .select("id");
+    if (erroItens || (gravados ?? []).length !== lidos.itens.length) aviso = "itens";
+  }
+  if (enviar && !aviso) {
+    // O banco também trava (0169); a mensagem fica no quadro "Conferir e enviar" do pedido.
+    const trava = travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
+    const envio = trava
+      ? { ok: false }
+      : await mudarStatus({ pedidoId, para: "em_validacao", etapa: "Lista de materiais", decisao: "registrado" });
+    if (!envio.ok) aviso = "envio";
+  }
   revalidatePath("/pedido");
-  redirect(`/pedido/${data.id}`);
+  redirect(aviso ? `/pedido/${pedidoId}?aviso=${aviso}` : `/pedido/${pedidoId}`);
 }
 
 type PedidoReposicaoState = FormState & { pedidoId?: number };
@@ -440,13 +484,10 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
     coordenador_projeto_nome,
     coordenador_projeto_email,
     data_necessidade: texto(formData, "data_necessidade"),
-    urgencia: texto(formData, "urgencia") ?? "normal",
-    urgencia_justificativa: texto(formData, "urgencia_justificativa"),
-    fonte_recurso: texto(formData, "fonte_recurso"),
+    // Urgência (0183) e fonte do recurso não são de quem pede: ficam fora da
+    // edição e o que já está gravado é preservado.
     justificativa: texto(formData, "justificativa"),
   };
-  const faltaUrgencia = faltaJustificativaUrgencia(payload.urgencia, payload.urgencia_justificativa);
-  if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
   // .select(): sob RLS a gravação barrada volta sem erro e sem linha; só a linha devolvida comprova
   let { data: gravado, error } = await supabase
     .from("pedidos_internos")
@@ -458,8 +499,6 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
       titulo,
       projeto_id,
       data_necessidade: texto(formData, "data_necessidade"),
-      urgencia: texto(formData, "urgencia") ?? "normal",
-      fonte_recurso: texto(formData, "fonte_recurso"),
       justificativa: texto(formData, "justificativa"),
     };
     const retry = await supabase.from("pedidos_internos").update(legado).eq("id", pedidoId).select("id");
@@ -472,6 +511,39 @@ export async function atualizarPedidoInterno(_prev: FormState, formData: FormDat
   revalidatePath(`/pedido/${pedidoId}`);
   revalidatePath("/pedido");
   return { ok: true, message: "Pedido atualizado." };
+}
+
+/**
+ * 0183 (relatório de ajustes de Compras de 17/11/2026, ajuste 2): a urgência
+ * fura o ciclo do dia 10, então quem decide é quem tem a permissão "Definir
+ * urgência do pedido", não quem pede. O banco confere a permissão, grava quem
+ * definiu e registra o evento na linha do tempo.
+ */
+export async function definirUrgenciaPedido(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = numero(formData, "pedido_interno_id");
+  if (!pedidoId) return { ok: false, message: "Pedido não informado." };
+  if (!(await pode("pedido.urgencia"))) {
+    return {
+      ok: false,
+      message: "Definir a urgência exige a permissão “Definir urgência do pedido”. Peça ao administrador em Usuários.",
+    };
+  }
+  const urgencia = texto(formData, "urgencia") ?? "normal";
+  const justificativa = ehUrgente(urgencia) ? texto(formData, "urgencia_justificativa") : null;
+  const faltaUrgencia = faltaJustificativaUrgencia(urgencia, justificativa);
+  if (faltaUrgencia) return { ok: false, message: faltaUrgencia };
+
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase.rpc("definir_urgencia_pedido_interno", {
+    p_pedido_id: pedidoId,
+    p_urgencia: urgencia,
+    p_justificativa: justificativa,
+  });
+  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  const alterado = (data as { alterado?: boolean } | null)?.alterado !== false;
+  return { ok: true, message: alterado ? "Urgência definida." : "A urgência já estava assim." };
 }
 
 export async function excluirPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -630,9 +702,11 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
   // Fonte e rubrica são do administrativo (decisão de 09/11): não se exigem do solicitante.
   if (!pedido.natureza) return { ok: false, message: "Escolha o tipo de material ou despesa (Editar, no topo do pedido) antes de enviar." };
   if (!pedido.objetivo) return { ok: false, message: "Escolha o objetivo do pedido (Editar, no topo do pedido) antes de enviar." };
-  if (!pedido.urgencia) return { ok: false, message: "Informe a urgência antes de enviar." };
+  // 0183: quem pede não define a urgência; pedido urgente sem justificativa espera quem tem a permissão
   const faltaUrgencia = faltaJustificativaUrgencia(pedido.urgencia, pedido.urgencia_justificativa);
-  if (faltaUrgencia) return { ok: false, message: `${faltaUrgencia} Use "Editar", no topo do pedido.` };
+  if (faltaUrgencia) {
+    return { ok: false, message: `${faltaUrgencia} Quem escreve é quem tem a permissão “Definir urgência do pedido”, pelo botão “Definir urgência” do pedido.` };
+  }
   if (!itens || itens.length === 0) {
     return { ok: false, message: "Inclua ao menos um material, serviço ou equipamento antes de enviar." };
   }
@@ -876,7 +950,7 @@ export async function aprovarCompraFinal(_prev: FormState, formData: FormData): 
 export async function fecharComFornecedor(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
   const u = await usuarioAtual();
-  return mudarStatus({
+  const resultado = await mudarStatus({
     pedidoId: Number(formData.get("pedido_interno_id")),
     para: "compra_fechada",
     permitidoDe: ["aprovado_para_compra"],
@@ -885,6 +959,13 @@ export async function fecharComFornecedor(_prev: FormState, formData: FormData):
     decisao: "aprovado",
     dados: { modalidade_definida_por: u?.nome ?? u?.email ?? null },
   });
+  if (resultado.ok) {
+    // 0182: o banco marca a compra ligada como enviada na mesma gravação
+    revalidatePath("/compras");
+    revalidatePath("/recebimento");
+    revalidatePath("/suprimentos");
+  }
+  return resultado;
 }
 
 export async function encaminharInstituicao(_prev: FormState, formData: FormData): Promise<FormState> {

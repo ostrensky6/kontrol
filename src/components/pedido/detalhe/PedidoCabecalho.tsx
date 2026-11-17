@@ -9,6 +9,7 @@ import {
   rotuloPrazo,
 } from "@/lib/pedido/ciclo";
 import { PedidoInternoCabecalhoAcoes } from "@/components/pedido/PedidoInternoCabecalhoAcoes";
+import { PedidoUrgenciaDefinir } from "@/components/pedido/PedidoUrgenciaDefinir";
 import { pedidoInternoNumero, type pedidoInternoSituacao } from "@/lib/pedido/status";
 import { formatDate, formatDateTime } from "@/lib/formatters";
 import { URGENCIA_LABEL, type PedidoDetalhe } from "@/lib/pedido/detalhe";
@@ -27,6 +28,8 @@ type Props = {
   areas: AreaPedido[];
   projetos: { id: number; nome: string; coordenador: string | null }[] | null;
   podeGerir: boolean;
+  /** tem "Definir urgência do pedido" e o pedido ainda não foi encerrado (0183) */
+  podeDefinirUrgencia: boolean;
 };
 
 /** Topo do pedido: número, situação, título, quem pediu, ciclo e ações do cabeçalho. */
@@ -43,6 +46,7 @@ export function PedidoCabecalho({
   areas,
   projetos,
   podeGerir,
+  podeDefinirUrgencia,
 }: Props) {
   return (
     <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -57,7 +61,7 @@ export function PedidoCabecalho({
         <p className="mt-1 text-sm text-muted-foreground">
           Projeto: {projeto} · Solicitante: {pedido.solicitante ?? "—"}
           {pedido.data_necessidade ? ` · Necessidade: ${formatDate(pedido.data_necessidade)}` : ""}
-          {pedido.urgencia ? ` · Urgência: ${URGENCIA_LABEL[pedido.urgencia] ?? pedido.urgencia}` : ""}
+          {` · Urgência: ${URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia}`}
         </p>
         <p className="mt-1 text-sm text-muted-foreground">
           {pedido.natureza ? `${rotuloNatureza(pedido.natureza)} · ` : ""}
@@ -89,6 +93,14 @@ export function PedidoCabecalho({
       </div>
       <div className="flex flex-col items-start gap-2 sm:items-end">
         <span className="text-xs text-muted-foreground">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
+        {podeDefinirUrgencia && (
+          <PedidoUrgenciaDefinir
+            pedidoId={pedidoId}
+            numero={pedidoInternoNumero(pedido.id)}
+            urgencia={pedido.urgencia}
+            urgenciaJustificativa={pedido.urgencia_justificativa ?? null}
+          />
+        )}
         <PedidoInternoCabecalhoAcoes
           pedidoId={pedidoId}
           numero={pedidoInternoNumero(pedido.id)}
@@ -96,13 +108,11 @@ export function PedidoCabecalho({
           projetoId={pedido.projeto_id}
           dataNecessidade={pedido.data_necessidade}
           urgencia={pedido.urgencia}
-          urgenciaJustificativa={pedido.urgencia_justificativa ?? null}
           tipoDemanda={pedido.tipo_demanda}
           natureza={pedido.natureza}
           objetivo={pedido.objetivo}
           areaId={pedido.area_id ?? null}
           areas={areas}
-          fonteRecurso={pedido.fonte_recurso}
           justificativa={pedido.justificativa}
           projetos={projetos ?? []}
           status={pedido.status}

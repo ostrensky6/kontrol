@@ -68,10 +68,30 @@ const INVENTARIO: ItemDoInventario[] = [
   { area: "Compras", item: "Pedidos", onde: [barra("compras", "/pedido", "Pedidos")] },
   { area: "Compras", item: "Pedidos: quadro Aguardando você", onde: [tela("app/pedido/page.tsx", "<AguardandoVoce\n")] },
   { area: "Compras", item: "Novo pedido", onde: [tela("app/suprimentos/page.tsx", 'href="/pedido?novo=1"')] },
+  // relatório de ajustes de Compras (Antonio, 17/11/2026 13:51 UTC): itens no formulário e envio direto (ajuste 4)
+  { area: "Compras", item: "Novo pedido: itens no próprio formulário (Adicionar item, Editar, Remover)", onde: [tela("components/pedido/NovoPedidoDialog.tsx", "<NovoPedidoItensLista"), tela("components/pedido/NovoPedidoDialog.tsx", "Adicionar item"), tela("components/pedido/NovoPedidoItensLista.tsx", "aoRemover")] },
+  { area: "Compras", item: "Novo pedido: Enviar para aprovação e Guardar rascunho", onde: [tela("components/pedido/NovoPedidoDialog.tsx", 'value="enviar"'), tela("components/pedido/NovoPedidoDialog.tsx", 'value="rascunho"')] },
+  { area: "Compras", item: "Novo pedido: fechar com algo preenchido pede confirmação", onde: [tela("components/pedido/NovoPedidoDialog.tsx", 'data-testid="novo-pedido-descartar"')] },
+  // ajuste 2: a urgência saiu das mãos de quem pede e ficou com quem tem a permissão (0183)
+  { area: "Compras", item: "Pedido: Definir urgência (permissão Definir urgência do pedido)", onde: [tela("components/pedido/detalhe/PedidoCabecalho.tsx", "<PedidoUrgenciaDefinir"), tela("components/pedido/PedidoUrgenciaDefinir.tsx", "action={definirUrgenciaPedido}")] },
   { area: "Compras", item: "Compras com fornecedor", onde: [barra("compras", "/compras", "Compras com fornecedor")] },
   // "Nova compra" (compra sem pedido) e o campo "Projeto ou campanha" dela saíram com o sim de Antonio em
   // 11/11/2026 17:26 UTC: toda compra nasce de um pedido aprovado. As compras avulsas já feitas continuam na lista.
   { area: "Compras", item: "Novo pedido a partir de Compras com fornecedor", onde: [tela("app/compras/page.tsx", 'href="/pedido?novo=1"')] },
+  // compra única na tela (proposta 2 do item 10 da auditoria de 16/11, aprovada em 17/11/2026):
+  // o que saiu da tela da compra nascida de pedido tem de continuar alcançável no pedido
+  { area: "Compras", item: "Pedido: quadro Compra (fornecedor, situação, previsão e chegada)", onde: [tela("app/pedido/[id]/page.tsx", "<PedidoCompraPainel"), tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "Previsão de entrega")] },
+  { area: "Compras", item: "Pedido: definir o fornecedor da compra", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "action={definirFornecedorCompra}")] },
+  { area: "Compras", item: "Pedido: aprovar a compra que ficou solicitada", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<AprovarCompra"), tela("components/compras/PedidoAcoes.tsx", "action={aprovarPedido} label=\"Aprovar compra\"")] },
+  { area: "Compras", item: "Pedido: Instituição enviou ao fornecedor", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", '"Instituição enviou ao fornecedor"'), tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<MarcarCompraEnviada")] },
+  { area: "Compras", item: "Pedido: Encerrar com pendência", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "<EncerrarComPendencia")] },
+  { area: "Compras", item: "Pedido: Imprimir / PDF da compra", onde: [tela("components/pedido/detalhe/PedidoCompraPainel.tsx", "/imprimir`")] },
+  { area: "Compras", item: "Pedido: Fechar com fornecedor e Encaminhar à instituição", onde: [tela("components/pedido/PedidoInternoAcoes.tsx", 'label="Fechar com fornecedor"'), tela("components/pedido/PedidoInternoAcoes.tsx", 'label="Encaminhar à instituição"')] },
+  // a compra sem pedido (pendência de outra compra) segue na própria tela, com os botões dela
+  { area: "Compras", item: "Compra sem pedido: Aprovar, Marcar enviado e Encerrar com pendência", onde: [tela("components/compras/PedidoAcoes.tsx", 'label="Aprovar"'), tela("components/compras/PedidoAcoes.tsx", 'label="Marcar enviado"'), tela("components/compras/PedidoAcoes.tsx", "<EncerrarComPendencia pedidoId={pedidoId} />"), tela("app/compras/[id]/page.tsx", "<PedidoAcoes")] },
+  { area: "Compras", item: "Compra sem pedido: Definir fornecedor", onde: [tela("app/compras/[id]/page.tsx", "action={definirFornecedorCompra}")] },
+  { area: "Compras", item: "Cancelar compra (na tela da compra, com ou sem pedido)", onde: [tela("components/compras/PedidoAcoes.tsx", "<BotaoCancelarCompra pedidoId={pedidoId} />"), tela("components/compras/PedidoAcoes.tsx", 'label="Cancelar compra"')] },
+  { area: "Compras", item: "Compra: Imprimir / PDF e Registrar chegada na tela da compra", onde: [tela("app/compras/[id]/page.tsx", "/imprimir`"), tela("app/compras/[id]/page.tsx", "<ScannerRecebimentoCompra")] },
   { area: "Compras", item: "Recebimento", onde: [barra("compras", "/recebimento", "Recebimento")] },
   { area: "Compras", item: "Prazos de compra", onde: [barra("compras", "/suprimentos/prazos", "Prazos de compra")] },
   // ── Estoque ──
@@ -172,7 +192,7 @@ function paginaExiste(href: string) {
 }
 
 /**
- * Retirados COM o sim de Antonio (11/11/2026). A regra vale nos dois sentidos:
+ * Retirados COM o sim de Antonio (11/11 e 17/11/2026). A regra vale nos dois sentidos:
  * o que ele mandou tirar também não volta sem um novo sim dele. Cada linha diz
  * onde o item não pode reaparecer.
  */
@@ -183,6 +203,10 @@ const RETIRADOS: Retirado[] = [
   { item: "Início: Base de controle", sim: "decisão 2, 11/11/2026 17:26 UTC (os mesmos links já estão na barra)", arquivo: "app/page.tsx", naoContem: "Base de controle" },
   { item: "Compras: compra sem pedido (Nova compra)", sim: "decisão 3, 11/11/2026 17:26 UTC (toda compra nasce de um pedido aprovado)", arquivo: "lib/actions/compras.ts", naoContem: "export async function criarPedido" },
   { item: "Compras: formulário de compra sem pedido", sim: "decisão 3, 11/11/2026 17:26 UTC", arquivo: "app/compras/page.tsx", naoContem: "criarPedido" },
+  { item: "Novo pedido: campo Urgência preenchido por quem pede", sim: "relatório de ajustes de Compras, ajuste 2, 17/11/2026 13:51 UTC (a urgência fura o ciclo; quem define é o administrativo)", arquivo: "components/pedido/NovoPedidoDialog.tsx", naoContem: 'name="urgencia' },
+  { item: "Editar pedido: campo Urgência preenchido por quem pede", sim: "relatório de ajustes de Compras, ajuste 2, 17/11/2026 13:51 UTC", arquivo: "components/pedido/PedidoInternoCabecalhoAcoes.tsx", naoContem: 'name="urgencia' },
+  { item: "Novo pedido: campo Fonte sugerida", sim: "relatório de ajustes de Compras, ajuste 3, 17/11/2026 13:51 UTC (fonte e rubrica são do administrativo)", arquivo: "components/pedido/NovoPedidoDialog.tsx", naoContem: "fonte_recurso" },
+  { item: "Editar pedido: campo Fonte sugerida", sim: "relatório de ajustes de Compras, ajuste 3, 17/11/2026 13:51 UTC", arquivo: "components/pedido/PedidoInternoCabecalhoAcoes.tsx", naoContem: "fonte_recurso" },
 ];
 
 /** Por que o item retirado voltou; null quando continua fora. */

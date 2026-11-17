@@ -191,7 +191,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Visão geral: o quadro 'Aguardando você' e o quadro 'Andamento dos pedidos', com as seis etapas.",
           "Pedidos: cada pedido e a etapa em que está, da solicitação ao pagamento.",
-          "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'.",
+          "Compras com fornecedor: as compras fechadas, cada uma ligada ao pedido de onde nasceu. Toda compra nasce de um pedido aprovado; para pedir algo, use 'Novo pedido'. A linha abre o pedido, já no quadro 'Compra'.",
           "Recebimento: registrar o que chegou, numa lista só. A coluna Origem diz se a linha vem de um pedido ou de uma compra sem pedido (como a nova compra de uma pendência). A chegada cria o lote no Estoque.",
           "Prazos de compra: quanto tempo cada compra levou, do pedido à chegada.",
           "O Estoque é um módulo próprio na barra lateral, logo abaixo de Compras. O Planejamento fica em Projetos, porque o plano vem antes da compra.",
@@ -202,7 +202,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Aguardando você e andamento dos pedidos",
         itens: [
           "O quadro 'Aguardando você' mostra o que depende de você em Compras: pedidos para aprovar (coordenador do projeto ou coordenação do laboratório), autorizar, cotar ou pagar e compras para aprovar ou com chegada a registrar. Clique no nome para abrir o registro; o número abre a lista.",
-          "O quadro 'Andamento dos pedidos' tem uma caixa por etapa (solicitação, aprovação, administrativo, cotação, compra e entrega, pagamento) com a contagem de pedidos. Cada caixa abre os pedidos daquela etapa. A caixa 'A receber' conta os itens comprados que ainda não chegaram.",
+          "O quadro 'Andamento dos pedidos' tem uma caixa por etapa (solicitação, aprovação, administrativo, cotação, fechamento de compra, pagamento) com a contagem de pedidos. Cada caixa abre os pedidos daquela etapa. A caixa 'A receber' conta os itens comprados que ainda não chegaram.",
           "As seis etapas são as mesmas na lista de Pedidos e na página de cada pedido.",
           "O que espera você no Estoque (lotes em quarentena, códigos lidos sem cadastro, manutenção vencida) aparece em Estoque → Saldo e lotes; planos em rascunho e disputas de reserva, em Projetos → Planejamento. Tudo junto continua no Início e no sino.",
         ],
@@ -405,7 +405,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Registrar a necessidade de materiais, serviços e equipamentos e acompanhar até o pagamento.",
           "Organizar a fila de pedidos com numeração sequencial única (Nº 0001, 0002…), que nunca se repete.",
-          "Conduzir cada pedido pelas seis etapas: solicitação, aprovação, administrativo, cotação, compra e entrega, e pagamento.",
+          "Conduzir cada pedido pelas seis etapas: solicitação, aprovação, administrativo, cotação, fechamento de compra e pagamento.",
           "Na lista, os cartões das etapas mostram quantos pedidos há em cada uma; clique num cartão para ver só os pedidos dela. 'Em andamento', 'Concluídos', 'Cancelados' e 'Todos' trocam o conjunto.",
           "Os pedidos em andamento aparecem sempre todos. Dos concluídos e cancelados a lista traz os 300 mais recentes; quando há mais, ela avisa e 'Mostrar todos' traz o resto.",
           "Cada linha mostra a barra das etapas (verde = cumprida, amarelo = atual), o status por escrito e o próximo passo, com quem está.",
@@ -415,7 +415,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         titulo: "Regras e exceções em resumo",
         itens: [
           "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês. Dia 10 no sábado ou no domingo vale até a segunda. Depois do prazo, o pedido fica para o ciclo seguinte e só segue no dia 1. Feriado ainda não entra na conta.",
-          "Urgência Alta ou Crítica fura o ciclo, com justificativa por escrito.",
+          "Urgência Alta ou Crítica fura o ciclo, com justificativa por escrito. Quem define a urgência é o administrativo (permissão 'Definir urgência do pedido'), não quem pede.",
           "Quem aprova: o coordenador do projeto. Sem projeto, a Supervisão. Na ausência, o Administrador, com registro. Material de consumo de laboratório passa também pela coordenação do laboratório.",
           "Todo pedido precisa de 3 orçamentos de fornecedores diferentes. Não há dispensa por tipo de despesa.",
           "Pedido devolvido e reenviado: a aprovação continua valendo só se itens, valor, justificativa e projeto não mudaram.",
@@ -439,10 +439,15 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Criando e consultando",
         itens: [
-          "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo, urgência e justificativa. A fonte é só uma sugestão: quem define fonte e rubrica é o administrativo.",
+          "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo e justificativa. Fonte e rubrica são definidas pelo administrativo; o formulário não pede.",
+          "Os itens entram no próprio formulário: preencha um item e use 'Adicionar item'; ele vai para a lista, onde dá para editar ou remover. Para enviar, o pedido precisa de ao menos um item com especificação, quantidade e unidade.",
+          "'Enviar para aprovação' grava o pedido com os itens e já o envia a quem aprova, sem passar por rascunho. 'Guardar rascunho' guarda para terminar depois, no próprio pedido.",
+          "Fechar o formulário com algo preenchido pede confirmação antes de descartar. Se o pedido for gravado e o envio não sair (projeto sem coordenador, por exemplo), ele fica como rascunho e abre com o aviso do que falta.",
           "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Vale a data da última aprovação da coordenação (a do coordenador do projeto e, em material de laboratório, a da coordenação do laboratório). Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. Feriado ainda não entra na conta. O pedido mostra a data da solicitação, a da aprovação e o ciclo.",
-          "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. A urgência só muda com o pedido em rascunho ou devolvido para ajuste.",
+          "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. Se o administrativo definir o pedido como urgente, com justificativa, ele fura a trava.",
           "Urgência Alta ou Crítica fura o ciclo do dia 10 e exige justificativa por escrito (por que não pode esperar o próximo ciclo).",
+          "Quem pede não define a urgência: o pedido nasce Normal. Quem tem a permissão 'Definir urgência do pedido' (a função Administrativo e o Administrador) muda pelo botão 'Definir urgência', no topo do pedido, até ele ser concluído ou cancelado. A mudança fica na linha do tempo, com quem, quando e o motivo. Se o pedido não pode esperar o ciclo, diga o porquê na justificativa técnica.",
+          "Pedido gerado pelo Kontrol por falta de estoque (reposição de insumo crítico ou falta para iniciar um planejamento) nasce urgente, com o motivo escrito; o administrativo pode baixar a urgência.",
           "Pedido sem projeto é aprovado pela Supervisão. Material de consumo de laboratório pede também o laboratório (Genética, LAPOA, LHM, LQA, Campo...).",
           "Na lista, o botão 'Itens (N)' abre um resumo rápido do que está sendo solicitado, sem precisar abrir o pedido.",
           "A coluna 'Nº' mostra o número sequencial do pedido; clique para abrir o detalhe completo.",
@@ -471,6 +476,9 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Toda compra tem 3 orçamentos de fornecedores diferentes (inclusive FUNPAR e Petrobras). Registre cada um no quadro 'Orçamentos' do pedido, com valor, prazo e o documento anexado. 'Marcar cotações recebidas' só libera com os 3.",
           "Antes da aprovação final, escolha um orçamento. Se não for o de menor valor, escreva a justificativa (prazo, qualidade, exclusividade). Quem escolheu, quando e por quê ficam registrados, e o fornecedor escolhido vai para a compra.",
           "Caminho único: a compra ligada ao pedido é aprovada junto com ele, quando o pedido chega a 'Aprovado para compra'. Não há segunda aprovação em Compras.",
+          "A compra é conduzida no pedido, no quadro 'Compra': fornecedor, situação, previsão de entrega, chegada, pendência e 'Imprimir / PDF'. A tela da compra fica para consulta.",
+          "'Fechar com fornecedor' já marca a compra como enviada e calcula a previsão de entrega (o prazo do orçamento escolhido ou, sem ele, o prazo do cadastro). Pela Fundação ou Universidade são dois momentos: 'Encaminhar à instituição' e, quando ela fizer o pedido, 'Instituição enviou ao fornecedor', no quadro 'Compra'.",
+          "Se o orçamento escolhido trouxe só o nome do fornecedor, o quadro 'Compra' avisa e deixa escolher o fornecedor do cadastro (ou cadastrar).",
           "Pagamento só depois da entrega: materiais e equipamentos precisam ter a chegada registrada; serviço precisa de 'Confirmar entrega (serviço prestado)'. Diária é paga antes da viagem.",
           "Pagar antes da entrega só com acordo específico: 'Registrar exceção (pagar antes)' pede o acordo por escrito (com quem, o quê e por quê) e fica registrado com quem e quando.",
           "Acompanhe documentos, comunicações, aprovações e a linha do tempo dentro do pedido.",
@@ -497,7 +505,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
     href: "/compras",
     resumo: "A compra de cada pedido: fornecedor, envio e chegada.",
     intro:
-      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele: aqui você acompanha o envio ao fornecedor e registra a chegada, que põe o material no Estoque. Fica em Compras → Compras com fornecedor.",
+      "A compra é o registro do que foi comprado do fornecedor. Ela nasce de um pedido aprovado (ou da reposição automática) e segue com ele. A compra que nasceu de um pedido é conduzida no próprio pedido, no quadro 'Compra'; esta lista reúne todas e a tela da compra serve para consulta e impressão. Fica em Compras → Compras com fornecedor.",
     secoes: [
       {
         titulo: "Para que serve",
@@ -511,16 +519,18 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
-          "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
+          "A compra nasce no pedido (botão 'Formalizar em compras'). Em Compras → Compras com fornecedor, a linha abre o pedido, já no quadro 'Compra'. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
+          "No pedido, confira o fornecedor no quadro 'Compra' e use 'Fechar com fornecedor': a compra já fica como enviada, com a previsão de entrega.",
           "Ao chegar, clique em 'Registrar chegada' na linha do item, em Compras → Recebimento, no pedido ou na compra. É o mesmo registro nos três lugares: dá entrada no estoque e marca o item do pedido como recebido.",
-          "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
+          "Se faltar algo, encerre com pendência no quadro 'Compra' do pedido e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
         ],
       },
       {
         titulo: "Boas práticas",
         itens: [
-          "A compra ligada a um pedido é aprovada junto com ele, sem segunda aprovação aqui. Compra criada direto em Compras ainda passa pela aprovação administrativa.",
+          "A compra ligada a um pedido é aprovada junto com ele, sem segunda aprovação aqui.",
+          "A compra sem pedido (a nova compra de uma pendência ou a reposição automática) segue na própria tela, com 'Aprovar', 'Marcar enviado' e 'Encerrar com pendência'.",
+          "'Cancelar compra' fica na tela da compra, enquanto nada chegou.",
           "Aproveite os rascunhos automáticos para não esquecer reposições críticas.",
           "Receba sempre pela compra ou pelo pedido, assim o rastreio do lote fica completo.",
           "Cheque divergências de quantidade no recebimento antes de fechar o pedido.",
@@ -879,7 +889,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Laboratório: operação do dia a dia (análises, retiradas, baixas, pedidos e recebimentos). Antes se chamava Técnico.",
           "Compra: acompanha o que falta, solicita, conduz e recebe compras.",
           "Cadastro: mantém cadastros, insumos e projetos.",
-          "Administrativo: organização, planejamento geral, compras e financeiro (autorização administrativa, pagamento, custos, orçamentos e fundos). Não é o Administrador do sistema: não mexe em usuários, privilégios nem backups. Sem responsável indicado em Responsáveis por etapa, quem tem esta função recebe a autorização administrativa e o pagamento dos pedidos.",
+          "Administrativo: organização, planejamento geral, compras e financeiro (autorização administrativa, pagamento, custos, orçamentos e fundos). Não é o Administrador do sistema: não mexe em usuários, privilégios nem backups. Sem responsável indicado em Responsáveis por etapa, quem tem esta função recebe a autorização administrativa e o pagamento dos pedidos. É também quem define a urgência do pedido (permissão 'Definir urgência do pedido').",
           "Coordenador: aprova pedidos e faz orçamentos.",
           "Gestor: tudo do coordenador mais parâmetros econômicos, fundos, modelos e Auditoria.",
           "Supervisor: acima de Coordenador e Gestor; começa com as permissões do Gestor e não precisa estar ligado aos projetos.",

@@ -21,10 +21,10 @@ describe("natureza e objetivo do pedido", () => {
   });
 
   it("separa sinônimos sem vazios nem repetidos", () => {
-    expect(separarSinonimos("low binding; Baixa retenção;;  LOW BINDING\nlivre de DNase")).toEqual([
-      "low binding",
-      "Baixa retenção",
-      "livre de DNase",
+    expect(separarSinonimos("ponteira; Tip;;  PONTEIRA\npipette tip")).toEqual([
+      "ponteira",
+      "Tip",
+      "pipette tip",
     ]);
     expect(separarSinonimos(null)).toEqual([]);
   });

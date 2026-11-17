@@ -71,7 +71,8 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     .single();
   expect(erroProjeto).toBeNull();
 
-  // ---- 1. o pedido nasce na tela
+  // ---- 1. o pedido nasce na tela já com o item e segue direto para aprovação, sem rascunho
+  // (relatório de ajustes de Compras de 17/11/2026, ajuste 4)
   await page.goto("/pedido");
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const novo = page.getByRole("dialog");
@@ -79,30 +80,47 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await novo.getByLabel("Projeto").selectOption(String(projeto!.id));
   await novo.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
   await novo.getByLabel("Objetivo").selectOption("projeto");
-  // urgência fura o ciclo do dia 10 (0172/0176): o roteiro não depende do dia em que roda
-  await novo.getByLabel("Urgência").selectOption("alta");
-  await novo.getByLabel(/Por que é urgente/).fill("Roteiro automático: precisa seguir no mesmo dia.");
+  // quem pede não define a urgência nem sugere a fonte do recurso (ajustes 2 e 3)
+  await expect(novo.getByLabel("Urgência")).toHaveCount(0);
+  await expect(novo.getByLabel(/Fonte sugerida/)).toHaveCount(0);
   await novo.getByLabel("Justificativa técnica").fill("Ponteiras para as coletas do roteiro automático.");
-  await novo.getByRole("button", { name: "Criar rascunho" }).click();
+  // item ligado ao insumo cadastrado: a lista de insumos carrega quando o formulário abre
+  const camposItem = novo.getByTestId("novo-pedido-item-campos");
+  await expect(camposItem).toBeVisible();
+  await novo.locator("#pedido-item-insumo-selecao-novo-pedido-item").selectOption(String(insumo!.id));
+  await camposItem.locator('[name="quantidade"]').fill("5");
+  await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
+  await expect(novo.getByTestId("novo-pedido-itens")).toContainText(insumoNome);
+  await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
   expect(pedidoId).toBeGreaterThan(0);
 
-  // ---- 2. item ligado ao insumo cadastrado
-  await page.locator("#pedido-item-insumo-selecao-novo-item").selectOption(String(insumo!.id));
-  await page.locator('form:has(#pedido-item-insumo-selecao-novo-item) [name="quantidade"]').fill("5");
-  await page.getByRole("button", { name: "Adicionar item", exact: true }).click();
-  await expect
-    .poll(async () => {
-      const { data } = await cliente.from("pedidos_internos_itens").select("id, insumo_id").eq("pedido_interno_id", pedidoId);
-      return (data ?? []).map((item) => (item as { insumo_id: number | null }).insumo_id);
-    })
-    .toEqual([insumo!.id]);
-  await page.reload();
+  // o banco gravou o pedido, o item e a etapa de uma vez; a urgência nasce Normal e a fonte, vazia
+  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("em_validacao");
+  const { data: itensGravados } = await cliente.from("pedidos_internos_itens").select("insumo_id, quantidade").eq("pedido_interno_id", pedidoId);
+  expect((itensGravados ?? []).map((item) => [(item as { insumo_id: number | null }).insumo_id, Number((item as { quantidade: number }).quantidade)])).toEqual([[insumo!.id, 5]]);
+  const { data: nascido } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, fonte_recurso").eq("id", pedidoId).single();
+  expect(nascido).toEqual({ urgencia: "normal", urgencia_justificativa: null, fonte_recurso: null });
   await expect(page.getByRole("cell", { name: new RegExp(insumoNome) }).first()).toBeVisible();
 
+  // ---- 2. a urgência é de quem tem a permissão "Definir urgência do pedido" (0183). Ela fura o ciclo do
+  // dia 10 (0172/0176): com isso o roteiro não depende do dia em que roda
+  await page.getByRole("button", { name: "Definir urgência" }).click();
+  const urgencia = page.getByRole("dialog");
+  await urgencia.getByLabel("Urgência").selectOption("alta");
+  await urgencia.getByLabel(/Por que é urgente/).fill("Roteiro automático: precisa seguir no mesmo dia.");
+  await urgencia.getByRole("button", { name: "Salvar urgência" }).click();
+  await expect
+    .poll(async () => {
+      const { data } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, urgencia_definida_por").eq("id", pedidoId).single();
+      return data;
+    }, { message: "Definir urgência deveria gravar a urgência e quem a definiu", timeout: 30_000 })
+    .toEqual({ urgencia: "alta", urgencia_justificativa: "Roteiro automático: precisa seguir no mesmo dia.", urgencia_definida_por: ADMIN });
+  await page.reload();
+  await expect(page.getByText("Urgente: Roteiro automático: precisa seguir no mesmo dia.")).toBeVisible();
+
   // ---- 3. coordenação do projeto e formalização (aqui nasce a compra)
-  await avancar(page, cliente, pedidoId, "Enviar para aprovação", "em_validacao");
   await avancar(page, cliente, pedidoId, "Aprovar pedido", "validado");
   await avancar(page, cliente, pedidoId, "Formalizar em compras", "formalizado");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();
@@ -156,15 +174,101 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await avancar(page, cliente, pedidoId, "Enviar para aprovação final", "aguardando_aprovacao_final");
   await avancar(page, cliente, pedidoId, "Aprovar compra final", "aprovado_para_compra");
 
-  // ---- 6. caminho único (0170): a compra é aprovada junto com o pedido e vai ao fornecedor
-  const statusDaCompra = async () => {
-    const { data } = await cliente.from("pedidos_compra").select("status").eq("id", compraId).single();
-    return (data as { status: string } | null)?.status ?? null;
+  // ---- 6. compra única na tela (0170 e 0182): a compra é aprovada junto com o pedido e é
+  //         conduzida no quadro "Compra" do pedido, sem ninguém abrir a tela da compra
+  const lerCompra = async () => {
+    const { data } = await cliente
+      .from("pedidos_compra")
+      .select("status, fornecedor_id, data_prevista_entrega")
+      .eq("id", compraId)
+      .single();
+    return data as { status: string; fornecedor_id: number | null; data_prevista_entrega: string | null } | null;
   };
+  const statusDaCompra = async () => (await lerCompra())?.status ?? null;
   await expect.poll(statusDaCompra, { message: "a compra é aprovada junto com o pedido", timeout: 30_000 }).toBe("aprovado");
+
+  const painel = page.getByTestId("painel-compra");
+  await expect(painel.getByRole("heading", { name: `Compra #${compraId}` })).toBeVisible();
+  await expect(painel.getByTestId("painel-compra-situacao")).toHaveText("Aprovado");
+  await expect(painel.getByRole("link", { name: "Imprimir / PDF" })).toHaveAttribute("href", `/compras/${compraId}/imprimir`);
+  // o orçamento escolhido trouxe só o nome digitado: a compra nasceu sem fornecedor e o quadro avisa
+  await expect(painel.getByTestId("painel-compra-fornecedor")).toHaveText("Falta definir");
+  await expect(painel.getByTestId("painel-compra-sem-fornecedor")).toContainText(
+    `traz só o nome “${cotacoes[0].fornecedor}”, que não está no cadastro de fornecedores.`,
+  );
+  // antes de fechar não há botão de envio: "Fechar com fornecedor" envia a compra junto
+  await expect(painel.getByTestId("painel-compra-envio")).toContainText("já marca esta compra como enviada");
+  await expect(painel.getByRole("button", { name: "Marcar compra como enviada" })).toHaveCount(0);
+
+  // o fornecedor entra no cadastro com o mesmo nome e um prazo médio: o quadro já o aponta
+  const prazoDoFornecedor = 9;
+  const { data: fornecedor, error: erroFornecedor } = await cliente
+    .from("fornecedores")
+    .insert({ nome: cotacoes[0].fornecedor, prazo_medio_dias: prazoDoFornecedor })
+    .select("id")
+    .single();
+  expect(erroFornecedor).toBeNull();
+  const fornecedorId = Number((fornecedor as { id: number } | null)?.id);
+  await page.reload();
+  const semFornecedor = painel.getByTestId("painel-compra-sem-fornecedor");
+  await expect(semFornecedor).toContainText(`traz o nome “${cotacoes[0].fornecedor}”, que está no cadastro.`);
+  await expect(semFornecedor.getByLabel("Fornecedor da compra")).toHaveValue(String(fornecedorId));
+  await semFornecedor.getByRole("button", { name: "Definir fornecedor", exact: true }).click();
+  // a compra já está aprovada: preencher o que ficou em branco vale com "Aprovar compras"
+  await expect
+    .poll(async () => (await lerCompra())?.fornecedor_id ?? null, { message: "o fornecedor definido no pedido grava na compra", timeout: 30_000 })
+    .toBe(fornecedorId);
+  await page.reload();
+  await expect(painel.getByTestId("painel-compra-fornecedor")).toHaveText(cotacoes[0].fornecedor);
+  await expect(painel.getByTestId("painel-compra-sem-fornecedor")).toHaveCount(0);
+
+  // "Fechar com fornecedor" fecha o pedido e, pelo gatilho da 0182, envia a compra na mesma gravação
+  const hojeEmBrasilia = () => new Intl.DateTimeFormat("en-CA", { timeZone: "America/Sao_Paulo" }).format(new Date());
+  const somarDias = (dia: string, dias: number) => {
+    const data = new Date(`${dia}T12:00:00Z`);
+    data.setUTCDate(data.getUTCDate() + dias);
+    return data.toISOString().slice(0, 10);
+  };
+  const antesDeFechar = hojeEmBrasilia();
+  await avancar(page, cliente, pedidoId, "Fechar com fornecedor", "compra_fechada");
+  await expect.poll(statusDaCompra, { message: "fechar o pedido envia a compra (0182)", timeout: 30_000 }).toBe("enviado");
+  // sem prazo no orçamento nem no insumo, vale o prazo médio do fornecedor da compra
+  const previstas = [antesDeFechar, hojeEmBrasilia()].map((dia) => somarDias(dia, prazoDoFornecedor));
+  expect(previstas).toContain(String((await lerCompra())?.data_prevista_entrega).slice(0, 10));
+  const { data: eventosDoEnvio, error: erroEventos } = await cliente
+    .from("eventos_status")
+    .select("de_status, para_status, observacao")
+    .eq("entidade", "pedido_compra")
+    .eq("entidade_id", compraId)
+    .eq("para_status", "enviado");
+  expect(erroEventos).toBeNull();
+  expect(eventosDoEnvio).toHaveLength(1);
+  expect((eventosDoEnvio![0] as { observacao: string | null }).observacao).toContain(`fechamento do pedido interno #${pedidoId}`);
+
+  await semLeituraFalha(page);
+  await expect(painel.getByTestId("painel-compra-situacao")).toHaveText("Enviado");
+  await expect(painel.getByTestId("painel-compra-previsao")).not.toHaveText("sem previsão");
+  await expect(painel.getByTestId("painel-compra-envio")).toHaveCount(0);
+
+  // a tela da compra virou consulta: aponta para o pedido e não tem botão de etapa
   await page.goto(`/compras/${compraId}`);
-  await page.getByRole("button", { name: "Marcar enviado", exact: true }).click();
-  await expect.poll(statusDaCompra, { timeout: 30_000 }).toBe("enviado");
+  await semLeituraFalha(page);
+  const nota = page.getByTestId("compra-conduzida-no-pedido");
+  await expect(nota.getByRole("link", { name: /^Abrir o pedido Nº/ })).toHaveAttribute("href", `/pedido/${pedidoId}#compra`);
+  await expect(page.getByRole("button", { name: "Marcar enviado", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Aprovar", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Imprimir / PDF" })).toBeVisible();
+
+  // a lista de compras abre o pedido, já no quadro "Compra"
+  await page.goto("/compras");
+  await semLeituraFalha(page);
+  await page.getByPlaceholder(/^Buscar compra, pedido/).fill(cotacoes[0].fornecedor);
+  const linhaDaCompra = page.getByRole("row").filter({ hasText: cotacoes[0].fornecedor });
+  await expect(linhaDaCompra).toHaveCount(1);
+  await expect(linhaDaCompra.getByRole("link", { name: new RegExp(`^#${compraId}\\b`) })).toHaveAttribute(
+    "href",
+    `/pedido/${pedidoId}#compra`,
+  );
 
   // ---- 7. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
   //         e Chegadas registra pela compra sem ninguém trocar de tela

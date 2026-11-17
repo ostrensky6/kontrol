@@ -228,7 +228,7 @@ export default async function PedidoPage({
               <HelpTip title="Pedidos">
                 <p>
                   Todo pedido do laboratório ou do campo passa pelas mesmas seis etapas: solicitação,
-                  aprovação, administrativo, cotação, compra e entrega, e pagamento.
+                  aprovação, administrativo, cotação, fechamento de compra e pagamento.
                 </p>
                 <p>
                   <b>Aguardando você</b> mostra os pedidos que dependem de você, como os que o coordenador

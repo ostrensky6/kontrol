@@ -16,7 +16,7 @@ test("pedido de material de laboratório mostra quem aprova e trava sem coordena
   await form.getByLabel("Objetivo").selectOption("projeto");
   await form.getByLabel(/Laboratório ou área/).selectOption({ label: "Genética · Coordenação E2E" });
   await form.getByLabel("Justificativa técnica").fill("Extração de DNA das amostras de campo.");
-  await form.getByRole("button", { name: "Criar rascunho" }).click();
+  await form.getByRole("button", { name: "Guardar rascunho" }).click();
 
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const quadro = page.getByTestId("quem-aprova");

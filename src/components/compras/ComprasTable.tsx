@@ -8,7 +8,16 @@ import { Badge } from "@/components/ui/badge";
 
 export type CompraRow = {
   id: number;
+  /** "#12 · 17/11/2026" */
   pedido: string;
+  /**
+   * Para onde a linha leva: a compra que nasceu de pedido abre o pedido, já no
+   * quadro "Compra" (compra única na tela, 17/11/2026); a compra sem pedido
+   * abre a própria tela.
+   */
+  href: string;
+  /** "Nº 0504" do pedido que conduz a compra, ou "—" (compra sem pedido) */
+  origem: string;
   fornecedor: string;
   projeto: string;
   solicitante: string;
@@ -21,11 +30,12 @@ const columns: ColumnDef<CompraRow, unknown>[] = [
     accessorKey: "pedido",
     header: "Compra",
     cell: ({ row }) => (
-      <Link href={`/compras/${row.original.id}`} className="font-medium text-primary hover:underline">
+      <Link href={row.original.href} className="font-medium text-primary hover:underline">
         {row.original.pedido}
       </Link>
     ),
   },
+  { accessorKey: "origem", header: "Pedido" },
   { accessorKey: "fornecedor", header: "Fornecedor" },
   { accessorKey: "projeto", header: "Projeto" },
   { accessorKey: "solicitante", header: "Solicitante" },
@@ -58,7 +68,7 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
     <DataTable
       data={rows}
       columns={columns}
-      searchPlaceholder="Buscar compra, fornecedor ou projeto..."
+      searchPlaceholder="Buscar compra, pedido, fornecedor ou projeto..."
       emptyText="Nenhuma compra ainda."
       filters={[
         {
@@ -90,11 +100,13 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
         },
       ]}
       getMobileTitle={(row) => (
-        <Link href={`/compras/${row.id}`} className="text-primary hover:underline">
+        <Link href={row.href} className="text-primary hover:underline">
           {row.pedido}
         </Link>
       )}
-      getMobileDescription={(row) => `${row.fornecedor} · ${row.projeto} · ${row.solicitante}`}
+      getMobileDescription={(row) =>
+        `${row.origem === "—" ? "Sem pedido" : `Pedido ${row.origem}`} · ${row.fornecedor} · ${row.projeto} · ${row.solicitante}`
+      }
       getMobileMeta={(row) => <StatusBadge status={row.status} label={row.statusLabel} />}
     />
   );

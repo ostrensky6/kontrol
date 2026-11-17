@@ -7,6 +7,8 @@
  * - prazo: dia 10 do mês; sábado e domingo passam para a segunda;
  * - aprovação de coordenação até o prazo: ciclo do mês; depois, o seguinte;
  * - urgência (alta ou crítica) fura o ciclo, com justificativa obrigatória;
+ *   desde a 0183 quem a define é quem tem a permissão "Definir urgência do
+ *   pedido" (o administrativo), não quem pede;
  * - horário de Brasília; feriados não entram na conta.
  */
 
@@ -76,7 +78,7 @@ export function explicarCicloHoje(hoje: string, urgente: boolean): string {
   if (ciclo.slice(0, 7) === hoje.slice(0, 7)) {
     return `Aprovado pela coordenação até ${rotuloPrazo(prazo)}, entra no ciclo de compras de ${rotuloCiclo(ciclo)}. Depois disso, passa ao ciclo seguinte.`;
   }
-  return `O prazo de ${rotuloCiclo(iso(ano, mes, 1))} (${rotuloPrazo(prazo)}) já passou: o pedido entra no ciclo de ${rotuloCiclo(ciclo)}, salvo urgência justificada.`;
+  return `O prazo de ${rotuloCiclo(iso(ano, mes, 1))} (${rotuloPrazo(prazo)}) já passou: o pedido entra no ciclo de ${rotuloCiclo(ciclo)}, salvo urgência definida pelo administrativo.`;
 }
 
 /** O que falta na urgência; null quando não é urgente ou está justificada. */

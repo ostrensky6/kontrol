@@ -456,7 +456,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         label: "Sinônimos (nomes equivalentes)",
         tipo: "text",
         colSpan: 2,
-        placeholder: "low binding; baixa retenção",
+        placeholder: "ponteira; tip; pipette tip",
         ajuda: "Outros nomes pelos quais a equipe procura este item, separados por ponto e vírgula. Ajudam a achar o item no pedido e evitam cadastro duplicado.",
         exportar: false,
       },

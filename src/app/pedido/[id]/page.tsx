@@ -57,7 +57,14 @@ import {
   chegadasPelaCompra,
   type ItemCompraDoPedidoRaw,
 } from "@/lib/pedido/chegada-pela-compra";
+import {
+  COLUNAS_COMPRA_DO_PEDIDO,
+  pedidoMostraPainelDaCompra,
+  chegadaDaCompra,
+  type CompraDoPedido,
+} from "@/lib/pedido/compra-do-pedido";
 import { PedidoCabecalho } from "@/components/pedido/detalhe/PedidoCabecalho";
+import { PedidoCompraPainel } from "@/components/pedido/detalhe/PedidoCompraPainel";
 import { PedidoPainelAgora } from "@/components/pedido/detalhe/PedidoPainelAgora";
 import { PedidoResumo } from "@/components/pedido/detalhe/PedidoResumo";
 import { PedidoItens } from "@/components/pedido/detalhe/PedidoItens";
@@ -69,17 +76,21 @@ export const dynamic = "force-dynamic";
 
 export default async function PedidoInternoDetalhe({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  /** aviso: o "Novo pedido" gravou o pedido, mas os itens ou o envio não saíram */
+  searchParams?: Promise<{ aviso?: string }>;
 }) {
   const leitura = novaLeitura("/pedido/[id]");
   const { id } = await params;
+  const { aviso } = (await searchParams) ?? {};
   const pedidoId = Number(id);
   const supabase = await createClientUntyped();
 
   const { data: pedido } = await leitura.de("pedidos", supabase
     .from("pedidos_internos")
-    .select("*, projetos(nome), pedidos_compra(id, status)")
+    .select(`*, projetos(nome), pedidos_compra(${COLUNAS_COMPRA_DO_PEDIDO})`)
     .eq("id", pedidoId)
     .single());
   if (!pedido) semRegistro(leitura);
@@ -103,6 +114,8 @@ export default async function PedidoInternoDetalhe({
     podeReceberCompra,
     { data: locais },
     { data: itensDaCompra },
+    podeAprovarCompra,
+    podeUrgencia,
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -154,6 +167,8 @@ export default async function PedidoInternoDetalhe({
           .eq("pedido_id", pedido.pedido_compra_id)
           .order("id"))
       : Promise.resolve({ data: [] }),
+    pode("compras.aprovar"),
+    pode("pedido.urgencia"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -184,7 +199,7 @@ export default async function PedidoInternoDetalhe({
     coordenador_email?: string | null;
   } | null;
   const projeto = projetoRow?.nome ?? "—";
-  const compraFormal = pedido.pedidos_compra as { id: number; status: string } | null;
+  const compraFormal = pedido.pedidos_compra as CompraDoPedido | null;
   // Quem aprovou fica gravado no pedido; antes disso vale o que o banco aponta
   // (usuário coordenador do projeto), nunca o nome escrito à mão no cadastro.
   const coordenadorProjeto =
@@ -264,9 +279,9 @@ export default async function PedidoInternoDetalhe({
     { label: "Justificativa preenchida", ok: Boolean(pedido.justificativa) },
     { label: "Tipo de material ou despesa", ok: Boolean(pedido.natureza) },
     { label: "Objetivo", ok: Boolean(pedido.objetivo) },
-    { label: "Urgência definida", ok: Boolean(pedido.urgencia) },
+    // 0183: quem pede não define a urgência; a linha só aparece em pedido já urgente
     ...(ehUrgente(pedido.urgencia)
-      ? [{ label: "Urgência justificada (fura o ciclo do dia 10)", ok: !faltaJustificativaUrgencia(pedido.urgencia, pedido.urgencia_justificativa) }]
+      ? [{ label: "Urgência justificada por quem a define (fura o ciclo do dia 10)", ok: !faltaJustificativaUrgencia(pedido.urgencia, pedido.urgencia_justificativa) }]
       : []),
     { label: "Ao menos um item", ok: linhas.length > 0 },
     {
@@ -275,6 +290,15 @@ export default async function PedidoInternoDetalhe({
     },
   ];
   const rascunhoCompleto = pendencias.every((item) => item.ok);
+  // "Novo pedido" grava e envia de uma vez; se uma parte não saiu, o pedido fica como rascunho e diz por quê
+  const avisoNovoPedido =
+    pedido.status !== "rascunho"
+      ? null
+      : aviso === "itens"
+        ? "O pedido foi guardado como rascunho, mas os itens não foram gravados. Inclua os itens abaixo e envie para aprovação."
+        : aviso === "envio"
+          ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
+          : null;
   const temDocumentoCotacao = anexoRows.some((anexo) => ["orcamento_previo", "proposta", "print", "email"].includes(anexo.tipo));
   const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
@@ -345,6 +369,11 @@ export default async function PedidoInternoDetalhe({
       <main className="app-page-container">
         <AvisoLeitura falhas={leitura.falhas} />
         <Breadcrumbs items={[{ label: "Pedidos", href: "/pedido" }, { label: pedidoInternoNumero(pedido.id) }]} />
+        {avisoNovoPedido && (
+          <p role="status" data-testid="aviso-novo-pedido" className="mt-2 rounded-lg border border-warning-strong/40 bg-warning-soft px-3 py-2 text-sm">
+            {avisoNovoPedido}
+          </p>
+        )}
         <PedidoCabecalho
           pedido={pedido}
           statusMeta={statusMeta}
@@ -358,6 +387,7 @@ export default async function PedidoInternoDetalhe({
           areas={areas}
           projetos={projetos}
           podeGerir={podeGerir}
+          podeDefinirUrgencia={podeUrgencia && !encerrado}
         />
 
         <section aria-label="Andamento do pedido" className="mt-3 rounded-lg border border-border bg-card px-3 py-4 shadow-sm">
@@ -415,6 +445,22 @@ export default async function PedidoInternoDetalhe({
             temDocumentoFiscal={temDocumentoFiscal}
           />
         </section>
+
+        {/* compra única na tela: a compra que nasceu do pedido é conduzida aqui */}
+        {compraFormal && pedidoMostraPainelDaCompra(pedido.status) && (
+          <PedidoCompraPainel
+            pedidoId={pedidoId}
+            pedidoStatus={pedido.status}
+            compra={compraFormal}
+            chegada={itensDaCompra ? chegadaDaCompra(itensDaCompra as unknown as ItemCompraDoPedidoRaw[]) : null}
+            orcamentoEscolhido={orcamentos?.find((orcamento) => orcamento.escolhida) ?? null}
+            fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
+              .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
+              .map((f) => ({ id: f.id, nome: f.nome }))}
+            podeAprovarCompra={podeAprovarCompra}
+            hoje={hojeBrasilia}
+          />
+        )}
 
         <PedidoItens
           total={total}

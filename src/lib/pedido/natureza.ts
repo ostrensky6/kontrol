@@ -65,7 +65,7 @@ export function objetivoValido(valor: string | null | undefined): ObjetivoPedido
   return valor && OBJETIVO_ROTULO.has(valor) ? (valor as ObjetivoPedido) : null;
 }
 
-/** Sinônimos do insumo ("low binding; baixa retenção") em lista, sem vazios nem repetidos. */
+/** Sinônimos do insumo ("ponteira; tip") em lista, sem vazios nem repetidos. */
 export function separarSinonimos(valor: string | null | undefined): string[] {
   const vistos = new Set<string>();
   const lista: string[] = [];

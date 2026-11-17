@@ -81,7 +81,7 @@ begin
            papel = case v_rotulo when 'coord' then 'coordenador' else 'laboratorio' end,
            suspenso = false, senha_provisoria = false,
            permissoes = case v_rotulo
-             when 'coord' then '{"pedido.criar": true, "pedido.aprovar": true}'::jsonb
+             when 'coord' then '{"pedido.criar": true, "pedido.aprovar": true, "pedido.urgencia": true}'::jsonb
              else '{"pedido.criar": true}'::jsonb end
      where id = pg_temp.uid(v_rotulo);
   end loop;
@@ -117,9 +117,16 @@ select pg_temp.exigir_erro(
 select pg_temp.exigir_erro(
   format('update public.pedidos_internos set ciclo_pagamento = ''2026-01-01'' where id = %s', current_setting('t0172.normal')),
   '42501', 'ciclo de pagamento');
-update public.pedidos_internos
-   set urgencia_justificativa = 'Amostras da campanha chegam dia 15 e o reagente acabou'
- where id = current_setting('t0172.urgente')::bigint;
+-- desde a 0183 quem pede não escreve a justificativa da urgência: quem tem a
+-- permissão "Definir urgência do pedido" define, pela função
+select pg_temp.exigir_erro(
+  format('update public.pedidos_internos set urgencia_justificativa = ''Amostras da campanha chegam dia 15 e o reagente acabou'' where id = %s',
+         current_setting('t0172.urgente')),
+  '42501', 'Definir urgência do pedido');
+select pg_temp.como('coord');
+select public.definir_urgencia_pedido_interno(current_setting('t0172.urgente')::bigint, 'alta',
+                                              'Amostras da campanha chegam dia 15 e o reagente acabou');
+select pg_temp.como('pedinte');
 select public.transicionar_pedido_interno(current_setting('t0172.urgente')::bigint, 'em_validacao', 'Envio', 'registrado', null);
 select public.transicionar_pedido_interno(current_setting('t0172.normal')::bigint, 'em_validacao', 'Envio', 'registrado', null);
 select public.transicionar_pedido_interno(current_setting('t0172.lab')::bigint, 'em_validacao', 'Envio', 'registrado', null);

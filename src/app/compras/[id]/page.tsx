@@ -18,7 +18,13 @@ import { Timeline } from "@/components/common/Timeline";
 import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl, hojeIso } from "@/lib/formatters";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
 import { compraAceitaChegada } from "@/lib/pedido/chegada-pela-compra";
-import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
+import {
+  compraSemFornecedor,
+  hrefDoPedidoQueConduz,
+  pedidoMostraPainelDaCompra,
+  pedidoQueConduzCompra,
+} from "@/lib/pedido/compra-do-pedido";
+import { pedidoInternoNumero, pedidoQueSeguraCompra } from "@/lib/pedido/status";
 import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
@@ -147,9 +153,15 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
         ? `pedido_compra_id.eq.${pedidoId},id.in.(${idsInternosDosItens.join(",")})`
         : `pedido_compra_id.eq.${pedidoId}`,
     ));
-  const pedidoInternoPendente = pedidoQueSeguraCompra(
-    ((internosDaCompra ?? []) as { id: number; status: string | null }[]),
-  );
+  const pedidosDeOrigem = (internosDaCompra ?? []) as { id: number; status: string | null }[];
+  const pedidoInternoPendente = pedidoQueSeguraCompra(pedidosDeOrigem);
+  // Compra única na tela (17/11/2026): a compra que nasceu de pedido é conduzida
+  // no pedido; aqui ela fica para consulta, impressão e chegada. A compra sem
+  // pedido (pendência de outra compra) continua com os botões dela.
+  const pedidoCondutor = pedidoQueConduzCompra(pedidosDeOrigem);
+  const semFornecedorNoPedido = pedidoCondutor != null && compraSemFornecedor(pedido);
+  // antes de "Fechamento de compra" o pedido ainda não mostra o quadro "Compra"
+  const quadroNoPedido = pedidoCondutor != null && pedidoMostraPainelDaCompra(pedidoCondutor.status);
 
   const eventos = await listarEventos("pedido_compra", pedidoId);
   const editavel = pedido.status === "solicitado" && podeSolicitar;
@@ -247,7 +259,40 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
           )}
         </section>
 
-        {semFornecedor && (
+        {pedidoCondutor && (
+          <p
+            role="note"
+            data-testid="compra-conduzida-no-pedido"
+            className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-muted/40 px-4 py-3 text-sm"
+          >
+            <span>
+              {quadroNoPedido
+                ? `Esta compra nasceu do pedido ${pedidoInternoNumero(pedidoCondutor.id)} e é conduzida lá: fornecedor, envio ao fornecedor e pendência ficam no quadro “Compra” do pedido. Esta tela serve para consulta e impressão.`
+                : `Esta compra nasceu do pedido ${pedidoInternoNumero(pedidoCondutor.id)} e segue com ele: é aprovada junto com o pedido e o fornecedor vem do orçamento escolhido. O quadro “Compra” aparece no pedido na etapa “Fechamento de compra”. Esta tela serve para consulta e impressão.`}
+            </span>
+            <Link
+              href={hrefDoPedidoQueConduz(pedidoCondutor)}
+              className="rounded-md border border-input bg-card px-3 py-1.5 text-sm font-medium hover:bg-muted"
+            >
+              Abrir o pedido {pedidoInternoNumero(pedidoCondutor.id)}
+            </Link>
+          </p>
+        )}
+
+        {semFornecedorNoPedido && pedidoCondutor && (
+          <p role="note" className="mt-3 rounded-lg border border-warning-strong/30 bg-warning-soft px-4 py-3 text-sm">
+            <b className="font-semibold text-warning-strong">Compra sem fornecedor.</b>{" "}
+            {quadroNoPedido
+              ? "O fornecedor é definido no quadro “Compra” do"
+              : "O fornecedor vem do orçamento escolhido no pedido. Se ele trouxer só o nome digitado, o quadro “Compra” pede o fornecedor depois da aprovação final do"}{" "}
+            <Link href={hrefDoPedidoQueConduz(pedidoCondutor)} className="font-medium text-primary hover:underline">
+              pedido {pedidoInternoNumero(pedidoCondutor.id)}
+            </Link>
+            .
+          </p>
+        )}
+
+        {semFornecedor && !pedidoCondutor && (
           <section
             aria-labelledby="compra-sem-fornecedor"
             className="mt-4 rounded-lg border border-warning-strong/30 bg-warning-soft px-4 py-3 text-sm"
@@ -489,6 +534,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
               (item) => Number(item.quantidade_recebida ?? 0) > 0 || item.lote_id != null,
             )}
             pedidoInternoPendente={pedidoInternoPendente}
+            conduzidaNoPedido={pedidoCondutor != null}
           />
         </section>
 
