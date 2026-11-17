@@ -36,6 +36,8 @@ type Props = {
   rascunhoCompleto: boolean;
   compraFormal: { id: number; status: string; } | null;
   podeValidar: boolean;
+  /** 0136 (D2): quem pediu não dá a aprovação final do próprio pedido; null quando pode */
+  motivoProprioPedido?: string | null;
   aprovadores: AprovadoresPedido | null;
   esperaLaboratorio: boolean;
   podeDecidirLaboratorio: boolean;
@@ -65,6 +67,7 @@ export function PedidoPainelAgora({
   rascunhoCompleto,
   compraFormal,
   podeValidar,
+  motivoProprioPedido = null,
   aprovadores,
   esperaLaboratorio,
   podeDecidirLaboratorio,
@@ -144,6 +147,7 @@ export function PedidoPainelAgora({
             podeConfirmarEntrega={podeConfirmar}
             motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}
             motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
+            motivoProprioPedido={motivoProprioPedido}
             controlado={controlados.length > 0}
           />
         )}

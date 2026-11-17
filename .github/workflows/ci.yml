@@ -186,6 +186,8 @@ jobs:
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/compra_enviada_com_o_pedido_0182.sql
       - name: Validar que a urgência do pedido é definida só por quem tem a permissão (0183)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/urgencia_por_permissao_0183.sql
+      - name: Validar que as permissões de Compras valem do pedido à compra concluída
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/compras_por_permissao.sql
 
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,

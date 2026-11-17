@@ -58,6 +58,7 @@ export type ChegadaPelaCompra = {
 export function ItemRecebimentoCell({
   item,
   semCompra = false,
+  podeEstornar = false,
   recebidoEm,
   recebidoPor,
   recebimentos = [],
@@ -69,6 +70,11 @@ export function ItemRecebimentoCell({
    * mais): mostra o que já chegou, com o estorno, e diz que falta a compra.
    */
   semCompra?: boolean;
+  /**
+   * permissão "Corrigir estoque" (estoque.lote.gerir), a mesma que o banco exige
+   * para estornar: sem ela, o que chegou aparece sem o botão de estorno
+   */
+  podeEstornar?: boolean;
   recebidoEm?: string | null;
   recebidoPor?: string | null;
   recebimentos?: RecebimentoLancamento[];
@@ -155,20 +161,22 @@ export function ItemRecebimentoCell({
           Recebido {quando}
         </span>
         {recebidoPor && <span className="text-xs text-muted-foreground/80">{recebidoPor}</span>}
-        <button
-          type="button"
-          onClick={() => pedirEstorno()}
-          disabled={pending}
-          className="text-xs text-muted-foreground underline-offset-2 hover:text-danger-strong hover:underline disabled:opacity-50"
-        >
-          {pending ? "Estornando…" : "Estornar"}
-        </button>
+        {podeEstornar && (
+          <button
+            type="button"
+            onClick={() => pedirEstorno()}
+            disabled={pending}
+            className="text-xs text-muted-foreground underline-offset-2 hover:text-danger-strong hover:underline disabled:opacity-50"
+          >
+            {pending ? "Estornando…" : "Estornar"}
+          </button>
+        )}
         {recebimentos.length > 0 && (
           <RecebimentosHistorico
             recebimentos={recebimentos}
             unidade={item.unidade}
             pending={pending}
-            onEstornar={pedirEstorno}
+            onEstornar={podeEstornar ? pedirEstorno : null}
           />
         )}
         {erro && <span role="alert" className="text-xs text-danger-strong">{erro}</span>}
@@ -190,7 +198,7 @@ export function ItemRecebimentoCell({
             recebimentos={recebimentos}
             unidade={item.unidade}
             pending={pending}
-            onEstornar={pedirEstorno}
+            onEstornar={podeEstornar ? pedirEstorno : null}
           />
         )}
         <span className="text-xs text-muted-foreground/80">aguardando a compra</span>
@@ -215,7 +223,7 @@ export function ItemRecebimentoCell({
             recebimentos={recebimentos}
             unidade={item.unidade}
             pending={pending}
-            onEstornar={pedirEstorno}
+            onEstornar={podeEstornar ? pedirEstorno : null}
           />
         )}
         <ScannerRecebimentoCompra item={chegadaPelaCompra.item} locais={chegadaPelaCompra.locais} />
@@ -251,7 +259,8 @@ function RecebimentosHistorico({
   recebimentos: RecebimentoLancamento[];
   unidade?: string | null;
   pending: boolean;
-  onEstornar: (recebimentoId: number) => void;
+  /** null: quem vê não tem "Corrigir estoque"; o lançamento aparece sem o estorno */
+  onEstornar: ((recebimentoId: number) => void) | null;
 }) {
   return (
     <div className="mt-1 min-w-44 space-y-1 rounded-md border border-border/70 bg-muted/30 p-2 text-[11px]">
@@ -284,16 +293,18 @@ function RecebimentosHistorico({
                 </p>
               )}
             </div>
-            <button
-              type="button"
-              onClick={() => onEstornar(recebimento.id)}
-              disabled={pending}
-              className="rounded p-1 text-muted-foreground hover:bg-background hover:text-danger-strong disabled:opacity-50"
-              title="Estornar este lançamento"
-              aria-label={`Estornar o lançamento de ${recebimento.quantidade} ${unidade ?? ""} em ${quando}`.replace(/\s+/g, " ")}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-            </button>
+            {onEstornar && (
+              <button
+                type="button"
+                onClick={() => onEstornar(recebimento.id)}
+                disabled={pending}
+                className="rounded p-1 text-muted-foreground hover:bg-background hover:text-danger-strong disabled:opacity-50"
+                title="Estornar este lançamento"
+                aria-label={`Estornar o lançamento de ${recebimento.quantidade} ${unidade ?? ""} em ${quando}`.replace(/\s+/g, " ")}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+            )}
           </div>
         );
       })}

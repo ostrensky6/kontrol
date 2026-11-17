@@ -65,7 +65,7 @@ function quantidadeDaLinha(row: RecebimentoItemRow) {
 }
 
 /** A ação da linha: o mesmo "Registrar chegada" para pedido e para compra. */
-function AcaoDaLinha({ row, locais }: { row: RecebimentoItemRow; locais: Local[] }) {
+function AcaoDaLinha({ row, locais, podeEstornar }: { row: RecebimentoItemRow; locais: Local[]; podeEstornar: boolean }) {
   if (row.origem === "compra") {
     return row.compraItem ? (
       <div data-testid="chegada-da-compra">
@@ -87,13 +87,14 @@ function AcaoDaLinha({ row, locais }: { row: RecebimentoItemRow; locais: Local[]
         unidade: row.unidade,
       }}
       semCompra={row.semCompra}
+      podeEstornar={podeEstornar}
       recebimentos={row.recebimentos}
       chegadaPelaCompra={row.compraItem ? { item: row.compraItem, locais } : null}
     />
   );
 }
 
-function colunas(insumos: Insumo[], locais: Local[]): ColumnDef<RecebimentoItemRow, unknown>[] {
+function colunas(insumos: Insumo[], locais: Local[], podeEstornar: boolean): ColumnDef<RecebimentoItemRow, unknown>[] {
   return [
     {
       accessorKey: "origemRotulo",
@@ -148,7 +149,7 @@ function colunas(insumos: Insumo[], locais: Local[]): ColumnDef<RecebimentoItemR
       header: "Recebimento",
       meta: { align: "right" },
       enableSorting: false,
-      cell: ({ row }) => <AcaoDaLinha row={row.original} locais={locais} />,
+      cell: ({ row }) => <AcaoDaLinha row={row.original} locais={locais} podeEstornar={podeEstornar} />,
     },
   ];
 }
@@ -157,16 +158,19 @@ export function RecebimentoItensTable({
   rows,
   insumos,
   locais = [],
+  podeEstornar = false,
 }: {
   rows: RecebimentoItemRow[];
   insumos: Insumo[];
   /** onde o lote pode ficar guardado (chegada pelo item da compra) */
   locais?: Local[];
+  /** "Corrigir estoque": a mesma permissão que o banco exige para estornar uma chegada */
+  podeEstornar?: boolean;
 }) {
   return (
     <DataTable
       data={rows}
-      columns={colunas(insumos, locais)}
+      columns={colunas(insumos, locais, podeEstornar)}
       searchPlaceholder="Buscar item, pedido, compra, projeto ou fornecedor..."
       emptyText="Nada aguardando chegada."
       filters={[
@@ -193,7 +197,7 @@ export function RecebimentoItensTable({
       getMobileMeta={(row) => (
         <div className="flex flex-col items-end gap-1.5">
           <StatusBadge status={row.status} />
-          <AcaoDaLinha row={row} locais={locais} />
+          <AcaoDaLinha row={row} locais={locais} podeEstornar={podeEstornar} />
         </div>
       )}
     />
