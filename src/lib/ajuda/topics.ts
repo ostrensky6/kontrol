@@ -242,7 +242,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Cadastros mostra só a contagem (por exemplo, '3 urgentes · 5 de atenção') e leva ao painel. O Início mostra os números Sem estoque, Vencidos ou vencendo e Repor, os mesmos do topo da Situação, e traz as linhas do painel na tabela 'Precisa de atenção hoje'. Tudo sai das mesmas regras; quando a leitura falha, aparece 'sem dado'.",
           "O painel usa o mesmo saldo da tela de Estoque. Ele mostra o que está registrado no sistema, que pode diferir do que está na prateleira até alguém conferir no Inventário.",
           "Sem estoque é todo disponível zerado, com ou sem mínimo definido (a linha avisa quando falta o mínimo). Sem mínimo definido lista só o que tem saldo e ainda não tem mínimo. Saldo não conferido significa que não há dado de saldo nesta leitura; Saldo indisponível indica falha de leitura.",
-          "Repor é uma sugestão para análise: considera consumo, pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
+          "Repor é uma sugestão para análise: considera consumo (saída desfeita por leitura não conta), pedidos abertos e prazo cadastrado. 'Gerar pedidos de reposição', no topo do painel, cria um pedido em rascunho com esses insumos; o botão existe só nessa tela.",
           "O quadro 'A caminho', no fim do painel, lista as compras feitas e não recebidas, para conferir antes de pedir de novo. Ele aparece para quem tem acesso a Compras.",
           "Filtre os alertas por categoria de compra ou categoria curta. O gráfico de movimentos conta registros dos últimos 12 meses e fica indisponível se a leitura estiver incompleta.",
         ],
