@@ -17,6 +17,7 @@ import {
   type PedidoDetalhe,
 } from "@/lib/pedido/detalhe";
 import type { Equivalente } from "@/lib/estoque/equivalentes";
+import type { ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Props = {
@@ -26,6 +27,9 @@ type Props = {
   equivalentes: Map<number, Equivalente[]>;
   pedidoId: number;
   compraFormal: { id: number; status: string; } | null;
+  /** por item do pedido, o item da compra que já pode chegar (chegada única) */
+  chegadasCompra: Map<number, ItemCompraRecebivel>;
+  locais: { id: number; nome: string }[];
   catalogoItens: PedidoItemCatalogo[];
   aguardandoChegada: boolean;
   podeRegistrarRecebimento: boolean;
@@ -40,6 +44,15 @@ type Props = {
   travaEnvio: string | null;
 };
 
+function chegadaDoItem(
+  chegadas: Map<number, ItemCompraRecebivel>,
+  itemId: number,
+  locais: { id: number; nome: string }[],
+) {
+  const item = chegadas.get(itemId);
+  return item ? { item, locais } : null;
+}
+
 /** Materiais, serviços e equipamentos do pedido: tabela, inclusão de item e envio. */
 export function PedidoItens({
   total,
@@ -48,6 +61,8 @@ export function PedidoItens({
   equivalentes,
   pedidoId,
   compraFormal,
+  chegadasCompra,
+  locais,
   catalogoItens,
   aguardandoChegada,
   podeRegistrarRecebimento,
@@ -149,6 +164,7 @@ export function PedidoItens({
                     }}
                     insumos={catalogoComVinculoAtual(catalogoItens, item).map((insumo) => ({ ...insumo, codigo_fabricante: insumo.codigoFabricante }))}
                     podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
+                    chegadaPelaCompra={chegadaDoItem(chegadasCompra, item.id, locais)}
                     recebidoEm={item.recebido_em}
                     recebidoPor={item.recebido_por}
                     recebimentos={(item.pedidos_internos_item_recebimentos ?? [])
@@ -172,7 +188,7 @@ export function PedidoItens({
                   {item.divergencia_recebimento && (
                     <p className="mt-1 text-[11px] text-warning-strong">{item.divergencia_recebimento}</p>
                   )}
-                  {aguardandoChegada && compraFormal && !item.recebido_em && (
+                  {aguardandoChegada && compraFormal && !item.recebido_em && !chegadasCompra.has(item.id) && (
                     <p className="mt-1 text-[11px] text-muted-foreground">
                       Registrar a chegada pela <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">compra</Link>.
                     </p>

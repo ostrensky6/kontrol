@@ -5,6 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/common/DataTable";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import type { ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
 import { ItemRecebimentoCell, type RecebimentoLancamento } from "./ItemRecebimentoCell";
 
 type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
@@ -27,7 +28,11 @@ export type RecebimentoItemRow = {
   status: string;
   statusLabel: string;
   podeReceber: boolean;
+  /** item que virou compra e já pode chegar: recebe aqui, pelo item da compra */
+  compraItem?: ItemCompraRecebivel | null;
 };
+
+type Local = { id: number; nome: string };
 
 /** Código do fabricante do insumo vinculado: quem recebe confere o produto exato. */
 function CodigoFabricanteDoItem({ insumos, insumoId }: { insumos: Insumo[]; insumoId: number | null }) {
@@ -40,7 +45,7 @@ function CodigoFabricanteDoItem({ insumos, insumoId }: { insumos: Insumo[]; insu
   );
 }
 
-function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
+function colunas(insumos: Insumo[], locais: Local[]): ColumnDef<RecebimentoItemRow, unknown>[] {
   return [
     {
       accessorKey: "pedidoNumero",
@@ -112,6 +117,7 @@ function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
           insumos={insumos}
           podeReceber={row.original.podeReceber}
           recebimentos={row.original.recebimentos}
+          chegadaPelaCompra={row.original.compraItem ? { item: row.original.compraItem, locais } : null}
         />
       ),
     },
@@ -121,14 +127,17 @@ function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
 export function RecebimentoItensTable({
   rows,
   insumos,
+  locais = [],
 }: {
   rows: RecebimentoItemRow[];
   insumos: Insumo[];
+  /** onde o lote pode ficar guardado (chegada pelo item da compra) */
+  locais?: Local[];
 }) {
   return (
     <DataTable
       data={rows}
-      columns={colunas(insumos)}
+      columns={colunas(insumos, locais)}
       searchPlaceholder="Buscar item, pedido, projeto ou fornecedor..."
       emptyText="Nenhum item de pedido aguardando chegada."
       filters={[
@@ -171,6 +180,7 @@ export function RecebimentoItensTable({
             insumos={insumos}
             podeReceber={row.podeReceber}
             recebimentos={row.recebimentos}
+            chegadaPelaCompra={row.compraItem ? { item: row.compraItem, locais } : null}
           />
         </div>
       )}

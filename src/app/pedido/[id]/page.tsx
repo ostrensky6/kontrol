@@ -52,6 +52,11 @@ import {
   montarCatalogoItens,
   montarFornecedoresPedido,
 } from "@/lib/pedido/detalhe";
+import {
+  COLUNAS_ITEM_COMPRA_DO_PEDIDO,
+  chegadasPelaCompra,
+  type ItemCompraDoPedidoRaw,
+} from "@/lib/pedido/chegada-pela-compra";
 import { PedidoCabecalho } from "@/components/pedido/detalhe/PedidoCabecalho";
 import { PedidoPainelAgora } from "@/components/pedido/detalhe/PedidoPainelAgora";
 import { PedidoResumo } from "@/components/pedido/detalhe/PedidoResumo";
@@ -95,6 +100,9 @@ export default async function PedidoInternoDetalhe({
     aprovadores,
     areas,
     usuario,
+    podeReceberCompra,
+    { data: locais },
+    { data: itensDaCompra },
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -136,6 +144,16 @@ export default async function PedidoInternoDetalhe({
     lerAprovadores(supabase, pedidoId),
     lerAreasPedido(supabase),
     usuarioAtual(),
+    pode("compras.receber"),
+    leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
+    // chegada única: item que virou compra é recebido aqui, pelo item da compra
+    pedido.pedido_compra_id
+      ? leitura.de("itens da compra", supabase
+          .from("pedidos_compra_itens")
+          .select(COLUNAS_ITEM_COMPRA_DO_PEDIDO)
+          .eq("pedido_id", pedido.pedido_compra_id)
+          .order("id"))
+      : Promise.resolve({ data: [] }),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -231,6 +249,10 @@ export default async function PedidoInternoDetalhe({
   // Recebimento é uma marca paralela: o pedido está recebido quando tem itens e
   // todos foram recebidos individualmente.
   const aguardandoChegada = podeMarcarRecebida(pedidoStatus);
+  const chegadasCompra =
+    aguardandoChegada && podeReceberCompra
+      ? chegadasPelaCompra((itensDaCompra ?? []) as unknown as ItemCompraDoPedidoRaw[])
+      : new Map<number, never>();
   const etapa = etapaDoPedido(pedido);
   const encerrado = etapa === "concluido" || etapa === "cancelado";
   const pendencias = [
@@ -401,6 +423,11 @@ export default async function PedidoInternoDetalhe({
           equivalentes={equivalentes}
           pedidoId={pedidoId}
           compraFormal={compraFormal}
+          chegadasCompra={chegadasCompra}
+          locais={((locais ?? []) as { id: number; nome: string | null }[]).map((local) => ({
+            id: Number(local.id),
+            nome: local.nome ?? `Local #${local.id}`,
+          }))}
           catalogoItens={catalogoItens}
           aguardandoChegada={aguardandoChegada}
           podeRegistrarRecebimento={podeRegistrarRecebimento}

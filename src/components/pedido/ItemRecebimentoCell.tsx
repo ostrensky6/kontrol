@@ -15,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/formatters";
+import { ScannerRecebimentoCompra, type ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
 import { ReceberItemPedidoInterno, type ItemRecebivel } from "./ReceberItemPedidoInterno";
 
 type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
@@ -29,6 +30,16 @@ export type RecebimentoLancamento = {
   recebidoEm: string;
 };
 
+/**
+ * Item de pedido que virou compra: a chegada é registrada no item da compra
+ * (o banco atualiza o item do pedido junto). Vem preenchido só quando a compra
+ * já aceita chegada e quem está na tela pode registrar.
+ */
+export type ChegadaPelaCompra = {
+  item: ItemCompraRecebivel;
+  locais: { id: number; nome: string }[];
+};
+
 export function ItemRecebimentoCell({
   item,
   insumos,
@@ -36,6 +47,7 @@ export function ItemRecebimentoCell({
   recebidoEm,
   recebidoPor,
   recebimentos = [],
+  chegadaPelaCompra = null,
 }: {
   item: ItemRecebivel;
   insumos: Insumo[];
@@ -43,6 +55,7 @@ export function ItemRecebimentoCell({
   recebidoEm?: string | null;
   recebidoPor?: string | null;
   recebimentos?: RecebimentoLancamento[];
+  chegadaPelaCompra?: ChegadaPelaCompra | null;
 }) {
   const router = useRouter();
   const [erro, setErro] = useState<string | null>(null);
@@ -166,6 +179,26 @@ export function ItemRecebimentoCell({
         <ReceberItemPedidoInterno item={item} insumos={insumos} />
         {erro && <span role="alert" className="text-xs text-danger-strong">{erro}</span>}
         {confirmacao}
+      </div>
+    );
+  }
+
+  // Chegada única: o mesmo "Registrar chegada" da compra, na linha do item do pedido.
+  if (chegadaPelaCompra) {
+    return (
+      <div className="flex flex-col items-start gap-1" data-testid="chegada-pela-compra">
+        {parcial && (
+          <span className="text-[11px] font-medium text-warning-strong">
+            Parcial {quantidadeRecebida}/{item.quantidade} {item.unidade ?? ""}
+          </span>
+        )}
+        <ScannerRecebimentoCompra item={chegadaPelaCompra.item} locais={chegadaPelaCompra.locais} />
+        <Link
+          href={`/compras/${chegadaPelaCompra.item.pedidoId}`}
+          className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+        >
+          Compra #{chegadaPelaCompra.item.pedidoId}
+        </Link>
       </div>
     );
   }

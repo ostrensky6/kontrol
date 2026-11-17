@@ -380,8 +380,69 @@ const baseStore = (): Store => {
       criado_em: "2026-10-01T13:00:00.000Z",
       atualizado_em: "2026-10-20T14:00:00.000Z",
     },
+    // 2.1.7: pedido aprovado que virou compra, já enviada ao fornecedor (chegada única)
+    {
+      id: 504,
+      titulo: "Mix PCR da compra E2E",
+      status: "aprovado_para_compra",
+      solicitante: "e2e@example.com",
+      projeto_id: 1,
+      natureza: "material_consumo_geral",
+      objetivo: "projeto",
+      tipo_demanda: "laboratorio",
+      justificativa: "Mix para as corridas do projeto.",
+      urgencia: "normal",
+      urgencia_justificativa: null,
+      ciclo_pagamento: null,
+      data_necessidade: null,
+      modalidade_compra: null,
+      area_id: null,
+      aprovacao_area_em: null,
+      pedido_compra_id: 9401,
+      // o mock não resolve junções: a compra ligada vem junto
+      pedidos_compra: { id: 9401, status: "enviado" },
+      criado_em: "2026-11-03T13:00:00.000Z",
+      atualizado_em: "2026-11-14T14:00:00.000Z",
+    },
+  ],
+  // item da compra 9401, que atende o item 5041 do pedido 504
+  pedidos_compra_itens: [
+    {
+      id: 94011,
+      pedido_id: 9401,
+      pedido_interno_item_id: 5041,
+      insumo_id: 1,
+      quantidade: 3,
+      quantidade_recebida: 0,
+      quantidade_em: "unidade",
+      conteudo_embalagem: null,
+      lote_id: null,
+      insumos: { especificacao: "Mix PCR", unidade: "uL", codigo_fabricante: null },
+      pedidos_compra: { id: 9401, status: "enviado", fornecedores: { nome: "Fornecedor E2E" } },
+    },
   ],
   pedidos_internos_itens: [
+    // 2.1.7: item de pedido que virou compra já enviada; a chegada é registrada na própria linha
+    {
+      id: 5041,
+      pedido_interno_id: 504,
+      tipo: "material",
+      especificacao: "Mix PCR",
+      insumo_id: 1,
+      insumos: { especificacao: "Mix PCR", unidade: "uL", controlado: false, codigo_fabricante: null },
+      // o mock não resolve junções: o pedido vem junto para a fila de Chegadas
+      pedidos_internos: {
+        id: 504,
+        titulo: "Mix PCR da compra E2E",
+        status: "aprovado_para_compra",
+        pedido_compra_id: 9401,
+        projetos: { nome: "Projeto E2E" },
+      },
+      quantidade: 3,
+      unidade: "uL",
+      orcamento_previo: 50,
+      recebido_em: null,
+    },
     {
       id: 5011,
       pedido_interno_id: 501,
@@ -959,6 +1020,17 @@ function valoresIguais(a: unknown, b: unknown) {
   return a === b || String(a) === String(b);
 }
 
+/**
+ * Como o PostgREST: `tabela.coluna` filtra pela tabela embutida (`!inner`).
+ * No mock a tabela embutida vem escrita na própria linha.
+ */
+function valorDaColuna(row: Row, column: string): unknown {
+  if (!column.includes(".")) return row[column];
+  const [tabela, coluna] = column.split(".", 2);
+  const embutida = row[tabela];
+  return embutida && typeof embutida === "object" ? (embutida as Row)[coluna] : undefined;
+}
+
 function compararValores(a: unknown, b: unknown) {
   const numeroA = Number(a);
   const numeroB = Number(b);
@@ -1445,13 +1517,13 @@ class MockQuery {
 
   private matches(row: Row) {
     return (
-      this.filters.every((filter) => valoresIguais(row[filter.column], filter.value)) &&
-      this.neqFilters.every((filter) => !valoresIguais(row[filter.column], filter.value)) &&
-      this.inFilters.every((filter) => filter.values.some((value) => valoresIguais(row[filter.column], value))) &&
-      this.notFilters.every((filter) => !filter.values.includes(String(row[filter.column]))) &&
-      this.isFilters.every((filter) => (row[filter.column] ?? null) === filter.value) &&
+      this.filters.every((filter) => valoresIguais(valorDaColuna(row, filter.column), filter.value)) &&
+      this.neqFilters.every((filter) => !valoresIguais(valorDaColuna(row, filter.column), filter.value)) &&
+      this.inFilters.every((filter) => filter.values.some((value) => valoresIguais(valorDaColuna(row, filter.column), value))) &&
+      this.notFilters.every((filter) => !filter.values.includes(String(valorDaColuna(row, filter.column)))) &&
+      this.isFilters.every((filter) => (valorDaColuna(row, filter.column) ?? null) === filter.value) &&
       this.comparisonFilters.every((filter) => {
-        const comparison = compararValores(row[filter.column], filter.value);
+        const comparison = compararValores(valorDaColuna(row, filter.column), filter.value);
         if (filter.operator === "gt") return comparison > 0;
         if (filter.operator === "gte") return comparison >= 0;
         if (filter.operator === "lt") return comparison < 0;
