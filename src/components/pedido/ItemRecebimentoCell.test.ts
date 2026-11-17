@@ -40,9 +40,10 @@ describe("chegada do item do pedido", () => {
     expect(tela).not.toContain("Registrar chegada");
   });
 
-  it("o que já chegou antes continua na linha, com o estorno", () => {
+  it("o que já chegou antes continua na linha, com o estorno para quem tem Corrigir estoque", () => {
     const tela = html({
       semCompra: true,
+      podeEstornar: true,
       item: { ...ITEM, quantidadeRecebida: 1 },
       recebimentos: [
         {
@@ -61,6 +62,28 @@ describe("chegada do item do pedido", () => {
     expect(tela).toContain("lote L-07");
     expect(tela).toContain("Estornar o lançamento de 1 kit");
     expect(tela).not.toContain("Registrar chegada");
+  });
+
+  it("sem Corrigir estoque (o banco recusaria o estorno), o que chegou aparece sem o botão", () => {
+    const recebimentos = [
+      {
+        id: 15,
+        loteId: 7,
+        quantidade: 1,
+        codigoLote: "L-07",
+        fornecedor: null,
+        validade: null,
+        responsavel: null,
+        recebidoEm: "2026-11-10T13:00:00.000Z",
+      },
+    ];
+    const parcial = html({ semCompra: true, item: { ...ITEM, quantidadeRecebida: 1 }, recebimentos });
+    expect(parcial).toContain("lote L-07");
+    expect(parcial).not.toContain("Estornar");
+    const recebido = html({ recebidoEm: "2026-11-10T13:00:00.000Z", recebimentos });
+    expect(recebido).toContain("Recebido");
+    expect(recebido).not.toContain("Estornar");
+    expect(html({ recebidoEm: "2026-11-10T13:00:00.000Z", podeEstornar: true })).toContain("Estornar");
   });
 
   it("item com compra que aceita chegada usa o Registrar chegada da compra", () => {

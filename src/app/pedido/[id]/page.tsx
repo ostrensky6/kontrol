@@ -8,6 +8,7 @@ import {
   etapasAprovacao,
   lerAprovadores,
   travaDoEnvio,
+  motivoProprioPedido,
   usuarioDecide,
 } from "@/lib/pedido/aprovadores";
 import { lerAreasPedido } from "@/lib/pedido/areas";
@@ -116,6 +117,7 @@ export default async function PedidoInternoDetalhe({
     { data: itensDaCompra },
     podeAprovarCompra,
     podeUrgencia,
+    podeEstornar,
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -169,6 +171,7 @@ export default async function PedidoInternoDetalhe({
       : Promise.resolve({ data: [] }),
     pode("compras.aprovar"),
     pode("pedido.urgencia"),
+    pode("estoque.lote.gerir"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -178,6 +181,13 @@ export default async function PedidoInternoDetalhe({
   const ehAdmin = usuario?.papel === "admin";
   const podeValidar = usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, ehAdmin);
   const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, ehAdmin);
+  // 0136 (D2), mesma regra do banco: quem pediu não dá a aprovação final do próprio pedido
+  const motivoProprio = motivoProprioPedido({
+    solicitante: pedido.solicitante,
+    emailUsuario: usuario?.email,
+    ehAdmin,
+    coordenaProjeto: pedido.projeto_id != null && usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, false),
+  });
   const etapasQuemAprova = etapasAprovacao(aprovadores, pedido);
   const travaEnvio = travaDoEnvio(aprovadores);
   // D6 (0170): pagamento só depois da entrega
@@ -360,7 +370,7 @@ export default async function PedidoInternoDetalhe({
             : { tom: "espera", rotulo: "Aguardando aprovação", texto: null }
           : cicloTravadoAte
             ? { tom: "espera", rotulo: "Aguardando o ciclo abrir", texto: null }
-            : podeGerir || (aguardandoChegada && podeRegistrarRecebimento)
+            : podeGerir || (aguardandoChegada && (podeReceberCompra || podeConfirmar))
               ? { tom: "sua", rotulo: "Você pode agir", texto: null }
               : { tom: "espera", rotulo: "Em andamento", texto: null };
 
@@ -417,6 +427,7 @@ export default async function PedidoInternoDetalhe({
             rascunhoCompleto={rascunhoCompleto}
             compraFormal={compraFormal}
             podeValidar={podeValidar}
+            motivoProprioPedido={motivoProprio}
             aprovadores={aprovadores}
             esperaLaboratorio={esperaLaboratorio}
             podeDecidirLaboratorio={podeDecidirLaboratorio}
@@ -477,6 +488,7 @@ export default async function PedidoInternoDetalhe({
           catalogoItens={catalogoItens}
           aguardandoChegada={aguardandoChegada}
           podeRegistrarRecebimento={podeRegistrarRecebimento}
+          podeEstornar={podeEstornar}
           fornecedoresPedido={fornecedoresPedido}
           editavel={editavel}
           pendencias={pendencias}

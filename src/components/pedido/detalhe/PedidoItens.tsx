@@ -33,6 +33,8 @@ type Props = {
   catalogoItens: PedidoItemCatalogo[];
   aguardandoChegada: boolean;
   podeRegistrarRecebimento: boolean;
+  /** "Corrigir estoque": a mesma permissão que o banco exige para estornar uma chegada */
+  podeEstornar?: boolean;
   fornecedoresPedido: string[];
   editavel: boolean;
   pendencias: { label: string; ok: boolean; }[];
@@ -66,6 +68,7 @@ export function PedidoItens({
   catalogoItens,
   aguardandoChegada,
   podeRegistrarRecebimento,
+  podeEstornar = false,
   fornecedoresPedido,
   editavel,
   pendencias,
@@ -160,6 +163,7 @@ export function PedidoItens({
                       unidade: item.unidade ?? item.insumos?.unidade ?? null,
                     }}
                     semCompra={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
+                    podeEstornar={podeEstornar}
                     chegadaPelaCompra={chegadaDoItem(chegadasCompra, item.id, locais)}
                     recebidoEm={item.recebido_em}
                     recebidoPor={item.recebido_por}

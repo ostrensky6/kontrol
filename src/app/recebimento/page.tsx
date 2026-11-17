@@ -78,7 +78,7 @@ type CompraFormalItemRaw = {
 export default async function RecebimentoPage() {
   const leitura = novaLeitura("/recebimento");
   const supabase = await createClientUntyped();
-  const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }, { data: comprasDosPedidos }] = await Promise.all([
+  const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, podeEstornar, { data: locaisData }, { data: comprasDosPedidos }] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
       .select(
@@ -94,6 +94,7 @@ export default async function RecebimentoPage() {
       .order("id", { ascending: false }),
     pode("compras.receber"),
     pode("recebimento.registrar"),
+    pode("estoque.lote.gerir"),
     leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
     // chegada única: item de pedido que virou compra é recebido aqui, pelo item da compra
     leitura.de("compras dos pedidos", supabase
@@ -264,7 +265,7 @@ export default async function RecebimentoPage() {
               Pedidos: sem dado. A leitura da fila de pedidos não respondeu; recarregue a página antes de concluir que não há nada para receber.
             </p>
           ) : (
-            <RecebimentoItensTable rows={rows} insumos={insumos ?? []} locais={locais} />
+            <RecebimentoItensTable rows={rows} insumos={insumos ?? []} locais={locais} podeEstornar={podeEstornar} />
           )}
         </div>
       </main>

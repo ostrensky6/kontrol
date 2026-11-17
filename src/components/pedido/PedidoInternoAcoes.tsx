@@ -113,6 +113,7 @@ export function PedidoInternoAcoes({
   podeConfirmarEntrega = false,
   motivoSemCotacoesRecebidas = null,
   motivoSemAprovacaoFinal = null,
+  motivoProprioPedido = null,
   controlado = false,
   motivoCicloTravado = null,
 }: {
@@ -139,6 +140,8 @@ export function PedidoInternoAcoes({
   /** 0171 (D2): o que falta nos 3 orçamentos; null quando pode seguir */
   motivoSemCotacoesRecebidas?: string | null;
   motivoSemAprovacaoFinal?: string | null;
+  /** 0136 (D2): quem pediu não dá a aprovação final do próprio pedido; null quando pode */
+  motivoProprioPedido?: string | null;
   /** 0174 (D9): pedido com produto controlado: só pela FUNPAR, sem compra direta */
   controlado?: boolean;
   /** 0176: pedido do ciclo seguinte; o texto diz quando a formalização abre */
@@ -253,7 +256,13 @@ export function PedidoInternoAcoes({
       )}
 
       {status === "aguardando_aprovacao_final" && podeGerir && (
-        <Botao pedidoId={pedidoId} action={aprovarCompraFinal} label="Aprovar compra final" />
+        <Botao
+          pedidoId={pedidoId}
+          action={aprovarCompraFinal}
+          label="Aprovar compra final"
+          disabled={Boolean(motivoProprioPedido)}
+          disabledReason={motivoProprioPedido ?? undefined}
+        />
       )}
 
       {status === "aprovado_para_compra" && podeGerir && (

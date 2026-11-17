@@ -147,7 +147,7 @@ export const PERMISSOES: Array<{
   // ---- Compras: do pedido ao recebimento (antes, parte de "Suprimentos") ----
   { key: "pedido.ver", modulo: "Compras", label: "Acessar Pedidos", descricao: "Ver a visão geral de Compras, os pedidos e suas etapas." },
   { key: "pedido.criar", modulo: "Compras", label: "Criar pedidos", descricao: "Abrir pedidos, anexar documentos e enviar para aprovação." },
-  { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Aprovar, devolver, formalizar e conduzir as etapas de compra." },
+  { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Formalizar, autorizar, registrar orçamentos, dar a aprovação final e conduzir as etapas de compra. A aprovação do coordenador é de quem coordena o projeto (o Administrador substitui), e quem pediu não dá a aprovação final do próprio pedido." },
   { key: "pedido.urgencia", modulo: "Compras", label: "Definir urgência do pedido", descricao: "Dizer se o pedido é urgente. A urgência fura o ciclo de compras do dia 10; quem pede não a define." },
   { key: "compras.ver", modulo: "Compras", label: "Acessar Compras", descricao: "Ver as compras com fornecedor e os prazos de compra." },
   { key: "compras.solicitar", modulo: "Compras", label: "Solicitar compras", descricao: "Criar compras, incluir itens e gerar reposição." },
@@ -155,7 +155,7 @@ export const PERMISSOES: Array<{
   { key: "compras.receber", modulo: "Compras", label: "Registrar chegada de compras", descricao: "Registrar a chegada dos itens de uma compra." },
   { key: "compras.cancelar", modulo: "Compras", label: "Cancelar compras e pedidos", descricao: "Cancelar compras e pedidos." },
   { key: "recebimento.ver", modulo: "Compras", label: "Acessar Recebimento", descricao: "Ver o que falta chegar." },
-  { key: "recebimento.registrar", modulo: "Compras", label: "Registrar chegada de pedidos", descricao: "Registrar a chegada de itens de pedido sem compra." },
+  { key: "recebimento.registrar", modulo: "Compras", label: "Confirmar entrega de pedidos", descricao: "Confirmar que o material chegou ou o serviço foi feito, antes do pagamento. A chegada de cada item é registrada pela compra (“Registrar chegada de compras”)." },
   // ---- Estoque (antes, parte de "Suprimentos") ----
   { key: "estoque.ver", modulo: "Estoque", label: "Acessar Estoque", descricao: "Ver saldos, lotes, inventário, etiquetas e equipamentos." },
   { key: "estoque.movimentar", modulo: "Estoque", label: "Dar baixa e registrar entradas", descricao: "Retirar material, abrir frascos, dar baixa e lançar entradas manuais." },

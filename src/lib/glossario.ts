@@ -18,7 +18,7 @@ const TROCAS: readonly [RegExp, string][] = [
   // nomes das permissões, como aparecem em Usuários e em Funções
   [/Aprovar pedidos internos/g, "Aprovar pedidos"],
   [/Criar pedidos internos/g, "Criar pedidos"],
-  [/Receber pedidos internos/g, "Registrar chegada de pedidos"],
+  [/Receber pedidos internos/g, "Confirmar entrega de pedidos"],
   [/Receber compras/g, "Registrar chegada de compras"],
   // Compra (a etapa 5 do pedido) no lugar de "compra formal" e "pedido de compra"
   [/pelo pedido de compra/g, "pela compra"],

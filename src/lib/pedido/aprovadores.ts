@@ -168,6 +168,31 @@ export function aguardaLaboratorio(pedido: {
   return pedido.status === "validado" && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em;
 }
 
+/**
+ * 0136 (D2), mesma regra do banco (kontrol_private.pode_decidir_proprio_pedido):
+ * quem pediu não dá a aprovação final do próprio pedido, a não ser que
+ * coordene o projeto ou seja o Administrador. Não é caixinha de Usuários: com
+ * todas as permissões, a aprovação final do próprio pedido continua com outra
+ * pessoa. Devolve o motivo para o botão, ou null quando pode.
+ */
+export function motivoProprioPedido({
+  solicitante,
+  emailUsuario,
+  ehAdmin,
+  coordenaProjeto,
+}: {
+  solicitante: string | null | undefined;
+  emailUsuario: string | null | undefined;
+  ehAdmin: boolean;
+  coordenaProjeto: boolean;
+}): string | null {
+  if (ehAdmin || coordenaProjeto) return null;
+  const quemPediu = (solicitante ?? "").trim().toLowerCase();
+  const eu = (emailUsuario ?? "").trim().toLowerCase();
+  if (!quemPediu || !eu || quemPediu !== eu) return null;
+  return "Quem pediu não dá a aprovação final do próprio pedido. Ela fica com outra pessoa que tenha “Aprovar pedidos” ou com quem coordena o projeto.";
+}
+
 /** O usuário está entre os competentes (ou é o Administrador, como substituto)? */
 export function usuarioDecide(ids: string[] | undefined, usuarioId: string | null | undefined, ehAdmin: boolean): boolean {
   if (ehAdmin) return true;

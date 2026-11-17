@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { aguardaLaboratorio, etapasAprovacao, normalizarAprovadores, travaDoEnvio, usuarioDecide } from "./aprovadores";
+import { aguardaLaboratorio, etapasAprovacao, motivoProprioPedido, normalizarAprovadores, travaDoEnvio, usuarioDecide } from "./aprovadores";
 
 const completo = normalizarAprovadores({
   coordenador: { motivo: "coordenador_projeto", rotulo: "Coordenador do projeto Baía", nome: "Ana", email: "ana@x", ids: ["u-ana"] },
@@ -54,5 +54,23 @@ describe("aprovadores do pedido", () => {
     expect(usuarioDecide(["u-ana"], "u-ana", false)).toBe(true);
     expect(usuarioDecide(["u-ana"], "u-bia", false)).toBe(false);
     expect(usuarioDecide(["u-ana"], "u-bia", true)).toBe(true);
+  });
+});
+
+describe("aprovação final do próprio pedido (0136, D2)", () => {
+  const base = { solicitante: "Rafaela@ATGC.example", emailUsuario: "rafaela@atgc.example", ehAdmin: false, coordenaProjeto: false };
+
+  it("quem pediu, sem coordenar o projeto, não aprova o próprio pedido", () => {
+    expect(motivoProprioPedido(base)).toMatch(/Quem pediu não dá a aprovação final do próprio pedido/);
+  });
+
+  it("quem coordena o projeto ou o Administrador aprova, mesmo tendo pedido", () => {
+    expect(motivoProprioPedido({ ...base, coordenaProjeto: true })).toBeNull();
+    expect(motivoProprioPedido({ ...base, ehAdmin: true })).toBeNull();
+  });
+
+  it("outra pessoa aprova", () => {
+    expect(motivoProprioPedido({ ...base, emailUsuario: "nathi@atgc.example" })).toBeNull();
+    expect(motivoProprioPedido({ ...base, solicitante: null })).toBeNull();
   });
 });
