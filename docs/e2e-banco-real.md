@@ -24,6 +24,18 @@ sido testado de ponta a ponta.
   insumo direto no banco (RLS).
 - Insumo cadastrado com estoque inicial aparece na lista e no Estoque depois de recarregar.
 - Insumo sem estoque com ponto de reposição aparece nos alertas do painel de Cadastros.
+- Compra aberta aparece em A caminho com a quantidade pendente e o atraso.
+- Roteiro inteiro de Suprimentos, pelos botões da tela (2.1.6): o pedido nasce, passa pela
+  coordenação, pela formalização (que cria a compra), pela análise administrativa, pelos três
+  orçamentos e pela aprovação final; a compra é aprovada junto com o pedido (0170), vai ao
+  fornecedor e a chegada registrada na compra vira lote no estoque, com quantidade e validade.
+- Roteiro inteiro de Orçamentos (2.1.6): o orçamento nasce, recebe os custos do projeto, a
+  revisão é concluída, entram impostos e lucro, a proposta é emitida com o total conferido no
+  banco e o documento do cliente abre com o número, o cliente e o valor, sem custo nem lucro.
+
+Os dois roteiros só rodam aqui: as RPCs de cada etapa (`registrar_etapa_pedido_interno`,
+`formalizar_pedido_interno`, `receber_item_pedido_compra`, as de custos, revisão e emissão do
+orçamento) não existem no modo simulado.
 
 ## Segurança
 
