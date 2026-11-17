@@ -5,6 +5,7 @@ import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { adicionarMaterial, atualizarMaterial, removerMaterial } from "@/lib/actions/receita";
 import { formatCurrency } from "@/lib/formatters";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type MaterialEditRowData = {
   id: number;
@@ -26,8 +27,6 @@ export type InsumoOption = {
   label: string;
 };
 
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
-const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
 const iconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-700";
 const editButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-background text-blue-700 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30";
 const dangerIconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-danger-strong/30 bg-background text-danger-strong hover:bg-danger-soft focus:outline-none focus:ring-2 focus:ring-danger-strong/20";
@@ -63,23 +62,23 @@ export function MateriaisEditTable({
         <form key={material.id} id={formId(material.id)} action={atualizarMaterial} />
       ))}
       <div className="mt-2 overflow-x-auto">
-        <table className="mx-auto table-auto border-collapse border border-foreground/70">
-          <thead>
-            <tr>
-              <th className={th}>Etapa</th>
-              <th className={th}>Atividade</th>
-              <th className={th}>Material técnico</th>
-              <th className={th}>Item de estoque</th>
-              <th className={th}>Qtd/amostra</th>
-              <th className={th}>Unidade</th>
-              <th className={th}>Cobrança</th>
-              <th className={th}>Grupo</th>
-              <th className={th}>Pref.</th>
-              <th className={th}>Custo unit.</th>
-              {podeEditar && <th className={th}>Ações</th>}
-            </tr>
-          </thead>
-          <tbody>
+        <Table grade>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Etapa</TableHead>
+              <TableHead>Atividade</TableHead>
+              <TableHead>Material técnico</TableHead>
+              <TableHead>Item de estoque</TableHead>
+              <TableHead>Qtd/amostra</TableHead>
+              <TableHead>Unidade</TableHead>
+              <TableHead>Cobrança</TableHead>
+              <TableHead>Grupo</TableHead>
+              <TableHead>Pref.</TableHead>
+              <TableHead>Custo unit.</TableHead>
+              {podeEditar && <TableHead>Ações</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {materiais.map((material) => (
               <MaterialRow
                 key={material.id}
@@ -91,8 +90,8 @@ export function MateriaisEditTable({
                 podeEditar={podeEditar}
               />
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {podeEditar && <AdicionarMaterialForm codigo={codigo} insumos={insumos} />}
     </>
@@ -117,37 +116,37 @@ function MaterialRow({
   const id = formId(material.id);
 
   return (
-    <tr className="border-t border-foreground/60">
-      <td className={td}>{material.nome_etapa}</td>
-      <td className={td}>{material.nome_atividade}</td>
-      <td className={td}>
+    <TableRow>
+      <TableCell>{material.nome_etapa}</TableCell>
+      <TableCell>{material.nome_atividade}</TableCell>
+      <TableCell>
         <input type="hidden" form={id} name="codigo_analise" value={codigo} />
         <input type="hidden" form={id} name="id" value={material.id} />
         <CellInput formId={id} name="especificacao_insumo" defaultValue={material.especificacao_insumo ?? ""} editing={editing} />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellSelect formId={id} name="insumo_id" value={material.insumo_id} label={material.insumo_rotulo} options={insumos} editing={editing} />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="quantidade_por_amostra" type="number" step="0.000001" defaultValue={fmtInput(material.quantidade_por_amostra)} editing={editing} numeric />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="unidade" defaultValue={material.unidade ?? ""} editing={editing} small />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <ModoSelect formId={id} value={material.modo_cobranca ?? ""} editing={editing} />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="grupo_escolha" defaultValue={material.grupo_escolha ?? ""} editing={editing} small />
-      </td>
-      <td className={`${td} text-center`}>
+      </TableCell>
+      <TableCell className="text-center">
         <input form={id} type="checkbox" name="preferencial" defaultChecked={Boolean(material.preferencial)} disabled={!editing} />
-      </td>
-      <td className={`${td} text-right tabular-nums`}>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">
         {material.custo_unitario != null ? formatCurrency(material.custo_unitario) : "-"}
-      </td>
+      </TableCell>
       {podeEditar && (
-      <td className={`${td} whitespace-nowrap`}>
+      <TableCell className="whitespace-nowrap">
         <div className="flex justify-center gap-1">
           {!editing ? (
             <button type="button" className={editButtonClass} onClick={onEdit} title="Editar material" aria-label="Editar material">
@@ -175,9 +174,9 @@ function MaterialRow({
             </>
           )}
         </div>
-      </td>
+      </TableCell>
       )}
-    </tr>
+    </TableRow>
   );
 }
 

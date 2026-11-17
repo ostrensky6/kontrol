@@ -20,6 +20,7 @@ import { HelpExample, HelpLegend, HelpTip } from "@/components/common/HelpTip";
 import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
 import { normalizarBusca } from "@/lib/busca";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Option = { id: number; nome: string };
 type Demanda = {
@@ -476,23 +477,23 @@ export function DemandaForm({
                 {selecionadasDoGrupo.length > 0 && (
                   <div tabIndex={0} aria-label="Análises selecionadas do grupo" className="mt-1.5 overflow-x-auto">
                     {/* Largura pelo conteúdo em telas largas: a lixeira fica junto da quantidade. */}
-                    <table className="min-w-full divide-y divide-border/70 text-sm lg:min-w-[40rem]">
-                      <thead className="text-left text-xs text-muted-foreground">
-                        <tr><th className="py-1 pr-6 font-medium">Código</th><th className="pr-6 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="w-10 text-right"></th></tr>
-                      </thead>
-                      <tbody className="divide-y divide-border/70">
+                    <Table densidade="compacta" rente className="lg:w-auto lg:min-w-[40rem]">
+                      <TableHeader>
+                        <TableRow className="hover:bg-transparent"><TableHead>Código</TableHead><TableHead>Análise</TableHead><TableHead>Amostras</TableHead><TableHead className="w-10 text-right"></TableHead></TableRow>
+                      </TableHeader>
+                      <TableBody>
                         {selecionadasDoGrupo.map((item) => {
                           const analise = porCodigo.get(item.codigo);
                           return (
-                            <tr key={`${item.grupoKey}-${item.codigo}`}>
-                              <td className="py-1 pr-6 font-mono text-xs text-muted-foreground">
+                            <TableRow key={`${item.grupoKey}-${item.codigo}`}>
+                              <TableCell className="font-mono text-xs text-muted-foreground">
                                 <input type="hidden" name="analise_grupo_key" value={item.grupoKey} />
                                 <input type="hidden" name="analise_codigo" value={item.codigo} />
                                 <input type="hidden" name="analise_origem_quantidade" value={item.origem} />
                                 {item.codigo}
-                              </td>
-                              <td className="py-1 pr-6">{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</td>
-                              <td className="py-1 pr-3">
+                              </TableCell>
+                              <TableCell>{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</TableCell>
+                              <TableCell>
                                 <input
                                   name="analise_quantidade"
                                   type="number"
@@ -504,17 +505,17 @@ export function DemandaForm({
                                   onChange={(event) => setSelecionadas((atuais) => atuais.map((atual) => atual.codigo === item.codigo && atual.grupoKey === item.grupoKey ? { ...atual, quantidade: lerQuantidade(event.target.value), origem: "manual" } : atual))}
                                   className={`${campoOperacional} w-24`}
                                 />
-                              </td>
-                              <td className="py-1 text-right">
+                              </TableCell>
+                              <TableCell className="text-right">
                                 <button type="button" onClick={() => toggleAnalise(item.grupoKey, item.codigo)} className="text-danger-strong hover:text-danger-strong" title="Remover análise" aria-label={`Remover análise ${item.codigo}`}>
                                   <Trash2 aria-hidden className="h-4 w-4 inline" />
                                 </button>
-                              </td>
-                            </tr>
+                              </TableCell>
+                            </TableRow>
                           );
                         })}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 )}
                 {seletorAberto === grupo.key && (
@@ -598,30 +599,30 @@ export function DemandaForm({
             <p className="mt-1.5 text-xs text-muted-foreground">Nenhuma análise selecionada. Use “Selecionar análises” em cada grupo.</p>
           ) : (
           <div tabIndex={0} aria-label="Resumo de análises por grupo" className="mt-2 overflow-x-auto">
-            <table className="min-w-full divide-y divide-border text-sm">
-              <thead className="text-left text-xs text-muted-foreground">
-                <tr><th className="py-1.5 pr-3 font-medium">Grupo</th><th className="pr-3 font-medium">Matriz</th><th className="pr-3 font-medium">Código</th><th className="pr-3 font-medium">Análise</th><th className="pr-3 font-medium">Amostras</th><th className="pr-3 font-medium">Prazo</th><th className="pr-3 font-medium">Lotes</th><th className="pr-3 font-medium">Custeio</th><th className="pr-3 font-medium">Insumos</th><th className="w-16 text-right"></th></tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table densidade="compacta" rente>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent"><TableHead>Grupo</TableHead><TableHead>Matriz</TableHead><TableHead>Código</TableHead><TableHead>Análise</TableHead><TableHead>Amostras</TableHead><TableHead>Prazo</TableHead><TableHead>Lotes</TableHead><TableHead>Custeio</TableHead><TableHead>Insumos</TableHead><TableHead className="w-16 text-right"></TableHead></TableRow>
+              </TableHeader>
+              <TableBody>
                 {selecionadas.map((item) => {
                   const analise = porCodigo.get(item.codigo);
                   const grupo = grupos.find((grupo) => grupo.key === item.grupoKey);
                   const previsao = previsoesOperacionais.find((prev) => prev.key === `${item.grupoKey}-${item.codigo}`);
                   const statusInsumos = analise?.reagentes.some((reagente) => reagente.status_vinculo_insumo === "insumo_sem_cadastro_correspondente") ? "Pendente" : "Mapeados";
                   return (
-                    <tr key={`${item.grupoKey}-${item.codigo}`}>
-                      <td className="whitespace-nowrap py-1.5 pr-3">{grupo?.identificacao ?? "Grupo"}</td>
-                      <td className="pr-3 text-muted-foreground">{grupo?.tipo_matriz || "—"}</td>
-                      <td className="pr-3 font-mono text-xs text-muted-foreground">{item.codigo}</td>
-                      <td className="pr-3">{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</td>
-                      <td className="pr-3 font-semibold tabular-nums">{item.quantidade}</td>
-                      <td className="whitespace-nowrap pr-3 text-muted-foreground">{previsao?.prazoDias ? `${previsao.prazoDias} dia(s)` : "a calcular"}</td>
-                      <td className="whitespace-nowrap pr-3 text-muted-foreground">{previsao ? `${previsao.lotes} lote(s) de ${previsao.lotePadrao}` : "a calcular"}</td>
-                      <td className={analise?.custeio_disponivel ? "pr-3 text-brand-700 dark:text-brand-300" : "pr-3 text-warning-strong"}>
+                    <TableRow key={`${item.grupoKey}-${item.codigo}`}>
+                      <TableCell className="whitespace-nowrap">{grupo?.identificacao ?? "Grupo"}</TableCell>
+                      <TableCell className="text-muted-foreground">{grupo?.tipo_matriz || "—"}</TableCell>
+                      <TableCell className="font-mono text-xs text-muted-foreground">{item.codigo}</TableCell>
+                      <TableCell>{analise?.nome_simplificado ?? analise?.nome ?? "Sem nome"}</TableCell>
+                      <TableCell className="font-semibold tabular-nums">{item.quantidade}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{previsao?.prazoDias ? `${previsao.prazoDias} dia(s)` : "a calcular"}</TableCell>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">{previsao ? `${previsao.lotes} lote(s) de ${previsao.lotePadrao}` : "a calcular"}</TableCell>
+                      <TableCell className={analise?.custeio_disponivel ? "text-brand-700 dark:text-brand-300" : "text-warning-strong"}>
                         {analise?.custeio_disponivel ? "Disponível" : "Pendente"}
-                      </td>
-                      <td className={statusInsumos === "Mapeados" ? "pr-3 text-brand-700 dark:text-brand-300" : "pr-3 text-warning-strong"}>{statusInsumos}</td>
-                      <td className="text-right space-x-2 whitespace-nowrap">
+                      </TableCell>
+                      <TableCell className={statusInsumos === "Mapeados" ? "text-brand-700 dark:text-brand-300" : "text-warning-strong"}>{statusInsumos}</TableCell>
+                      <TableCell className="text-right space-x-2 whitespace-nowrap">
                         <button
                           type="button"
                           onClick={() => {
@@ -637,12 +638,12 @@ export function DemandaForm({
                         <button type="button" onClick={() => toggleAnalise(item.grupoKey, item.codigo)} className="text-danger-strong hover:text-danger-strong" title="Remover análise" aria-label={`Remover análise ${item.codigo}`}>
                           <Trash2 aria-hidden className="h-4 w-4 inline" />
                         </button>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           )}
           {previsoesOperacionais.length > 0 && (

@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { enviarSemReset } from "@/lib/formulario-sem-perda";
 import { cn } from "@/lib/utils";
 import { faixaDoModulo } from "./faixas";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRowHead } from "@/components/ui/table";
 
 const initial: FormState = { ok: false, message: "" };
 const GRUPOS = gruposDePermissoes();
@@ -68,44 +69,44 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
       <input type="hidden" name="permissoes_presentes" value="1" />
 
       <div className="mt-4 max-h-[70dvh] overflow-auto rounded-md border border-border">
-        <table className="w-full min-w-[980px] border-collapse text-sm">
-          <thead className="sticky top-0 z-10 bg-muted text-xs text-muted-foreground shadow-sm">
-            <tr>
-              <th scope="col" className="px-3 py-3 text-left">
+        <Table className="min-w-[980px]">
+          <TableHeader className="sticky top-0 z-10 bg-muted shadow-sm">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">
                 Privilégio
-              </th>
+              </TableHead>
               {PAPEIS.map((papel) => (
-                <th key={papel.value} scope="col" className="w-28 px-2 py-3 text-center">
+                <TableHead key={papel.value} scope="col" className="w-28 text-center">
                   {papel.label}
-                </th>
+                </TableHead>
               ))}
-            </tr>
-          </thead>
+            </TableRow>
+          </TableHeader>
           {GRUPOS.map(([modulo, permissoes], indice) => (
-            <tbody
+            <TableBody
               key={modulo}
               data-modulo={modulo}
               className={cn("border-t-2 border-border", faixaDoModulo(indice))}
             >
-              <tr>
-                <th
+              <TableRow>
+                <TableRowHead
                   scope="rowgroup"
                   colSpan={PAPEIS.length + 1}
-                  className="px-3 pb-1 pt-3 text-left text-xs font-bold text-brand-700 dark:text-brand-300"
+                  className="pb-1 pt-3 text-xs font-bold text-brand-700 dark:text-brand-300"
                 >
                   {modulo}
-                </th>
-              </tr>
+                </TableRowHead>
+              </TableRow>
               {permissoes.map((permissao) => (
-                <tr key={permissao.key} className="border-t border-border/50">
-                  <th scope="row" className="px-3 py-2 text-left font-normal">
+                <TableRow key={permissao.key}>
+                  <TableRowHead>
                     <p className="font-medium text-foreground">{permissao.label}</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">{permissao.descricao}</p>
-                  </th>
+                  </TableRowHead>
                   {PAPEIS.map((papel) => {
                     const admin = papel.value === "admin";
                     return (
-                      <td key={`${permissao.key}-${papel.value}`} className="px-2 py-2 text-center">
+                      <TableCell key={`${permissao.key}-${papel.value}`} className="text-center">
                         <Checkbox
                           name={`permissoes:${papel.value}`}
                           value={permissao.key}
@@ -116,14 +117,14 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                           aria-describedby={admin ? "privilegios-admin-nota" : undefined}
                           className="h-5 w-5 cursor-pointer accent-brand-600 pointer-coarse:h-6 pointer-coarse:w-6 disabled:cursor-not-allowed disabled:opacity-60"
                         />
-                      </td>
+                      </TableCell>
                     );
                   })}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
+            </TableBody>
           ))}
-        </table>
+        </Table>
       </div>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-3">

@@ -46,7 +46,7 @@ function colunas(insumos: Insumo[]): ColumnDef<RecebimentoItemRow, unknown>[] {
       accessorKey: "pedidoNumero",
       header: "Nº",
       cell: ({ row }) => (
-        <Link href={`/pedido/${row.original.pedidoId}`} className="font-mono text-xs text-muted-foreground hover:underline">
+        <Link href={`/pedido/${row.original.pedidoId}`} className="whitespace-nowrap font-mono text-xs text-muted-foreground hover:underline">
           {row.original.pedidoNumero}
         </Link>
       ),

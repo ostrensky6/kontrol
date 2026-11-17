@@ -21,6 +21,7 @@ import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
 import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -297,14 +298,14 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
         <section className="mt-8">
           <h2 className="text-sm font-semibold text-muted-foreground">Itens</h2>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Insumo</th>
-                  <th className="px-4 py-3 text-left">Origem</th>
-                  <th className="px-4 py-3 text-right">Qtd</th>
-                  <th className="px-4 py-3 text-right">Custo est.</th>
-                  <th className="px-4 py-3 text-center">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Origem</TableHead>
+                  <TableHead className="text-right">Qtd</TableHead>
+                  <TableHead className="text-right">Custo est.</TableHead>
+                  <TableHead className="text-center">
                     <span className="inline-flex items-center gap-1">
                       Recebido
                       <HelpTip title="Recebimento do item">
@@ -316,36 +317,36 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                         <p>Para desfazer uma entrega registrada por engano, abra o lote e use <b>Estornar recebimento</b>.</p>
                       </HelpTip>
                     </span>
-                  </th>
-                  {(editavel || recebivel) && <th className="px-4 py-3 text-right">Ação</th>}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+                  </TableHead>
+                  {(editavel || recebivel) && <TableHead className="text-right">Ação</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {(itens ?? []).map((it) => {
                   const ins = it.insumos as { especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null } | null;
                   const recebimentos = (it.pedidos_compra_item_recebimentos ?? [])
                     .slice()
                     .sort((a, b) => Date.parse(b.recebido_em) - Date.parse(a.recebido_em));
                   return (
-                    <tr key={it.id}>
-                      <td className="px-4 py-2.5 max-w-xs" title={ins?.especificacao ?? ""}>
+                    <TableRow key={it.id}>
+                      <TableCell className="max-w-xs" title={ins?.especificacao ?? ""}>
                         <span className="block truncate">{ins?.especificacao}</span>
                         {ins?.codigo_fabricante ? (
                           <span className="block text-xs text-muted-foreground">
                             Código do fabricante: <span className="font-mono">{ins.codigo_fabricante}</span>
                           </span>
                         ) : null}
-                      </td>
-                      <td className="px-4 py-2.5 text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
                         {it.pedidos_internos_itens?.pedido_interno_id ? (
                           <Link href={`/pedido/${it.pedidos_internos_itens.pedido_interno_id}`} className="text-primary hover:underline">
                             Pedido #{it.pedidos_internos_itens.pedido_interno_id}
                           </Link>
                         ) : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">{rotuloQuantidadeItem(it, ins?.unidade)}</td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">{brl(it.custo_unitario_estimado)}</td>
-                      <td className="px-4 py-2.5 text-center">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{rotuloQuantidadeItem(it, ins?.unidade)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{brl(it.custo_unitario_estimado)}</TableCell>
+                      <TableCell className="text-center">
                         {Number(it.quantidade_recebida ?? 0) > 0 || recebimentos.length > 0 ? (
                           <span className="inline-flex flex-col items-center gap-0.5">
                             {Number(it.quantidade_recebida ?? 0) > 0 ? (
@@ -409,9 +410,9 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                         ) : (
                           <span className="text-xs text-muted-foreground/80">—</span>
                         )}
-                      </td>
+                      </TableCell>
                       {(editavel || recebivel) && (
-                        <td className="px-4 py-2.5 text-right">
+                        <TableCell className="text-right">
                           {editavel && (
                             <FormComMensagem action={removerItemPedido} className="inline">
                               <input type="hidden" name="item_id" value={it.id} />
@@ -438,16 +439,16 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
                               }))}
                             />
                           )}
-                        </td>
+                        </TableCell>
                       )}
-                    </tr>
+                    </TableRow>
                   );
                 })}
                 {(itens ?? []).length === 0 && (
-                  <tr><td colSpan={6} className="px-4 py-6 text-center text-muted-foreground/80">Nenhum item.</td></tr>
+                  <TableRow><TableCell colSpan={6} className="py-6 text-center text-muted-foreground/80">Nenhum item.</TableCell></TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           <p className="mt-2 text-right text-sm text-muted-foreground">Total estimado: <b>{brl(total)}</b></p>
 

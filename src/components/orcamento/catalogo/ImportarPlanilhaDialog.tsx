@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import type { EstadoImportacaoCatalogo } from "@/lib/actions/catalogo-custos";
 import type { AcaoImportacao, LinhaPreviaImportacao } from "@/lib/orcamento/catalogo-planilha";
 import { formatCurrency as brl } from "@/lib/formatters";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type AcaoImportar = (anterior: EstadoImportacaoCatalogo, formData: FormData) => Promise<EstadoImportacaoCatalogo>;
 
@@ -142,42 +143,42 @@ export function ImportarPlanilhaDialog({ action }: { action: AcaoImportar }) {
 
         {linhas.length > 0 && (
           <div className="max-h-[50vh] overflow-auto rounded-md border border-border">
-            <table className="w-full text-left text-xs">
-              <thead className="sticky top-0 bg-muted text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-2 py-1 font-medium">Resultado</th>
-                  <th className="px-2 py-1 font-medium">Rubrica</th>
-                  <th className="px-2 py-1 font-medium">Descrição</th>
-                  <th className="px-2 py-1 font-medium">Unidade</th>
-                  <th className="px-2 py-1 text-right font-medium">Planilha</th>
-                  <th className="px-2 py-1 text-right font-medium">Catálogo hoje</th>
-                  <th className="px-2 py-1 font-medium">Onde</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/60">
+            <Table densidade="compacta" className="text-xs [--tabela-px:0.5rem]">
+              <TableHeader className="sticky top-0 bg-muted">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Resultado</TableHead>
+                  <TableHead>Rubrica</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead className="text-right">Planilha</TableHead>
+                  <TableHead className="text-right">Catálogo hoje</TableHead>
+                  <TableHead>Onde</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {ordenadas.map((linha: LinhaPreviaImportacao) => (
-                  <tr key={linha.origem}>
-                    <td className="whitespace-nowrap px-2 py-1" title={linha.mensagem ?? undefined}>
+                  <TableRow key={linha.origem}>
+                    <TableCell className="whitespace-nowrap" title={linha.mensagem ?? undefined}>
                       <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-semibold ${ROTULO[linha.acao].classe}`}>
                         {ROTULO[linha.acao].texto}
                       </span>
                       {linha.mensagem && <span className="block pt-0.5 text-[11px] text-muted-foreground">{linha.mensagem}</span>}
-                    </td>
-                    <td className="px-2 py-1">{linha.rubrica || "—"}</td>
-                    <td className="px-2 py-1">
+                    </TableCell>
+                    <TableCell>{linha.rubrica || "—"}</TableCell>
+                    <TableCell>
                       {linha.descricao ?? "—"}
                       {linha.itemId && <span className="ml-1 text-muted-foreground">({linha.itemId})</span>}
-                    </td>
-                    <td className="px-2 py-1 text-muted-foreground">{linha.unidade ?? "un"}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums">{valor(linha.preco)}</td>
-                    <td className="whitespace-nowrap px-2 py-1 text-right tabular-nums text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{linha.unidade ?? "un"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular-nums">{valor(linha.preco)}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
                       {valor(linha.precoAtual)}
-                    </td>
-                    <td className="whitespace-nowrap px-2 py-1 text-muted-foreground">{linha.origem}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">{linha.origem}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
 

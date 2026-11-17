@@ -45,6 +45,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/database.types";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -326,7 +327,7 @@ export default async function OrcamentoModelosPage({
           />
           {templatesFiltrados.length > 0 && (
             <div tabIndex={0} aria-label="Templates de projeto" className="overflow-x-auto">
-              <table className="w-full min-w-[60rem] table-fixed text-left text-sm">
+              <Table densidade="compacta" className="min-w-[60rem] table-fixed">
                 <colgroup>
                   <col className="w-[18%]" />
                   <col />
@@ -337,29 +338,29 @@ export default async function OrcamentoModelosPage({
                   <col className="w-[6.5rem]" />
                   <col className="w-[9rem]" />
                 </colgroup>
-                <thead className={cabecalhoTabela}>
-                  <tr>
-                    <th className="px-3 py-1.5 font-medium">Nome</th>
-                    <th className="px-3 py-1.5 font-medium">Descrição</th>
-                    <th className="px-3 py-1.5 font-medium">Origem</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Itens</th>
-                    <th className="px-3 py-1.5 font-medium">Parâmetros</th>
-                    <th className="px-3 py-1.5 font-medium">Criado em</th>
-                    <th className="px-3 py-1.5 font-medium">Status</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Ação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
+                <TableHeader className={cabecalhoTabela}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Nome</TableHead>
+                    <TableHead>Descrição</TableHead>
+                    <TableHead>Origem</TableHead>
+                    <TableHead className="text-right">Itens</TableHead>
+                    <TableHead>Parâmetros</TableHead>
+                    <TableHead>Criado em</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Ação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {templatesFiltrados.map((template) => (
-                    <tr key={template.id}>
-                      <td className="truncate px-3 py-1.5 font-medium" title={nomeVisivel(template.nome)}>{nomeVisivel(template.nome)}</td>
-                      <td className="truncate px-3 py-1.5 text-muted-foreground" title={template.descricao ?? undefined}>{template.descricao ?? "—"}</td>
-                      <td className="px-3 py-1.5"><Origem origem={template.origem} /></td>
-                      <td className="px-3 py-1.5 text-right tabular-nums">{contarItens(template.itens)}</td>
-                      <td className="truncate px-3 py-1.5 text-xs text-muted-foreground" title={resumoParametros(template.parametros)}>{resumoParametros(template.parametros)}</td>
-                      <td className="px-3 py-1.5 tabular-nums text-muted-foreground">{formatDate(template.criado_em)}</td>
-                      <td className="px-3 py-1.5">{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</td>
-                      <td className="px-3 py-1.5">
+                    <TableRow key={template.id}>
+                      <TableCell className="truncate font-medium" title={nomeVisivel(template.nome)}>{nomeVisivel(template.nome)}</TableCell>
+                      <TableCell className="truncate text-muted-foreground" title={template.descricao ?? undefined}>{template.descricao ?? "—"}</TableCell>
+                      <TableCell><Origem origem={template.origem} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{contarItens(template.itens)}</TableCell>
+                      <TableCell className="truncate text-xs text-muted-foreground" title={resumoParametros(template.parametros)}>{resumoParametros(template.parametros)}</TableCell>
+                      <TableCell className="tabular-nums text-muted-foreground">{formatDate(template.criado_em)}</TableCell>
+                      <TableCell>{isArquivado(template) ? <Badge tom="zinc">Arquivado</Badge> : <Badge tom="brand">Ativo</Badge>}</TableCell>
+                      <TableCell>
                         <div className="flex justify-end gap-1">
                           <form action={duplicarTemplateProjeto}>
                             <input type="hidden" name="template_id" value={template.id} />
@@ -379,11 +380,11 @@ export default async function OrcamentoModelosPage({
                             />
                           )}
                         </div>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </section>
@@ -459,39 +460,39 @@ export default async function OrcamentoModelosPage({
               {historico.length === 0 ? (
                 <p className="py-1 text-xs text-muted-foreground">Sem registros de valor.</p>
               ) : (
-                <table className="mt-1 w-full text-left text-xs">
-                  <thead className="text-xs text-muted-foreground">
-                    <tr>
-                      <th className="py-1 pr-3 font-medium">Quando</th>
-                      <th className="py-1 pr-3 font-medium">O que</th>
-                      <th className="py-1 pr-3 text-right font-medium">Valor</th>
-                      <th className="py-1 pr-3 text-right font-medium">Antes</th>
-                      <th className="py-1 pr-3 font-medium">Origem</th>
-                      <th className="py-1 font-medium">Quem</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/60">
+                <Table densidade="compacta" rente className="mt-1 text-xs">
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Quando</TableHead>
+                      <TableHead>O que</TableHead>
+                      <TableHead className="text-right">Valor</TableHead>
+                      <TableHead className="text-right">Antes</TableHead>
+                      <TableHead>Origem</TableHead>
+                      <TableHead>Quem</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {historico.map((linha, indice) => (
-                      <tr key={`${linha.registrado_em}-${indice}`}>
-                        <td className="whitespace-nowrap py-1 pr-3 tabular-nums">{formatDateTime(linha.registrado_em)}</td>
-                        <td className="py-1 pr-3">
+                      <TableRow key={`${linha.registrado_em}-${indice}`}>
+                        <TableCell className="whitespace-nowrap tabular-nums">{formatDateTime(linha.registrado_em)}</TableCell>
+                        <TableCell>
                           {ROTULO_EVENTO_CATALOGO[linha.evento] ?? linha.evento}
                           {!linha.aplicado && <span className="ml-1 text-warning-strong">(aguardando)</span>}
-                        </td>
-                        <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums">
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right tabular-nums">
                           {linha.preco_unitario == null ? VALOR_MASCARADO : brl(Number(linha.preco_unitario))}
-                        </td>
-                        <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums text-muted-foreground">
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
                           {linha.preco_anterior == null ? "—" : brl(Number(linha.preco_anterior))}
-                        </td>
-                        <td className="py-1 pr-3 text-muted-foreground">
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
                           {linha.demanda_titulo ? `Proposta “${linha.demanda_titulo}”` : linha.observacao ?? "—"}
-                        </td>
-                        <td className="py-1 text-muted-foreground">{linha.usuario ?? "—"}</td>
-                      </tr>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{linha.usuario ?? "—"}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </div>
           )}
@@ -510,7 +511,7 @@ export default async function OrcamentoModelosPage({
             ))}
           </nav>
           <div tabIndex={0} aria-label="Itens do catálogo institucional" className="overflow-x-auto">
-            <table className="w-full min-w-[56rem] table-fixed text-left text-sm">
+            <Table densidade="compacta" className="min-w-[56rem] table-fixed">
               <colgroup>
                 <col className="w-[5.5rem]" />
                 {mostrarRubrica && <col className="w-[4.25rem]" />}
@@ -522,26 +523,26 @@ export default async function OrcamentoModelosPage({
                 <col className="w-[7.5rem]" />
                 <col className="w-[10.5rem]" />
               </colgroup>
-              <thead className={cabecalhoTabela}>
-                <tr>
-                  <th className="px-3 py-1.5 font-medium">Código</th>
-                  {mostrarRubrica && <th className="px-3 py-1.5 font-medium">Rubrica</th>}
-                  <th className="px-3 py-1.5 font-medium">Grupo</th>
-                  <th className="px-3 py-1.5 font-medium">Descrição</th>
-                  <th className="px-3 py-1.5 font-medium">Unidade</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Custo padrão</th>
-                  <th className="px-3 py-1.5 font-medium">Origem</th>
-                  <th className="px-3 py-1.5 font-medium">Atualizado</th>
-                  <th className="px-3 py-1.5 text-right font-medium">Ações</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+              <TableHeader className={cabecalhoTabela}>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Código</TableHead>
+                  {mostrarRubrica && <TableHead>Rubrica</TableHead>}
+                  <TableHead>Grupo</TableHead>
+                  <TableHead>Descrição</TableHead>
+                  <TableHead>Unidade</TableHead>
+                  <TableHead className="text-right">Custo padrão</TableHead>
+                  <TableHead>Origem</TableHead>
+                  <TableHead>Atualizado</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {catalogoFiltrado.map((item) => (
-                  <tr key={item.id} className={item.id === itemHistorico?.id ? "bg-muted/40" : undefined}>
-                    <td className="truncate px-3 py-1.5 font-medium" title={item.id}>{item.id}</td>
-                    {mostrarRubrica && <td className="px-3 py-1.5"><Badge>{item.rubrica}</Badge></td>}
-                    <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.categoria ?? undefined}>{item.categoria ?? "—"}</td>
-                    <td className="truncate px-3 py-1.5" title={item.descricao}>
+                  <TableRow key={item.id} className={item.id === itemHistorico?.id ? "bg-muted/40" : undefined}>
+                    <TableCell className="truncate font-medium" title={item.id}>{item.id}</TableCell>
+                    {mostrarRubrica && <TableCell><Badge>{item.rubrica}</Badge></TableCell>}
+                    <TableCell className="truncate text-muted-foreground" title={item.categoria ?? undefined}>{item.categoria ?? "—"}</TableCell>
+                    <TableCell className="truncate" title={item.descricao}>
                       {item.descricao}
                       {item.substituido_por && (
                         <span className="block text-[11px] text-muted-foreground">Unificado em {item.substituido_por}</span>
@@ -557,9 +558,9 @@ export default async function OrcamentoModelosPage({
                           )}
                         </span>
                       )}
-                    </td>
-                    <td className="truncate px-3 py-1.5 text-muted-foreground" title={item.unidade ?? "un"}>{item.unidade ?? "un"}</td>
-                    <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums">
+                    </TableCell>
+                    <TableCell className="truncate text-muted-foreground" title={item.unidade ?? "un"}>{item.unidade ?? "un"}</TableCell>
+                    <TableCell className="whitespace-nowrap text-right tabular-nums">
                       {precoCatalogoMascarado(item) ? (
                         <span title={NOTA_VALOR_MASCARADO}>
                           {VALOR_MASCARADO}
@@ -568,10 +569,10 @@ export default async function OrcamentoModelosPage({
                       ) : (
                         brl(Number(item.preco_unitario ?? 0))
                       )}
-                    </td>
-                    <td className="px-3 py-1.5"><Origem origem={item.origem} /></td>
-                    <td
-                      className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground"
+                    </TableCell>
+                    <TableCell><Origem origem={item.origem} /></TableCell>
+                    <TableCell
+                      className="whitespace-nowrap tabular-nums text-muted-foreground"
                       title={`Valor de ${formatDate(dataDoValor(item))} — ${origemDoValor(item)}`}
                     >
                       {formatDate(dataDoValor(item))}
@@ -580,8 +581,8 @@ export default async function OrcamentoModelosPage({
                           +{MESES_VALOR_VELHO} meses
                         </span>
                       )}
-                    </td>
-                    <td className="px-2 py-1 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-0.5">
                         {podeEditarCatalogo && !item.substituido_por && (
                           <ItemCatalogoDialog
@@ -638,16 +639,16 @@ export default async function OrcamentoModelosPage({
                         ))}
                         {!item.ativo && !podeEditarCatalogo && <Badge tom="zinc">Arquivado</Badge>}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {catalogoFiltrado.length === 0 && (
-                  <tr>
-                    <td colSpan={mostrarRubrica ? 9 : 8} className="px-3 py-2 text-muted-foreground/80">Nenhum item de catálogo encontrado.</td>
-                  </tr>
+                  <TableRow>
+                    <TableCell colSpan={mostrarRubrica ? 9 : 8} className="text-muted-foreground/80">Nenhum item de catálogo encontrado.</TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
       </main>
@@ -660,7 +661,7 @@ const campoCls = "h-9 rounded-md border border-input bg-card px-3 text-sm";
 const inputCls =
   "mt-1 w-full rounded-md border border-input bg-card px-2 py-2 text-sm";
 
-const cabecalhoTabela = "whitespace-nowrap bg-muted/40 text-xs text-muted-foreground";
+const cabecalhoTabela = "whitespace-nowrap bg-muted/60";
 
 /** Endereço da página com os filtros dados (vazios ficam de fora). */
 function hrefModelos(filtros: SearchParams) {
@@ -911,35 +912,35 @@ function PendenciasPessoal({ pendencias }: { pendencias: PendenciaPessoal[] }) {
           <p>O orçamento de origem não muda em nenhum caso.</p>
         </HelpTip>
       </div>
-      <table className="mt-1 w-full text-left text-xs">
-        <thead className="text-xs text-muted-foreground">
-          <tr>
-            <th className="py-1 pr-3 font-medium">Item</th>
-            <th className="py-1 pr-3 text-right font-medium">Informado</th>
-            <th className="py-1 pr-3 text-right font-medium">Catálogo hoje</th>
-            <th className="py-1 pr-3 font-medium">Proposta</th>
-            <th className="py-1 pr-3 font-medium">Quem / quando</th>
-            <th className="py-1 text-right font-medium">Decisão</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/60">
+      <Table densidade="compacta" rente className="mt-1 text-xs">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Item</TableHead>
+            <TableHead className="text-right">Informado</TableHead>
+            <TableHead className="text-right">Catálogo hoje</TableHead>
+            <TableHead>Proposta</TableHead>
+            <TableHead>Quem / quando</TableHead>
+            <TableHead className="text-right">Decisão</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {pendencias.map((p) => (
-            <tr key={p.pendencia_id}>
-              <td className="py-1 pr-3">
+            <TableRow key={p.pendencia_id}>
+              <TableCell>
                 {p.descricao} ({p.unidade ?? "un"})
                 <span className="ml-1 text-muted-foreground">{p.catalogo_item_id ?? "item novo"}</span>
-              </td>
-              <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums">
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums">
                 {p.preco_unitario == null ? "—" : brl(Number(p.preco_unitario))}
-              </td>
-              <td className="whitespace-nowrap py-1 pr-3 text-right tabular-nums text-muted-foreground">
+              </TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
                 {p.preco_atual == null ? "—" : brl(Number(p.preco_atual))}
-              </td>
-              <td className="py-1 pr-3 text-muted-foreground">{p.demanda_titulo ?? "—"}</td>
-              <td className="py-1 pr-3 text-muted-foreground">
+              </TableCell>
+              <TableCell className="text-muted-foreground">{p.demanda_titulo ?? "—"}</TableCell>
+              <TableCell className="text-muted-foreground">
                 {p.usuario ?? "—"} · {formatDateTime(p.registrado_em)}
-              </td>
-              <td className="py-1">
+              </TableCell>
+              <TableCell>
                 <div className="flex justify-end gap-0.5">
                   <FormAcao action={resolverPendenciaCatalogo} aria-label={`Aplicar valor de ${p.descricao}`}>
                     <input type="hidden" name="pendencia_id" value={p.pendencia_id} />
@@ -956,11 +957,11 @@ function PendenciasPessoal({ pendencias }: { pendencias: PendenciaPessoal[] }) {
                     </button>
                   </FormAcao>
                 </div>
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   NovaAnaliseButton,
   type AnaliseOpcao,
 } from "@/components/analises/AnaliseCatalogoAcoes";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -273,15 +274,15 @@ function AnalisesResumoTable({
         <h2 className="text-sm font-semibold">Catálogo de análises</h2>
       </div>
       <div className="overflow-x-auto">
-        <table className="w-full table-auto border-collapse">
-          <thead>
-            <tr className="bg-muted/35">
-              <th className={tableHead}>Análise e código</th>
-              <th className={tableHead}>Status</th>
-              <th className={`${tableHead} text-right`}>Etapas</th>
-              <th className={`${tableHead} text-right`}>Insumos</th>
-              <th className={`${tableHead} text-right`}>Equip.</th>
-              <th className={`${tableHead} text-right`}>
+        <Table className="[--tabela-px:0.625rem]">
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className={tableHead}>Análise e código</TableHead>
+              <TableHead className={tableHead}>Status</TableHead>
+              <TableHead className={`${tableHead} text-right`}>Etapas</TableHead>
+              <TableHead className={`${tableHead} text-right`}>Insumos</TableHead>
+              <TableHead className={`${tableHead} text-right`}>Equip.</TableHead>
+              <TableHead className={`${tableHead} text-right`}>
                 <span className="inline-flex items-center gap-1">
                   Capacidade
                   <HelpTip title="Capacidade diária">
@@ -289,33 +290,33 @@ function AnalisesResumoTable({
                     <HelpExample>2 corridas por dia × 12 amostras = 24/dia.</HelpExample>
                   </HelpTip>
                 </span>
-              </th>
-              <th className={`${tableHead} text-right`}>
+              </TableHead>
+              <TableHead className={`${tableHead} text-right`}>
                 <span className="inline-flex items-center gap-1">
                   Preço
                   <HelpTip title="Preço de tabela">
                     <p>Custo total por amostra com os <b>fatores de preço</b> de Parâmetros de custeio. Nas propostas, serve só como referência.</p>
                   </HelpTip>
                 </span>
-              </th>
-              <th className={tableHead}>Alertas</th>
-              <th className={`${tableHead} text-right`}>Ação</th>
-            </tr>
-          </thead>
-          <tbody>
+              </TableHead>
+              <TableHead className={tableHead}>Alertas</TableHead>
+              <TableHead className={`${tableHead} text-right`}>Ação</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {rows.map((item) => {
               const { analise } = item;
               return (
-                <tr key={analise.codigo} className="border-t border-border/70 hover:bg-muted/25">
+                <TableRow key={analise.codigo}>
                   {/* o código fica embaixo do nome: uma coluna a menos e a tabela cabe sem cortar a ação */}
-                  <td className="min-w-40 px-3 py-2 align-middle">
+                  <TableCell className="min-w-40">
                     <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="text-sm font-medium hover:underline">
                       {rotuloPrincipal(analise)}
                     </Link>
                     <p className="mt-0.5 font-mono text-xs text-muted-foreground">{analise.codigo}</p>
                     {analise.descricao && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{analise.descricao}</p>}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 align-middle">
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap">
                     <div className="flex flex-wrap gap-1">
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${badgeAtivo(analise.ativo)}`}>
                         {analise.ativo ? "Ativa" : "Inativa"}
@@ -324,13 +325,13 @@ function AnalisesResumoTable({
                         {analise.ofertavel ? "Ofertável" : "Não ofertável"}
                       </span>
                     </div>
-                  </td>
-                  <td className={tableNumber}>{item.nEtapas}</td>
-                  <td className={tableNumber}>{item.nInsumos}</td>
-                  <td className={tableNumber}>{item.nEquipamentos}</td>
-                  <td className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "-"}</td>
-                  <td className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "-"}</td>
-                  <td className="min-w-36 max-w-64 px-3 py-2 align-middle">
+                  </TableCell>
+                  <TableCell className={tableNumber}>{item.nEtapas}</TableCell>
+                  <TableCell className={tableNumber}>{item.nInsumos}</TableCell>
+                  <TableCell className={tableNumber}>{item.nEquipamentos}</TableCell>
+                  <TableCell className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "-"}</TableCell>
+                  <TableCell className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "-"}</TableCell>
+                  <TableCell className="min-w-36 max-w-64">
                     {item.avisos.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {item.avisos.slice(0, 3).map((aviso) => (
@@ -343,24 +344,24 @@ function AnalisesResumoTable({
                     ) : (
                       <span className="text-xs text-muted-foreground">-</span>
                     )}
-                  </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-right align-middle">
+                  </TableCell>
+                  <TableCell className="whitespace-nowrap text-right">
                     <AnaliseLinhaAcoes
                       codigo={analise.codigo}
                       rotulo={rotuloPrincipal(analise)}
                       analises={opcoes}
                       podeEditar={podeEditar}
                     />
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </section>
   );
 }
 
-const tableHead = "whitespace-nowrap px-2.5 py-2 text-left text-xs font-medium text-muted-foreground";
-const tableNumber = "whitespace-nowrap px-2.5 py-2 text-right align-middle text-xs tabular-nums";
+const tableHead = "whitespace-nowrap";
+const tableNumber = "whitespace-nowrap text-right text-xs tabular-nums";

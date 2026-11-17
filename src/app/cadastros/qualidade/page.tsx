@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/app/PageHeader";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerQualidadeDosCadastros } from "@/lib/cadastros/qualidade";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -135,7 +136,7 @@ function Painel({ id, titulo, children }: { id: string; titulo: string; vazio: s
 function Tabela({ cabecalhos, linhas, vazio }: { cabecalhos: string[]; linhas: React.ReactNode[][]; vazio: string }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-sm"><thead className="bg-muted/50 text-xs text-muted-foreground"><tr>{cabecalhos.map((cabecalho) => <th key={cabecalho} className="px-3 py-2 text-left">{cabecalho}</th>)}</tr></thead><tbody className="divide-y divide-border/70">{linhas.map((linha, index) => <tr key={index}>{linha.map((celula, coluna) => <td key={coluna} className="px-3 py-2">{celula}</td>)}</tr>)}{linhas.length === 0 && <tr><td colSpan={cabecalhos.length} className="px-3 py-6 text-center text-muted-foreground">{vazio}</td></tr>}</tbody></table>
+      <Table><TableHeader className="bg-muted/60"><TableRow className="hover:bg-transparent">{cabecalhos.map((cabecalho) => <TableHead key={cabecalho}>{cabecalho}</TableHead>)}</TableRow></TableHeader><TableBody>{linhas.map((linha, index) => <TableRow key={index}>{linha.map((celula, coluna) => <TableCell key={coluna}>{celula}</TableCell>)}</TableRow>)}{linhas.length === 0 && <TableRow><TableCell colSpan={cabecalhos.length} className="py-6 text-center text-muted-foreground">{vazio}</TableCell></TableRow>}</TableBody></Table>
     </div>
   );
 }

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const initialState: ImportCadastrosState = { ok: false };
 const LIMITE_MENSAGENS = 50;
@@ -139,28 +140,28 @@ export function ResultadoImportacaoCadastros() {
 
         {state.resumo && (
           <div className="mt-4 overflow-x-auto rounded-md border border-border">
-            <table className="w-full min-w-[560px] text-left text-xs">
-              <thead className="bg-muted/60 text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Aba</th>
-                  <th className="px-3 py-2 font-medium">Inseridos</th>
-                  <th className="px-3 py-2 font-medium">Atualizados</th>
-                  <th className="px-3 py-2 font-medium">Sem alteração</th>
-                  <th className="px-3 py-2 font-medium">Com erro</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table className="min-w-[560px] text-xs">
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Aba</TableHead>
+                  <TableHead>Inseridos</TableHead>
+                  <TableHead>Atualizados</TableHead>
+                  <TableHead>Sem alteração</TableHead>
+                  <TableHead>Com erro</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {state.resumo.map((item) => (
-                  <tr key={item.aba} className="border-t border-border">
-                    <td className="px-3 py-2 font-medium">{item.aba}</td>
-                    <td className="px-3 py-2">{item.inseridos}</td>
-                    <td className="px-3 py-2">{item.atualizados}</td>
-                    <td className="px-3 py-2">{item.inalterados}</td>
-                    <td className="px-3 py-2">{item.ignorados}</td>
-                  </tr>
+                  <TableRow key={item.aba}>
+                    <TableCell className="font-medium">{item.aba}</TableCell>
+                    <TableCell>{item.inseridos}</TableCell>
+                    <TableCell>{item.atualizados}</TableCell>
+                    <TableCell>{item.inalterados}</TableCell>
+                    <TableCell>{item.ignorados}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
 

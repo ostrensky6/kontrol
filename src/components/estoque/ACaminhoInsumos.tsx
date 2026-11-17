@@ -5,6 +5,7 @@ import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import { formatDate } from "@/lib/formatters";
 import { pedidoInternoNumero } from "@/lib/pedido/status";
 import { resumirACaminho, type ItemACaminho } from "@/lib/suprimentos/a-caminho";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const VISIVEIS = 8;
 
@@ -85,40 +86,40 @@ function Linhas({ itens }: { itens: ItemACaminho[] }) {
         ))}
       </ul>
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-left text-xs text-muted-foreground">
-              <th scope="col" className="py-2 pr-3 font-medium">Insumo</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Pedido</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Recebido</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Falta receber</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Previsão</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Situação</th>
-              <th scope="col" className="py-2 pr-3 font-medium">Fornecedor / caminho</th>
-              <th scope="col" className="py-2 font-medium">Origem</th>
-            </tr>
-          </thead>
-          <tbody>
+        <Table rente>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Insumo</TableHead>
+              <TableHead scope="col">Pedido</TableHead>
+              <TableHead scope="col">Recebido</TableHead>
+              <TableHead scope="col">Falta receber</TableHead>
+              <TableHead scope="col">Previsão</TableHead>
+              <TableHead scope="col">Situação</TableHead>
+              <TableHead scope="col">Fornecedor / caminho</TableHead>
+              <TableHead scope="col">Origem</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {itens.map((item) => (
-              <tr key={item.itemId} className="border-b border-border/60 align-top">
-                <td className="py-2 pr-3 font-medium">
+              <TableRow key={item.itemId} className="align-top">
+                <TableCell className="font-medium">
                   {item.insumoId != null ? (
                     <Link href={hrefFichaInsumo(item.insumoId) ?? "/estoque"} className="hover:underline">{item.especificacao}</Link>
                   ) : item.especificacao}
-                </td>
-                <td className="py-2 pr-3 tabular-nums">{item.solicitado}</td>
-                <td className="py-2 pr-3 tabular-nums">{item.recebido}</td>
-                <td className="py-2 pr-3 font-semibold tabular-nums">{item.pendente}</td>
-                <td className="py-2 pr-3"><Previsao item={item} /></td>
-                <td className="py-2 pr-3"><Situacao item={item} /></td>
-                <td className="py-2 pr-3 text-muted-foreground">
+                </TableCell>
+                <TableCell className="tabular-nums">{item.solicitado}</TableCell>
+                <TableCell className="tabular-nums">{item.recebido}</TableCell>
+                <TableCell className="font-semibold tabular-nums">{item.pendente}</TableCell>
+                <TableCell><Previsao item={item} /></TableCell>
+                <TableCell><Situacao item={item} /></TableCell>
+                <TableCell className="text-muted-foreground">
                   {[item.fornecedor, item.caminho].filter(Boolean).join(" · ") || "Não informado"}
-                </td>
-                <td className="py-2"><Origem item={item} /></td>
-              </tr>
+                </TableCell>
+                <TableCell><Origem item={item} /></TableCell>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     </>
   );

@@ -54,6 +54,7 @@ import {
   type LinhaPlanoCatalogo,
   type SeloCatalogo,
 } from "@/lib/project-budget/catalogo-vivo";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Custo = {
   id: number;
@@ -399,42 +400,42 @@ export async function EditorCustosProjeto({
     const viagens = rubrica === "VD";
     return (
       <div className="overflow-x-auto rounded-md border border-border">
-        <table className="min-w-full text-sm">
+        <Table>
           <caption className="sr-only">Itens de {RUBRICAS_PROJETO[rubrica as keyof typeof RUBRICAS_PROJETO]}</caption>
-          <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-            <tr>
-              <th scope="col" className="px-3 py-2">Descrição</th>
-              <th scope="col" className="px-3 py-2">Unidade</th>
-              <th scope="col" className="px-3 py-2 text-right">Qtd.</th>
-              <th scope="col" className="px-3 py-2 text-right">Custo unit.</th>
-              <th scope="col" className="px-3 py-2 text-right">Subtotal</th>
-              <th scope="col" className="px-3 py-2">Origem</th>
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Descrição</TableHead>
+              <TableHead scope="col">Unidade</TableHead>
+              <TableHead scope="col" className="text-right">Qtd.</TableHead>
+              <TableHead scope="col" className="text-right">Custo unit.</TableHead>
+              <TableHead scope="col" className="text-right">Subtotal</TableHead>
+              <TableHead scope="col">Origem</TableHead>
               {editavel && (
-                <th scope="col" className="px-3 py-2">
+                <TableHead scope="col">
                   <span className="sr-only">Ações</span>
-                </th>
+                </TableHead>
               )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {itens.length === 0 && (
-              <tr>
-                <td colSpan={editavel ? 7 : 6} className="px-3 py-4 text-xs text-muted-foreground">
+              <TableRow>
+                <TableCell colSpan={editavel ? 7 : 6} className="py-4 text-xs text-muted-foreground">
                   Nenhum item nesta rubrica.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
             {itens.map((item) => {
               const detalhe = [item.etapa, item.atividade, item.entrega].filter(Boolean).join(" · ");
               const situacao = viagens ? situacaoQuantidadeViagem(item, viagem) : null;
               return (
-                <tr key={item.id} className="align-top">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">
+                <TableRow key={item.id} className="align-top">
+                  <TableHead scope="row">
                     {item.descricao}
                     {detalhe && <span className="block text-xs font-normal text-muted-foreground">{detalhe}</span>}
-                  </th>
-                  <td className="px-3 py-2">{item.unidade || "—"}</td>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  </TableHead>
+                  <TableCell>{item.unidade || "—"}</TableCell>
+                  <TableCell className="text-right tabular-nums">
                     {item.quantidade.toLocaleString("pt-BR")}
                     {situacao && situacao.situacao !== "manual" && (
                       <span
@@ -446,19 +447,19 @@ export async function EditorCustosProjeto({
                         {situacao.situacao === "calculado" ? "Calculado" : `Ajustado · calc.: ${Number(situacao.calculada).toLocaleString("pt-BR")}`}
                       </span>
                     )}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums">{brl(item.custo_unitario)}</td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums">{brl(subtotalCusto(item))}</td>
-                  <td className="px-3 py-2 text-xs text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{brl(item.custo_unitario)}</TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">{brl(subtotalCusto(item))}</TableCell>
+                  <TableCell className="text-xs text-muted-foreground">
                     {ORIGEM[item.origem ?? "manual"] ?? item.origem}
                     <SeloCatalogoLinha linha={planoPorLinha.get(item.id)} />
-                  </td>
-                  {editavel && <td className="px-3 py-2 text-right whitespace-nowrap">{acoesItem(item)}</td>}
-                </tr>
+                  </TableCell>
+                  {editavel && <TableCell className="text-right whitespace-nowrap">{acoesItem(item)}</TableCell>}
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
   }
@@ -479,17 +480,17 @@ export async function EditorCustosProjeto({
           </HelpTip>
           <span className="ml-auto text-xs tabular-nums text-muted-foreground">{brl(totalAnalises)}</span>
         </div>
-        <table className="min-w-full text-sm">
+        <Table>
           <caption className="sr-only">Análises lançadas no projeto</caption>
-          <tbody className="divide-y divide-border/70">
+          <TableBody>
             {analises.map((item) => (
-              <tr key={item.id}>
-                <th scope="row" className="px-3 py-1.5 text-left font-medium">{item.codigo_analise}</th>
-                <td className="px-3 py-1.5 text-right tabular-nums">{item.n_amostras.toLocaleString("pt-BR")} amostras</td>
-                <td className="px-3 py-1.5 text-right tabular-nums">{brl(item.custo_unitario)}</td>
-                <td className="px-3 py-1.5 text-right font-medium tabular-nums">{brl(item.custo_unitario * item.n_amostras)}</td>
+              <TableRow key={item.id}>
+                <TableHead scope="row">{item.codigo_analise}</TableHead>
+                <TableCell className="text-right tabular-nums">{item.n_amostras.toLocaleString("pt-BR")} amostras</TableCell>
+                <TableCell className="text-right tabular-nums">{brl(item.custo_unitario)}</TableCell>
+                <TableCell className="text-right font-medium tabular-nums">{brl(item.custo_unitario * item.n_amostras)}</TableCell>
                 {editavel && (
-                  <td className="px-2 py-1 text-right">
+                  <TableCell className="py-1 text-right">
                     <ConfirmActionButton
                       action={removerAnaliseProjeto}
                       fields={{ orcamento_projeto_id: orcamentoProjetoId, demanda_id: demandaId, item_id: item.id }}
@@ -499,12 +500,12 @@ export async function EditorCustosProjeto({
                       triggerClassName={CLASSE_BOTAO_ICONE_PERIGO}
                       trigger={<IconeAcao icone={Trash2} rotulo={`Remover ${item.codigo_analise}`} />}
                     />
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
     );
 

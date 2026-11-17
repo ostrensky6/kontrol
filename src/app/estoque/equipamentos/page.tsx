@@ -23,6 +23,7 @@ import {
 } from "@/lib/equipamentos/avisos";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -317,16 +318,16 @@ export default async function EquipamentosPage({
         )}
 
         <div className="mt-6 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left">ID</th>
-                <th className="px-4 py-3 text-left">Equipamento/tipo</th>
-                <th className="px-4 py-3 text-left">Patrimônio</th>
-                <th className="px-4 py-3 text-left">Série</th>
-                <th className="px-4 py-3 text-left">Fabricante/modelo</th>
-                <th className="px-4 py-3 text-left">Local</th>
-                <th className="px-4 py-3 text-left">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>ID</TableHead>
+                <TableHead>Equipamento/tipo</TableHead>
+                <TableHead>Patrimônio</TableHead>
+                <TableHead>Série</TableHead>
+                <TableHead>Fabricante/modelo</TableHead>
+                <TableHead>Local</TableHead>
+                <TableHead>
                   <span className="inline-flex items-center gap-1">
                     Situação
                     <HelpTip title="Situação do equipamento">
@@ -342,11 +343,11 @@ export default async function EquipamentosPage({
                       />
                     </HelpTip>
                   </span>
-                </th>
-                <th className="px-4 py-3 text-left">Etiqueta QR</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
+                </TableHead>
+                <TableHead>Etiqueta QR</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {unidades.map((unidade) => {
                 const equipamento = asOne(unidade.equipamentos);
                 const local = asOne(unidade.locais);
@@ -355,32 +356,32 @@ export default async function EquipamentosPage({
                 const urlCurta = gerarUrlCurtaKontrol("equipamento_unidade", unidade.id, origem);
 
                 return (
-                  <tr
+                  <TableRow
                     key={unidade.id}
                     className={destacado ? "bg-info-soft/70" : ""}
                   >
-                    <td className="px-4 py-3 font-mono text-xs">#{unidade.id}</td>
-                    <td className="px-4 py-3 font-medium">
+                    <TableCell className="font-mono text-xs">#{unidade.id}</TableCell>
+                    <TableCell className="font-medium">
                       {equipamento?.nome ?? `Equipamento #${unidade.equipamento_id}`}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
                       {unidade.codigo_patrimonio ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs">
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
                       {unidade.numero_serie ?? "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {[unidade.fabricante, unidade.modelo].filter(Boolean).join(" · ") || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {local?.nome ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${meta.cls}`}>
                         {meta.label}
                       </span>
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>
                       <div className="inline-grid max-w-48 gap-2 rounded-md border border-border bg-card p-2 text-xs shadow-sm">
                         <QrCode
                           value={urlCurta}
@@ -405,19 +406,19 @@ export default async function EquipamentosPage({
                           )}
                         </div>
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
               {unidades.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground/80">
+                <TableRow>
+                  <TableCell colSpan={8} className="py-6 text-center text-muted-foreground/80">
                     {scanId ? `Nenhuma unidade encontrada para #${scanId}.` : "Nenhuma unidade patrimonial cadastrada."}
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         {/* sem unidade cadastrada a seção ficava só com o título */}
