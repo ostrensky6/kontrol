@@ -3,6 +3,7 @@ import { obterResumoBackups } from "@/lib/actions/backups";
 import { BackupAplicativoButton } from "@/components/governanca/BackupAplicativoButton";
 import { HelpTip } from "@/components/common/HelpTip";
 import { APP_LOCALE, formatDateTime } from "@/lib/formatters";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -21,11 +22,11 @@ function formatDate(date: Date) {
 
 function EmptyRow({ children }: { children: React.ReactNode }) {
   return (
-    <tr>
-      <td colSpan={3} className="px-4 py-6 text-center text-sm text-muted-foreground/80">
+    <TableRow>
+      <TableCell colSpan={3} className="py-6 text-center text-muted-foreground/80">
         {children}
-      </td>
-    </tr>
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -81,23 +82,23 @@ export default async function BackupsPage() {
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/50 text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Quando</th>
-                  <th className="px-4 py-3 text-left">Tipo</th>
-                  <th className="px-4 py-3 text-left">Resultado</th>
-                  <th className="px-4 py-3 text-right">Tamanho</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table>
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Quando</TableHead>
+                  <TableHead>Tipo</TableHead>
+                  <TableHead>Resultado</TableHead>
+                  <TableHead className="text-right">Tamanho</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {resumo.registro.map((execucao) => (
-                  <tr key={execucao.id}>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                  <TableRow key={execucao.id}>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDateTime(execucao.concluido_em)}
-                    </td>
-                    <td className="px-4 py-3">{execucao.tipo === "banco" ? "Banco" : "Arquivos"}</td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>{execucao.tipo === "banco" ? "Banco" : "Arquivos"}</TableCell>
+                    <TableCell>
                       {execucao.status === "ok" ? (
                         "Concluído"
                       ) : (
@@ -105,14 +106,14 @@ export default async function BackupsPage() {
                           Falhou{execucao.detalhe ? `: ${execucao.detalhe}` : ""}
                         </span>
                       )}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                       {execucao.tamanho_bytes != null ? formatBytes(execucao.tamanho_bytes) : "—"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </section>
@@ -204,68 +205,68 @@ export default async function BackupsPage() {
           <div className="border-b border-border/70 px-4 py-3">
             <h2 className="text-sm font-semibold">Versões do aplicativo</h2>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left">Arquivo</th>
-                <th className="px-4 py-3 text-left">Quando</th>
-                <th className="px-4 py-3 text-right">Tamanho</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
+          <Table>
+            <TableHeader className="bg-muted/60">
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Arquivo</TableHead>
+                <TableHead>Quando</TableHead>
+                <TableHead className="text-right">Tamanho</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {resumo.appBackups.length ? (
                 resumo.appBackups.map((backup) => (
-                  <tr key={backup.path}>
-                    <td className="max-w-0 truncate px-4 py-3 font-medium" title={backup.name}>
+                  <TableRow key={backup.path}>
+                    <TableCell className="max-w-0 truncate font-medium" title={backup.name}>
                       {backup.name}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDate(backup.modifiedAt)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                       {formatBytes(backup.size)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               ) : (
                 <EmptyRow>Nenhuma versão do aplicativo encontrada.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
 
         <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
           <div className="border-b border-border/70 px-4 py-3">
             <h2 className="text-sm font-semibold">Dumps do banco</h2>
           </div>
-          <table className="w-full text-sm">
-            <thead className="bg-muted/50 text-xs text-muted-foreground">
-              <tr>
-                <th className="px-4 py-3 text-left">Arquivo</th>
-                <th className="px-4 py-3 text-left">Quando</th>
-                <th className="px-4 py-3 text-right">Tamanho</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/70">
+          <Table>
+            <TableHeader className="bg-muted/60">
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Arquivo</TableHead>
+                <TableHead>Quando</TableHead>
+                <TableHead className="text-right">Tamanho</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {resumo.dbBackups.length ? (
                 resumo.dbBackups.slice(0, 80).map((backup) => (
-                  <tr key={backup.path}>
-                    <td className="max-w-0 truncate px-4 py-3 font-medium" title={backup.name}>
+                  <TableRow key={backup.path}>
+                    <TableCell className="max-w-0 truncate font-medium" title={backup.name}>
                       {backup.name}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {formatDate(backup.modifiedAt)}
-                    </td>
-                    <td className="whitespace-nowrap px-4 py-3 text-right text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                       {formatBytes(backup.size)}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))
               ) : (
                 <EmptyRow>Nenhum dump do banco encontrado.</EmptyRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </section>
         </>

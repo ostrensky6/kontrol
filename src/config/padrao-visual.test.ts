@@ -90,6 +90,54 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
     expect(etiqueta).toMatch(/whitespace-nowrap/);
   });
 
+  it("o app tem uma tabela só: tela nenhuma escreve <table> à mão (auditoria de 16/11, item 9)", () => {
+    // A tabela é a de components/ui/table.tsx (Table, TableRow, TableCell...) ou a
+    // DataTable. Exceção de verdade declara o motivo num comentário logo acima:
+    // `tabela-fora-do-padrao: motivo`.
+    const aMao: string[] = [];
+    for (const arquivo of telas) {
+      if (relativo(arquivo) === "components/ui/table.tsx") continue;
+      const texto = readFileSync(arquivo, "utf8");
+      for (const achado of texto.matchAll(/<table\b/g)) {
+        const antes = texto.slice(Math.max(0, achado.index - 400), achado.index);
+        if (!/tabela-fora-do-padrao: \S/.test(antes)) {
+          aMao.push(`${relativo(arquivo)}:${texto.slice(0, achado.index).split("\n").length}`);
+        }
+      }
+    }
+    expect(aMao).toEqual([]);
+  });
+
+  it("linha e célula soltas (<tr>, <td>...) só existem dentro de exceção declarada", () => {
+    const comParteSolta = telas
+      .filter((arquivo) => relativo(arquivo) !== "components/ui/table.tsx")
+      .filter((arquivo) => {
+        const texto = readFileSync(arquivo, "utf8");
+        return /<(thead|tbody|tfoot|tr|th|td)\b/.test(texto) && !texto.includes("tabela-fora-do-padrao:");
+      })
+      .map(relativo);
+    expect(comParteSolta).toEqual([]);
+  });
+
+  it("exceção de tabela declarada não aumenta: documento impresso e a grade que vira cartão no celular", () => {
+    const declaradas = telas
+      .filter((arquivo) => relativo(arquivo) !== "components/ui/table.tsx")
+      .filter((arquivo) => readFileSync(arquivo, "utf8").includes("tabela-fora-do-padrao:"))
+      .map(relativo)
+      .sort();
+    expect(declaradas).toEqual([
+      "app/compras/[id]/imprimir/page.tsx",
+      "app/orcamento/[id]/page.tsx",
+      "components/orcamento/documento/DocumentoProposta.tsx",
+    ]);
+  });
+
+  it("célula da tabela padrão herda o alinhamento vertical, para a linha poder alinhar pelo topo", () => {
+    const tabela = readFileSync(path.join(SRC, "components/ui/table.tsx"), "utf8");
+    const celulas = tabela.slice(tabela.indexOf("function TableHead("));
+    expect(celulas).not.toMatch(/align-middle/);
+  });
+
   it("cabeçalho padrão em uso só aumenta", () => {
     const MINIMO = 8;
     const usam = telas.filter(

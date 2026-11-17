@@ -9,6 +9,7 @@ import {
   removerEquipamento,
 } from "@/lib/actions/receita";
 import { formatCurrency, formatNumber } from "@/lib/formatters";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type EquipamentoEditRowData = {
   id: number;
@@ -27,8 +28,6 @@ export type EquipamentoOption = {
   label: string;
 };
 
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
-const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
 const iconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-700";
 const editButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-background text-blue-700 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30";
 const dangerIconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-danger-strong/30 bg-background text-danger-strong hover:bg-danger-soft focus:outline-none focus:ring-2 focus:ring-danger-strong/20";
@@ -69,20 +68,20 @@ export function EquipamentosEditTable({
       ))}
       {equipamentos.length > 0 ? (
         <div className="mt-2 overflow-x-auto">
-          <table className="mx-auto table-auto border-collapse border border-foreground/70">
-            <thead>
-              <tr>
-                <th className={th}>Equipamento</th>
-                <th className={th}>Peso</th>
-                <th className={th}>Qtd.</th>
-                <th className={th}>Custo unit.</th>
-                <th className={th}>Vida útil</th>
-                <th className={th}>Manutenção</th>
-                <th className={th}>Disponível</th>
-                {podeEditar && <th className={th}>Ações</th>}
-              </tr>
-            </thead>
-            <tbody>
+          <Table grade>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Equipamento</TableHead>
+                <TableHead>Peso</TableHead>
+                <TableHead>Qtd.</TableHead>
+                <TableHead>Custo unit.</TableHead>
+                <TableHead>Vida útil</TableHead>
+                <TableHead>Manutenção</TableHead>
+                <TableHead>Disponível</TableHead>
+                {podeEditar && <TableHead>Ações</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {equipamentos.map((equipamento) => (
                 <EquipamentoRow
                   key={equipamento.id}
@@ -93,8 +92,8 @@ export function EquipamentosEditTable({
                   podeEditar={podeEditar}
                 />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">Nenhum equipamento com peso positivo vinculado a esta análise.</p>
@@ -126,13 +125,13 @@ function EquipamentoRow({
         : "-";
 
   return (
-    <tr className="border-t border-foreground/60">
-      <td className={td}>
+    <TableRow>
+      <TableCell>
         <input type="hidden" form={id} name="codigo_analise" value={codigo} />
         <input type="hidden" form={id} name="id" value={equipamento.id} />
         {equipamento.nome}
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <input
           form={id}
           name="peso_alocacao"
@@ -146,16 +145,16 @@ function EquipamentoRow({
               : "border border-transparent bg-transparent text-foreground disabled:opacity-100"
           }`}
         />
-      </td>
-      <td className={`${td} text-right tabular-nums`}>{fmt(equipamento.quantidade)}</td>
-      <td className={`${td} text-right tabular-nums`}>
+      </TableCell>
+      <TableCell className="text-right tabular-nums">{fmt(equipamento.quantidade)}</TableCell>
+      <TableCell className="text-right tabular-nums">
         {equipamento.custo_unitario != null ? formatCurrency(equipamento.custo_unitario) : "-"}
-      </td>
-      <td className={td}>{equipamento.vida_util_anos ? `${fmt(equipamento.vida_util_anos)} anos` : "-"}</td>
-      <td className={td}>{manutencao}</td>
-      <td className={td}>{equipamento.possui ? "Sim" : "Não informado"}</td>
+      </TableCell>
+      <TableCell>{equipamento.vida_util_anos ? `${fmt(equipamento.vida_util_anos)} anos` : "-"}</TableCell>
+      <TableCell>{manutencao}</TableCell>
+      <TableCell>{equipamento.possui ? "Sim" : "Não informado"}</TableCell>
       {podeEditar && (
-      <td className={`${td} whitespace-nowrap`}>
+      <TableCell className="whitespace-nowrap">
         <div className="flex justify-center gap-1">
           {!editing ? (
             <button type="button" className={editButtonClass} onClick={onEdit} title="Editar peso" aria-label="Editar peso">
@@ -183,9 +182,9 @@ function EquipamentoRow({
             </>
           )}
         </div>
-      </td>
+      </TableCell>
       )}
-    </tr>
+    </TableRow>
   );
 }
 

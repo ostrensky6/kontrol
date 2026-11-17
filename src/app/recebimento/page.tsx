@@ -16,6 +16,7 @@ import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra
 import { formatNumber } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -204,37 +205,37 @@ export default async function RecebimentoPage() {
             <span className="text-sm tabular-nums text-muted-foreground">{erroCompras ? "sem dado" : `${comprasFormais.length} pendente(s)`}</span>
           </div>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Compra</th>
-                  <th className="px-4 py-3 text-left">Insumo</th>
-                  <th className="px-4 py-3 text-left">Fornecedor</th>
-                  <th className="px-4 py-3 text-right">Recebido</th>
-                  <th className="px-4 py-3 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Compra</TableHead>
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Fornecedor</TableHead>
+                  <TableHead className="text-right">Recebido</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {comprasFormais.map((item) => {
                   const insumo = item.insumos;
                   const pedido = item.pedidos_compra;
                   const recebido = Number(item.quantidade_recebida ?? 0);
                   return (
-                    <tr key={item.id}>
-                      <td className="px-4 py-3 font-mono text-xs">#{item.pedido_id}</td>
-                      <td className="px-4 py-3">
+                    <TableRow key={item.id}>
+                      <TableCell className="font-mono text-xs">#{item.pedido_id}</TableCell>
+                      <TableCell>
                         <span className="block font-medium">{insumo?.especificacao ?? `Insumo #${item.insumo_id}`}</span>
                         {insumo?.codigo_fabricante ? (
                           <span className="block text-xs text-muted-foreground">
                             Código do fabricante: <span className="font-mono">{insumo.codigo_fabricante}</span>
                           </span>
                         ) : null}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">{pedido?.fornecedores?.nome ?? "—"}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{pedido?.fornecedores?.nome ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {formatNumber(recebido)} de {rotuloQuantidadeItem(item, insumo?.unidade)}
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {podeReceberCompra ? (
                           <ScannerRecebimentoCompra
                             item={{
@@ -253,23 +254,23 @@ export default async function RecebimentoPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground">Requer a permissão “Registrar chegada de compras”</span>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {erroCompras ? (
-                  <tr>
-                    <td colSpan={5} role="alert" className="px-4 py-6 text-center text-muted-foreground">
+                  <TableRow>
+                    <TableCell colSpan={5} role="alert" className="py-6 text-center text-muted-foreground">
                       Compras: sem dado. A leitura das compras não respondeu; recarregue a página antes de concluir que não há nada para receber.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ) : (
                   comprasFormais.length === 0 && (
-                    <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Nenhuma compra pendente.</td></tr>
+                    <TableRow><TableCell colSpan={5} className="py-6 text-center text-muted-foreground">Nenhuma compra pendente.</TableCell></TableRow>
                   )
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
       </main>

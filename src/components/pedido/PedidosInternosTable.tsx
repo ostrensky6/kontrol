@@ -113,7 +113,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorKey: "numero",
       header: "Nº",
       cell: ({ row }) => (
-        <Link href={`/pedido/${row.original.id}`} className="font-mono text-xs text-muted-foreground hover:underline">
+        <Link href={`/pedido/${row.original.id}`} className="whitespace-nowrap font-mono text-xs text-muted-foreground hover:underline">
           {row.original.numero}
         </Link>
       ),

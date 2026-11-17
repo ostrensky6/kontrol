@@ -35,6 +35,7 @@ import { vizinhasEtapa } from "@/lib/orcamento/etapas-proposta";
 import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -420,12 +421,12 @@ export default async function OrcamentoDetalhe({
               </span>
             </div>
           <div className="mt-2 overflow-x-auto rounded-lg border border-border">
-            <table className="w-full text-right text-sm">
-              <thead className="bg-transparent text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left">Análise</th>
-                  <th className="px-3 py-2 text-left">Matriz</th>
-                  <th className="px-3 py-2">
+            <Table className="text-right">
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Análise</TableHead>
+                  <TableHead>Matriz</TableHead>
+                  <TableHead className="text-right">
                     <span className="inline-flex items-center gap-1">
                       Lote
                       <HelpTip title="Lote da análise" className="no-print">
@@ -433,38 +434,38 @@ export default async function OrcamentoDetalhe({
                         <HelpExample>Controle de R$ 60 por corrida e lote de 12: R$ 5 por amostra.</HelpExample>
                       </HelpTip>
                     </span>
-                  </th>
-                  <th className="px-3 py-2">Amostras</th>
-                  <th className="px-3 py-2 no-print">Reagentes</th>
-                  <th className="px-3 py-2">Equip.</th>
-                  <th className="px-3 py-2">Mão obra</th>
-                  <th className="px-3 py-2">Overhead</th>
-                  <th className="px-3 py-2">Custo</th>
-                  <th className="px-3 py-2 text-left">Origem do valor</th>
-                  <th className="px-3 py-2 no-print"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+                  </TableHead>
+                  <TableHead className="text-right">Amostras</TableHead>
+                  <TableHead className="text-right no-print">Reagentes</TableHead>
+                  <TableHead className="text-right">Equip.</TableHead>
+                  <TableHead className="text-right">Mão obra</TableHead>
+                  <TableHead className="text-right">Overhead</TableHead>
+                  <TableHead className="text-right">Custo</TableHead>
+                  <TableHead>Origem do valor</TableHead>
+                  <TableHead className="no-print"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {linhasTecnicas.map((linha) => (
-                  <tr key={linha.id}>
-                    <td className="px-3 py-2 text-left font-medium">
+                  <TableRow key={linha.id}>
+                    <TableCell className="text-left font-medium">
                       <p>{linha.codigo}</p>
                       <p className="text-xs font-normal text-muted-foreground">{linha.nome ?? "—"}</p>
-                    </td>
-                    <td className="px-3 py-2 text-left text-muted-foreground">{demanda?.matriz_amostra ?? "—"}</td>
-                    <td className="px-3 py-2 tabular-nums">{linha.lote ?? "—"}</td>
-                    <td className="px-3 py-2 tabular-nums">{linha.quantidade}</td>
-                    <td className="px-3 py-2 tabular-nums text-muted-foreground no-print">
+                    </TableCell>
+                    <TableCell className="text-left text-muted-foreground">{demanda?.matriz_amostra ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums">{linha.lote ?? "—"}</TableCell>
+                    <TableCell className="tabular-nums">{linha.quantidade}</TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground no-print">
                       {brl(linha.reagentes)}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.equipamentos)}</td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.maoObra)}</td>
-                    <td className="px-3 py-2 tabular-nums">{brl(linha.overhead)}</td>
-                    <td className="px-3 py-2 font-semibold tabular-nums">
+                    </TableCell>
+                    <TableCell className="tabular-nums">{brl(linha.equipamentos)}</TableCell>
+                    <TableCell className="tabular-nums">{brl(linha.maoObra)}</TableCell>
+                    <TableCell className="tabular-nums">{brl(linha.overhead)}</TableCell>
+                    <TableCell className="font-semibold tabular-nums">
                       {brl(linha.custo)}
-                    </td>
-                    <td className="px-3 py-2 text-left text-xs text-muted-foreground">{linha.origem}</td>
-                    <td className="px-3 py-2 no-print">
+                    </TableCell>
+                    <TableCell className="text-left text-xs text-muted-foreground">{linha.origem}</TableCell>
+                    <TableCell className="no-print">
                       {!bloqueado && (
                         <FormEstado action={salvarItemOrcamento} mensagemClassName="text-xs">
                           <input type="hidden" name="orcamento_id" value={orcId} />
@@ -481,37 +482,37 @@ export default async function OrcamentoDetalhe({
                           </SubmitButton>
                         </FormEstado>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {itens.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="px-3 py-6 text-center text-muted-foreground/80">
+                  <TableRow>
+                    <TableCell colSpan={11} className="py-6 text-center text-muted-foreground/80">
                       Nenhuma análise. Adicione abaixo.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
+              </TableBody>
               {itens.length > 0 && (
-                <tfoot className="border-t border-border bg-transparent">
-                  <tr>
-                    <td className="px-3 py-2.5 text-left font-medium">Total</td>
-                    <td></td>
-                    <td></td>
-                    <td className="px-3 py-2.5 tabular-nums">{totalAmostras}</td>
-                    <td className="px-3 py-2.5 tabular-nums text-muted-foreground no-print">{brl(Number(totaisOperacionais.reagentes ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.equipamentos ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.mao_obra ?? 0))}</td>
-                    <td className="px-3 py-2.5 tabular-nums">{brl(Number(totaisOperacionais.overhead ?? 0))}</td>
-                    <td className="px-3 py-2.5 text-base font-semibold tabular-nums text-brand-700 dark:text-brand-300">
+                <TableFooter className="border-t border-border bg-transparent">
+                  <TableRow>
+                    <TableCell className="text-left font-medium">Total</TableCell>
+                    <TableCell></TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="tabular-nums">{totalAmostras}</TableCell>
+                    <TableCell className="tabular-nums text-muted-foreground no-print">{brl(Number(totaisOperacionais.reagentes ?? 0))}</TableCell>
+                    <TableCell className="tabular-nums">{brl(Number(totaisOperacionais.equipamentos ?? 0))}</TableCell>
+                    <TableCell className="tabular-nums">{brl(Number(totaisOperacionais.mao_obra ?? 0))}</TableCell>
+                    <TableCell className="tabular-nums">{brl(Number(totaisOperacionais.overhead ?? 0))}</TableCell>
+                    <TableCell className="text-base font-semibold tabular-nums text-brand-700 dark:text-brand-300">
                       {brl(totalCusto)}
-                    </td>
-                    <td></td>
-                    <td className="no-print"></td>
-                  </tr>
-                </tfoot>
+                    </TableCell>
+                    <TableCell></TableCell>
+                    <TableCell className="no-print"></TableCell>
+                  </TableRow>
+                </TableFooter>
               )}
-            </table>
+            </Table>
           </div>
           </section>
 
@@ -840,7 +841,7 @@ function TabelaCatalogoAnalises({
 
   return (
     <div className="mt-3 rounded-lg border border-border md:overflow-x-auto">
-      {/* No celular cada análise vira um cartão (mesma tabela, só CSS): código e nome em cima. */}
+      {/* tabela-fora-do-padrao: no celular cada análise vira um cartão (mesma tabela, só CSS), com código e nome em cima. */}
       <table className="w-full text-sm md:min-w-[980px] md:text-right">
         <thead className="hidden bg-muted/50 text-xs text-muted-foreground md:table-header-group min-[1400px]:whitespace-nowrap">
           <tr>
@@ -949,36 +950,36 @@ function TabelaResumoTecnico({
 }) {
   return (
     <div className="mb-1.5 mt-2 overflow-x-auto rounded-lg border border-border">
-      <table className="w-full text-left text-sm">
-        <thead className="text-xs text-muted-foreground">
-          <tr>
+      <Table>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
             {colunas.map((coluna) => (
-              <th key={coluna} className="px-3 py-2">
+              <TableHead key={coluna}>
                 {coluna}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/70">
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {linhas.length > 0 ? (
             linhas.map((linha, index) => (
-              <tr key={index}>
+              <TableRow key={index}>
                 {linha.map((celula, celulaIndex) => (
-                  <td key={celulaIndex} className="max-w-lg px-3 py-2 text-foreground">
+                  <TableCell key={celulaIndex} className="max-w-lg text-foreground">
                     {celula}
-                  </td>
+                  </TableCell>
                 ))}
-              </tr>
+              </TableRow>
             ))
           ) : (
-            <tr>
-              <td colSpan={colunas.length} className="px-3 py-6 text-center text-muted-foreground/80">
+            <TableRow>
+              <TableCell colSpan={colunas.length} className="py-6 text-center text-muted-foreground/80">
                 {vazio}
-              </td>
-            </tr>
+              </TableCell>
+            </TableRow>
           )}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

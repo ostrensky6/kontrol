@@ -17,6 +17,7 @@ import {
   type PedidoDetalhe,
 } from "@/lib/pedido/detalhe";
 import type { Equivalente } from "@/lib/estoque/equivalentes";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 type Props = {
   total: number;
@@ -76,24 +77,24 @@ export function PedidoItens({
         </div>
         <p className="text-sm text-muted-foreground">Total prévio: <b>{brl(total)}</b></p>
       </div>
-    
+
       <div className="mt-2 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-        <table className="w-full text-sm">
-          <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
-            <tr>
-              <th className="px-4 py-3 text-left">Item</th>
-              <th className="px-4 py-3 text-left">Modelo/volume</th>
-              <th className="px-4 py-3 text-right">Qtd</th>
-              <th className="px-4 py-3 text-right">Prévio un.</th>
-              <th className="px-4 py-3 text-left">Fornecedor</th>
-              <th className="px-4 py-3 text-left">Recebimento</th>
-              {podeEditarItens && <th className="px-4 py-3 text-right">Ação</th>}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead>Item</TableHead>
+              <TableHead>Modelo/volume</TableHead>
+              <TableHead className="text-right">Qtd</TableHead>
+              <TableHead className="text-right">Prévio un.</TableHead>
+              <TableHead>Fornecedor</TableHead>
+              <TableHead>Recebimento</TableHead>
+              {podeEditarItens && <TableHead className="text-right">Ação</TableHead>}
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {linhas.map((item) => (
-              <tr key={item.id}>
-                <td className="max-w-sm px-4 py-2.5">
+              <TableRow key={item.id}>
+                <TableCell className="max-w-sm">
                   <p className="font-medium">{item.especificacao}</p>
                   <p className="text-xs text-muted-foreground">
                     {itemTipoLabel(item.tipo)}
@@ -118,21 +119,21 @@ export function PedidoItens({
                       Já há no estoque, mesmo tipo: {eq.especificacao}{eq.fabricante ? ` (${eq.fabricante})` : ""} · {fmt(eq.disponivel)} {eq.unidade ?? ""}
                     </p>
                   ))}
-                </td>
-                <td className="px-4 py-2.5 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-muted-foreground">
                   {[item.modelo, item.volume].filter(Boolean).join(" · ") || "—"}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums">
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
                   {item.quantidade_em === "embalagem" && item.conteudo_embalagem
                     ? `${fmt(item.quantidade)} ${Number(item.quantidade) === 1 ? "frasco" : "frascos"} de ${fmt(item.conteudo_embalagem)} ${item.insumos?.unidade ?? ""}`.trim()
                     : `${fmt(item.quantidade)} ${item.unidade ?? item.insumos?.unidade ?? ""}`}
-                </td>
-                <td className="px-4 py-2.5 text-right tabular-nums">{brl(item.orcamento_previo)}</td>
-                <td className="px-4 py-2.5 text-muted-foreground">
+                </TableCell>
+                <TableCell className="text-right tabular-nums">{brl(item.orcamento_previo)}</TableCell>
+                <TableCell className="text-muted-foreground">
                   {item.fornecedor_sugerido ?? "—"}
                   {item.outros_fornecedores ? <span className="block text-xs">Outros: {item.outros_fornecedores}</span> : null}
-                </td>
-                <td className="px-4 py-2.5">
+                </TableCell>
+                <TableCell>
                   <ItemRecebimentoCell
                     item={{
                       id: item.id,
@@ -176,9 +177,9 @@ export function PedidoItens({
                       Registrar a chegada pela <Link href={`/compras/${compraFormal.id}`} className="text-primary hover:underline">compra</Link>.
                     </p>
                   )}
-                </td>
+                </TableCell>
                 {podeEditarItens && (
-                  <td className="px-4 py-2.5 text-right">
+                  <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-3">
                       <PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoComVinculoAtual(catalogoItens, item)} fornecedores={fornecedoresPedido} />
                       <FormComMensagem action={removerItemPedidoInterno} className="flex flex-col items-end">
@@ -187,21 +188,21 @@ export function PedidoItens({
                         <button className="text-xs text-danger-strong hover:underline">Remover</button>
                       </FormComMensagem>
                     </div>
-                  </td>
+                  </TableCell>
                 )}
-              </tr>
+              </TableRow>
             ))}
             {linhas.length === 0 && (
-              <tr>
-                <td colSpan={podeEditarItens ? 7 : 6} className="px-4 py-6 text-center text-muted-foreground/80">
+              <TableRow>
+                <TableCell colSpan={podeEditarItens ? 7 : 6} className="py-6 text-center text-muted-foreground/80">
                   Nenhum material, serviço ou equipamento informado.
-                </td>
-              </tr>
+                </TableCell>
+              </TableRow>
             )}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
-    
+
       {editavel && (
         <FormComMensagem action={adicionarItemPedidoInterno} className="mt-3 grid gap-2 rounded-lg border border-border bg-card p-3 shadow-sm">
           <input type="hidden" name="pedido_interno_id" value={pedidoId} />

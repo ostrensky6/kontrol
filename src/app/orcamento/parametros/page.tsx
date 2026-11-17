@@ -18,6 +18,7 @@ import {
 } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -352,34 +353,34 @@ export default async function ParametrosEconomicosPage() {
           ) : (
             <section tabIndex={0} aria-label="Prévia de impacto" className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
               <Cabecalho titulo="Prévia de impacto" subtitulo="Cinco análises com maior preço atual usando estes parâmetros." />
-              <table className="w-full text-right text-sm">
-                <thead className={cabecalhoTabela}>
-                  <tr>
-                    <th className="px-3 py-1.5 text-left font-medium">Análise</th>
-                    <th className="px-3 py-1.5 font-medium">Custo total</th>
-                    <th className="px-3 py-1.5 font-medium">Fatores</th>
-                    <th className="px-3 py-1.5 font-medium">Preço</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
+              <Table densidade="compacta" className="text-right">
+                <TableHeader className={cabecalhoTabela}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Análise</TableHead>
+                    <TableHead className="text-right">Custo total</TableHead>
+                    <TableHead className="text-right">Fatores</TableHead>
+                    <TableHead className="text-right">Preço</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {analisesPreview.map((b) => (
-                    <tr key={b.codigo}>
-                      <td className="max-w-64 truncate px-3 py-1.5 text-left font-medium" title={b.codigo}>
+                    <TableRow key={b.codigo}>
+                      <TableCell className="max-w-64 truncate text-left font-medium" title={b.codigo}>
                         {b.codigo}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                         {brl(b.custoTotal)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 tabular-nums text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap tabular-nums text-muted-foreground">
                         {pct(b.fatores * 100)}
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 font-semibold tabular-nums text-brand-700 dark:text-brand-300">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap font-semibold tabular-nums text-brand-700 dark:text-brand-300">
                         {brl(b.preco)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </section>
           )}
 
@@ -394,22 +395,22 @@ export default async function ParametrosEconomicosPage() {
                 titulo="Orçamentos de projeto considerados"
                 subtitulo="Leitura recente para validar base, itens, fator de gross-up e bloqueios."
               />
-              <table className="w-full text-left text-sm">
-                <thead className={cabecalhoTabela}>
-                  <tr>
-                    <th className="px-3 py-1.5 font-medium">Projeto</th>
-                    <th className="px-3 py-1.5 font-medium">Cliente</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Itens</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Custo</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Gross-up</th>
-                    <th className="px-3 py-1.5 text-right font-medium">Total</th>
-                    <th className="px-3 py-1.5 font-medium">Validação</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
+              <Table densidade="compacta">
+                <TableHeader className={cabecalhoTabela}>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Projeto</TableHead>
+                    <TableHead>Cliente</TableHead>
+                    <TableHead className="text-right">Itens</TableHead>
+                    <TableHead className="text-right">Custo</TableHead>
+                    <TableHead className="text-right">Gross-up</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                    <TableHead>Validação</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {projetosCalculados.map((projeto) => (
-                    <tr key={projeto.id}>
-                      <td className="max-w-56 px-3 py-1.5">
+                    <TableRow key={projeto.id}>
+                      <TableCell className="max-w-56">
                         <Link
                           href={projeto.href}
                           className="block truncate font-medium text-brand-700 hover:underline dark:text-brand-300"
@@ -418,17 +419,17 @@ export default async function ParametrosEconomicosPage() {
                           #{projeto.id} {projeto.titulo ?? "Sem título"}
                         </Link>
                         <span className="block text-xs text-muted-foreground">{projeto.status ?? "sem status"}</span>
-                      </td>
-                      <td className="max-w-40 truncate px-3 py-1.5 text-muted-foreground" title={projeto.cliente_nome ?? undefined}>
+                      </TableCell>
+                      <TableCell className="max-w-40 truncate text-muted-foreground" title={projeto.cliente_nome ?? undefined}>
                         {projeto.cliente_nome ?? "—"}
-                      </td>
-                      <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground">{projeto.analisesCount + projeto.custosCount}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">{brl(projeto.calculo.subtotal)}</td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{projeto.analisesCount + projeto.custosCount}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{brl(projeto.calculo.subtotal)}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
                         {pct(projeto.calculo.markupRate)} · {projeto.calculo.grossUpFactor.toFixed(4).replace(".", ",")}x
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</td>
-                      <td className="px-3 py-1.5">
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</TableCell>
+                      <TableCell>
                         <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                           projeto.calculo.validationError
                             ? "bg-danger-soft text-danger-strong"
@@ -436,11 +437,11 @@ export default async function ParametrosEconomicosPage() {
                         }`}>
                           {projeto.calculo.validationError || "Válido"}
                         </span>
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </section>
           )}
 
@@ -453,7 +454,7 @@ export default async function ParametrosEconomicosPage() {
   );
 }
 
-const cabecalhoTabela = "whitespace-nowrap text-xs text-muted-foreground";
+const cabecalhoTabela = "whitespace-nowrap";
 
 function AjudaVersoes() {
   return (
@@ -574,28 +575,28 @@ function TabelaParametros({
   return (
     <section tabIndex={0} aria-label={titulo} className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
       <Cabecalho titulo={titulo} subtitulo={subtitulo} />
-      <table className="w-full text-left text-sm">
-        <thead className={cabecalhoTabela}>
-          <tr>
-            <th className="px-3 py-1.5 font-medium">Campo</th>
-            <th className="px-3 py-1.5 text-right font-medium">Valor</th>
-            <th className="px-3 py-1.5 font-medium">Origem</th>
-            <th className="px-3 py-1.5 font-medium">Versão</th>
-            <th className="px-3 py-1.5 text-right font-medium">Impacto</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-border/70">
+      <Table densidade="compacta">
+        <TableHeader className={cabecalhoTabela}>
+          <TableRow className="hover:bg-transparent">
+            <TableHead>Campo</TableHead>
+            <TableHead className="text-right">Valor</TableHead>
+            <TableHead>Origem</TableHead>
+            <TableHead>Versão</TableHead>
+            <TableHead className="text-right">Impacto</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {linhas.map((linha) => (
-            <tr key={`${linha[0]}-${linha[2]}`}>
-              <td className="px-3 py-1.5 font-medium">{linha[0]}</td>
-              <td className="whitespace-nowrap px-3 py-1.5 text-right tabular-nums text-muted-foreground">{linha[1]}</td>
-              <td className="px-3 py-1.5 text-muted-foreground">{linha[2]}</td>
-              <td className="whitespace-nowrap px-3 py-1.5 text-muted-foreground">{linha[3]}</td>
-              <td className="whitespace-nowrap px-3 py-1.5 text-right font-semibold tabular-nums">{linha[4]}</td>
-            </tr>
+            <TableRow key={`${linha[0]}-${linha[2]}`}>
+              <TableCell className="font-medium">{linha[0]}</TableCell>
+              <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{linha[1]}</TableCell>
+              <TableCell className="text-muted-foreground">{linha[2]}</TableCell>
+              <TableCell className="whitespace-nowrap text-muted-foreground">{linha[3]}</TableCell>
+              <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">{linha[4]}</TableCell>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </section>
   );
 }

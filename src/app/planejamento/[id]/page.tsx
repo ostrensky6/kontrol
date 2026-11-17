@@ -30,6 +30,7 @@ import {
 } from "@/lib/planejamento/conferencia-lotes";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -496,21 +497,21 @@ export default async function PlanoDetalhe({
           <div className="mt-3 space-y-3">
             {capacidadePorAnalise.length > 0 && (
               <div className="overflow-x-auto rounded-lg border border-border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50 text-xs text-muted-foreground">
-                    <tr><th className="px-3 py-2 text-left">Análise</th><th className="px-3 py-2 text-right">Amostras planejadas</th><th className="px-3 py-2 text-right">Capacidade/dia</th><th className="px-3 py-2 text-right">Prazo projetado</th></tr>
-                  </thead>
-                  <tbody className="divide-y divide-border/70">
+                <Table>
+                  <TableHeader className="bg-muted/60">
+                    <TableRow className="hover:bg-transparent"><TableHead>Análise</TableHead><TableHead className="text-right">Amostras planejadas</TableHead><TableHead className="text-right">Capacidade/dia</TableHead><TableHead className="text-right">Prazo projetado</TableHead></TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {capacidadePorAnalise.map((capacidade, index) => (
-                      <tr key={`${capacidade.codigo}-${index}`}>
-                        <td className="px-3 py-2 font-medium">{capacidade.codigo}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{fmt(capacidade.amostrasPlanejadas)}</td>
-                        <td className={`px-3 py-2 text-right tabular-nums ${capacidade.capacidadeDia <= 0 ? "text-danger-strong" : ""}`}>{capacidade.capacidadeDia > 0 ? fmt(capacidade.capacidadeDia) : "não cadastrada"}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{capacidade.diasProjetados == null ? "—" : `${capacidade.diasProjetados} dia(s)`}</td>
-                      </tr>
+                      <TableRow key={`${capacidade.codigo}-${index}`}>
+                        <TableCell className="font-medium">{capacidade.codigo}</TableCell>
+                        <TableCell className="text-right tabular-nums">{fmt(capacidade.amostrasPlanejadas)}</TableCell>
+                        <TableCell className={`text-right tabular-nums ${capacidade.capacidadeDia <= 0 ? "text-danger-strong" : ""}`}>{capacidade.capacidadeDia > 0 ? fmt(capacidade.capacidadeDia) : "não cadastrada"}</TableCell>
+                        <TableCell className="text-right tabular-nums">{capacidade.diasProjetados == null ? "—" : `${capacidade.diasProjetados} dia(s)`}</TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               </div>
             )}
             {(unidadesEquipamento ?? []).map((unidade) => {
@@ -673,30 +674,30 @@ export default async function PlanoDetalhe({
             </div>
           </div>
           <div className="mt-3 overflow-x-auto rounded-xl border border-border bg-card shadow-sm">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border bg-transparent text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Insumo</th>
-                  <th className="px-4 py-3 text-left">Un.</th>
-                  <th className="px-4 py-3 text-right">Necessário</th>
-                  <th className="px-4 py-3 text-right">Disponível</th>
-                  <th className="px-4 py-3 text-left">Lote reservado</th>
-                  <th className="px-4 py-3 text-right">Falta</th>
-                  <th className="px-4 py-3 text-right">Qtd. pedido</th>
-                  <th className="px-4 py-3 text-right">Valor</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Un.</TableHead>
+                  <TableHead className="text-right">Necessário</TableHead>
+                  <TableHead className="text-right">Disponível</TableHead>
+                  <TableHead>Lote reservado</TableHead>
+                  <TableHead className="text-right">Falta</TableHead>
+                  <TableHead className="text-right">Qtd. pedido</TableHead>
+                  <TableHead className="text-right">Valor</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {demanda.map((d) => {
                   const reservasInsumo = reservasPorInsumo.get(d.insumo_id) ?? [];
                   const minimoCompra = d.quantidadeMinimaCompra ?? d.quantidadeEmbalagem;
                   return (
-                    <tr key={d.insumo_id} className={d.falta > 0 ? "bg-warning-soft/60" : ""}>
-                      <td className="px-4 py-2 max-w-sm truncate" title={d.especificacao}>{d.especificacao}</td>
-                      <td className="px-4 py-2 text-muted-foreground">{d.unidade ?? "—"}</td>
-                      <td className="px-4 py-2 text-right tabular-nums">{fmt(d.demanda)}</td>
-                      <td className="px-4 py-2 text-right tabular-nums text-muted-foreground">{fmt(d.disponivel)}</td>
-                      <td className="px-4 py-2 text-xs text-muted-foreground">
+                    <TableRow key={d.insumo_id} className={d.falta > 0 ? "bg-warning-soft/60" : ""}>
+                      <TableCell className="max-w-sm truncate" title={d.especificacao}>{d.especificacao}</TableCell>
+                      <TableCell className="text-muted-foreground">{d.unidade ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">{fmt(d.demanda)}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(d.disponivel)}</TableCell>
+                      <TableCell className="text-xs text-muted-foreground">
                         {reservasInsumo.length > 0 ? (
                           <div className="space-y-1">
                             {reservasInsumo.map((reserva) => (
@@ -712,8 +713,8 @@ export default async function PlanoDetalhe({
                             ))}
                           </div>
                         ) : "—"}
-                      </td>
-                      <td className={`px-4 py-2 text-right tabular-nums font-medium ${d.falta > 0 ? "text-warning-strong" : "text-muted-foreground/80"}`}>
+                      </TableCell>
+                      <TableCell className={`text-right tabular-nums font-medium ${d.falta > 0 ? "text-warning-strong" : "text-muted-foreground/80"}`}>
                         {d.falta > 0 ? (
                           <div>
                             <span>{fmt(d.falta)}</span>
@@ -729,8 +730,8 @@ export default async function PlanoDetalhe({
                             ))}
                           </div>
                         ) : "—"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {d.quantidadeCompra > 0 ? (
                           <div>
                             <span className="font-medium">{fmt(d.quantidadeCompra)}</span>
@@ -741,8 +742,8 @@ export default async function PlanoDetalhe({
                             ) : null}
                           </div>
                         ) : "—"}
-                      </td>
-                      <td className="px-4 py-2 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {d.valorCompraEstimado > 0 ? (
                           <div>
                             <span className="font-medium">{formatCurrency(d.valorCompraEstimado)}</span>
@@ -751,19 +752,19 @@ export default async function PlanoDetalhe({
                             </p>
                           </div>
                         ) : "—"}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {demanda.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground/80">
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-6 text-center text-muted-foreground/80">
                       Adicione análises para calcular o consumo.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
 

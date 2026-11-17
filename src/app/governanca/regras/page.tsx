@@ -13,6 +13,7 @@ import { agruparAlteracoesSeguidas, type GrupoAuditoria } from "@/lib/orcamento/
 import { PAPEIS, PERMISSOES, defaultPermissionsForRole, papelAlcanca } from "@/lib/auth/permissions";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 /** Funções que já vêm com a caixinha marcada (padrão de Privilégios). */
 function funcoesComPadrao(chave: string | null, papelMinimo: (typeof PAPEIS)[number]["value"]) {
@@ -188,43 +189,43 @@ export default async function GovernancaOrcamentoPage() {
             }
           />
           <div tabIndex={0} aria-label="Matriz operacional" className="overflow-x-auto">
-            <table className="w-full min-w-[46rem] table-fixed text-sm">
+            <Table densidade="compacta" className="min-w-[46rem] table-fixed">
               <colgroup>
                 <col className="w-[37%]" />
                 <col className="w-[27%]" />
                 <col className="w-[8.75rem]" />
                 <col />
               </colgroup>
-              <thead className="bg-muted/50 text-left text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-1.5 font-medium">Ação</th>
-                  <th className="px-3 py-1.5 font-medium">Quem pode</th>
-                  <th className="px-3 py-1.5 font-medium">Motivo</th>
-                  <th className="px-3 py-1.5 font-medium">Evidência</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Ação</TableHead>
+                  <TableHead>Quem pode</TableHead>
+                  <TableHead>Motivo</TableHead>
+                  <TableHead>Evidência</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {PERMISSOES_ORCAMENTO.map((permissao) => {
                   const quemPode = permissao.chave
                     ? rotuloPermissao(permissao.chave)
                     : funcoesComPadrao(null, permissao.papelMinimo);
                   return (
-                    <tr key={permissao.acao} className="align-top">
-                      <td className="px-3 py-1.5">
+                    <TableRow key={permissao.acao} className="align-top">
+                      <TableCell>
                         <span className="block font-medium">{permissao.titulo}</span>
                         <span className="block truncate text-xs text-muted-foreground" title={permissao.descricao}>
                           {permissao.descricao}
                         </span>
-                      </td>
-                      <td className="px-3 py-1.5">
+                      </TableCell>
+                      <TableCell>
                         <span className="block truncate" title={permissao.chave ? `Quem tiver “${quemPode}”` : quemPode}>
                           {quemPode}
                         </span>
                         <span className="block text-xs text-muted-foreground">
                           Padrão: {funcoesComPadrao(permissao.chave, permissao.papelMinimo)}
                         </span>
-                      </td>
-                      <td className="px-3 py-1.5">
+                      </TableCell>
+                      <TableCell>
                         <span
                           className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
                             permissao.motivoObrigatorio ? "bg-warning-soft text-warning-strong" : "bg-muted text-muted-foreground"
@@ -232,13 +233,13 @@ export default async function GovernancaOrcamentoPage() {
                         >
                           {permissao.motivoObrigatorio ? "Obrigatório" : "Quando aplicável"}
                         </span>
-                      </td>
-                      <td className="px-3 py-1.5">{permissao.eventoAuditavel}</td>
-                    </tr>
+                      </TableCell>
+                      <TableCell>{permissao.eventoAuditavel}</TableCell>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
 

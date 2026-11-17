@@ -34,6 +34,7 @@ import { AlternativasValidacao, type AlternativaLinha } from "@/components/anali
 import { formatCurrency, formatNumber } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -102,8 +103,6 @@ type EquipamentoOpcao = {
 };
 
 const panel = "rounded-lg border border-border bg-card p-3 shadow-sm";
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
-const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
 const labelClass = "text-xs font-medium text-blue-700 dark:text-blue-300";
 const inputClass = "mt-0.5 h-7 w-full rounded-md border border-blue-300 bg-blue-50/70 px-2 py-0.5 text-[11px] font-medium text-blue-950 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-blue-800 dark:bg-blue-950/30 dark:text-blue-100";
 const primaryButtonClass = "rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm hover:bg-primary/90";
@@ -519,44 +518,46 @@ export default async function AnaliseDetalhe({
             </HelpTip>
           }
         >
-          <Table>
-            <thead>
-              <tr>
-                <th className={th}>Insumo</th>
-                <th className={th}>Disponível</th>
-                <th className={th}>Mínimo</th>
-                <th className={th}>Estoque de segurança</th>
-                <th className={th}>Prazo do fornecedor</th>
-                <th className={th}>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {materiaisT.map((material) => {
-                const saldo = material.insumo_id ? saldoPorInsumo.get(material.insumo_id) : null;
-                const disponivel = Number(saldo?.disponivel ?? 0);
-                const ponto = Number(material.insumos?.ponto_reposicao ?? 0);
-                return (
-                  <tr key={material.id} className="border-t border-border/70">
-                    <td className={td}>
-                      {/* com vínculo, vale o nome atual do cadastro do insumo; o texto da receita pode estar desatualizado */}
-                      {material.insumo_id && material.insumos?.especificacao
-                        ? material.insumos.especificacao
-                        : material.especificacao_insumo ?? "-"}
-                      {material.insumo_id && material.insumos?.especificacao && material.especificacao_insumo &&
-                        material.especificacao_insumo.trim() !== material.insumos.especificacao.trim() && (
-                          <span className="block text-[11px] text-muted-foreground">Na receita: {material.especificacao_insumo}</span>
-                        )}
-                    </td>
-                    <td className={td}>{material.insumo_id ? `${fmt(disponivel)} ${saldo?.unidade ?? material.insumos?.unidade ?? ""}` : "-"}</td>
-                    <td className={td}>{fmt(material.insumos?.ponto_reposicao)}</td>
-                    <td className={td}>{fmt(material.insumos?.estoque_seguranca)}</td>
-                    <td className={td}>{material.insumos?.lead_time_dias ? `${material.insumos.lead_time_dias} dias` : "-"}</td>
-                    <td className={td}>{!material.insumo_id ? "sem vínculo" : ponto > 0 && disponivel <= ponto ? "abaixo do ponto" : "ok"}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
+          <div className="mt-2 overflow-x-auto">
+            <Table grade>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Insumo</TableHead>
+                  <TableHead>Disponível</TableHead>
+                  <TableHead>Mínimo</TableHead>
+                  <TableHead>Estoque de segurança</TableHead>
+                  <TableHead>Prazo do fornecedor</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {materiaisT.map((material) => {
+                  const saldo = material.insumo_id ? saldoPorInsumo.get(material.insumo_id) : null;
+                  const disponivel = Number(saldo?.disponivel ?? 0);
+                  const ponto = Number(material.insumos?.ponto_reposicao ?? 0);
+                  return (
+                    <TableRow key={material.id}>
+                      <TableCell>
+                        {/* com vínculo, vale o nome atual do cadastro do insumo; o texto da receita pode estar desatualizado */}
+                        {material.insumo_id && material.insumos?.especificacao
+                          ? material.insumos.especificacao
+                          : material.especificacao_insumo ?? "-"}
+                        {material.insumo_id && material.insumos?.especificacao && material.especificacao_insumo &&
+                          material.especificacao_insumo.trim() !== material.insumos.especificacao.trim() && (
+                            <span className="block text-[11px] text-muted-foreground">Na receita: {material.especificacao_insumo}</span>
+                          )}
+                      </TableCell>
+                      <TableCell>{material.insumo_id ? `${fmt(disponivel)} ${saldo?.unidade ?? material.insumos?.unidade ?? ""}` : "-"}</TableCell>
+                      <TableCell>{fmt(material.insumos?.ponto_reposicao)}</TableCell>
+                      <TableCell>{fmt(material.insumos?.estoque_seguranca)}</TableCell>
+                      <TableCell>{material.insumos?.lead_time_dias ? `${material.insumos.lead_time_dias} dias` : "-"}</TableCell>
+                      <TableCell>{!material.insumo_id ? "sem vínculo" : ponto > 0 && disponivel <= ponto ? "abaixo do ponto" : "ok"}</TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
         </Section>
         )}
 
@@ -749,9 +750,5 @@ function MiniStat({ label, value }: { label: string; value: string }) {
       <p className="mt-0.5 text-sm font-semibold tabular-nums">{value}</p>
     </div>
   );
-}
-
-function Table({ children }: { children: ReactNode }) {
-  return <div className="mt-2 overflow-x-auto"><table className="mx-auto table-auto border-collapse border border-foreground/70">{children}</table></div>;
 }
 

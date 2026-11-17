@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency as brl, formatNumber as fmt } from "@/lib/formatters";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type PedidoItemView = {
   id: number;
@@ -63,18 +64,18 @@ export function PedidoItensQuickView({
             </p>
           ) : (
             <div className="max-h-[60vh] overflow-y-auto rounded-lg border border-border">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 border-b border-border bg-card text-xs text-muted-foreground">
-                  <tr>
-                    <th className="px-3 py-2 text-left">Item</th>
-                    <th className="px-3 py-2 text-right">Qtd</th>
-                    <th className="px-3 py-2 text-right">Prévio un.</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border/70">
+              <Table>
+                <TableHeader className="sticky top-0 bg-card">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Item</TableHead>
+                    <TableHead className="text-right">Qtd</TableHead>
+                    <TableHead className="text-right">Prévio un.</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {itens.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-3 py-2">
+                    <TableRow key={item.id}>
+                      <TableCell>
                         <div className="flex items-center gap-2">
                           <span className="font-medium">{item.especificacao}</span>
                           <Badge className="bg-muted text-muted-foreground">
@@ -88,17 +89,17 @@ export function PedidoItensQuickView({
                               .join(" · ")}
                           </p>
                         )}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {fmt(item.quantidade)} {item.unidade ?? ""}
-                      </td>
-                      <td className="px-3 py-2 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {brl(item.orcamento_previo)}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           )}
         </DialogContent>

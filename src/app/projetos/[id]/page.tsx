@@ -14,6 +14,7 @@ import { temPapel } from "@/lib/auth/roles";
 import { VinculosProjeto, type VinculoPessoa } from "@/components/projetos/VinculosProjeto";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -64,9 +65,6 @@ function Kpi({
 
 const cardCls =
   "rounded-lg border border-border bg-card shadow-sm";
-const thCls =
-  "px-3 py-2 text-left text-xs font-semibold text-muted-foreground";
-const tdCls = "px-3 py-2 text-sm text-foreground";
 
 export default async function ProjetoHubPage({
   params,
@@ -325,28 +323,28 @@ export default async function ProjetoHubPage({
             {orcLinhas.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum orçamento vinculado a este projeto.</p>
             ) : (
-              <table className="min-w-full">
-                <thead className="border-b border-border/70">
-                  <tr>
-                    <th className={thCls}>Documento</th>
-                    <th className={thCls}>Tipo</th>
-                    <th className={thCls}>Data</th>
-                    <th className={thCls}>Status</th>
-                    <th className={`${thCls} text-right`}>Total</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Documento</TableHead>
+                    <TableHead>Tipo</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {orcLinhas.map((o) => (
-                    <tr key={o.key} className="border-b border-border/50 last:border-b-0 hover:bg-muted/50">
-                      <td className={tdCls}><Link href={o.href} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{o.titulo}</Link></td>
-                      <td className={tdCls}>{o.tipo}</td>
-                      <td className={tdCls}>{fmtData(o.data)}</td>
-                      <td className={tdCls}><Badge map={STATUS_ORC} status={o.status} /></td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{moeda(o.total)}</td>
-                    </tr>
+                    <TableRow key={o.key}>
+                      <TableCell><Link href={o.href} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{o.titulo}</Link></TableCell>
+                      <TableCell>{o.tipo}</TableCell>
+                      <TableCell>{fmtData(o.data)}</TableCell>
+                      <TableCell><Badge map={STATUS_ORC} status={o.status} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{moeda(o.total)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
         </section>
@@ -361,35 +359,35 @@ export default async function ProjetoHubPage({
             {planosLinhas.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum planejamento vinculado a este projeto.</p>
             ) : (
-              <table className="min-w-full">
-                <thead className="border-b border-border/70">
-                  <tr>
-                    <th className={thCls}>Plano</th>
-                    <th className={thCls}>Data-alvo</th>
-                    <th className={`${thCls} text-right`}>Análises</th>
-                    <th className={`${thCls} text-right`}>Amostras</th>
-                    <th className={`${thCls} text-right`}>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Plano</TableHead>
+                    <TableHead>Data-alvo</TableHead>
+                    <TableHead className="text-right">Análises</TableHead>
+                    <TableHead className="text-right">Amostras</TableHead>
+                    <TableHead className="text-right">Ações</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {planosLinhas.map((p) => (
-                    <tr key={p.id} className="border-b border-border/50 last:border-b-0 hover:bg-muted/50">
-                      <td className={tdCls}><Link href={`/planejamento/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{p.nome}</Link></td>
-                      <td className={tdCls}>{fmtData(p.dataAlvo)}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{p.itens}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{p.amostras}</td>
-                      <td className={`${tdCls} text-right`}>
+                    <TableRow key={p.id}>
+                      <TableCell><Link href={`/planejamento/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{p.nome}</Link></TableCell>
+                      <TableCell>{fmtData(p.dataAlvo)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{p.itens}</TableCell>
+                      <TableCell className="text-right tabular-nums">{p.amostras}</TableCell>
+                      <TableCell className="text-right">
                         <PlanoLinhaAcoes
                           planId={p.id}
                           nome={p.nome}
                           editavel={p.gestao.podeEditar}
                           gestao={{ acao: p.gestao.acao, bloqueado: p.gestao.acaoBloqueada, motivo: p.gestao.motivoAcao }}
                         />
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
         </section>
@@ -404,30 +402,30 @@ export default async function ProjetoHubPage({
             {comprasLinhas.length === 0 ? (
               <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido ligado a este projeto.</p>
             ) : (
-              <table className="min-w-full">
-                <thead className="border-b border-border/70">
-                  <tr>
-                    <th className={thCls}>Pedido</th>
-                    <th className={thCls}>Fornecedor</th>
-                    <th className={thCls}>Data</th>
-                    <th className={thCls}>Status</th>
-                    <th className={`${thCls} text-right`}>Itens</th>
-                    <th className={`${thCls} text-right`}>Estimado</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Pedido</TableHead>
+                    <TableHead>Fornecedor</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Itens</TableHead>
+                    <TableHead className="text-right">Estimado</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {comprasLinhas.map((c) => (
-                    <tr key={c.id} className="border-b border-border/50 last:border-b-0 hover:bg-muted/50">
-                      <td className={tdCls}><Link href={`/compras/${c.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">Pedido {c.id}</Link></td>
-                      <td className={tdCls}>{c.fornecedor}</td>
-                      <td className={tdCls}>{fmtData(c.data)}</td>
-                      <td className={tdCls}><Badge map={STATUS_COMPRA} status={c.status} /></td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{c.itens}</td>
-                      <td className={`${tdCls} text-right tabular-nums`}>{moeda(c.total)}</td>
-                    </tr>
+                    <TableRow key={c.id}>
+                      <TableCell><Link href={`/compras/${c.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">Pedido {c.id}</Link></TableCell>
+                      <TableCell>{c.fornecedor}</TableCell>
+                      <TableCell>{fmtData(c.data)}</TableCell>
+                      <TableCell><Badge map={STATUS_COMPRA} status={c.status} /></TableCell>
+                      <TableCell className="text-right tabular-nums">{c.itens}</TableCell>
+                      <TableCell className="text-right tabular-nums">{moeda(c.total)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             )}
           </div>
         </section>
@@ -439,24 +437,24 @@ export default async function ProjetoHubPage({
           <section className="mt-8">
             <h2 className="mb-2 text-lg font-semibold tracking-tight">Orçamentos e propostas</h2>
             <div className={`${cardCls} overflow-x-auto`}>
-              <table className="min-w-full">
-                <thead className="border-b border-border/70">
-                  <tr>
-                    <th className={thCls}>Título</th>
-                    <th className={thCls}>Data</th>
-                    <th className={thCls}>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>Título</TableHead>
+                    <TableHead>Data</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {(demandas ?? []).map((d) => (
-                    <tr key={d.id} className="border-b border-border/50 last:border-b-0 hover:bg-muted/50">
-                      <td className={tdCls}><Link href={`/orcamento/demandas/${d.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{d.titulo}</Link></td>
-                      <td className={tdCls}>{fmtData(d.data_solicitacao)}</td>
-                      <td className={tdCls}>{rotuloStatusOrcamento(d.status)}</td>
-                    </tr>
+                    <TableRow key={d.id}>
+                      <TableCell><Link href={`/orcamento/demandas/${d.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{d.titulo}</Link></TableCell>
+                      <TableCell>{fmtData(d.data_solicitacao)}</TableCell>
+                      <TableCell>{rotuloStatusOrcamento(d.status)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
+                </TableBody>
+              </Table>
             </div>
           </section>
         )}

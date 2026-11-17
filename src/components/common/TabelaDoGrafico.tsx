@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRowHead } from "@/components/ui/table";
 
 export type ColunaDoGrafico<T> = {
   rotulo: string;
@@ -23,36 +24,36 @@ export function TabelaDoGrafico<T>({
 }) {
   if (linhas.length === 0) return null;
   return (
-    // sr-only no <div>: numa <table> o width de 1px não segura e a tabela
+    // sr-only no <div>: na tabela o width de 1px não segura e a tabela
     // escondida alarga a página no celular.
     <div className="sr-only">
-      <table>
+      <Table>
         <caption>{titulo}</caption>
-        <thead>
-          <tr>
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
             {colunas.map((coluna) => (
-              <th key={coluna.rotulo} scope="col">
+              <TableHead key={coluna.rotulo} scope="col">
                 {coluna.rotulo}
-              </th>
+              </TableHead>
             ))}
-          </tr>
-        </thead>
-        <tbody>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
           {linhas.map((linha, indice) => (
-            <tr key={chave(linha, indice)}>
+            <TableRow key={chave(linha, indice)}>
               {colunas.map((coluna, i) =>
                 i === 0 ? (
-                  <th key={coluna.rotulo} scope="row">
+                  <TableRowHead key={coluna.rotulo}>
                     {coluna.valor(linha)}
-                  </th>
+                  </TableRowHead>
                 ) : (
-                  <td key={coluna.rotulo}>{coluna.valor(linha)}</td>
+                  <TableCell key={coluna.rotulo}>{coluna.valor(linha)}</TableCell>
                 ),
               )}
-            </tr>
+            </TableRow>
           ))}
-        </tbody>
-      </table>
+        </TableBody>
+      </Table>
     </div>
   );
 }

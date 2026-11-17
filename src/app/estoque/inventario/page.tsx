@@ -20,6 +20,7 @@ import {
 import { InventarioAjusteButton } from "@/components/estoque/InventarioAjusteButton";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -314,20 +315,20 @@ export default async function InventarioPage() {
             <h2 className="text-sm font-semibold text-muted-foreground">Itens contados recentes</h2>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border text-xs text-muted-foreground">
-                <tr>
-                  <th className="px-4 py-3 text-left">Contagem</th>
-                  <th className="px-4 py-3 text-left">Lote ou insumo</th>
-                  <th className="px-4 py-3 text-left">Local</th>
-                  <th className="px-4 py-3 text-right">Sistema</th>
-                  <th className="px-4 py-3 text-right">Contado</th>
-                  <th className="px-4 py-3 text-right">Diferença</th>
-                  <th className="px-4 py-3 text-left">Justificativa</th>
-                  <th className="px-4 py-3 text-right">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Contagem</TableHead>
+                  <TableHead>Lote ou insumo</TableHead>
+                  <TableHead>Local</TableHead>
+                  <TableHead className="text-right">Sistema</TableHead>
+                  <TableHead className="text-right">Contado</TableHead>
+                  <TableHead className="text-right">Diferença</TableHead>
+                  <TableHead>Justificativa</TableHead>
+                  <TableHead className="text-right">Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {((contagens ?? []) as unknown as ContagemRow[]).map((contagem) => {
                   const ciclo = firstRelation(contagem.inventario_ciclos);
                   const local = firstRelation(contagem.locais);
@@ -339,31 +340,31 @@ export default async function InventarioPage() {
                     alvo.unidade,
                   );
                   return (
-                    <tr key={contagem.id}>
-                      <td className="px-4 py-3">
+                    <TableRow key={contagem.id}>
+                      <TableCell>
                         {ciclo?.nome ?? `#${contagem.ciclo_id}`}
                         <span className="block text-xs text-muted-foreground">{formatDate(contagem.contado_em)}</span>
-                      </td>
-                      <td className="max-w-xs truncate px-4 py-3" title={alvo.insumo ?? ""}>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={alvo.insumo ?? ""}>
                         {alvo.lote}
                         {alvo.insumo ? ` · ${alvo.insumo}` : ""}
-                      </td>
-                      <td className="px-4 py-3">{local?.nome ?? "—"}</td>
-                      <td className="px-4 py-3 text-right tabular-nums">
+                      </TableCell>
+                      <TableCell>{local?.nome ?? "—"}</TableCell>
+                      <TableCell className="text-right tabular-nums">
                         {formatNumber(contagem.quantidade_sistema)}
                         {alvo.unidade && <span className="block text-xs text-muted-foreground">{alvo.unidade}</span>}
-                      </td>
-                      <td className="px-4 py-3 text-right tabular-nums">{formatNumber(contagem.quantidade_contada)}</td>
-                      <td
-                        className={`whitespace-nowrap px-4 py-3 text-right tabular-nums ${divergente ? "font-medium text-warning-strong" : "text-brand-700 dark:text-brand-300"}`}
+                      </TableCell>
+                      <TableCell className="text-right tabular-nums">{formatNumber(contagem.quantidade_contada)}</TableCell>
+                      <TableCell
+                        className={`whitespace-nowrap text-right tabular-nums ${divergente ? "font-medium text-warning-strong" : "text-brand-700 dark:text-brand-300"}`}
                         title={diferenca.frase}
                       >
                         {diferenca.curta}
-                      </td>
-                      <td className="max-w-xs truncate px-4 py-3" title={contagem.justificativa ?? ""}>
+                      </TableCell>
+                      <TableCell className="max-w-xs truncate" title={contagem.justificativa ?? ""}>
                         {contagem.justificativa ?? "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right">
+                      </TableCell>
+                      <TableCell className="text-right">
                         {contagem.ajuste_aplicado ? (
                           <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
                             Ajustado
@@ -373,19 +374,19 @@ export default async function InventarioPage() {
                         ) : (
                           <span className="text-xs text-muted-foreground/80">—</span>
                         )}
-                      </td>
-                    </tr>
+                      </TableCell>
+                    </TableRow>
                   );
                 })}
                 {(contagens ?? []).length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-muted-foreground/80">
+                  <TableRow>
+                    <TableCell colSpan={8} className="py-6 text-center text-muted-foreground/80">
                       Nenhuma contagem registrada.
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         </section>
       </main>

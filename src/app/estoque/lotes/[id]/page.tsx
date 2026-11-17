@@ -14,6 +14,7 @@ import { loteBaixaDeDb, loteVencido, somarReservasPorLote, type LoteDbBaixa } fr
 import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -335,40 +336,40 @@ export default async function LoteDetalhe({ params }: { params: Promise<{ id: st
         {/* Histórico de movimentações */}
         <h2 className="mt-8 text-sm font-semibold text-muted-foreground">Histórico</h2>
         <div className="mt-3 overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
-          <table className="min-w-full text-sm">
-            <thead className="border-b border-border/70">
-              <tr>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Data</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Tipo</th>
-                <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">Qtd.</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Motivo</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Referência</th>
-                <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">Por</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Data</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead className="text-right">Qtd.</TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead>Referência</TableHead>
+                <TableHead>Por</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {(movs ?? []).map((m) => {
                 const t = TIPO_MOV[m.tipo] ?? { label: m.tipo, cls: "" };
                 return (
-                  <tr key={m.id} className="border-b border-border/50 last:border-b-0">
-                    <td className="px-3 py-2 text-muted-foreground">{fdata(m.data)}</td>
-                    <td className={`px-3 py-2 font-medium ${t.cls}`}>{t.label}</td>
-                    <td className="px-3 py-2 text-right tabular-nums">{fmt(m.quantidade)} {unidade}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{m.motivo ?? "—"}</td>
-                    <td className="px-3 py-2 text-muted-foreground" title={m.referencia ?? undefined}>
+                  <TableRow key={m.id}>
+                    <TableCell className="text-muted-foreground">{fdata(m.data)}</TableCell>
+                    <TableCell className={`font-medium ${t.cls}`}>{t.label}</TableCell>
+                    <TableCell className="text-right tabular-nums">{fmt(m.quantidade)} {unidade}</TableCell>
+                    <TableCell className="text-muted-foreground">{m.motivo ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground" title={m.referencia ?? undefined}>
                       {referenciaLegivel(m.referencia)}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground">{m.usuario ?? "—"}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{m.usuario ?? "—"}</TableCell>
+                  </TableRow>
                 );
               })}
               {(movs ?? []).length === 0 && (
-                <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-muted-foreground/80">Sem movimentações.</td>
-                </tr>
+                <TableRow>
+                  <TableCell colSpan={6} className="py-6 text-center text-muted-foreground/80">Sem movimentações.</TableCell>
+                </TableRow>
               )}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       </main>
     </div>

@@ -8,6 +8,7 @@ import { formatCurrency as brl } from "@/lib/formatters";
 import { anosDoProjeto, subtotalCusto } from "@/lib/project-budget/editor";
 import { NOTA_VALOR_MASCARADO, VALOR_MASCARADO } from "@/lib/cadastros/mascara";
 import { FormAcao, type AcaoFormulario } from "./FormAcao";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRowHead } from "@/components/ui/table";
 
 export type LinhaPessoal = {
   id: number;
@@ -168,30 +169,30 @@ export function GradeMesesPessoal({
       )}
 
       <div className="mt-3 overflow-x-auto rounded-md border border-border">
-        <table className="min-w-full text-sm">
+        <Table>
           <caption className="sr-only">Meses do pessoal, ano {ano.ano}</caption>
-          <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-            <tr>
-              <th scope="col" className="px-3 py-2">Profissional / função</th>
-              <th scope="col" className="px-3 py-2 text-right">Valor mensal</th>
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Profissional / função</TableHead>
+              <TableHead scope="col" className="text-right">Valor mensal</TableHead>
               {editavel && (
-                <th scope="col" className="px-2 py-2">
+                <TableHead scope="col">
                   <span className="sr-only">Marcar ou limpar o ano</span>
-                </th>
+                </TableHead>
               )}
               {ano.meses.map((mes) => (
-                <th key={mes} scope="col" className="px-1 py-2 text-center">M{mes}</th>
+                <TableHead key={mes} scope="col" className="px-1 text-center">M{mes}</TableHead>
               ))}
-              <th scope="col" className="px-3 py-2 text-right">Meses</th>
-              <th scope="col" className="px-3 py-2 text-right">Total</th>
+              <TableHead scope="col" className="text-right">Meses</TableHead>
+              <TableHead scope="col" className="text-right">Total</TableHead>
               {acoesLinha && (
-                <th scope="col" className="px-2 py-2">
+                <TableHead scope="col">
                   <span className="sr-only">Ações</span>
-                </th>
+                </TableHead>
               )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {linhas.map((linha) => {
               const marcados = new Set(meses[linha.id] ?? []);
               const anoCompleto = ano.meses.every((mes) => marcados.has(mes));
@@ -202,16 +203,16 @@ export function GradeMesesPessoal({
                 meses_selecionados: [...marcados],
               });
               return (
-                <tr key={linha.id} className="align-middle">
-                  <th scope="row" className="px-3 py-2 text-left font-medium">
+                <TableRow key={linha.id} className="align-middle">
+                  <TableRowHead className="font-medium">
                     {linha.descricao}
                     {detalhesLinha?.[linha.id]}
-                  </th>
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  </TableRowHead>
+                  <TableCell className="text-right tabular-nums">
                     {mascarado ? <span title={NOTA_VALOR_MASCARADO}>{VALOR_MASCARADO}</span> : brl(linha.custo_unitario)}
-                  </td>
+                  </TableCell>
                   {editavel && (
-                    <td className="px-2 py-2">
+                    <TableCell>
                       <button
                         type="button"
                         className={botaoSecundario}
@@ -220,10 +221,10 @@ export function GradeMesesPessoal({
                       >
                         {anoCompleto ? "Limpar" : "Ano"}
                       </button>
-                    </td>
+                    </TableCell>
                   )}
                   {ano.meses.map((mes) => (
-                    <td key={mes} className="px-1 py-2 text-center">
+                    <TableCell key={mes} className="px-1 text-center">
                       <input
                         type="checkbox"
                         className="size-4 accent-brand-600"
@@ -232,20 +233,20 @@ export function GradeMesesPessoal({
                         onChange={() => alternarMes(linha.id, mes)}
                         aria-label={`${linha.descricao}, mês ${mes}`}
                       />
-                    </td>
+                    </TableCell>
                   ))}
-                  <td className="px-3 py-2 text-right tabular-nums">
+                  <TableCell className="text-right tabular-nums">
                     {marcados.size > 0 ? marcados.size : <span title="Sem meses marcados: conta a quantidade da linha">{linha.quantidade}*</span>}
-                  </td>
-                  <td className="px-3 py-2 text-right font-medium tabular-nums">
+                  </TableCell>
+                  <TableCell className="text-right font-medium tabular-nums">
                     {mascarado ? <span title={NOTA_VALOR_MASCARADO}>{VALOR_MASCARADO}</span> : brl(total)}
-                  </td>
-                  {acoesLinha && <td className="px-2 py-2 text-right whitespace-nowrap">{acoesLinha[linha.id]}</td>}
-                </tr>
+                  </TableCell>
+                  {acoesLinha && <TableCell className="text-right whitespace-nowrap">{acoesLinha[linha.id]}</TableCell>}
+                </TableRow>
               );
             })}
-          </tbody>
-        </table>
+          </TableBody>
+        </Table>
       </div>
       {linhas.some((linha) => (meses[linha.id] ?? []).length === 0) && (
         <p className="mt-2 text-[11px] text-muted-foreground">* Linha sem meses marcados: o total usa a quantidade informada no item.</p>

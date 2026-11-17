@@ -6,12 +6,9 @@ import { STATUS_PROJETO } from "./_lib/status";
 import { coordenadorDoProjeto, type UsuarioCoordenador } from "./_lib/responsavel";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
-
-const thCls =
-  "px-3 py-2 text-left text-xs font-semibold text-muted-foreground";
-const tdCls = "px-3 py-2 text-sm text-foreground";
 
 export default async function ProjetosPage() {
   const leitura = novaLeitura("/projetos");
@@ -90,29 +87,28 @@ export default async function ProjetosPage() {
               .
             </p>
           ) : (
-            <table className="min-w-full">
-              <thead className="border-b border-border/70">
-                <tr>
-                  <th className={thCls}>Projeto</th>
-                  <th className={thCls}>Cliente</th>
-                  <th className={thCls}>Coordenador</th>
-                  <th className={thCls}>Período</th>
-                  <th className={thCls}>Status</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Projeto</TableHead>
+                  <TableHead>Cliente</TableHead>
+                  <TableHead>Coordenador</TableHead>
+                  <TableHead>Período</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {(projetos ?? []).map((p) => (
-                  <tr
+                  <TableRow
                     key={p.id}
-                    className="border-b border-border/50 last:border-b-0 hover:bg-muted/50"
                   >
-                    <td className={tdCls}>
+                    <TableCell>
                       <Link href={`/projetos/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
                         {p.nome}
                       </Link>
-                    </td>
-                    <td className={tdCls}>{p.cliente_id != null ? clienteNome.get(p.cliente_id) ?? "—" : "—"}</td>
-                    <td className={tdCls}>
+                    </TableCell>
+                    <TableCell>{p.cliente_id != null ? clienteNome.get(p.cliente_id) ?? "—" : "—"}</TableCell>
+                    <TableCell>
                       {(() => {
                         const c = coordenadorDe(p);
                         if (c.situacao === "ok") return c.nome;
@@ -131,23 +127,23 @@ export default async function ProjetosPage() {
                           </Link>
                         );
                       })()}
-                    </td>
-                    <td className={tdCls}>
+                    </TableCell>
+                    <TableCell>
                       {p.data_inicio || p.data_fim
                         ? `${formatDate(p.data_inicio)} → ${formatDate(p.data_fim)}`
                         : "—"}
-                    </td>
-                    <td className={tdCls}>
+                    </TableCell>
+                    <TableCell>
                       {(() => {
                         if (!p.status) return <span className="text-muted-foreground">—</span>;
                         const s = STATUS_PROJETO[p.status] ?? { label: p.status, cls: "bg-muted text-muted-foreground" };
                         return <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-semibold ${s.cls}`}>{s.label}</span>;
                       })()}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
         </div>
       </main>

@@ -120,6 +120,7 @@ export default async function PedidoCompraImprimivel({ params }: { params: Promi
             </div>
 
             <section className="mt-6 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
+              {/* tabela-fora-do-padrao: pedido de compra impresso, com cores fixas de papel. */}
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-zinc-200 text-xs uppercase tracking-wide text-zinc-500 dark:border-zinc-700">
                   <tr>

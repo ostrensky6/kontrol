@@ -10,6 +10,7 @@ import {
   type PrevisaoInsumo,
   type SugestaoCobertura,
 } from "@/lib/estoque/consumo-mensal-dados";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableRowHead } from "@/components/ui/table";
 
 const TOM: Record<Confianca, string> = {
   alta: "bg-success-soft text-success-strong",
@@ -99,25 +100,25 @@ export function ConsumoMensalPainel({ leitura, especificacao, previsao = null, n
       </ul>
       {c.meses.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
+          <Table densidade="compacta" rente>
             <caption className="sr-only">Saídas por mês</caption>
-            <thead>
-              <tr className="text-muted-foreground">
-                <th scope="col" className="py-1 pr-4 font-medium">Mês</th>
-                <th scope="col" className="py-1 pr-4 font-medium">Saídas</th>
-                <th scope="col" className="py-1 font-medium">Ajustes</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead scope="col">Mês</TableHead>
+                <TableHead scope="col">Saídas</TableHead>
+                <TableHead scope="col">Ajustes</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {c.meses.map((m) => (
-                <tr key={m.mes}>
-                  <th scope="row" className="py-1 pr-4 font-normal">{nomeMes(m.mes)}</th>
-                  <td className="py-1 pr-4 tabular-nums">{formatNumber(m.saidas)} {unidade(m.saidas)}</td>
-                  <td className="py-1 tabular-nums">{m.ajustes > 0 ? m.ajustes : "—"}</td>
-                </tr>
+                <TableRow key={m.mes}>
+                  <TableRowHead>{nomeMes(m.mes)}</TableRowHead>
+                  <TableCell className="tabular-nums">{formatNumber(m.saidas)} {unidade(m.saidas)}</TableCell>
+                  <TableCell className="tabular-nums">{m.ajustes > 0 ? m.ajustes : "—"}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </section>

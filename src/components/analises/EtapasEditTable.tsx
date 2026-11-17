@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pencil, Plus, Save, Trash2 } from "lucide-react";
 import { ConfirmActionButton } from "@/components/common/ConfirmActionButton";
 import { adicionarEtapa, atualizarEtapa, removerEtapa } from "@/lib/actions/receita";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export type EtapaEditRowData = {
   id: number;
@@ -18,8 +19,6 @@ export type EtapaEditRowData = {
   atividade_opcional: boolean | null;
 };
 
-const th = "whitespace-nowrap border border-foreground/60 bg-muted/45 px-2.5 py-2 text-center text-xs font-bold text-foreground";
-const td = "border border-foreground/60 px-2.5 py-1.5 align-middle text-xs";
 const iconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-blue-600 text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-700";
 const editButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-blue-300 bg-background text-blue-700 shadow-sm hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800 dark:text-blue-300 dark:hover:bg-blue-950/30";
 const dangerIconButtonClass = "inline-flex h-7 w-7 items-center justify-center rounded-md border border-danger-strong/30 bg-background text-danger-strong hover:bg-danger-soft focus:outline-none focus:ring-2 focus:ring-danger-strong/20";
@@ -61,22 +60,22 @@ export function EtapasEditTable({
       ))}
       {etapas.length > 0 ? (
         <div className="mt-2 overflow-x-auto">
-          <table className="mx-auto table-auto border-collapse border border-foreground/70">
-            <thead>
-              <tr>
-                <th className={th}>Ordem</th>
-                <th className={th}>Etapa</th>
-                <th className={th}>Atividade</th>
-                <th className={th}>Exec/dia</th>
-                <th className={th}>Amostras/exec.</th>
-                <th className={th}>Máquina h</th>
-                <th className={th}>Bancada h</th>
-                <th className={th}>Limitação</th>
-                <th className={th}>Opcional</th>
-                {podeEditar && <th className={th}>Ações</th>}
-              </tr>
-            </thead>
-            <tbody>
+          <Table grade>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Ordem</TableHead>
+                <TableHead>Etapa</TableHead>
+                <TableHead>Atividade</TableHead>
+                <TableHead>Exec/dia</TableHead>
+                <TableHead>Amostras/exec.</TableHead>
+                <TableHead>Máquina h</TableHead>
+                <TableHead>Bancada h</TableHead>
+                <TableHead>Limitação</TableHead>
+                <TableHead>Opcional</TableHead>
+                {podeEditar && <TableHead>Ações</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {etapas.map((etapa) => (
                 <EtapaRow
                   key={etapa.id}
@@ -87,8 +86,8 @@ export function EtapasEditTable({
                   podeEditar={podeEditar}
                 />
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       ) : (
         <p className="mt-3 text-sm text-muted-foreground">{emptyText ?? "Nenhuma etapa cadastrada."}</p>
@@ -115,36 +114,36 @@ function EtapaRow({
   const id = formId(etapa.id);
 
   return (
-    <tr className="border-t border-foreground/60">
-      <td className={`${td} text-center tabular-nums`}>{etapa.ordem ?? "-"}</td>
-      <td className={td}>
+    <TableRow>
+      <TableCell className="text-center tabular-nums">{etapa.ordem ?? "-"}</TableCell>
+      <TableCell>
         <input type="hidden" form={id} name="codigo_analise" value={codigo} />
         <input type="hidden" form={id} name="id" value={etapa.id} />
         <CellInput formId={id} name="nome_etapa" defaultValue={etapa.nome_etapa} editing={editing} />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="nome_atividade" defaultValue={etapa.nome_atividade} editing={editing} />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="execucoes_por_dia" defaultValue={fmtInput(etapa.execucoes_por_dia)} type="number" step="0.0001" editing={editing} numeric />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="amostras_por_execucao" defaultValue={fmtInput(etapa.amostras_por_execucao)} type="number" step="0.0001" editing={editing} numeric />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="tempo_maquina_h" defaultValue={fmtInput(etapa.tempo_maquina_h)} type="number" step="0.0001" editing={editing} numeric />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="tempo_bancada_h" defaultValue={fmtInput(etapa.tempo_bancada_h)} type="number" step="0.0001" editing={editing} numeric />
-      </td>
-      <td className={td}>
+      </TableCell>
+      <TableCell>
         <CellInput formId={id} name="tipo_limitacao" defaultValue={etapa.tipo_limitacao ?? ""} editing={editing} />
-      </td>
-      <td className={`${td} text-center`}>
+      </TableCell>
+      <TableCell className="text-center">
         <input form={id} type="checkbox" name="atividade_opcional" defaultChecked={Boolean(etapa.atividade_opcional)} disabled={!editing} />
-      </td>
+      </TableCell>
       {podeEditar && (
-      <td className={`${td} whitespace-nowrap`}>
+      <TableCell className="whitespace-nowrap">
         <div className="flex justify-center gap-1">
           {!editing ? (
             <button type="button" className={editButtonClass} onClick={onEdit} title="Editar etapa" aria-label="Editar etapa">
@@ -172,9 +171,9 @@ function EtapaRow({
             </>
           )}
         </div>
-      </td>
+      </TableCell>
       )}
-    </tr>
+    </TableRow>
   );
 }
 

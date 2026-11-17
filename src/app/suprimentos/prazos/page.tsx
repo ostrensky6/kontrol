@@ -9,6 +9,7 @@ import {
   type PedidoPrazoRow,
   type ResumoPrazo,
 } from "@/lib/suprimentos/prazos-compra";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +18,6 @@ const ROTULO_CONFIANCA: Record<ResumoPrazo["confianca"], string> = {
   media: "Média (3 a 9 compras)",
   alta: "Alta (10 ou mais)",
 };
-
-const th = "px-3 py-2 text-left text-xs font-medium text-muted-foreground";
-const td = "px-3 py-2 text-sm";
 
 function Tabela({ titulo, coluna, linhas }: { titulo: string; coluna: string; linhas: ResumoPrazo[] }) {
   const id = `prazos-${coluna.toLowerCase().replace(/\W+/g, "-")}`;
@@ -30,30 +28,30 @@ function Tabela({ titulo, coluna, linhas }: { titulo: string; coluna: string; li
         {linhas.length === 0 ? (
           <p className="px-3 py-6 text-center text-sm text-muted-foreground">Ainda não há compra recebida para medir.</p>
         ) : (
-          <table className="min-w-full">
-            <thead className="border-b border-border/70">
-              <tr>
-                <th className={th}>{coluna}</th>
-                <th className={`${th} text-right`}>Compras</th>
-                <th className={`${th} text-right`}>Curto</th>
-                <th className={`${th} text-right`}>Intermediário</th>
-                <th className={`${th} text-right`}>Conservador</th>
-                <th className={th}>Confiança</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>{coluna}</TableHead>
+                <TableHead className="text-right">Compras</TableHead>
+                <TableHead className="text-right">Curto</TableHead>
+                <TableHead className="text-right">Intermediário</TableHead>
+                <TableHead className="text-right">Conservador</TableHead>
+                <TableHead>Confiança</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {linhas.map((l) => (
-                <tr key={l.chave} className="border-b border-border/50 last:border-b-0">
-                  <td className={`${td} font-medium`}>{l.chave}</td>
-                  <td className={`${td} text-right tabular-nums`}>{l.n}</td>
-                  <td className={`${td} text-right tabular-nums`}>{l.curta} dias</td>
-                  <td className={`${td} text-right tabular-nums`}>{l.intermediaria} dias</td>
-                  <td className={`${td} text-right tabular-nums`}>{l.conservadora} dias</td>
-                  <td className={td}>{ROTULO_CONFIANCA[l.confianca]}</td>
-                </tr>
+                <TableRow key={l.chave}>
+                  <TableCell className="font-medium">{l.chave}</TableCell>
+                  <TableCell className="text-right tabular-nums">{l.n}</TableCell>
+                  <TableCell className="text-right tabular-nums">{l.curta} dias</TableCell>
+                  <TableCell className="text-right tabular-nums">{l.intermediaria} dias</TableCell>
+                  <TableCell className="text-right tabular-nums">{l.conservadora} dias</TableCell>
+                  <TableCell>{ROTULO_CONFIANCA[l.confianca]}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         )}
       </div>
     </section>

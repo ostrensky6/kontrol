@@ -16,6 +16,7 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -253,26 +254,26 @@ export default async function FundosPage() {
             </div>
           </div>
           <div className="overflow-x-auto">
-            <table className="min-w-[1480px] w-full text-sm">
-              <thead className="bg-muted/50 text-left text-xs font-semibold text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2">Orçamento</th>
-                  <th className="px-3 py-2 text-right">Total</th>
-                  <th className="px-3 py-2 text-right">Recebido</th>
-                  <th className="px-3 py-2 text-right">Impostos pagos</th>
-                  <th className="px-3 py-2 text-right">Incubação paga</th>
-                  <th className="px-3 py-2 text-right">Baixa reserva</th>
-                  <th className="px-3 py-2 text-right">Baixa invest.</th>
-                  <th className="px-3 py-2 text-right">Saldo reserva</th>
-                  <th className="px-3 py-2 text-right">Saldo invest.</th>
-                  <th className="px-3 py-2">Saldos</th>
-                  <th className="px-3 py-2">Ação</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
+            <Table className="min-w-[1480px]">
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead>Orçamento</TableHead>
+                  <TableHead className="text-right">Total</TableHead>
+                  <TableHead className="text-right">Recebido</TableHead>
+                  <TableHead className="text-right">Impostos pagos</TableHead>
+                  <TableHead className="text-right">Incubação paga</TableHead>
+                  <TableHead className="text-right">Baixa reserva</TableHead>
+                  <TableHead className="text-right">Baixa invest.</TableHead>
+                  <TableHead className="text-right">Saldo reserva</TableHead>
+                  <TableHead className="text-right">Saldo invest.</TableHead>
+                  <TableHead>Saldos</TableHead>
+                  <TableHead>Ação</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {linhas.map((linha) => (
-                  <tr key={linha.versao.id} className="align-top">
-                    <td className="px-3 py-3">
+                  <TableRow key={linha.versao.id} className="align-top">
+                    <TableCell>
                       <Link href={`/orcamento/final/${linha.versao.id}`} className="font-semibold text-primary hover:underline">
                         {linha.versao.numero}
                       </Link>
@@ -280,9 +281,9 @@ export default async function FundosPage() {
                       <p className="text-xs text-muted-foreground">
                         {linha.demanda?.cliente_nome ?? "Cliente sem nome"} · {rotuloStatus(linha.versao.status)} · validade {formatDate(linha.versao.valido_ate)}
                       </p>
-                    </td>
-                    <td className="px-3 py-3 text-right font-semibold tabular-nums">{brl(Number(linha.versao.total_final ?? 0))}</td>
-                    <td colSpan={7} className="px-3 py-3">
+                    </TableCell>
+                    <TableCell className="text-right font-semibold tabular-nums">{brl(Number(linha.versao.total_final ?? 0))}</TableCell>
+                    <TableCell colSpan={7}>
                       <form action={salvarAcompanhamentoFundos} className="grid grid-cols-7 gap-2">
                         <input type="hidden" name="orcamento_final_versao_id" value={linha.versao.id} />
                         <CampoMoeda name="valor_recebido" defaultValue={linha.lancamentos.valorRecebido} disabled={!podeEditar} />
@@ -325,8 +326,8 @@ export default async function FundosPage() {
                           Salvar
                         </SubmitButton>
                       </form>
-                    </td>
-                    <td className="px-3 py-3">
+                    </TableCell>
+                    <TableCell>
                       <div className="space-y-1 text-xs">
                         <LinhaSaldo label="Recebido" valor={formatPercent(linha.calculo.percentualRecebido * 100)} />
                         <LinhaSaldo label="Impostos" valor={brl(linha.calculo.saldo.impostos)} />
@@ -334,21 +335,21 @@ export default async function FundosPage() {
                         <LinhaSaldo label="Reserva" valor={brl(linha.calculo.saldo.reserva)} destaque />
                         <LinhaSaldo label="Invest." valor={brl(linha.calculo.saldo.investimentos)} destaque />
                       </div>
-                    </td>
-                    <td className="px-3 py-3 text-xs text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-xs text-muted-foreground">
                       {linha.acompanhamento?.atualizado_em ? `Atualizado ${formatDate(linha.acompanhamento.atualizado_em)}` : "Sem lançamento"}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
                 {linhas.length === 0 && (
-                  <tr>
-                    <td colSpan={11} className="px-3 py-6 text-left text-sm text-muted-foreground/80">
+                  <TableRow>
+                    <TableCell colSpan={11} className="py-6 text-left text-muted-foreground/80">
                       <p className="sticky left-3 inline-block max-w-md">Nenhuma proposta aprovada. Classifique uma versão como Aprovada no Histórico.</p>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 )}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
           {!podeEditar && (
             <div className="border-t border-border bg-muted/50 px-4 py-3 text-xs text-muted-foreground">

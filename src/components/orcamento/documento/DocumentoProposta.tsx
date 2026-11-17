@@ -117,6 +117,7 @@ export function DocumentoProposta({
       )}
 
       <Secao numero={modelo.numeracao.servicos} titulo="Serviços e valores" cor={cor} permiteQuebra>
+        {/* tabela-fora-do-padrao: documento impresso da proposta, com desenho de papel (cores e medidas do modelo). */}
         <table className="w-full text-left text-[13px]">
           <thead>
             <tr className="border-b-2 text-xs uppercase tracking-wide text-muted-foreground" style={{ borderBottomColor: cor }}>

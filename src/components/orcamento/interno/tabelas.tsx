@@ -13,13 +13,12 @@ import {
   type LinhaFundo,
   type VisaoInterna,
 } from "@/lib/orcamento/visao-interna";
+import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const pct = (n: number) => `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`;
 
-const thBase = "px-2 py-1.5 text-xs font-medium text-muted-foreground";
-const th = `${thBase} text-right`;
-const thEsq = `${thBase} text-left`;
-const td = "px-2 py-1.5 text-right tabular-nums";
+const th = "text-right";
+const td = "text-right tabular-nums";
 
 /** Valor de pessoal sem a permissão (DC8). */
 function valor(numero: number, mascarado?: boolean) {
@@ -47,7 +46,7 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
 
   return (
     <Moldura>
-      <table className="w-full min-w-[620px] text-sm">
+      <Table densidade="compacta" className="min-w-[620px]">
         <colgroup>
           <col />
           <col className="w-[13%]" />
@@ -55,22 +54,22 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
           <col className="w-[15%]" />
           <col className="w-[16%]" />
         </colgroup>
-        <thead className="border-b border-border bg-muted/40">
-          <tr>
-            <th scope="col" className={thEsq}>Item</th>
-            <th scope="col" className={th}>Qtd.</th>
-            <th scope="col" className={th}>Custo unit.</th>
-            <th scope="col" className={th}>Custo total</th>
-            <th scope="col" className={th}>Na proposta</th>
-          </tr>
-        </thead>
+        <TableHeader className="bg-muted/60">
+          <TableRow className="hover:bg-transparent">
+            <TableHead scope="col">Item</TableHead>
+            <TableHead scope="col" className={th}>Qtd.</TableHead>
+            <TableHead scope="col" className={th}>Custo unit.</TableHead>
+            <TableHead scope="col" className={th}>Custo total</TableHead>
+            <TableHead scope="col" className={th}>Na proposta</TableHead>
+          </TableRow>
+        </TableHeader>
         {grupos.map((grupo) => {
           const recolhido = recolhidos.has(grupo.id);
           return (
-            <tbody key={grupo.id} className="divide-y divide-border/70 border-b border-border last:border-b-0">
+            <TableBody key={grupo.id} className="border-b border-border last:border-b-0">
               {agrupar && (
-                <tr className="bg-muted/30">
-                  <td className="px-2 py-1.5">
+                <TableRow className="bg-muted/30">
+                  <TableCell>
                     <button
                       type="button"
                       onClick={() => alternar(grupo.id)}
@@ -83,17 +82,17 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
                         · {grupo.itens.length} {grupo.itens.length === 1 ? "item" : "itens"}
                       </span>
                     </button>
-                  </td>
-                  <td className={td} />
-                  <td className={td} />
-                  <td className={`${td} font-medium`}>{valor(grupo.custoTotal, grupo.mascarado)}</td>
-                  <td className={`${td} font-medium`}>{valor(grupo.naProposta, grupo.mascarado)}</td>
-                </tr>
+                  </TableCell>
+                  <TableCell className={td} />
+                  <TableCell className={td} />
+                  <TableCell className={`${td} font-medium`}>{valor(grupo.custoTotal, grupo.mascarado)}</TableCell>
+                  <TableCell className={`${td} font-medium`}>{valor(grupo.naProposta, grupo.mascarado)}</TableCell>
+                </TableRow>
               )}
               {!recolhido &&
                 grupo.itens.map((item) => (
-                  <tr key={item.id}>
-                    <td className={`px-2 py-1.5 ${agrupar ? "pl-7" : ""}`}>
+                  <TableRow key={item.id}>
+                    <TableCell className={agrupar ? "first:pl-7" : undefined}>
                       <span className={item.descricaoAusente ? "italic text-muted-foreground" : ""}>
                         {item.codigo && item.descricao !== item.codigo ? (
                           <>
@@ -110,26 +109,26 @@ export function TabelaItens({ grupos, agrupar }: { grupos: GrupoInterno[]; agrup
                             .join(" · ")}
                         </span>
                       )}
-                    </td>
-                    <td className={td}>{formatarQuantidade(item.quantidade, item.unidade)}</td>
-                    <td className={td}>{valor(item.custoUnitario, item.mascarado)}</td>
-                    <td className={td}>{valor(item.custoTotal, item.mascarado)}</td>
-                    <td className={td}>{valor(item.naProposta, item.mascarado)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className={td}>{formatarQuantidade(item.quantidade, item.unidade)}</TableCell>
+                    <TableCell className={td}>{valor(item.custoUnitario, item.mascarado)}</TableCell>
+                    <TableCell className={td}>{valor(item.custoTotal, item.mascarado)}</TableCell>
+                    <TableCell className={td}>{valor(item.naProposta, item.mascarado)}</TableCell>
+                  </TableRow>
                 ))}
-            </tbody>
+            </TableBody>
           );
         })}
-        <tfoot className="border-t-2 border-border font-medium">
-          <tr>
-            <td className="px-2 py-1.5">{grupos.length > 1 ? "Custos efetivos" : "Subtotal"}</td>
-            <td className={td} />
-            <td className={td} />
-            <td className={td}>{valor(custo, rodapeMascarado)}</td>
-            <td className={td}>{valor(naProposta, rodapeMascarado)}</td>
-          </tr>
-        </tfoot>
-      </table>
+        <TableFooter className="border-t-2 border-border font-medium">
+          <TableRow>
+            <TableCell>{grupos.length > 1 ? "Custos efetivos" : "Subtotal"}</TableCell>
+            <TableCell className={td} />
+            <TableCell className={td} />
+            <TableCell className={td}>{valor(custo, rodapeMascarado)}</TableCell>
+            <TableCell className={td}>{valor(naProposta, rodapeMascarado)}</TableCell>
+          </TableRow>
+        </TableFooter>
+      </Table>
     </Moldura>
   );
 }
@@ -146,35 +145,35 @@ export function TabelaOperacionais({ visao }: { visao: VisaoInterna }) {
   return (
     <div className="space-y-3">
       <Moldura>
-        <table className="w-full min-w-[560px] text-sm">
-          <thead className="border-b border-border bg-muted/40">
-            <tr>
-              <th scope="col" className={thEsq}>Item</th>
-              <th scope="col" className={thEsq}>Tipo</th>
-              <th scope="col" className={th}>% informado</th>
-              <th scope="col" className={th}>% sobre o preço</th>
-              <th scope="col" className={th}>Valor</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
+        <Table densidade="compacta" className="min-w-[560px]">
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Item</TableHead>
+              <TableHead scope="col">Tipo</TableHead>
+              <TableHead scope="col" className={th}>% informado</TableHead>
+              <TableHead scope="col" className={th}>% sobre o preço</TableHead>
+              <TableHead scope="col" className={th}>Valor</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {linhas.map((o) => (
-              <tr key={o.chave} className={o.percentualInformado === 0 ? "text-muted-foreground" : ""}>
-                <td className="px-2 py-1.5">{o.rotulo}</td>
-                <td className="px-2 py-1.5">{ROTULO_TIPO_OPERACIONAL[o.tipo]}</td>
-                <td className={td}>{pct(o.percentualInformado)}</td>
-                <td className={td}>{pct(o.percentualSobrePreco)}</td>
-                <td className={td}>{brl(o.valorLimpo)}</td>
-              </tr>
+              <TableRow key={o.chave} className={o.percentualInformado === 0 ? "text-muted-foreground" : ""}>
+                <TableCell>{o.rotulo}</TableCell>
+                <TableCell>{ROTULO_TIPO_OPERACIONAL[o.tipo]}</TableCell>
+                <TableCell className={td}>{pct(o.percentualInformado)}</TableCell>
+                <TableCell className={td}>{pct(o.percentualSobrePreco)}</TableCell>
+                <TableCell className={td}>{brl(o.valorLimpo)}</TableCell>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot className="border-t-2 border-border font-medium">
-            <tr>
-              <td className="px-2 py-1.5" colSpan={3}>Subtotal (sem fundos)</td>
-              <td className={td}>{pct(linhas.reduce((acc, o) => acc + o.percentualSobrePreco, 0))}</td>
-              <td className={td}>{brl(subtotal)}</td>
-            </tr>
-          </tfoot>
-        </table>
+          </TableBody>
+          <TableFooter className="border-t-2 border-border font-medium">
+            <TableRow>
+              <TableCell colSpan={3}>Subtotal (sem fundos)</TableCell>
+              <TableCell className={td}>{pct(linhas.reduce((acc, o) => acc + o.percentualSobrePreco, 0))}</TableCell>
+              <TableCell className={td}>{brl(subtotal)}</TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </Moldura>
 
       {visao.efetivosCompensacao && (
@@ -183,42 +182,42 @@ export function TabelaOperacionais({ visao }: { visao: VisaoInterna }) {
             Compensação do imposto: cada valor sai limpo
           </h4>
           <Moldura>
-            <table className="w-full min-w-[520px] text-sm">
-              <thead className="border-b border-border bg-muted/40">
-                <tr>
-                  <th scope="col" className={thEsq}>Linha</th>
-                  <th scope="col" className={th}>Valor limpo</th>
-                  <th scope="col" className={th}>Imposto compensado</th>
-                  <th scope="col" className={th}>Parte da nota</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border/70">
-                <tr>
-                  <td className="px-2 py-1.5">Custos efetivos</td>
-                  <td className={td}>{brl(visao.custosEfetivos)}</td>
-                  <td className={td}>{brl(visao.efetivosCompensacao.impostoCompensado)}</td>
-                  <td className={td}>{brl(visao.efetivosCompensacao.parteNota)}</td>
-                </tr>
+            <Table densidade="compacta" className="min-w-[520px]">
+              <TableHeader className="bg-muted/60">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead scope="col">Linha</TableHead>
+                  <TableHead scope="col" className={th}>Valor limpo</TableHead>
+                  <TableHead scope="col" className={th}>Imposto compensado</TableHead>
+                  <TableHead scope="col" className={th}>Parte da nota</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow>
+                  <TableCell>Custos efetivos</TableCell>
+                  <TableCell className={td}>{brl(visao.custosEfetivos)}</TableCell>
+                  <TableCell className={td}>{brl(visao.efetivosCompensacao.impostoCompensado)}</TableCell>
+                  <TableCell className={td}>{brl(visao.efetivosCompensacao.parteNota)}</TableCell>
+                </TableRow>
                 {compensaveis.map((o) => (
-                  <tr key={o.chave}>
-                    <td className="px-2 py-1.5">
+                  <TableRow key={o.chave}>
+                    <TableCell>
                       {o.rotulo} <span className="text-muted-foreground">{pct(o.percentualSobrePreco)}</span>
-                    </td>
-                    <td className={td}>{brl(o.valorLimpo)}</td>
-                    <td className={td}>{brl(o.impostoCompensado ?? 0)}</td>
-                    <td className={td}>{brl(o.parteNota ?? 0)}</td>
-                  </tr>
+                    </TableCell>
+                    <TableCell className={td}>{brl(o.valorLimpo)}</TableCell>
+                    <TableCell className={td}>{brl(o.impostoCompensado ?? 0)}</TableCell>
+                    <TableCell className={td}>{brl(o.parteNota ?? 0)}</TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-              <tfoot className="border-t-2 border-border font-medium">
-                <tr>
-                  <td className="px-2 py-1.5">Total</td>
-                  <td className={td}>{brl(visao.total - (impostos?.valorLimpo ?? 0))}</td>
-                  <td className={td}>{brl(impostos?.valorLimpo ?? 0)}</td>
-                  <td className={td}>{brl(visao.total)}</td>
-                </tr>
-              </tfoot>
-            </table>
+              </TableBody>
+              <TableFooter className="border-t-2 border-border font-medium">
+                <TableRow>
+                  <TableCell>Total</TableCell>
+                  <TableCell className={td}>{brl(visao.total - (impostos?.valorLimpo ?? 0))}</TableCell>
+                  <TableCell className={td}>{brl(impostos?.valorLimpo ?? 0)}</TableCell>
+                  <TableCell className={td}>{brl(visao.total)}</TableCell>
+                </TableRow>
+              </TableFooter>
+            </Table>
           </Moldura>
         </div>
       )}
@@ -259,55 +258,55 @@ export function TabelaFundos({
   return (
     <div className="space-y-2">
       <Moldura>
-        <table className="w-full min-w-[520px] text-sm">
-          <thead className="border-b border-border bg-muted/40">
-            <tr>
-              <th scope="col" className={thEsq}>Fundo</th>
-              <th scope="col" className={th}>%</th>
-              <th scope="col" className={th}>Previsto</th>
-              <th scope="col" className={th}>Imposto compensado</th>
+        <Table densidade="compacta" className="min-w-[520px]">
+          <TableHeader className="bg-muted/60">
+            <TableRow className="hover:bg-transparent">
+              <TableHead scope="col">Fundo</TableHead>
+              <TableHead scope="col" className={th}>%</TableHead>
+              <TableHead scope="col" className={th}>Previsto</TableHead>
+              <TableHead scope="col" className={th}>Imposto compensado</TableHead>
               {acompanhado && (
                 <>
-                  <th scope="col" className={th}>Liberado</th>
-                  <th scope="col" className={th}>Usado</th>
-                  <th scope="col" className={th}>Saldo</th>
+                  <TableHead scope="col" className={th}>Liberado</TableHead>
+                  <TableHead scope="col" className={th}>Usado</TableHead>
+                  <TableHead scope="col" className={th}>Saldo</TableHead>
                 </>
               )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border/70">
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {linhas.map((l) => (
-              <tr key={l.chave} className={l.previsto === 0 ? "text-muted-foreground" : ""}>
-                <td className="px-2 py-1.5">{l.rotulo}</td>
-                <td className={td}>{pct(l.percentual)}</td>
-                <td className={td}>{brl(l.previsto)}</td>
-                <td className={td}>{l.impostoCompensado == null ? "—" : brl(l.impostoCompensado)}</td>
+              <TableRow key={l.chave} className={l.previsto === 0 ? "text-muted-foreground" : ""}>
+                <TableCell>{l.rotulo}</TableCell>
+                <TableCell className={td}>{pct(l.percentual)}</TableCell>
+                <TableCell className={td}>{brl(l.previsto)}</TableCell>
+                <TableCell className={td}>{l.impostoCompensado == null ? "—" : brl(l.impostoCompensado)}</TableCell>
                 {acompanhado && (
                   <>
-                    <td className={td}>{brl(l.liberado)}</td>
-                    <td className={td}>{brl(l.usado)}</td>
-                    <td className={td}>{brl(l.saldo)}</td>
+                    <TableCell className={td}>{brl(l.liberado)}</TableCell>
+                    <TableCell className={td}>{brl(l.usado)}</TableCell>
+                    <TableCell className={td}>{brl(l.saldo)}</TableCell>
                   </>
                 )}
-              </tr>
+              </TableRow>
             ))}
-          </tbody>
-          <tfoot className="border-t-2 border-border font-medium">
-            <tr>
-              <td className="px-2 py-1.5">Total</td>
-              <td className={td}>{pct(linhas.reduce((acc, l) => acc + l.percentual, 0))}</td>
-              <td className={td}>{brl(soma((l) => l.previsto))}</td>
-              <td className={td}>{brl(soma((l) => l.impostoCompensado))}</td>
+          </TableBody>
+          <TableFooter className="border-t-2 border-border font-medium">
+            <TableRow>
+              <TableCell>Total</TableCell>
+              <TableCell className={td}>{pct(linhas.reduce((acc, l) => acc + l.percentual, 0))}</TableCell>
+              <TableCell className={td}>{brl(soma((l) => l.previsto))}</TableCell>
+              <TableCell className={td}>{brl(soma((l) => l.impostoCompensado))}</TableCell>
               {acompanhado && (
                 <>
-                  <td className={td}>{brl(soma((l) => l.liberado))}</td>
-                  <td className={td}>{brl(soma((l) => l.usado))}</td>
-                  <td className={td}>{brl(soma((l) => l.saldo))}</td>
+                  <TableCell className={td}>{brl(soma((l) => l.liberado))}</TableCell>
+                  <TableCell className={td}>{brl(soma((l) => l.usado))}</TableCell>
+                  <TableCell className={td}>{brl(soma((l) => l.saldo))}</TableCell>
                 </>
               )}
-            </tr>
-          </tfoot>
-        </table>
+            </TableRow>
+          </TableFooter>
+        </Table>
       </Moldura>
       <p className="text-xs text-muted-foreground">
         {acompanhado
