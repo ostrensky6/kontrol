@@ -22,9 +22,12 @@ describe("insumos disponíveis para novas operações", () => {
   }
 
   it("preserva só o vínculo atual ao editar item histórico", () => {
-    // a lista de itens do pedido é uma parte da tela (auditoria de 16/11, item 12)
+    // a lista de itens do pedido é uma parte da tela (auditoria de 16/11, item 12);
+    // desde a 2.2.0 só o "Editar" do item usa o catálogo: a chegada pelo item,
+    // sem compra, saiu da tela (item 10, proposta 1)
     const fonte = readFileSync(resolve("src/components/pedido/detalhe/PedidoItens.tsx"), "utf8");
 
-    expect(fonte.match(/catalogoComVinculoAtual\(catalogoItens, item\)/g)).toHaveLength(2);
+    expect(fonte.match(/catalogoComVinculoAtual\(catalogoItens, item\)/g)).toHaveLength(1);
+    expect(fonte).toContain("<PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoComVinculoAtual(catalogoItens, item)}");
   });
 });

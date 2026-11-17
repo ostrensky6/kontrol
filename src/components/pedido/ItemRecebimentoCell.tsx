@@ -16,9 +16,18 @@ import {
 } from "@/components/ui/dialog";
 import { formatDate } from "@/lib/formatters";
 import { ScannerRecebimentoCompra, type ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
-import { ReceberItemPedidoInterno, type ItemRecebivel } from "./ReceberItemPedidoInterno";
 
-type Insumo = { id: number; especificacao: string | null; unidade: string | null; codigo_fabricante?: string | null };
+/** O item do pedido na coluna de chegada. */
+export type ItemRecebivel = {
+  id: number;
+  pedidoId: number;
+  especificacao: string;
+  quantidade: number;
+  quantidadeRecebida?: number | null;
+  compraFormalId?: number | null;
+  unidade: string | null;
+};
+
 export type RecebimentoLancamento = {
   id: number;
   loteId: number | null;
@@ -40,18 +49,26 @@ export type ChegadaPelaCompra = {
   locais: { id: number; nome: string }[];
 };
 
+/**
+ * A chegada é registrada pela compra (chegada única). O formulário antigo de
+ * chegada pelo item do pedido, sem compra, saiu da tela (auditoria de 16/11,
+ * item 10, proposta 1; contagem em produção em 17/11: nenhum pedido aprovado
+ * sem compra). A função continua no banco.
+ */
 export function ItemRecebimentoCell({
   item,
-  insumos,
-  podeReceber,
+  semCompra = false,
   recebidoEm,
   recebidoPor,
   recebimentos = [],
   chegadaPelaCompra = null,
 }: {
   item: ItemRecebivel;
-  insumos: Insumo[];
-  podeReceber: boolean;
+  /**
+   * Pedido que espera a chegada sem compra ligada (o fluxo atual não produz
+   * mais): mostra o que já chegou, com o estorno, e diz que falta a compra.
+   */
+  semCompra?: boolean;
   recebidoEm?: string | null;
   recebidoPor?: string | null;
   recebimentos?: RecebimentoLancamento[];
@@ -160,9 +177,9 @@ export function ItemRecebimentoCell({
     );
   }
 
-  if (podeReceber) {
+  if (semCompra) {
     return (
-      <div className="flex flex-col items-start gap-1">
+      <div className="flex flex-col items-start gap-1" data-testid="chegada-sem-compra">
         {parcial && (
           <span className="text-[11px] font-medium text-warning-strong">
             Parcial {quantidadeRecebida}/{item.quantidade} {item.unidade ?? ""}
@@ -176,7 +193,7 @@ export function ItemRecebimentoCell({
             onEstornar={pedirEstorno}
           />
         )}
-        <ReceberItemPedidoInterno item={item} insumos={insumos} />
+        <span className="text-xs text-muted-foreground/80">aguardando a compra</span>
         {erro && <span role="alert" className="text-xs text-danger-strong">{erro}</span>}
         {confirmacao}
       </div>

@@ -158,12 +158,8 @@ export function PedidoItens({
                       quantidadeRecebida: item.quantidade_recebida,
                       compraFormalId: compraFormal?.id ?? null,
                       unidade: item.unidade ?? item.insumos?.unidade ?? null,
-                      insumoId: item.insumo_id,
-                      fornecedorSugerido: item.fornecedor_sugerido,
-                      orcamentoPrevio: item.orcamento_previo,
                     }}
-                    insumos={catalogoComVinculoAtual(catalogoItens, item).map((insumo) => ({ ...insumo, codigo_fabricante: insumo.codigoFabricante }))}
-                    podeReceber={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
+                    semCompra={aguardandoChegada && !compraFormal && podeRegistrarRecebimento}
                     chegadaPelaCompra={chegadaDoItem(chegadasCompra, item.id, locais)}
                     recebidoEm={item.recebido_em}
                     recebidoPor={item.recebido_por}

@@ -149,7 +149,7 @@ export default async function RecebimentoPage() {
       projeto: pedido.projetos?.nome ?? "—",
       status,
       statusLabel: pedidoInternoStatus(status).label,
-      podeReceber:
+      semCompra:
         podeRegistrarRecebimento &&
         PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(status as PedidoInternoStatus) &&
         !pedido.pedido_compra_id,
@@ -188,7 +188,7 @@ export default async function RecebimentoPage() {
       projeto: compra.projeto?.trim() || "—",
       status: compra.status,
       statusLabel: statusInfo(compra.status).label,
-      podeReceber: false,
+      semCompra: false,
       compraItem: podeReceberCompra
         ? {
             id: item.id,
@@ -208,7 +208,7 @@ export default async function RecebimentoPage() {
 
   // leitura que falha não vira fila vazia nem contagem zero
   const semDado = Boolean(erroItens || erroCompras);
-  const prontos = rows.filter((row) => row.podeReceber || row.compraItem).length;
+  const prontos = rows.filter((row) => row.compraItem).length;
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
