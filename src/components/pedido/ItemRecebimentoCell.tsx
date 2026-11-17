@@ -192,6 +192,15 @@ export function ItemRecebimentoCell({
             Parcial {quantidadeRecebida}/{item.quantidade} {item.unidade ?? ""}
           </span>
         )}
+        {/* o que já chegou pela compra fica na linha, com o lote de cada entrega */}
+        {recebimentos.length > 0 && (
+          <RecebimentosHistorico
+            recebimentos={recebimentos}
+            unidade={item.unidade}
+            pending={pending}
+            onEstornar={pedirEstorno}
+          />
+        )}
         <ScannerRecebimentoCompra item={chegadaPelaCompra.item} locais={chegadaPelaCompra.locais} />
         <Link
           href={`/compras/${chegadaPelaCompra.item.pedidoId}`}
@@ -199,6 +208,8 @@ export function ItemRecebimentoCell({
         >
           Compra #{chegadaPelaCompra.item.pedidoId}
         </Link>
+        {erro && <span role="alert" className="text-xs text-danger-strong">{erro}</span>}
+        {confirmacao}
       </div>
     );
   }
@@ -237,7 +248,18 @@ function RecebimentosHistorico({
               </p>
               <p className="truncate text-muted-foreground">
                 {quando}
-                {recebimento.codigoLote ? ` · lote ${recebimento.codigoLote}` : ""}
+                {recebimento.loteId ? (
+                  <>
+                    {" · "}
+                    <Link href={`/estoque/lotes/${recebimento.loteId}`} className="underline-offset-2 hover:text-foreground hover:underline">
+                      lote {recebimento.codigoLote ?? `#${recebimento.loteId}`}
+                    </Link>
+                  </>
+                ) : recebimento.codigoLote ? (
+                  ` · lote ${recebimento.codigoLote}`
+                ) : (
+                  ""
+                )}
               </p>
               {(recebimento.fornecedor || recebimento.responsavel) && (
                 <p className="truncate text-muted-foreground/80">

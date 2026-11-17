@@ -178,7 +178,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await semLeituraFalha(page);
   // o bloco das compras sem pedido também lê o item junto da compra
   await expect(page.getByText("sem dado", { exact: true })).toHaveCount(0);
-  await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
+  await page.getByPlaceholder(/^Buscar item, pedido/).fill(insumoNome);
   const linhaDaChegada = page.getByRole("row").filter({ hasText: insumoNome });
   await expect(linhaDaChegada).toHaveCount(1);
   await linhaDaChegada.getByRole("button", { name: "Registrar chegada" }).click();
@@ -215,7 +215,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   expect(itemRecebido.lote_id).toBe(lote.id);
   // a linha sai de Chegadas: não sobra nada a registrar para este pedido
   await page.goto("/recebimento");
-  await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
+  await page.getByPlaceholder(/^Buscar item, pedido/).fill(insumoNome);
   await expect(page.getByRole("row").filter({ hasText: insumoNome }).getByRole("button", { name: "Registrar chegada" })).toHaveCount(0);
 
   // a página do projeto soma as compras com os itens (a mesma ligação, no sentido inverso)

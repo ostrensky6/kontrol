@@ -22,11 +22,14 @@ describe("Início: previsão e indicadores que não respondem", () => {
 });
 
 describe("Recebimento: fila que não responde", () => {
-  it("não diz 'Nenhuma compra pendente' nem conta zero quando a leitura falha", () => {
+  it("não mostra fila vazia nem conta zero quando a leitura falha", () => {
     expect(recebimento).toContain("{ data: itensData, error: erroItens }");
     expect(recebimento).toContain("{ data: comprasData, error: erroCompras }");
-    expect(recebimento).toMatch(/erroCompras \? \([\s\S]*Compras: sem dado[\s\S]*Nenhuma compra pendente/);
+    // a fila é uma só (chegada única): faltando as compras, a tela diz antes da tabela
+    expect(recebimento).toMatch(/erroCompras && !erroItens \? \([\s\S]*Compras sem pedido: sem dado[\s\S]*<RecebimentoItensTable/);
     expect(recebimento).toMatch(/erroItens \? \([\s\S]*Pedidos: sem dado[\s\S]*<RecebimentoItensTable/);
-    expect(recebimento).toContain('semDado ? "sem dado" : rows.length + comprasFormais.length');
+    expect(recebimento).toContain("const semDado = Boolean(erroItens || erroCompras);");
+    expect(recebimento).toContain('semDado ? "sem dado" : rows.length');
+    expect(recebimento).toContain('semDado ? "sem dado" : prontos');
   });
 });
