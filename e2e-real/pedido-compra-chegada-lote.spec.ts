@@ -27,6 +27,16 @@ async function avancar(page: Page, cliente: Cliente, pedidoId: number, botao: st
   await page.reload();
 }
 
+/**
+ * A tela leu tudo do banco. O item da compra aponta para a compra por duas
+ * chaves (0130); trazer um junto do outro sem dizer qual fazia o banco recusar
+ * a leitura, e só aqui, com o PostgREST de verdade, isso aparece.
+ */
+async function semLeituraFalha(page: Page) {
+  await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
+  await expect(page.getByText("Parte desta tela não carregou")).toHaveCount(0);
+}
+
 test("pedido vira compra, a compra chega e a chegada vira lote no estoque", async ({ page }) => {
   test.setTimeout(300_000);
   page.setDefaultTimeout(30_000);
@@ -156,12 +166,22 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.getByRole("button", { name: "Marcar enviado", exact: true }).click();
   await expect.poll(statusDaCompra, { timeout: 30_000 }).toBe("enviado");
 
-  // ---- 7. chegada: o item do pedido aponta para a compra, e é nela que a chegada é registrada
+  // ---- 7. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
+  //         e Chegadas registra pela compra sem ninguém trocar de tela
   await page.goto(`/pedido/${pedidoId}`);
-  const itemDoPedido = page.getByRole("row").filter({ hasText: "Registrar a chegada pela" });
-  await itemDoPedido.getByRole("link", { name: "compra", exact: true }).click();
-  await expect(page).toHaveURL(new RegExp(`/compras/${compraId}$`));
-  await page.getByRole("row").filter({ hasText: insumoNome }).getByRole("button", { name: "Registrar chegada" }).click();
+  await semLeituraFalha(page);
+  const noPedido = page.getByTestId("chegada-pela-compra");
+  await expect(noPedido.getByRole("button", { name: "Registrar chegada" })).toBeVisible();
+  await expect(noPedido.getByRole("link", { name: `Compra #${compraId}` })).toHaveAttribute("href", `/compras/${compraId}`);
+
+  await page.goto("/recebimento");
+  await semLeituraFalha(page);
+  // o bloco das compras sem pedido também lê o item junto da compra
+  await expect(page.getByText("sem dado", { exact: true })).toHaveCount(0);
+  await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
+  const linhaDaChegada = page.getByRole("row").filter({ hasText: insumoNome });
+  await expect(linhaDaChegada).toHaveCount(1);
+  await linhaDaChegada.getByRole("button", { name: "Registrar chegada" }).click();
   const chegada = page.getByRole("dialog", { name: "Registrar chegada do item" });
   await expect(chegada.locator('[name="quantidade_recebida"]')).toHaveValue("5");
   await chegada.getByLabel("Validade", { exact: true }).fill("2031-12-31");
@@ -182,6 +202,25 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   expect(Number(lote.quantidade_atual)).toBe(5);
   expect(lote.validade).toBe("2031-12-31");
   await expect.poll(statusDaCompra, { timeout: 30_000 }).toBe("recebido");
+  // a chegada pela compra atualiza o item do pedido na mesma gravação (0127)
+  const { data: itensDoPedido, error: erroItens } = await cliente
+    .from("pedidos_internos_itens")
+    .select("quantidade_recebida, recebido_em, lote_id")
+    .eq("pedido_interno_id", pedidoId);
+  expect(erroItens).toBeNull();
+  expect(itensDoPedido).toHaveLength(1);
+  const itemRecebido = itensDoPedido![0] as { quantidade_recebida: number | string | null; recebido_em: string | null; lote_id: number | null };
+  expect(Number(itemRecebido.quantidade_recebida)).toBe(5);
+  expect(itemRecebido.recebido_em).not.toBeNull();
+  expect(itemRecebido.lote_id).toBe(lote.id);
+  // a linha sai de Chegadas: não sobra nada a registrar para este pedido
+  await page.goto("/recebimento");
+  await page.getByPlaceholder("Buscar item, pedido, projeto ou fornecedor...").fill(insumoNome);
+  await expect(page.getByRole("row").filter({ hasText: insumoNome }).getByRole("button", { name: "Registrar chegada" })).toHaveCount(0);
+
+  // a página do projeto soma as compras com os itens (a mesma ligação, no sentido inverso)
+  await page.goto(`/projetos/${projeto!.id}`);
+  await semLeituraFalha(page);
 
   // ---- 8. o que chegou aparece no estoque e na ficha do lote
   await page.goto(`/estoque/lotes/${lote.id}`);

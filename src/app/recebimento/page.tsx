@@ -13,6 +13,13 @@ import {
 import { ScannerRecebimentoCompra } from "@/components/compras/ScannerRecebimentoCompra";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
+import {
+  COLUNAS_ITEM_COMPRA_DO_PEDIDO,
+  COMPRA_ACEITA_CHEGADA,
+  chegadasPelaCompra,
+  compraAceitaChegada,
+  type ItemCompraDoPedidoRaw,
+} from "@/lib/pedido/chegada-pela-compra";
 import { formatNumber } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
@@ -70,7 +77,7 @@ type CompraFormalItemRaw = {
 export default async function RecebimentoPage() {
   const leitura = novaLeitura("/recebimento");
   const supabase = await createClientUntyped();
-  const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }] = await Promise.all([
+  const [{ data: itensData, error: erroItens }, { data: insumos }, { data: comprasData, error: erroCompras }, podeReceberCompra, podeRegistrarRecebimento, { data: locaisData }, { data: comprasDosPedidos }] = await Promise.all([
     supabase
       .from("pedidos_internos_itens")
       .select(
@@ -81,12 +88,19 @@ export default async function RecebimentoPage() {
     leitura.de("insumos", supabase.from("insumos").select("id, especificacao, unidade, codigo_fabricante").eq("ativo", true).order("especificacao")),
     supabase
       .from("pedidos_compra_itens")
-      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!inner(id, status, fornecedores(nome))")
+      .select("id, pedido_id, insumo_id, quantidade, quantidade_recebida, quantidade_em, conteudo_embalagem, insumos(especificacao, unidade, codigo_fabricante), pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status, fornecedores(nome))")
       .is("pedido_interno_item_id", null)
       .order("id", { ascending: false }),
     pode("compras.receber"),
     pode("recebimento.registrar"),
     leitura.de("locais", supabase.from("locais").select("id, nome").order("nome")),
+    // chegada única: item de pedido que virou compra é recebido aqui, pelo item da compra
+    leitura.de("compras dos pedidos", supabase
+      .from("pedidos_compra_itens")
+      .select(COLUNAS_ITEM_COMPRA_DO_PEDIDO)
+      .not("pedido_interno_item_id", "is", null)
+      .in("pedidos_compra.status", COMPRA_ACEITA_CHEGADA)
+      .order("id")),
   ]);
   const locais = ((locaisData ?? []) as { id: number; nome: string | null }[]).map((local) => ({
     id: Number(local.id),
@@ -96,6 +110,10 @@ export default async function RecebimentoPage() {
   const itens = ((itensData ?? []) as unknown as ItemRaw[]).filter(
     (item) => item.pedidos_internos && item.pedidos_internos.status !== "cancelado",
   );
+
+  const chegadas = podeReceberCompra
+    ? chegadasPelaCompra((comprasDosPedidos ?? []) as unknown as ItemCompraDoPedidoRaw[])
+    : new Map<number, never>();
 
   const rows: RecebimentoItemRow[] = itens.map((item) => {
     const pedido = item.pedidos_internos!;
@@ -132,16 +150,17 @@ export default async function RecebimentoPage() {
         podeRegistrarRecebimento &&
         PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(status as PedidoInternoStatus) &&
         !pedido.pedido_compra_id,
+      compraItem: chegadas.get(item.id) ?? null,
     };
   });
 
   // leitura que falha não vira fila vazia nem contagem zero
   const semDado = Boolean(erroItens || erroCompras);
-  const prontos = rows.filter((row) => row.podeReceber).length;
+  const prontos = rows.filter((row) => row.podeReceber || row.compraItem).length;
   const comprasFormais = ((comprasData ?? []) as unknown as CompraFormalItemRaw[]).filter(
     (item) =>
       item.pedidos_compra &&
-      ["aprovado", "enviado", "em_transito"].includes(item.pedidos_compra.status) &&
+      compraAceitaChegada(item.pedidos_compra.status) &&
       Number(item.quantidade_recebida ?? 0) < Number(item.quantidade),
   );
 
@@ -190,7 +209,7 @@ export default async function RecebimentoPage() {
               Pedidos: sem dado. A leitura da fila de pedidos não respondeu; recarregue a página antes de concluir que não há nada para receber.
             </p>
           ) : (
-            <RecebimentoItensTable rows={rows} insumos={insumos ?? []} />
+            <RecebimentoItensTable rows={rows} insumos={insumos ?? []} locais={locais} />
           )}
         </div>
 

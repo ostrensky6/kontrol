@@ -513,7 +513,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Abra a compra pelo pedido (botão 'Formalizar em compras') ou em Compras → Compras com fornecedor. Não há compra avulsa: se faltar o pedido, crie um em 'Novo pedido'.",
           "Confira fornecedor, itens e quantidades e envie ao fornecedor.",
-          "Ao chegar, receba os itens pelo próprio pedido para dar entrada no estoque.",
+          "Ao chegar, clique em 'Registrar chegada' na linha do item, em Compras → Recebimento, no pedido ou na compra. É o mesmo registro nos três lugares: dá entrada no estoque e marca o item do pedido como recebido.",
           "Se faltar algo, encerre com pendência e escolha o destino: comprar de novo, desistir ou atendido de outra forma.",
         ],
       },

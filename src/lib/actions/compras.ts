@@ -399,11 +399,13 @@ export async function receberItemPedido(formData: FormData): Promise<FormState> 
 
   const { data: item } = await supabase
     .from("pedidos_compra_itens")
-    .select("insumos(categoria_compra)")
+    .select("insumos(categoria_compra), pedidos_internos_itens(pedido_interno_id)")
     .eq("id", item_id)
     .eq("pedido_id", pedido_id)
     .single();
   const insumo = item?.insumos as { categoria_compra: string | null } | null | undefined;
+  const pedidoDeOrigem = (item?.pedidos_internos_itens as { pedido_interno_id: number | null } | null | undefined)
+    ?.pedido_interno_id;
   if (insumo?.categoria_compra === "critico" && !validade) {
     return { ok: false, message: MSG_VALIDADE_CRITICO };
   }
@@ -431,6 +433,11 @@ export async function receberItemPedido(formData: FormData): Promise<FormState> 
   revalidatePath("/recebimento");
   revalidatePath("/suprimentos");
   revalidatePath("/estoque");
+  // a chegada pela compra atualiza o item do pedido de origem (0127)
+  if (pedidoDeOrigem) {
+    revalidatePath(`/pedido/${pedidoDeOrigem}`);
+    revalidatePath("/pedido");
+  }
   return {
     ok: true,
     message: "Chegada registrada. O lote já está disponível no estoque.",

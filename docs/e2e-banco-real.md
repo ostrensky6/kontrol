@@ -27,8 +27,11 @@ sido testado de ponta a ponta.
 - Compra aberta aparece em A caminho com a quantidade pendente e o atraso.
 - Roteiro inteiro de Suprimentos, pelos botões da tela (2.1.6): o pedido nasce, passa pela
   coordenação, pela formalização (que cria a compra), pela análise administrativa, pelos três
-  orçamentos e pela aprovação final; a compra é aprovada junto com o pedido (0170), vai ao
-  fornecedor e a chegada registrada na compra vira lote no estoque, com quantidade e validade.
+  orçamentos e pela aprovação final; a compra é aprovada junto com o pedido (0170) e vai ao
+  fornecedor. Desde a 2.1.7 a chegada é registrada em Chegadas, na linha do item do pedido
+  (chegada única, item 10 da auditoria de 16/11): o roteiro confere o botão no pedido, registra
+  em Chegadas e confere no banco o lote (quantidade e validade), a compra como recebida e o item
+  do pedido com a quantidade, a data e o lote.
 - Roteiro inteiro de Orçamentos (2.1.6): o orçamento nasce, recebe os custos do projeto, a
   revisão é concluída, entram impostos e lucro, a proposta é emitida com o total conferido no
   banco e o documento do cliente abre com o número, o cliente e o valor, sem custo nem lucro.

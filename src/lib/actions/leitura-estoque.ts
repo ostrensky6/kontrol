@@ -190,7 +190,7 @@ async function carregarInsumoLeitura(supabase: Supabase, insumoId: number): Prom
       .in("status", ["reservado", "parcial"]),
     supabase
       .from("pedidos_compra_itens")
-      .select("id, pedido_id, quantidade, quantidade_recebida, quantidade_em, lote_id, pedidos_compra!inner(id, status, fornecedores(nome))")
+      .select("id, pedido_id, quantidade, quantidade_recebida, quantidade_em, lote_id, pedidos_compra!pedidos_compra_itens_pedido_id_fkey!inner(id, status, fornecedores(nome))")
       .eq("insumo_id", insumoId)
       .in("pedidos_compra.status", ["aprovado", "enviado", "em_transito"]),
   ]);

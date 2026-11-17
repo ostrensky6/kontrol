@@ -17,6 +17,7 @@ import { listarEventos } from "@/lib/actions/eventos";
 import { Timeline } from "@/components/common/Timeline";
 import { formatDate, formatDateTime, formatNumber as fmt, formatCurrency as brl, hojeIso } from "@/lib/formatters";
 import { emFrascos, rotuloQuantidadeItem } from "@/lib/estoque/quantidade-compra";
+import { compraAceitaChegada } from "@/lib/pedido/chegada-pela-compra";
 import { pedidoQueSeguraCompra } from "@/lib/pedido/status";
 import { prazoRecebimentoObservado } from "@/lib/pedido/prazo-recebimento";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
@@ -157,7 +158,7 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
     ["aprovado", "enviado", "em_transito"].includes(pedido.status) &&
     pedido.data_prevista_entrega != null &&
     pedido.data_prevista_entrega < hoje;
-  const recebivel = ["aprovado", "enviado", "em_transito"].includes(pedido.status) && podeReceber;
+  const recebivel = compraAceitaChegada(pedido.status) && podeReceber;
   const forn = (pedido.fornecedores as { nome: string | null } | null)?.nome;
   const total = (itens ?? []).reduce(
     (a, it) => a + Number(it.quantidade) * Number(it.custo_unitario_estimado ?? 0),
