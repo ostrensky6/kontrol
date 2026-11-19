@@ -42,6 +42,8 @@ type Props = {
   esperaLaboratorio: boolean;
   podeDecidirLaboratorio: boolean;
   motivoCiclo: string | null;
+  /** item novo ainda sem insumo: trava a formalização com a explicação */
+  motivoItensSemCadastro?: string | null;
   pendenciaPagamento: string | null;
   podeConfirmar: boolean;
   resumoOrcamentos: ResumoOrcamentos | null;
@@ -72,6 +74,7 @@ export function PedidoPainelAgora({
   esperaLaboratorio,
   podeDecidirLaboratorio,
   motivoCiclo,
+  motivoItensSemCadastro = null,
   pendenciaPagamento,
   podeConfirmar,
   resumoOrcamentos,
@@ -143,6 +146,7 @@ export function PedidoPainelAgora({
             aguardandoLaboratorio={esperaLaboratorio}
             podeDecidirLaboratorio={podeDecidirLaboratorio}
             motivoCicloTravado={motivoCiclo}
+            motivoItensSemCadastro={motivoItensSemCadastro}
             pendenciaPagamento={pendenciaPagamento}
             podeConfirmarEntrega={podeConfirmar}
             motivoSemCotacoesRecebidas={resumoOrcamentos ? motivoSemCotacoesRecebidas(resumoOrcamentos) : null}

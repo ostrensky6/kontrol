@@ -116,6 +116,7 @@ export function PedidoInternoAcoes({
   motivoProprioPedido = null,
   controlado = false,
   motivoCicloTravado = null,
+  motivoItensSemCadastro = null,
 }: {
   pedidoId: number;
   status: string;
@@ -146,6 +147,8 @@ export function PedidoInternoAcoes({
   controlado?: boolean;
   /** 0176: pedido do ciclo seguinte; o texto diz quando a formalização abre */
   motivoCicloTravado?: string | null;
+  /** item novo (nunca comprado) ainda sem insumo: o banco recusa a formalização */
+  motivoItensSemCadastro?: string | null;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -207,11 +210,12 @@ export function PedidoInternoAcoes({
           pedidoId={pedidoId}
           action={formalizarPedidoInterno}
           label={temCompraFormal ? "Retomar a compra" : "Formalizar em compras"}
-          disabled={aguardandoLaboratorio || Boolean(motivoCicloTravado)}
+          disabled={aguardandoLaboratorio || Boolean(motivoItensSemCadastro) || Boolean(motivoCicloTravado)}
           disabledReason={
             aguardandoLaboratorio
               ? "Material de consumo de laboratório só segue para compras depois da aprovação da coordenação do laboratório."
-              : (motivoCicloTravado ?? undefined)
+              : // o item novo vem antes do ciclo: é o que a pessoa já pode resolver
+                (motivoItensSemCadastro ?? motivoCicloTravado ?? undefined)
           }
         />
       )}

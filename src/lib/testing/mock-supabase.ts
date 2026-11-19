@@ -1174,6 +1174,21 @@ function withRelations(table: string, row: Row): Row {
       },
     };
   }
+  if (table === "pedidos_internos_itens" && row.insumo_id != null && row.insumos === undefined) {
+    // item ligado a um insumo depois de criado (ex.: item novo cadastrado pelo pedido)
+    const insumo = store.insumos.find((item) => valoresIguais(item.id, row.insumo_id));
+    return insumo
+      ? {
+          ...row,
+          insumos: {
+            especificacao: insumo.especificacao ?? null,
+            unidade: insumo.unidade ?? null,
+            controlado: insumo.controlado === true,
+            codigo_fabricante: insumo.codigo_fabricante ?? null,
+          },
+        }
+      : row;
+  }
   return row;
 }
 
@@ -1611,6 +1626,7 @@ class MockQuery {
       ]);
       if (erro) return { data: null, error: erro };
     }
+    let atualizados: Row[] | null = null;
     if (this.mutation?.type === "update") {
       const erroSalario = violacaoSalario(
         this.table,
@@ -1620,9 +1636,16 @@ class MockQuery {
         (store[this.table] ?? []).filter((row) => this.matches(row)),
       );
       if (erroSalario) return { data: null, error: erroSalario };
-      store[this.table] = (store[this.table] ?? []).map((row) =>
-        this.matches(row) ? { ...row, ...(this.mutation?.payload as Row) } : row,
-      );
+      // como o PostgREST com .select(): devolve as linhas alteradas, mesmo quando
+      // deixam de casar com o filtro (ex.: `.is("insumo_id", null)` ao ligar o insumo)
+      const alteradas: Row[] = [];
+      store[this.table] = (store[this.table] ?? []).map((row) => {
+        if (!this.matches(row)) return row;
+        const nova = { ...row, ...(this.mutation?.payload as Row) };
+        alteradas.push(nova);
+        return nova;
+      });
+      atualizados = alteradas;
     }
     let removidos: Row[] = [];
     if (this.mutation?.type === "delete") {
@@ -1645,7 +1668,7 @@ class MockQuery {
         ? (this.mutation.payload as Row[])
         : this.mutation?.type === "delete"
           ? removidos
-          : linhasDaTabela(this.table).filter((row) => this.matches(row));
+          : (atualizados ?? linhasDaTabela(this.table).filter((row) => this.matches(row)));
     const fatia = this.faixa && !this.mutation ? source.slice(this.faixa.de, this.faixa.ate + 1) : source;
     const linhas = fatia.map((row) => withRelations(this.table, row));
     // Tabelas com coluna sigilosa: devolve só as colunas pedidas, como o
@@ -3246,6 +3269,35 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         } catch (error) {
           return { data: null, error: { message: error instanceof Error ? error.message : "Erro na RPC" } };
         }
+      }
+      if (fn === "criar_insumo_com_quantidade") {
+        // A mesma função de Cadastros > Insumos. Aqui só o cadastro sem lote
+        // (zero embalagens), que é o que o item novo do pedido usa.
+        if (!mockTemPermissao("insumos.editar", sessao)) {
+          return { data: null, error: { message: "Sem permissão para cadastrar insumos.", code: "42501" } };
+        }
+        const dados = (args.p_dados_insumo ?? {}) as Row;
+        if (!String(dados.especificacao ?? "").trim()) {
+          return { data: null, error: { message: "Item específico / SKU é obrigatório.", code: "22023" } };
+        }
+        if (Number(args.p_quantidade_embalagens ?? 0) !== 0) {
+          return { data: null, error: { message: "O mock só simula o cadastro de insumo sem lote.", code: "MOCK_RPC_NAO_SIMULADA" } };
+        }
+        const embalagem = Number(dados.quantidade_embalagem ?? 0);
+        const insumo = {
+          categoria_compra: "operacional",
+          ponto_reposicao: 0,
+          estoque_seguranca: 0,
+          fator_conversao: 1,
+          ...dados,
+          id: nextId("insumos"),
+          especificacao: String(dados.especificacao).trim(),
+          unidade_consumo: dados.unidade_consumo ?? dados.unidade ?? null,
+          custo_unitario: embalagem > 0 ? Number(dados.custo_total_embalagem ?? 0) / embalagem : null,
+          ativo: true,
+        };
+        (store.insumos ??= []).push(insumo);
+        return { data: { insumo_id: insumo.id, lote_id: null, quantidade_embalagens: 0, repetido: false }, error: null };
       }
       if (fn === "registrar_entrada_manual_embalagens") {
         const lote = {

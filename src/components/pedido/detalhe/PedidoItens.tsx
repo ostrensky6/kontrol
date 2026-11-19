@@ -3,6 +3,7 @@ import { adicionarItemPedidoInterno, removerItemPedidoInterno } from "@/lib/acti
 import { PedidoInternoAcoes } from "@/components/pedido/PedidoInternoAcoes";
 import { ItemRecebimentoCell } from "@/components/pedido/ItemRecebimentoCell";
 import { PedidoItemEditar } from "@/components/pedido/PedidoItemEditar";
+import { PedidoItemCadastrarInsumo } from "@/components/pedido/PedidoItemCadastrarInsumo";
 import {
   PedidoItemCamposAssistidos,
   type PedidoItemCatalogo,
@@ -16,6 +17,7 @@ import {
   itemTipoLabel,
   type PedidoDetalhe,
 } from "@/lib/pedido/detalhe";
+import { ehItemNovo, insumosParecidos, STATUS_CADASTRA_ITEM_NOVO } from "@/lib/pedido/item-novo";
 import type { Equivalente } from "@/lib/estoque/equivalentes";
 import type { ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -44,6 +46,8 @@ type Props = {
   podeCancelar: boolean;
   rascunhoCompleto: boolean;
   travaEnvio: string | null;
+  /** "Editar insumos": quem pode cadastrar o item novo pelo pedido */
+  podeCadastrarInsumo?: boolean;
 };
 
 function chegadaDoItem(
@@ -78,7 +82,10 @@ export function PedidoItens({
   podeCancelar,
   rascunhoCompleto,
   travaEnvio,
+  podeCadastrarInsumo = false,
 }: Props) {
+  // item novo (nunca comprado) só é assunto enquanto os itens ainda mudam
+  const etapaDeItemNovo = STATUS_CADASTRA_ITEM_NOVO.includes(String(pedido.status));
   return (
     <section className="mt-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -118,6 +125,14 @@ export function PedidoItens({
                     {itemTipoLabel(item.tipo)}
                     {item.insumos?.especificacao ? ` · vinculado: ${item.insumos.especificacao}` : ""}
                   </p>
+                  {etapaDeItemNovo && ehItemNovo(item) ? (
+                    <p className="text-xs text-warning-strong" data-testid="item-novo">
+                      <span className="font-medium">Item novo:</span>{" "}
+                      {editavel
+                        ? "ainda sem cadastro. Quem conduz a compra cadastra o insumo antes de formalizar."
+                        : "falta cadastrar o insumo antes de formalizar."}
+                    </p>
+                  ) : null}
                   {item.insumos?.codigo_fabricante ? (
                     <p className="text-xs" data-testid="item-codigo-fabricante">
                       <span className="font-medium">Código do fabricante:</span> <span className="font-mono">{item.insumos.codigo_fabricante}</span>
@@ -196,7 +211,27 @@ export function PedidoItens({
                 </TableCell>
                 {podeEditarItens && (
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-3">
+                    <div className="flex flex-wrap items-center justify-end gap-3">
+                      {podeCadastrarInsumo && ehItemNovo(item) && (
+                        <PedidoItemCadastrarInsumo
+                          pedidoId={pedidoId}
+                          item={{
+                            id: item.id,
+                            especificacao: item.especificacao,
+                            modelo: item.modelo,
+                            volume: item.volume,
+                            quantidade: Number(item.quantidade),
+                            unidade: item.unidade,
+                            orcamento_previo: item.orcamento_previo,
+                          }}
+                          parecidos={insumosParecidos({ especificacao: item.especificacao }, catalogoItens).map((insumo) => ({
+                            id: insumo.id,
+                            especificacao: insumo.especificacao ?? insumo.nomeItem ?? `Insumo #${insumo.id}`,
+                            fabricante: insumo.fabricante ?? null,
+                            codigoFabricante: insumo.codigoFabricante ?? null,
+                          }))}
+                        />
+                      )}
                       <PedidoItemEditar pedidoId={pedidoId} item={item} catalogo={catalogoComVinculoAtual(catalogoItens, item)} fornecedores={fornecedoresPedido} />
                       <FormComMensagem action={removerItemPedidoInterno} className="flex flex-col items-end">
                         <input type="hidden" name="item_id" value={item.id} />

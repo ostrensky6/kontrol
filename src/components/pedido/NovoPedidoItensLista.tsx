@@ -2,6 +2,7 @@
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatCurrency as brl, formatNumber as fmt } from "@/lib/formatters";
+import { ehItemNovo } from "@/lib/pedido/item-novo";
 import { normalizarItemNovoPedido, type CampoItemNovoPedido } from "@/lib/pedido/itens-novo-pedido";
 
 /** Item já adicionado no "Novo pedido": os campos como foram digitados, mais a chave da linha. */
@@ -45,6 +46,11 @@ export function NovoPedidoItensLista({
             <TableRow key={item.chave}>
               <TableCell>
                 <span className="font-medium">{item.especificacao}</span>
+                {ehItemNovo(item) && (
+                  <span data-testid="item-novo" className="ml-2 rounded-full border border-info-strong/40 px-1.5 py-0.5 text-xs text-info-strong">
+                    Item novo
+                  </span>
+                )}
                 {[item.modelo, item.volume, item.fornecedor_sugerido].some(Boolean) && (
                   <span className="block text-xs text-muted-foreground">
                     {[item.modelo, item.volume, item.fornecedor_sugerido].filter(Boolean).join(" · ")}

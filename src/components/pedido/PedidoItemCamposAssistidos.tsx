@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { EstoqueParaPedido } from "@/lib/estoque/estoque-para-pedido";
 import { formatNumber } from "@/lib/formatters";
 import { acharPorCodigoFabricante, marcaComCodigo, rotuloCodigoFabricante } from "@/lib/pedido/codigo-fabricante";
+import { ehItemNovo } from "@/lib/pedido/item-novo";
 
 export type PedidoItemCatalogo = {
   id: number;
@@ -159,6 +160,7 @@ export function PedidoItemCamposAssistidos({
     return inicial ? rotuloInsumo(inicial) : "";
   });
   const [categoriaFiltro, setCategoriaFiltro] = useState("");
+  const [tipo, setTipo] = useState(defaults.tipo ?? "material");
   const [especificacao, setEspecificacao] = useState(defaults.especificacao ?? "");
   const [unidade, setUnidade] = useState(defaults.unidade ?? "");
   const [modelo, setModelo] = useState(defaults.modelo ?? "");
@@ -191,6 +193,8 @@ export function PedidoItemCamposAssistidos({
     categoria: `pedido-item-categoria-${idPrefix}`,
     insumoBusca: `pedido-item-insumo-busca-${idPrefix}`,
     insumoSelecao: `pedido-item-insumo-selecao-${idPrefix}`,
+    insumoAjuda: `pedido-item-insumo-ajuda-${idPrefix}`,
+    itemNovo: `pedido-item-novo-${idPrefix}`,
     especificacao: `pedido-item-especificacao-${idPrefix}`,
     quantidade: `pedido-item-quantidade-${idPrefix}`,
     unidade: `pedido-item-unidade-${idPrefix}`,
@@ -207,6 +211,8 @@ export function PedidoItemCamposAssistidos({
   };
 
   const span = SPANS[layout];
+  // item novo: material ou equipamento descrito à mão, sem insumo do cadastro
+  const itemNovo = ehItemNovo({ tipo, insumo_id: insumoId }) && especificacao.trim() !== "";
 
   function preencherInsumo(insumo: PedidoItemCatalogo) {
     setInsumoId(String(insumo.id));
@@ -254,7 +260,7 @@ export function PedidoItemCamposAssistidos({
     <>
       <div className={span.tipo}>
         <label htmlFor={ids.tipo} className="block text-xs text-muted-foreground/80">Tipo</label>
-        <select id={ids.tipo} name="tipo" defaultValue={defaults.tipo ?? "material"} className={`${inputCls} mt-1 w-full`}>
+        <select id={ids.tipo} name="tipo" value={tipo} onChange={(event) => setTipo(event.target.value)} className={`${inputCls} mt-1 w-full`}>
           <option value="material">Material</option>
           <option value="servico">Serviço</option>
           <option value="equipamento">Equipamento</option>
@@ -280,6 +286,7 @@ export function PedidoItemCamposAssistidos({
           value={insumoBusca}
           onChange={(event) => buscarInsumo(event.target.value)}
           placeholder="Código do fabricante, produto ou categoria"
+          aria-describedby={!selecionado && tipo !== "servico" ? ids.insumoAjuda : undefined}
           className={inputCls}
         />
         <datalist id={ids.insumos}>
@@ -307,6 +314,11 @@ export function PedidoItemCamposAssistidos({
         )}
         {selecionado ? <CodigoDoInsumo insumo={selecionado} /> : null}
         {selecionado ? <EstoqueDoInsumo estoque={selecionado.estoque} /> : null}
+        {!selecionado && tipo !== "servico" ? (
+          <p id={ids.insumoAjuda} className="mt-1 text-xs text-muted-foreground">
+            Não está na lista? Escreva o item em “Especificação”: ele entra como item novo.
+          </p>
+        ) : null}
       </div>
       <div className={span.especificacao}>
         <label htmlFor={ids.especificacao} className="block text-xs text-muted-foreground/80">Especificação</label>
@@ -316,8 +328,14 @@ export function PedidoItemCamposAssistidos({
           required={obrigatorios}
           value={especificacao}
           onChange={(event) => setEspecificacao(event.target.value)}
+          aria-describedby={itemNovo ? ids.itemNovo : undefined}
           className={inputCls}
         />
+        {itemNovo ? (
+          <p id={ids.itemNovo} data-testid="item-novo-aviso" className="mt-1 text-xs text-info-strong">
+            Item novo: quem conduz a compra cadastra o insumo antes de formalizar.
+          </p>
+        ) : null}
       </div>
       <div className={span.quantidade}>
         <label htmlFor={ids.quantidade} className="block text-xs text-muted-foreground/80">Qtd</label>
