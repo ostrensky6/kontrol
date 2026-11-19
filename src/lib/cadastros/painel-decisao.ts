@@ -94,12 +94,18 @@ function zeroNoSistema(item: InsumoPainel): boolean {
   return item.estadoSaldo === "saldo_sistema" && item.disponivel === 0;
 }
 
+/** Zerado que já teve lote: é o "Sem estoque". O que nunca foi recebido fica de fora (19/11/2026). */
+function zeradoJaRecebido(item: InsumoPainel): boolean {
+  return zeroNoSistema(item) && !item.nuncaRecebido;
+}
+
 export function motivosDoInsumo(item: Omit<InsumoDecisao, "motivos">): Motivo[] {
   const motivos: Motivo[] = [];
   // saldo não lido: não se inventa falta nem cobertura
   const saldoConhecido = item.estadoSaldo === "saldo_sistema";
-  // uma regra só (decisão de 11/11/2026): disponível zerado é "Sem estoque", tenha ou não mínimo
-  if (saldoConhecido && (item.situacao === "em_falta" || zeroNoSistema(item))) motivos.push("em_falta");
+  // uma regra só (decisão de 11/11/2026): disponível zerado é "Sem estoque", tenha ou não mínimo;
+  // desde 19/11/2026, só o zerado que já foi recebido: o nunca recebido tem o próprio quadro
+  if (saldoConhecido && (item.situacao === "em_falta" || zeradoJaRecebido(item))) motivos.push("em_falta");
   if (item.compraAtrasada) motivos.push("compra_atrasada");
   if (
     saldoConhecido &&
@@ -210,6 +216,8 @@ export type ResumoDecisao = {
   lotesVencidos: number;
   lotesVencendo: number;
   semMinimo: number;
+  /** zerados que nunca tiveram lote: não contam como "Sem estoque" */
+  nuncaRecebido: number;
   naoConferido: number;
   saldoIndisponivel: number;
 };
@@ -231,6 +239,7 @@ export function resumirDecisao(itens: readonly InsumoDecisao[]): ResumoDecisao {
     lotesVencendo: itens.reduce((soma, i) => soma + i.lotesVencendo, 0),
     // o zerado sem mínimo já está em "Sem estoque": não conta duas vezes
     semMinimo: conta((i) => i.situacao === "sem_minimo" && !zeroNoSistema(i)),
+    nuncaRecebido: conta((i) => i.nuncaRecebido),
     naoConferido: conta((i) => i.estadoSaldo === "nao_conferido"),
     saldoIndisponivel: conta((i) => i.estadoSaldo === "saldo_indisponivel"),
   };
@@ -248,15 +257,19 @@ export function faixasCobertura(itens: readonly InsumoDecisao[]): FaixaCobertura
     { faixa: "> 90 dias", insumos: 0, tom: "verde" },
     { faixa: "Sem estimativa", insumos: 0, tom: "cinza" },
   ];
+  // o nunca recebido não é "Sem estoque": só ganha barra quando existe
+  const nuncaRecebido: FaixaCobertura = { faixa: "Nunca recebido", insumos: 0, tom: "cinza" };
   for (const item of itens) {
     if (item.disponivel === null) continue;
-    if (item.disponivel <= 0) faixas[0].insumos += 1;
+    if (item.nuncaRecebido) nuncaRecebido.insumos += 1;
+    else if (item.disponivel <= 0) faixas[0].insumos += 1;
     else if (item.coberturaDias === null) faixas[5].insumos += 1;
     else if (item.coberturaDias < 15) faixas[1].insumos += 1;
     else if (item.coberturaDias < 30) faixas[2].insumos += 1;
     else if (item.coberturaDias < 90) faixas[3].insumos += 1;
     else faixas[4].insumos += 1;
   }
+  if (nuncaRecebido.insumos > 0) faixas.push(nuncaRecebido);
   return faixas;
 }
 
@@ -536,7 +549,8 @@ export function montarAlertas({
   const abaixo = itens.filter((i) => i.situacao === "abaixo_minimo").sort(porCobertura);
   const acaba = itens.filter((i) => i.motivos.includes("acaba_antes")).sort(porCobertura);
   const atrasadas = itens.filter((i) => i.compraAtrasada);
-  const repor = itens.filter((i) => i.motivos.includes("comprar") && !zeroNoSistema(i) && i.situacao !== "abaixo_minimo");
+  // o zerado já recebido está em "Sem estoque"; o nunca recebido com sugestão de compra aparece aqui
+  const repor = itens.filter((i) => i.motivos.includes("comprar") && !zeradoJaRecebido(i) && i.situacao !== "abaixo_minimo");
   const vencidos = lotesVencendo.filter((l) => l.vencido);
   const vencendo = lotesVencendo.filter((l) => !l.vencido);
   const foraDeOrdem = abertosForaDeOrdem(doRecorte, hojeIso);
@@ -551,6 +565,7 @@ export function montarAlertas({
   const semValidade = doRecorte.filter((l) => comSaldo(l) && l.status !== "quarentena" && !validadeDoLote(l));
   const parados = movimentosCompletos ? estoqueParado(itens, movimentos, hojeIso) : [];
   const semMinimo = itens.filter((i) => i.situacao === "sem_minimo" && !zeroNoSistema(i));
+  const nuncaRecebidos = itens.filter((i) => i.nuncaRecebido);
   const indisponivel = itens.filter((i) => i.estadoSaldo === "saldo_indisponivel");
   const naoConferidos = itens.filter((i) => i.estadoSaldo === "nao_conferido");
 
@@ -680,7 +695,7 @@ export function montarAlertas({
       itens: repor.map((i) => ({
         chave: `i${i.id}`,
         titulo: i.especificacao,
-        detalhe: `comprar ${formatar(i.sugestaoCompra)} · disponível ${saldo(i)}`,
+        detalhe: `comprar ${formatar(i.sugestaoCompra)} · ${i.nuncaRecebido ? "nunca recebido" : `disponível ${saldo(i)}`}`,
         href: fichaInsumo(i.id),
       })),
     },
@@ -733,6 +748,18 @@ export function montarAlertas({
       })),
     },
     {
+      chave: "nunca-recebido",
+      titulo: "Nunca recebidos",
+      descricao: "Cadastrados, ainda sem nenhuma chegada. Não contam como sem estoque.",
+      tom: "cinza",
+      itens: nuncaRecebidos.map((i) => ({
+        chave: `i${i.id}`,
+        titulo: i.especificacao,
+        detalhe: pedido(i),
+        href: fichaInsumo(i.id),
+      })),
+    },
+    {
       chave: "sem-minimo",
       titulo: "Sem mínimo definido",
       descricao: "Sem mínimo para comparar o saldo. Completar no cadastro.",
@@ -748,6 +775,8 @@ export function montarAlertas({
   return alertas
     .filter((a) => a.chave !== "parado" || movimentosCompletos)
     .filter((a) => !a.chave.startsWith("saldo-") || a.itens.length > 0)
+    // é um estado, não um problema resolvido: vazio, não aparece em "Sem alerta agora"
+    .filter((a) => a.chave !== "nunca-recebido" || a.itens.length > 0)
     .map((a, ordem) => ({ a, ordem }))
     .sort((x, y) => {
       const vazioX = x.a.itens.length === 0 ? 1 : 0;

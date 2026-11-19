@@ -124,7 +124,8 @@ test("os números do estoque abrem a lista filtrada, e a saúde é a conta dos i
     await expect(cartao.getByText("Sem estoque", { exact: true })).toBeVisible();
   }
 
-  // saúde = insumos sem nenhum sinal sobre o total, e bate com a lista "Em dia"
+  // saúde = insumos em dia sobre a base, e bate com a lista "Em dia". A base é quem está em dia mais quem
+  // precisa de atenção: o nunca recebido, sem sinal, fica de fora (decisão de 19/11/2026)
   const saude = ((await page.getByTestId("saude-do-estoque").textContent()) ?? "").replace(/\s+/g, " ");
   const [, pct] = /(\d+)%/.exec(saude) ?? [];
   const [, emDia, total] = /(\d+) de (\d+) insumos em dia/.exec(saude) ?? [];
@@ -132,15 +133,23 @@ test("os números do estoque abrem a lista filtrada, e a saúde é a conta dos i
   expect(Number(pct)).toBe(Math.round((Number(emDia) / Number(total)) * 100));
   await lista.getByLabel("Situação").selectOption("ok");
   await expect(page).toHaveURL(/alerta=ok/);
-  await expect(lista.getByTestId("controle-contagem")).toHaveText(`${emDia} de ${total} insumos`);
-  // a taxa da visão em gráficos é a mesma do topo, e as barras somam o total de insumos
+  const contagem = lista.getByTestId("controle-contagem");
+  await expect(contagem).toHaveText(new RegExp(`^${emDia} de \\d+ insumos$`));
+  const [, ativos] = /^\d+ de (\d+) insumos$/.exec(((await contagem.textContent()) ?? "").trim()) ?? [];
+  await lista.getByLabel("Situação").selectOption("atencao");
+  await expect(contagem).toHaveText(`${Number(total) - Number(emDia)} de ${ativos} insumos`);
+  // o que sobra dos insumos ativos é o nunca recebido sem sinal: tem filtro próprio e não entra na saúde
+  // (no banco de teste nenhum nunca recebido tem sinal, então o filtro mostra exatamente essa sobra)
+  await lista.getByLabel("Situação").selectOption("nunca_recebido");
+  await expect(contagem).toHaveText(`${Number(ativos) - Number(total)} de ${ativos} insumos`);
+  // a taxa da visão em gráficos é a mesma do topo, e as barras somam o total de insumos ativos
   await page.goto("/estoque/situacao?ver=graficos");
   const taxa = page.getByTestId("taxa-de-saude");
   await expect(taxa.getByRole("progressbar", { name: "Saúde do estoque" })).toHaveAttribute("aria-valuenow", String(pct));
-  await expect(taxa).toContainText(`${emDia} de ${total} insumos ativos sem nenhum sinal.`);
+  await expect(taxa).toContainText(`${emDia} de ${total} insumos já recebidos sem nenhum sinal.`);
   const barras = page.getByRole("table", { name: "Insumos por situação" }).locator("tbody td");
   const soma = (await barras.allTextContents()).reduce((s, texto) => s + Number(texto.replace(/\D/g, "")), 0);
-  expect(soma).toBe(Number(total));
+  expect(soma).toBe(Number(ativos));
 
   // prova negativa: filtro que não existe na URL abre em "Precisa de atenção"
   await page.goto("/estoque/situacao?alerta=inventado");

@@ -5,6 +5,7 @@ import {
   FILTROS_SALDO,
   SINAIS_INSUMO,
   contarComSinal,
+  contarNuncaRecebidosSemSinal,
   contarSemSinal,
   filtroValidoNaVisao,
   insumoAtendeFiltro,
@@ -26,7 +27,28 @@ const alerta = (tipo: string) => ({ tipo });
 describe("sinais do insumo", () => {
   it("insumo sem alerta, com saldo e sem sugestão de compra está em dia", () => {
     const situacao = situacaoDoInsumo({ disponivel: 10, qtd_sugerida_compra: 0 }, []);
-    expect(situacao).toEqual({ sinais: [], principal: null, rotulo: "Em dia", tom: "slate" });
+    expect(situacao).toEqual({ sinais: [], principal: null, nuncaRecebido: false, rotulo: "Em dia", tom: "slate" });
+  });
+
+  // decisão de Antonio em 19/11/2026 (pergunta do Giorgi sobre item nunca comprado)
+  it("insumo que nunca teve lote não é Sem estoque: é Nunca recebido, neutro", () => {
+    expect(sinaisDoInsumo({ disponivel: 0, nunca_recebido: true }, [])).toEqual([]);
+    expect(situacaoDoInsumo({ disponivel: 0, nunca_recebido: true }, [])).toEqual({
+      sinais: [],
+      principal: null,
+      nuncaRecebido: true,
+      rotulo: "Nunca recebido",
+      tom: "neutro",
+    });
+    // o zerado que já foi recebido continua Sem estoque
+    expect(situacaoDoInsumo({ disponivel: 0, nunca_recebido: false }, []).rotulo).toBe("Sem estoque");
+  });
+
+  it("nunca recebido com mínimo ou compra atrasada mantém esses sinais, sem o Sem estoque", () => {
+    const situacao = situacaoDoInsumo({ disponivel: 0, qtd_sugerida_compra: 4, nunca_recebido: true }, [alerta("compra_atrasada")]);
+    expect(situacao.sinais).toEqual(["compra_atrasada", "reposicao"]);
+    expect(situacao.rotulo).toBe("Compra atrasada");
+    expect(situacao.nuncaRecebido).toBe(true);
   });
 
   it("guarda todos os sinais simultâneos, em ordem de gravidade", () => {
@@ -109,11 +131,26 @@ describe("filtros e contadores por sinal", () => {
     expect(itens.filter((item) => insumoAtendeFiltro(item.sinais, "ok"))).toEqual([emDia]);
   });
 
+  it("Nunca recebido tem filtro próprio e não entra em Em dia nem em Precisa de atenção", () => {
+    const nunca = { sinais: sinaisDoInsumo({ disponivel: 0, nunca_recebido: true }, []), nuncaRecebido: true };
+    expect(insumoAtendeFiltro(nunca.sinais, "nunca_recebido", nunca.nuncaRecebido)).toBe(true);
+    expect(insumoAtendeFiltro(nunca.sinais, "ok", nunca.nuncaRecebido)).toBe(false);
+    expect(insumoAtendeFiltro(nunca.sinais, "atencao", nunca.nuncaRecebido)).toBe(false);
+    expect(insumoAtendeFiltro(nunca.sinais, "sem_disponivel", nunca.nuncaRecebido)).toBe(false);
+    expect(insumoAtendeFiltro(nunca.sinais, "todos", nunca.nuncaRecebido)).toBe(true);
+    // quem já foi recebido não entra no filtro
+    expect(insumoAtendeFiltro(emDia.sinais, "nunca_recebido")).toBe(false);
+    // em dia e saúde: o nunca recebido fica de fora da conta
+    expect(contarSemSinal([emDia, nunca])).toBe(1);
+    expect(contarNuncaRecebidosSemSinal([emDia, nunca])).toBe(1);
+  });
+
   it("cada opção oferecida na visão por insumo filtra alguma coisa e Todos filtra nada", () => {
-    const atrasada = { sinais: sinaisDoInsumo({ disponivel: 1 }, [alerta("compra_atrasada")]) };
-    const todos = [...itens, atrasada];
+    const atrasada = { sinais: sinaisDoInsumo({ disponivel: 1 }, [alerta("compra_atrasada")]), nuncaRecebido: false };
+    const nunca = { sinais: sinaisDoInsumo({ disponivel: 0, nunca_recebido: true }, []), nuncaRecebido: true };
+    const todos = [...itens.map((item) => ({ ...item, nuncaRecebido: false })), atrasada, nunca];
     for (const { valor } of FILTROS_INSUMO) {
-      const passam = todos.filter((item) => insumoAtendeFiltro(item.sinais, valor)).length;
+      const passam = todos.filter((item) => insumoAtendeFiltro(item.sinais, valor, item.nuncaRecebido)).length;
       if (valor === "todos") expect(passam).toBe(todos.length);
       else expect(passam, valor).toBeGreaterThan(0);
     }

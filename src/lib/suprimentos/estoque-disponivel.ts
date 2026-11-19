@@ -70,8 +70,10 @@ export type LinhaEstoqueDisponivel = {
   validade: string | null;
   validadeEstado: "vencido" | "vencendo" | null;
   sinais: SinalInsumo[];
+  /** nunca teve lote (decisão de 19/11/2026): zerado assim não é "Sem estoque" */
+  nuncaRecebido: boolean;
   situacao: string;
-  tom: TomSinal | "slate";
+  tom: TomSinal | "slate" | "neutro";
 };
 
 const num = (valor: Numerico) => {
@@ -91,6 +93,7 @@ export function montarEstoqueDisponivel({
   previsao,
   alertas,
   lotes,
+  recebidos,
   hoje,
   janelaVencimento,
 }: {
@@ -98,6 +101,11 @@ export function montarEstoqueDisponivel({
   previsao: readonly PrevisaoDisponivelDb[];
   alertas: readonly AlertaDisponivelDb[];
   lotes: readonly LoteValidadeDb[];
+  /**
+   * Insumos que já tiveram algum lote, de qualquer status (lerInsumosJaRecebidos).
+   * Ausente ou null = não lido: ninguém é tratado como nunca recebido.
+   */
+  recebidos?: ReadonlySet<number> | null;
   hoje: string;
   janelaVencimento: number;
 }): LinhaEstoqueDisponivel[] {
@@ -124,7 +132,12 @@ export function montarEstoqueDisponivel({
       const prev = previsaoPorInsumo.get(insumoId);
       const sugerido = num(prev?.qtd_sugerida_compra);
       const disponivel = num(s.disponivel);
-      const situacao = situacaoDoInsumo({ disponivel, qtd_sugerida_compra: sugerido }, alertasPorInsumo.get(insumoId) ?? []);
+      // só o zerado sem lote: com saldo, o insumo evidentemente já foi recebido
+      const nuncaRecebido = Boolean(recebidos) && !recebidos!.has(insumoId) && disponivel <= 0 && num(s.em_maos) <= 0;
+      const situacao = situacaoDoInsumo(
+        { disponivel, qtd_sugerida_compra: sugerido, nunca_recebido: nuncaRecebido },
+        alertasPorInsumo.get(insumoId) ?? [],
+      );
       const validade = validadePorInsumo.get(insumoId) ?? null;
       const pedido = separarPedidoAberto(prev?.qtd_pedida_aberta, prev?.qtd_pedida_pendente);
       return {
@@ -146,6 +159,7 @@ export function montarEstoqueDisponivel({
             ? "vencendo"
             : null,
         sinais: situacao.sinais,
+        nuncaRecebido: situacao.nuncaRecebido,
         situacao: situacao.rotulo,
         tom: situacao.tom,
       };
@@ -163,6 +177,7 @@ export const FILTROS_ESTOQUE_DISPONIVEL = [
   { valor: "sem_disponivel", rotulo: "Sem estoque", descricao: "Nada disponível agora" },
   { valor: "vencido_vencendo", rotulo: "Vencido ou vencendo", descricao: "Lote vencido ou perto de vencer" },
   { valor: "ok", rotulo: "Em dia", descricao: "Sem nenhum aviso" },
+  { valor: "nunca_recebido", rotulo: "Nunca recebido", descricao: "Cadastrado, ainda sem chegada" },
   { valor: "todos", rotulo: "Todos", descricao: "Todos os insumos ativos" },
 ] as const;
 
@@ -176,6 +191,9 @@ export function filtroEstoqueValido(valor: unknown): FiltroEstoqueDisponivel {
     : FILTRO_ESTOQUE_PADRAO;
 }
 
-export function linhaAtendeFiltro(linha: Pick<LinhaEstoqueDisponivel, "sinais">, filtro: FiltroEstoqueDisponivel) {
-  return insumoAtendeFiltro(linha.sinais, filtro);
+export function linhaAtendeFiltro(
+  linha: Pick<LinhaEstoqueDisponivel, "sinais"> & Partial<Pick<LinhaEstoqueDisponivel, "nuncaRecebido">>,
+  filtro: FiltroEstoqueDisponivel,
+) {
+  return insumoAtendeFiltro(linha.sinais, filtro, Boolean(linha.nuncaRecebido));
 }

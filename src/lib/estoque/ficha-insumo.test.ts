@@ -265,6 +265,19 @@ describe("ficha montada", () => {
     expect(ficha.coberturaDias).toBeNull();
   });
 
+  // decisão de Antonio em 19/11/2026 (pergunta do Giorgi sobre item nunca comprado)
+  it("insumo que nunca teve lote aparece como Nunca recebido, não como Sem estoque", () => {
+    const zerado = { insumo_id: 7, especificacao: "Tampão novo", unidade: "mL", em_maos: 0, reservado: 0, disponivel: 0, ponto_reposicao: 0 };
+    const nunca = montarFichaInsumo({ ...base, lotes: [], saldo: zerado, previsao: null, jaRecebido: false });
+    expect(nunca.estoque).toMatchObject({ sinais: [], nuncaRecebido: true, situacao: "Nunca recebido", tom: "neutro" });
+    // já teve lote e acabou: Sem estoque
+    const acabou = montarFichaInsumo({ ...base, lotes: [], saldo: zerado, previsao: null, jaRecebido: true });
+    expect(acabou.estoque).toMatchObject({ sinais: ["sem_disponivel"], nuncaRecebido: false, situacao: "Sem estoque" });
+    // leitura dos lotes sem resposta: não inventa, vale Sem estoque
+    const semLeitura = montarFichaInsumo({ ...base, lotes: [], saldo: zerado, previsao: null, jaRecebido: null });
+    expect(semLeitura.estoque).toMatchObject({ nuncaRecebido: false, situacao: "Sem estoque" });
+  });
+
   it("saldo não lido não vira zero", () => {
     const ficha = montarFichaInsumo({ ...base, saldo: null, previsao: null });
     expect(ficha.estoque).toBeNull();

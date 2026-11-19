@@ -9,7 +9,7 @@ import { TabelaDoGrafico } from "@/components/common/TabelaDoGrafico";
 import type { BarraSituacao, ResumoSinais } from "@/lib/estoque/controle-estoque";
 import { formatInteger } from "@/lib/formatters";
 
-const COR_BARRA: Record<BarraSituacao["tom"], string> = { red: "#b91c1c", amber: "#d97706", ok: "#008a00" };
+const COR_BARRA: Record<BarraSituacao["tom"], string> = { red: "#b91c1c", amber: "#d97706", ok: "#008a00", neutro: "#94a3b8" };
 
 /**
  * Visão em gráfico do controle do estoque: quantos insumos em cada situação,
@@ -100,6 +100,12 @@ export function ResumoGraficoEstoque({ barras, resumo }: { barras: BarraSituacao
             <Nota tom="ok">
               <b className="text-foreground">{resumo.emDia} em dia</b>, sem nenhum sinal.
             </Nota>
+            {resumo.nuncaRecebido > 0 && (
+              <Nota tom="neutro">
+                <b className="text-foreground">{resumo.nuncaRecebido} nunca {resumo.nuncaRecebido === 1 ? "recebido" : "recebidos"}</b>:
+                cadastrado, ainda sem nenhuma chegada. Não conta como sem estoque.
+              </Nota>
+            )}
           </ul>
         </div>
         <div className="mt-5 border-t border-border pt-3" data-testid="taxa-de-saude">
@@ -118,7 +124,7 @@ export function ResumoGraficoEstoque({ barras, resumo }: { barras: BarraSituacao
             <div className="h-full rounded-full bg-primary" style={{ width: `${resumo.saudePct}%` }} />
           </div>
           <p className="mt-1 text-xs text-muted-foreground">
-            {resumo.emDia} de {resumo.total} insumos ativos sem nenhum sinal.
+            {resumo.emDia} de {resumo.baseSaude} insumos já recebidos sem nenhum sinal.
           </p>
         </div>
       </section>
@@ -126,7 +132,7 @@ export function ResumoGraficoEstoque({ barras, resumo }: { barras: BarraSituacao
   );
 }
 
-const PONTO = { red: "bg-danger-strong", amber: "bg-warning-strong", ok: "bg-success-strong" } as const;
+const PONTO = { red: "bg-danger-strong", amber: "bg-warning-strong", ok: "bg-success-strong", neutro: "bg-muted-foreground" } as const;
 
 function Nota({ tom, children }: { tom: keyof typeof PONTO; children: React.ReactNode }) {
   return (

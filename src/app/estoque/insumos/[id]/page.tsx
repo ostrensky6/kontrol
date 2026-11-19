@@ -10,7 +10,7 @@ import { lerConsumoMensal, lerPrevisaoInsumo } from "@/lib/estoque/consumo-mensa
 import type { FichaInsumo } from "@/lib/estoque/ficha-insumo";
 import { idDaFicha } from "@/lib/estoque/ficha-insumo-rota";
 import { lerFichaInsumo } from "@/lib/estoque/ficha-insumo-dados";
-import { META_SINAL, ROTULO_ESTOQUE_OK, type TomSinal } from "@/lib/estoque/situacao-insumo";
+import { META_SINAL, ROTULO_ESTOQUE_OK, ROTULO_NUNCA_RECEBIDO, type TomSinal } from "@/lib/estoque/situacao-insumo";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import { cn } from "@/lib/utils";
 
@@ -140,6 +140,8 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                   estoque.sinais.map((sinal) => (
                     <Selo key={sinal} tom={META_SINAL[sinal].tom}>{META_SINAL[sinal].rotulo}</Selo>
                   ))
+                ) : estoque.nuncaRecebido ? (
+                  <Selo tom="neutro">{ROTULO_NUNCA_RECEBIDO}</Selo>
                 ) : (
                   <Selo tom="slate">{ROTULO_ESTOQUE_OK}</Selo>
                 )

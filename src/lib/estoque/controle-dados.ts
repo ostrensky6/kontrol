@@ -11,6 +11,7 @@ import {
 } from "@/lib/estoque/baixa";
 import { avisosDoInsumo, resumirSinais, type AvisoDb, type AvisoInsumo, type ResumoSinais } from "@/lib/estoque/controle-estoque";
 import { ROTULO_STATUS_LOTE } from "@/lib/estoque/ficha-insumo";
+import { lerInsumosJaRecebidos } from "@/lib/estoque/ja-recebidos";
 import { janelaVencimentoDias, loteVenceEmBreve } from "@/lib/estoque/situacao-insumo";
 import { formatDate, formatNumber } from "@/lib/formatters";
 import { noGlossario } from "@/lib/glossario";
@@ -58,13 +59,15 @@ type LeituraBase = {
   alertas: AlertaControleDb[];
   previsao: PrevisaoDisponivelDb[];
   lotes: LoteControleDb[];
+  /** insumos que já tiveram algum lote; null = não lido (ninguém vira "Nunca recebido") */
+  recebidos: Set<number> | null;
   janelaVencimento: number;
   erros: string[];
 };
 
 /** Saldo, alertas, previsão e lotes: o que a contagem e a tela usam. */
 async function lerBase(supabase: SupabaseClient): Promise<LeituraBase> {
-  const [saldo, alertas, previsao, lotes, parametros] = await Promise.all([
+  const [saldo, alertas, previsao, lotes, parametros, jaRecebidos] = await Promise.all([
     // listas lidas de mil em mil (o PostgREST corta em 1.000 linhas)
     lerTudo<SaldoControleDb>((de, ate) =>
       supabase.from("v_estoque_saldo").select("*").order("especificacao").order("insumo_id").range(de, ate),
@@ -99,18 +102,23 @@ async function lerBase(supabase: SupabaseClient): Promise<LeituraBase> {
     ),
     // janela do "vence em breve": a mesma de v_alertas_estoque (padrão 60 dias)
     supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
+    // quem nunca teve lote é "Nunca recebido", não "Sem estoque" (19/11/2026)
+    lerInsumosJaRecebidos(supabase),
   ]);
   const erros = [
     saldo.error && `saldo: ${saldo.error.message}`,
     alertas.error && `alertas: ${alertas.error.message}`,
     previsao.error && `previsão de compra: ${previsao.error.message}`,
     lotes.error && `lotes: ${lotes.error.message}`,
+    // sem esta leitura o "Sem estoque" contaria o que nunca chegou: o número vira "sem dado"
+    jaRecebidos.error && `insumos já recebidos: ${jaRecebidos.error.message}`,
   ].filter((erro): erro is string => Boolean(erro));
   return {
     saldo: saldo.data,
     alertas: alertas.data,
     previsao: previsao.data,
     lotes: lotes.data,
+    recebidos: jaRecebidos.recebidos,
     janelaVencimento: janelaVencimentoDias((parametros.data as { valor: unknown }[] | null)?.[0]?.valor),
     erros,
   };
@@ -128,6 +136,7 @@ function montarLinhas(base: LeituraBase, hoje: string): LinhaEstoqueDisponivel[]
       quantidade_atual: lote.quantidade_atual,
       status: lote.status,
     })),
+    recebidos: base.recebidos,
     hoje,
     janelaVencimento: base.janelaVencimento,
   });

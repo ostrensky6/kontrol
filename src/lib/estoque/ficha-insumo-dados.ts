@@ -2,6 +2,7 @@ import "server-only";
 
 import { pode } from "@/lib/auth/permissao-efetiva";
 import { hojeIso } from "@/lib/estoque/baixa";
+import { insumoJaRecebido } from "@/lib/estoque/ja-recebidos";
 import { janelaVencimentoDias } from "@/lib/estoque/situacao-insumo";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 import { createClientUntyped } from "@/lib/supabase/server";
@@ -84,7 +85,7 @@ export async function lerFichaInsumo(insumoId: number): Promise<DadosFichaInsumo
   ]);
 
   const hoje = hojeIso();
-  const [saldoResp, previsaoResp, alertasResp, lotesResp, reservasResp, itensResp, comprasResp, analisesResp, movimentosResp, parametrosResp] =
+  const [saldoResp, previsaoResp, alertasResp, lotesResp, reservasResp, itensResp, comprasResp, analisesResp, movimentosResp, parametrosResp, jaRecebidoResp] =
     await Promise.all([
       supabase
         .from("v_estoque_saldo")
@@ -142,6 +143,8 @@ export async function lerFichaInsumo(insumoId: number): Promise<DadosFichaInsumo
         .limit(8),
       // janela do "vence em breve": a mesma de v_alertas_estoque (padrão 60 dias)
       supabase.from("parametros").select("chave, valor").eq("chave", "janela_vencimento_dias"),
+      // quem nunca teve lote é "Nunca recebido", não "Sem estoque" (19/11/2026); sem leitura, vale "Sem estoque"
+      insumoJaRecebido(supabase, insumoId),
     ]);
 
   const reservas = reservasResp.data ?? [];
@@ -175,6 +178,7 @@ export async function lerFichaInsumo(insumoId: number): Promise<DadosFichaInsumo
     compras: comprasResp.itens,
     analises: (analisesResp.data ?? []) as AnaliseFichaDb[],
     movimentos: (movimentosResp.data ?? []) as MovimentoFichaDb[],
+    jaRecebido: jaRecebidoResp.recebidos ? jaRecebidoResp.recebidos.has(insumoId) : null,
     hoje,
     janelaVencimento: janelaVencimentoDias((parametrosResp.data as { valor: unknown }[] | null)?.[0]?.valor),
   });

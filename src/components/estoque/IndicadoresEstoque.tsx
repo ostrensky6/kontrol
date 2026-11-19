@@ -33,7 +33,7 @@ export function IndicadoresEstoque({ resumo }: { resumo: ResumoSinais | null }) 
         <StatCard
           label="Saúde do estoque"
           value={resumo ? `${resumo.saudePct}%` : "sem dado"}
-          detail={resumo ? `${resumo.emDia} de ${resumo.total} insumos em dia` : DETALHE_SEM_DADO_ESTOQUE}
+          detail={resumo ? `${resumo.emDia} de ${resumo.baseSaude} insumos em dia` : DETALHE_SEM_DADO_ESTOQUE}
           tone={!resumo ? "neutral" : resumo.saudePct >= 80 ? "success" : resumo.saudePct >= 50 ? "warning" : "danger"}
           className="h-full"
         />
@@ -45,8 +45,13 @@ export function IndicadoresEstoque({ resumo }: { resumo: ResumoSinais | null }) 
             </p>
             <p>Nos outros números, um insumo com dois sinais conta nos dois.</p>
             <p>
-              <b>Sem estoque</b> conta todo insumo com o disponível zerado, no número e nos quadros de alerta. O
-              zerado que ainda não tem mínimo traz a observação <b>sem mínimo definido</b> na linha.
+              <b>Sem estoque</b> conta o insumo que já foi recebido e está com o disponível zerado, no número e nos
+              quadros de alerta. O zerado que ainda não tem mínimo traz a observação <b>sem mínimo definido</b> na
+              linha.
+            </p>
+            <p>
+              <b>Nunca recebido</b> é o insumo cadastrado que ainda não teve nenhuma chegada: não conta como sem
+              estoque e fica fora da saúde. O filtro <b>Nunca recebido</b> da lista por insumo mostra todos.
             </p>
             <HelpExample>40 insumos, 30 em dia → saúde de 75%.</HelpExample>
           </HelpTip>

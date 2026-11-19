@@ -1,8 +1,10 @@
 import {
   META_SINAL,
   ROTULO_ESTOQUE_OK,
+  ROTULO_NUNCA_RECEBIDO,
   SINAIS_INSUMO,
   contarComSinal,
+  contarNuncaRecebidosSemSinal,
   contarSemSinal,
   insumoAtendeFiltro,
   type SinalInsumo,
@@ -110,6 +112,7 @@ export const FILTROS_SITUACAO_CONTROLE = [
   { valor: "sem_validade", rotulo: "Sem validade" },
   { valor: "compra_atrasada", rotulo: "Compra atrasada" },
   { valor: "ok", rotulo: ROTULO_ESTOQUE_OK },
+  { valor: "nunca_recebido", rotulo: ROTULO_NUNCA_RECEBIDO },
   { valor: "todos", rotulo: "Todos" },
 ] as const;
 
@@ -127,6 +130,8 @@ export type InsumoParaControle = {
   insumoId: number;
   especificacao: string;
   sinais: readonly SinalInsumo[];
+  /** nunca teve lote: não é "Sem estoque" nem "Em dia" */
+  nuncaRecebido?: boolean;
   categoriaCompra: string | null;
   avisos: readonly Pick<AvisoInsumo, "status">[];
 };
@@ -138,7 +143,7 @@ export function filtrarInsumosDoControle<T extends InsumoParaControle>(itens: re
   const busca = filtros.busca.trim().toLowerCase();
   return itens.filter((item) => {
     if (busca && !item.especificacao.toLowerCase().includes(busca) && !String(item.insumoId).includes(busca)) return false;
-    if (!insumoAtendeFiltro(item.sinais, filtros.situacao)) return false;
+    if (!insumoAtendeFiltro(item.sinais, filtros.situacao, Boolean(item.nuncaRecebido))) return false;
     if (!insumoAtendeCriticidade(item.categoriaCompra, filtros.criticidade)) return false;
     return insumoAtendeAvisos(item.avisos, filtros.avisos);
   });
@@ -158,19 +163,27 @@ export type ResumoSinais = {
   vencidosOuVencendo: number;
   semValidade: number;
   compraAtrasada: number;
-  /** insumos sem nenhum sinal */
+  /** insumos que nunca tiveram lote (com ou sem outro sinal): não contam como "Sem estoque" */
+  nuncaRecebido: number;
+  /** insumos já recebidos e sem nenhum sinal */
   emDia: number;
-  /** percentual de insumos em dia, de 0 a 100 */
+  /** base da saúde: insumos ativos, menos os nunca recebidos sem sinal */
+  baseSaude: number;
+  /** percentual da base que está em dia, de 0 a 100 */
   saudePct: number;
 };
 
+type ItemDoResumo = { sinais: readonly SinalInsumo[]; nuncaRecebido?: boolean };
+
 /**
  * Contagem dos sinais do estoque. Um insumo com dois sinais conta nos dois
- * números; "em dia" e a saúde contam quem não tem nenhum.
+ * números; "em dia" e a saúde contam quem não tem nenhum. O insumo nunca
+ * recebido e sem sinal não é falta nem está em dia: fica fora da saúde.
  */
-export function resumirSinais(itens: readonly { sinais: readonly SinalInsumo[] }[]): ResumoSinais {
+export function resumirSinais(itens: readonly ItemDoResumo[]): ResumoSinais {
   const total = itens.length;
   const emDia = contarSemSinal(itens);
+  const baseSaude = total - contarNuncaRecebidosSemSinal(itens);
   return {
     total,
     semEstoque: contarComSinal(itens, "sem_disponivel"),
@@ -181,8 +194,10 @@ export function resumirSinais(itens: readonly { sinais: readonly SinalInsumo[] }
     vencidosOuVencendo: contarComSinal(itens, "vencido", "vencendo"),
     semValidade: contarComSinal(itens, "sem_validade"),
     compraAtrasada: contarComSinal(itens, "compra_atrasada"),
+    nuncaRecebido: itens.filter((item) => item.nuncaRecebido).length,
     emDia,
-    saudePct: total > 0 ? Math.round((emDia / total) * 100) : 0,
+    baseSaude,
+    saudePct: baseSaude > 0 ? Math.round((emDia / baseSaude) * 100) : 0,
   };
 }
 
@@ -249,19 +264,21 @@ export function numerosDoEstoque(resumo: ResumoSinais | null): NumeroDoEstoque[]
   ];
 }
 
-export type BarraSituacao = { situacao: string; insumos: number; tom: "red" | "amber" | "ok" };
+export type BarraSituacao = { situacao: string; insumos: number; tom: "red" | "amber" | "ok" | "neutro" };
 
 /**
  * Gráfico "Insumos por situação": cada insumo entra uma vez, na situação mais
- * grave que tem; as barras somam o total de insumos ativos.
+ * grave que tem; as barras somam o total de insumos ativos. O nunca recebido
+ * sem sinal tem a própria barra, neutra.
  */
-export function insumosPorSituacaoPrincipal(itens: readonly { sinais: readonly SinalInsumo[] }[]): BarraSituacao[] {
+export function insumosPorSituacaoPrincipal(itens: readonly ItemDoResumo[]): BarraSituacao[] {
   const barras: BarraSituacao[] = SINAIS_INSUMO.map((sinal) => ({
     situacao: META_SINAL[sinal].rotulo,
     insumos: itens.filter((item) => item.sinais[0] === sinal).length,
     tom: META_SINAL[sinal].tom,
   }));
   barras.push({ situacao: ROTULO_ESTOQUE_OK, insumos: contarSemSinal(itens), tom: "ok" });
+  barras.push({ situacao: ROTULO_NUNCA_RECEBIDO, insumos: contarNuncaRecebidosSemSinal(itens), tom: "neutro" });
   return barras.filter((barra) => barra.insumos > 0);
 }
 
