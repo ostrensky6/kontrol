@@ -60,3 +60,25 @@ describe("PedidoInternoAcoes: entrega antes do pagamento (0170)", () => {
     expect(html).not.toContain("Registrar exceção");
   });
 });
+
+/** Decisão de Antonio em 19/11/2026: item novo (nunca comprado) é cadastrado por Compras antes de formalizar. */
+describe("PedidoInternoAcoes: item novo sem cadastro trava a formalização", () => {
+  const motivo = "Há 1 item novo, ainda sem cadastro. Use “Cadastrar insumo” na lista de itens antes de formalizar.";
+
+  it("com item novo, “Formalizar em compras” fica desabilitado e diz o que fazer", () => {
+    const html = render({ status: "validado", motivoItensSemCadastro: motivo });
+    expect(html).toMatch(/<button disabled="" title="Há 1 item novo[^"]*">Formalizar em compras<\/button>/);
+    expect(html).toContain(`<p class="max-w-80 text-xs text-muted-foreground">${motivo}</p>`);
+  });
+
+  it("o item novo vem antes do ciclo fechado: é o que a pessoa já pode resolver", () => {
+    const html = render({ status: "validado", motivoItensSemCadastro: motivo, motivoCicloTravado: "O ciclo abre em 01/12." });
+    expect(html).toContain(motivo);
+    expect(html).not.toContain("O ciclo abre em 01/12.");
+  });
+
+  it("sem item novo, a formalização segue como antes", () => {
+    expect(render({ status: "validado" })).toMatch(/<button>Formalizar em compras<\/button>/);
+    expect(render({ status: "validado", motivoCicloTravado: "O ciclo abre em 01/12." })).toContain("O ciclo abre em 01/12.");
+  });
+});

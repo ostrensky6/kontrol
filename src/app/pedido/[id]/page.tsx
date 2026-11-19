@@ -32,6 +32,7 @@ import { proximoPasso } from "@/lib/pedido/proximo-passo";
 import { Timeline } from "@/components/common/Timeline";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
 import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
+import { motivoItensSemCadastro } from "@/lib/pedido/item-novo";
 import { STATUS_DE_AJUSTE, lerSituacaoReenvio, textoReenvio } from "@/lib/pedido/reenvio";
 import { listarEventos } from "@/lib/actions/eventos";
 import {
@@ -118,6 +119,7 @@ export default async function PedidoInternoDetalhe({
     podeAprovarCompra,
     podeUrgencia,
     podeEstornar,
+    podeEditarInsumos,
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -172,6 +174,7 @@ export default async function PedidoInternoDetalhe({
     pode("compras.aprovar"),
     pode("pedido.urgencia"),
     pode("estoque.lote.gerir"),
+    pode("insumos.editar"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -270,6 +273,11 @@ export default async function PedidoInternoDetalhe({
   // aprova). Depois de formalizado, o pedido volta para ajuste antes de mudar a
   // lista (a compra formal acompanha). Mesma regra do servidor.
   const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado"].includes(pedido.status));
+  // Item novo (nunca comprado): quem mexe nos itens e tem "Editar insumos" cadastra pelo pedido.
+  const podeCadastrarInsumo = podeEditarItens && podeEditarInsumos;
+  // o banco recusa formalizar com material ou equipamento sem insumo: a tela diz antes
+  const motivoItemNovo =
+    pedido.status === "validado" ? motivoItensSemCadastro(linhas, { podeCadastrar: podeCadastrarInsumo }) : null;
 
   // Recebimento é uma marca paralela: o pedido está recebido quando tem itens e
   // todos foram recebidos individualmente.
@@ -434,6 +442,7 @@ export default async function PedidoInternoDetalhe({
             esperaLaboratorio={esperaLaboratorio}
             podeDecidirLaboratorio={podeDecidirLaboratorio}
             motivoCiclo={motivoCiclo}
+            motivoItensSemCadastro={motivoItemNovo}
             pendenciaPagamento={pendenciaPagamento}
             podeConfirmar={podeConfirmar}
             resumoOrcamentos={resumoOrcamentos}
@@ -500,6 +509,7 @@ export default async function PedidoInternoDetalhe({
           podeCancelar={podeCancelar}
           rascunhoCompleto={rascunhoCompleto}
           travaEnvio={travaEnvio}
+          podeCadastrarInsumo={podeCadastrarInsumo}
         />
 
         <section className="mt-4 grid items-start gap-4 lg:grid-cols-2">

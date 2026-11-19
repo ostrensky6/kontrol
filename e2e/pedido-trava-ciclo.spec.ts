@@ -27,6 +27,8 @@ test("pedido do ciclo seguinte trava a formalização com o motivo", async ({ pa
 
 test("lista de pedidos mostra quando o ciclo abre", async ({ page }) => {
   await page.goto("/pedido");
+  // a lista tem páginas: a busca acha o pedido, quantos forem os pedidos que os outros roteiros criaram
+  await page.getByRole("searchbox", { name: "Buscar pedido, projeto ou solicitante" }).fill("Reagente do ciclo seguinte E2E");
   const linha = page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ });
   await expect(linha).toContainText("dezembro/2099 · abre 01/12/2099");
 });
