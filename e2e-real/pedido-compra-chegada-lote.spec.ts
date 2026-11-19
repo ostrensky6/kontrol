@@ -92,11 +92,15 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
   await expect(novo.getByTestId("novo-pedido-itens")).toContainText(insumoNome);
   // a cotação prévia entra com o pedido, por quem pede (ajustes de 19/11/2026, ajuste 2)
-  await novo.getByLabel("Cotação prévia", { exact: true }).setInputFiles({
+  const cotacaoDoPedido = novo.getByRole("group", { name: "Documento 1" });
+  await cotacaoDoPedido.getByLabel("Título").fill("Cotação prévia do roteiro");
+  await cotacaoDoPedido.getByLabel("Arquivo").setInputFiles({
     name: "cotacao-previa-roteiro.pdf",
     mimeType: "application/pdf",
     buffer: Buffer.from("%PDF-1.4\n% roteiro automático\n"),
   });
+  await cotacaoDoPedido.getByLabel("Link ou referência externa (opcional)").fill("https://exemplo.invalid/cotacao-previa-roteiro");
+  await cotacaoDoPedido.getByLabel("Observação").fill("Valor estimado: R$ 400,00");
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
@@ -112,10 +116,18 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   // a cotação prévia foi gravada no Storage e registrada na Solicitação
   const { data: cotacaoPrevia } = await cliente
     .from("pedidos_internos_anexos")
-    .select("tipo, etapa, titulo, storage_bucket, storage_path")
+    .select("tipo, etapa, titulo, url, observacao, arquivo_nome, storage_bucket, storage_path")
     .eq("pedido_interno_id", pedidoId);
   expect(cotacaoPrevia).toEqual([
-    expect.objectContaining({ tipo: "orcamento_previo", etapa: "rascunho", titulo: "cotacao-previa-roteiro.pdf", storage_bucket: "pedidos-internos-anexos" }),
+    expect.objectContaining({
+      tipo: "orcamento_previo",
+      etapa: "rascunho",
+      titulo: "Cotação prévia do roteiro",
+      url: "https://exemplo.invalid/cotacao-previa-roteiro",
+      observacao: "Valor estimado: R$ 400,00",
+      arquivo_nome: "cotacao-previa-roteiro.pdf",
+      storage_bucket: "pedidos-internos-anexos",
+    }),
   ]);
   expect(String((cotacaoPrevia?.[0] as { storage_path?: string } | undefined)?.storage_path)).toMatch(new RegExp(`^${pedidoId}/`));
 

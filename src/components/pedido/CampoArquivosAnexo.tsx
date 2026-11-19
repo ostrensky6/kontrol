@@ -15,12 +15,15 @@ export function CampoArquivosAnexo({
   name,
   label,
   multiple = false,
+  somaNoFormulario = false,
   className,
 }: {
   id: string;
   name: string;
   label: string;
   multiple?: boolean;
+  /** o formulário tem mais de um campo de arquivo: o limite vale para a soma */
+  somaNoFormulario?: boolean;
   className?: string;
 }) {
   const [erro, setErro] = useState<string | null>(null);
@@ -73,7 +76,7 @@ export function CampoArquivosAnexo({
       ) : (
         <p id={ajudaId} className="mt-1 text-xs text-muted-foreground">
           PDF, imagem, DOCX ou XLSX, até {LIMITE_ENVIO_ANEXOS_ROTULO}
-          {multiple ? " somando todos os arquivos" : ""}.
+          {multiple || somaNoFormulario ? " somando todos os arquivos" : ""}.
         </p>
       )}
     </div>

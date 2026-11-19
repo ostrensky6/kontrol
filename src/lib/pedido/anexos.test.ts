@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  campoDocumentoNovoPedido,
+  ehEnderecoWeb,
+  lerDocumentosNovoPedido,
   LIMITE_ENVIO_ANEXOS_BYTES,
+  MAXIMO_DOCUMENTOS_NOVO_PEDIDO,
   motivoArquivosRecusados,
   motivoTipoForaDaEtapa,
   pedidoComSolicitante,
@@ -58,5 +62,68 @@ describe("arquivos de um envio", () => {
     expect(motivoArquivosRecusados([pdf("a.pdf", 2 * 1024 * 1024), pdf("b.pdf", 2 * 1024 * 1024)])).toContain(
       "Os arquivos somam 4 MB; cabem até 3,5 MB por envio.",
     );
+  });
+});
+
+/** Pedido de Antonio em 19/11/2026 18:19 (Brasília): no Novo pedido, os mesmos campos de "Registrar documento". */
+describe("documentos do Novo pedido: tipo, título, arquivo, link e observação", () => {
+  function formulario(documentos: Record<number, Partial<Record<"tipo" | "titulo" | "url" | "observacao", string>> & { arquivo?: File }>) {
+    const dados = new FormData();
+    dados.set("documentos_indices", Object.keys(documentos).join(","));
+    for (const [indice, campos] of Object.entries(documentos)) {
+      for (const [campo, valor] of Object.entries(campos)) {
+        dados.set(campoDocumentoNovoPedido(Number(indice), campo as "tipo"), valor as string | File);
+      }
+    }
+    return dados;
+  }
+
+  it("lê cada documento com os cinco campos; link e valor estimado entram sem arquivo", () => {
+    const arquivo = new File(["x"], "termo.pdf", { type: "application/pdf" });
+    const lidos = lerDocumentosNovoPedido(
+      formulario({
+        0: { tipo: "orcamento_previo", titulo: "Cotação do kit", url: "https://loja.exemplo/kit", observacao: "Valor estimado: R$ 1.200,00" },
+        3: { tipo: "termo_referencia", arquivo },
+      }),
+    );
+    expect(lidos).toEqual([
+      { tipo: "orcamento_previo", titulo: "Cotação do kit", arquivo: null, url: "https://loja.exemplo/kit", observacao: "Valor estimado: R$ 1.200,00" },
+      { tipo: "termo_referencia", titulo: "termo.pdf", arquivo, url: null, observacao: null },
+    ]);
+  });
+
+  it("conjunto em branco não vira documento; sem título e sem arquivo, vale o nome do tipo", () => {
+    const lidos = lerDocumentosNovoPedido(
+      formulario({
+        0: { tipo: "orcamento_previo", titulo: "  ", url: "", observacao: "" },
+        1: { tipo: "orcamento_previo", url: "https://loja.exemplo/ponteira" },
+      }),
+    );
+    expect(lidos).toEqual([
+      { tipo: "orcamento_previo", titulo: "Cotação prévia", arquivo: null, url: "https://loja.exemplo/ponteira", observacao: null },
+    ]);
+  });
+
+  it("só aceita os tipos de quem pede e respeita o máximo de documentos", () => {
+    const muitos = Object.fromEntries(
+      Array.from({ length: MAXIMO_DOCUMENTOS_NOVO_PEDIDO + 3 }, (_, i) => [i, { tipo: "nota_fiscal", titulo: `Doc ${i}` }]),
+    );
+    const lidos = lerDocumentosNovoPedido(formulario(muitos));
+    expect(lidos).toHaveLength(MAXIMO_DOCUMENTOS_NOVO_PEDIDO);
+    expect(new Set(lidos.map((d) => d.tipo))).toEqual(new Set(["orcamento_previo"]));
+  });
+
+  it("formulário sem a lista de documentos não grava nenhum", () => {
+    expect(lerDocumentosNovoPedido(new FormData())).toEqual([]);
+  });
+});
+
+describe("link ou referência externa", () => {
+  it("só endereço http(s) vira link; o resto fica como texto", () => {
+    expect(ehEnderecoWeb("https://loja.exemplo/kit?id=1")).toBe(true);
+    expect(ehEnderecoWeb("http://loja.exemplo")).toBe(true);
+    for (const valor of ["e-mail de 12/11", "javascript:alert(1)", "www.loja.exemplo", "", null, "https://loja.exemplo com espaço"]) {
+      expect(ehEnderecoWeb(valor), String(valor)).toBe(false);
+    }
   });
 });

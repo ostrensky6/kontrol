@@ -57,25 +57,40 @@ beforeEach(() => {
 
 /** Relatório de ajustes de 19/11/2026, ajuste 2. */
 describe("cotação prévia e termo de referência entram com o pedido", () => {
-  it("o Novo pedido grava a cotação prévia e o termo de referência junto com o pedido", async () => {
+  it("o Novo pedido grava cada documento com tipo, título, arquivo, link e observação", async () => {
     const { criarPedidoInterno } = await import("./pedidos-internos");
     const dados = new FormData();
     dados.set("titulo", "Reagentes");
     dados.set("acao", "rascunho");
     dados.set("itens_json", "[]");
-    dados.append("documento_orcamento_previo", pdf("cotacao-a.pdf"));
-    dados.append("documento_orcamento_previo", pdf("cotacao-b.pdf"));
-    dados.append("documento_termo_referencia", pdf("termo.pdf"));
-    // campo de arquivo vazio não conta
-    dados.append("documento_termo_referencia", new File([], ""));
+    dados.set("documentos_indices", "0,1,2");
+    // cotação prévia só com link e valor estimado, sem arquivo
+    dados.set("documento_0_tipo", "orcamento_previo");
+    dados.set("documento_0_titulo", "Cotação do kit");
+    dados.set("documento_0_arquivo", new File([], ""));
+    dados.set("documento_0_url", "https://loja.exemplo/kit");
+    dados.set("documento_0_observacao", "Valor estimado: R$ 1.200,00");
+    // termo de referência com arquivo e sem título: vale o nome do arquivo
+    dados.set("documento_1_tipo", "termo_referencia");
+    dados.set("documento_1_arquivo", pdf("termo.pdf"));
+    // conjunto em branco não conta
+    dados.set("documento_2_tipo", "orcamento_previo");
+    dados.set("documento_2_arquivo", new File([], ""));
 
     await criarPedidoInterno({ ok: false }, dados);
 
-    expect(upload).toHaveBeenCalledTimes(3);
+    expect(upload).toHaveBeenCalledTimes(1);
     expect(inseridos.pedidos_internos_anexos).toEqual([
-      expect.objectContaining({ pedido_interno_id: 77, etapa: "rascunho", tipo: "orcamento_previo", titulo: "cotacao-a.pdf" }),
-      expect.objectContaining({ pedido_interno_id: 77, etapa: "rascunho", tipo: "orcamento_previo", titulo: "cotacao-b.pdf" }),
-      expect.objectContaining({ pedido_interno_id: 77, etapa: "rascunho", tipo: "termo_referencia", titulo: "termo.pdf" }),
+      expect.objectContaining({
+        pedido_interno_id: 77,
+        etapa: "rascunho",
+        tipo: "orcamento_previo",
+        titulo: "Cotação do kit",
+        url: "https://loja.exemplo/kit",
+        observacao: "Valor estimado: R$ 1.200,00",
+        storage_path: null,
+      }),
+      expect.objectContaining({ pedido_interno_id: 77, etapa: "rascunho", tipo: "termo_referencia", titulo: "termo.pdf", url: null }),
     ]);
     expect(redirect).toHaveBeenCalledWith("/pedido/77");
   });
@@ -86,7 +101,8 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     dados.set("titulo", "Reagentes");
     dados.set("acao", "rascunho");
     dados.set("itens_json", "[]");
-    dados.append("documento_orcamento_previo", pdf("grande.pdf", 4 * 1024 * 1024));
+    dados.set("documentos_indices", "0");
+    dados.set("documento_0_arquivo", pdf("grande.pdf", 4 * 1024 * 1024));
 
     const resultado = await criarPedidoInterno({ ok: false }, dados);
 
@@ -102,7 +118,8 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     dados.set("titulo", "Reagentes");
     dados.set("acao", "rascunho");
     dados.set("itens_json", "[]");
-    dados.append("documento_orcamento_previo", pdf("cotacao.pdf"));
+    dados.set("documentos_indices", "0");
+    dados.set("documento_0_arquivo", pdf("cotacao.pdf"));
 
     await criarPedidoInterno({ ok: false }, dados);
 
