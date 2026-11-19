@@ -19,21 +19,13 @@ import { CAMPOS_ITEM_NOVO_PEDIDO, faltaNosItens, lerItensNovoPedido } from "@/li
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
+import { motivoArquivosRecusados, motivoTipoForaDaEtapa } from "@/lib/pedido/anexos";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
   message: "Seu perfil não tem permissão para esta etapa. Peça ao administrador para liberar em Usuários.",
 };
 const BUCKET_ANEXOS_PEDIDOS = "pedidos-internos-anexos";
-const TAMANHO_MAXIMO_ANEXO = 15 * 1024 * 1024;
-const MIME_TYPES_ANEXO = new Set([
-  "application/pdf",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-]);
 
 function nomeArquivoSeguro(nome: string) {
   const normalizado = nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -239,6 +231,12 @@ async function mudarStatus({
  * exemplo), ele fica como rascunho e a pessoa cai nele com o aviso, em vez de
  * perder o que preencheu.
  */
+/** Campos de arquivo do "Novo pedido" e o tipo de documento de cada um. */
+const DOCUMENTOS_NOVO_PEDIDO = [
+  { campo: "documento_orcamento_previo", tipo: "orcamento_previo" },
+  { campo: "documento_termo_referencia", tipo: "termo_referencia" },
+] as const;
+
 export async function criarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const u = await usuarioAtual();
   const enviar = texto(formData, "acao") === "enviar";
@@ -270,6 +268,12 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   }
   const faltaItens = faltaNosItens(lidos.itens, enviar);
   if (faltaItens) return { ok: false, message: faltaItens };
+  // ajuste de 19/11/2026: cotação prévia e termo de referência entram com o pedido
+  const documentos = DOCUMENTOS_NOVO_PEDIDO.flatMap(({ campo, tipo }) =>
+    arquivosDoCampo(formData, campo).map((arquivo) => ({ tipo, arquivo })),
+  );
+  const arquivosRecusados = motivoArquivosRecusados(documentos.map((documento) => documento.arquivo));
+  if (arquivosRecusados) return { ok: false, message: arquivosRecusados };
 
   const supabase = await createClientUntyped();
   let coordenador_projeto_nome: string | null = null;
@@ -318,13 +322,27 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
 
   // Daqui em diante o pedido existe: o que falhar vira aviso no próprio pedido,
   // nunca uma segunda tentativa que criaria outro pedido igual.
-  let aviso: "itens" | "envio" | null = null;
+  let aviso: "itens" | "documentos" | "envio" | null = null;
   if (lidos.itens.length > 0) {
     const { data: gravados, error: erroItens } = await supabase
       .from("pedidos_internos_itens")
       .insert(lidos.itens.map((item) => ({ pedido_interno_id: pedidoId, ...item })))
       .select("id");
     if (erroItens || (gravados ?? []).length !== lidos.itens.length) aviso = "itens";
+  }
+  // os documentos vão antes do envio: se um não gravou, o pedido fica como rascunho para registrá-lo
+  for (const { tipo, arquivo } of documentos) {
+    const erro = await gravarAnexoPedido(supabase, {
+      pedidoId,
+      etapa: "rascunho",
+      tipo,
+      titulo: arquivo.name,
+      arquivo,
+      url: null,
+      observacao: null,
+      usuario: u?.email ?? null,
+    });
+    if (erro && !aviso) aviso = "documentos";
   }
   if (enviar && !aviso) {
     // O banco também trava (0169); a mensagem fica no quadro "Conferir e enviar" do pedido.
@@ -1109,25 +1127,32 @@ export async function estornarRecebimentoLancamento(_prev: FormState, formData: 
   return { ok: true, message: "Lançamento de recebimento estornado." };
 }
 
-export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
-  const pedidoId = Number(formData.get("pedido_interno_id"));
-  const arquivoForm = formData.get("arquivo");
-  const arquivo = arquivoForm instanceof File && arquivoForm.size > 0 ? arquivoForm : null;
-  const titulo = texto(formData, "titulo") ?? (arquivo ? arquivo.name : null);
-  if (!pedidoId || !titulo) return { ok: false, message: "Informe o título do documento ou escolha um arquivo." };
-  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) {
-    return { ok: false, message: "Seu perfil não tem permissão para registrar documentos." };
-  }
-  if (arquivo && arquivo.size > TAMANHO_MAXIMO_ANEXO) {
-    return { ok: false, message: "O arquivo excede o limite de 15 MB." };
-  }
-  if (arquivo && arquivo.type && !MIME_TYPES_ANEXO.has(arquivo.type)) {
-    return { ok: false, message: "Formato de arquivo não permitido. Envie PDF, imagem, DOCX ou XLSX." };
-  }
+type ClienteSupabase = Awaited<ReturnType<typeof createClientUntyped>>;
 
-  const u = await usuarioAtual();
-  const supabase = await createClient();
-  const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
+/** Arquivos escolhidos num campo de arquivo do formulário (campo vazio não conta). */
+function arquivosDoCampo(formData: FormData, campo: string): File[] {
+  return formData.getAll(campo).filter((valor): valor is File => valor instanceof File && valor.size > 0);
+}
+
+/**
+ * Grava um documento do pedido: o arquivo no Storage e a linha em
+ * pedidos_internos_anexos. Devolve a mensagem de erro, ou null quando gravou.
+ * Se a linha não entra, o arquivo enviado é apagado.
+ */
+async function gravarAnexoPedido(
+  supabase: ClienteSupabase,
+  anexo: {
+    pedidoId: number;
+    etapa: string | null;
+    tipo: string;
+    titulo: string;
+    arquivo: File | null;
+    url: string | null;
+    observacao: string | null;
+    usuario: string | null;
+  },
+): Promise<string | null> {
+  const { pedidoId, arquivo } = anexo;
   let storagePath: string | null = null;
   let hashSha256: string | null = null;
   let arquivoNome: string | null = null;
@@ -1144,40 +1169,68 @@ export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: Fo
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ANEXOS_PEDIDOS)
       .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-    if (uploadError) return { ok: false, message: mensagemDoBanco(uploadError, "Falha no envio do arquivo. Tente de novo.") };
+    if (uploadError) return mensagemDoBanco(uploadError, "Falha no envio do arquivo. Tente de novo.");
   }
 
-  let { error } = await supabase.from("pedidos_internos_anexos").insert({
+  const linha = {
     pedido_interno_id: pedidoId,
-    etapa: pedido?.status ?? null,
-    tipo: texto(formData, "tipo") ?? "outro",
-    titulo,
-    url: texto(formData, "url"),
+    etapa: anexo.etapa,
+    tipo: anexo.tipo,
+    titulo: anexo.titulo,
+    url: anexo.url,
+    observacao: anexo.observacao,
+    usuario: anexo.usuario,
+  };
+  let { error } = await supabase.from("pedidos_internos_anexos").insert({
+    ...linha,
     arquivo_nome: arquivoNome,
     storage_bucket: storagePath ? BUCKET_ANEXOS_PEDIDOS : null,
     storage_path: storagePath,
     mime_type: mimeType,
     tamanho_bytes: tamanhoBytes,
     hash_sha256: hashSha256,
-    observacao: texto(formData, "observacao"),
-    usuario: u?.email ?? null,
-  } as never);
+  });
   if (error && storagePath) {
     await supabase.storage.from(BUCKET_ANEXOS_PEDIDOS).remove([storagePath]);
   }
   if (erroSchemaCache(error)) {
-    const retry = await supabase.from("pedidos_internos_anexos").insert({
-      pedido_interno_id: pedidoId,
-      etapa: pedido?.status ?? null,
-      tipo: texto(formData, "tipo") ?? "outro",
-      titulo,
-      url: texto(formData, "url"),
-      observacao: texto(formData, "observacao"),
-      usuario: u?.email ?? null,
-    });
+    const retry = await supabase.from("pedidos_internos_anexos").insert(linha);
     error = retry.error;
   }
-  if (error) return { ok: false, message: mensagemDoBanco(error) };
+  return error ? mensagemDoBanco(error) : null;
+}
+
+export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const arquivo = arquivosDoCampo(formData, "arquivo")[0] ?? null;
+  const titulo = texto(formData, "titulo") ?? (arquivo ? arquivo.name : null);
+  const tipo = texto(formData, "tipo") ?? "outro";
+  if (!pedidoId || !titulo) return { ok: false, message: "Informe o título do documento ou escolha um arquivo." };
+  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) {
+    return { ok: false, message: "Seu perfil não tem permissão para registrar documentos." };
+  }
+  const recusado = arquivo ? motivoArquivosRecusados([arquivo]) : null;
+  if (recusado) return { ok: false, message: recusado };
+
+  const u = await usuarioAtual();
+  const supabase = await createClientUntyped();
+  const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
+  const status = (pedido as { status?: string } | null)?.status ?? null;
+  // ajuste de 19/11/2026: cotação prévia e termo de referência são de quem pede
+  const foraDaEtapa = motivoTipoForaDaEtapa(tipo, status);
+  if (foraDaEtapa) return { ok: false, message: foraDaEtapa };
+
+  const erro = await gravarAnexoPedido(supabase, {
+    pedidoId,
+    etapa: status,
+    tipo,
+    titulo,
+    arquivo,
+    url: texto(formData, "url"),
+    observacao: texto(formData, "observacao"),
+    usuario: u?.email ?? null,
+  });
+  if (erro) return { ok: false, message: erro };
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Documento registrado." };
 }

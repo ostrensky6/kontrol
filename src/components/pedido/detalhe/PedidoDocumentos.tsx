@@ -4,6 +4,8 @@ import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { formatDateTime } from "@/lib/formatters";
+import { pedidoComSolicitante, tiposDeDocumentoNoStatus } from "@/lib/pedido/anexos";
+import { CampoArquivosAnexo } from "@/components/pedido/CampoArquivosAnexo";
 import {
   ANEXO_TIPO_LABEL,
   type PedidoInternoAnexo,
@@ -16,6 +18,8 @@ type Props = {
   anexoRows: PedidoInternoAnexo[];
   editavel: boolean;
   pedidoId: number;
+  /** status do pedido: cotação prévia e termo de referência só enquanto ele está com quem pede */
+  status: string | null;
 };
 
 /** Documentos do pedido: lista e inclusão. */
@@ -24,14 +28,17 @@ export function PedidoDocumentos({
   anexoRows,
   editavel,
   pedidoId,
+  status,
 }: Props) {
+  const tipos = tiposDeDocumentoNoStatus(status);
+  const comSolicitante = pedidoComSolicitante(status);
   return (
     <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-1">
           <h2 className="text-sm font-semibold text-muted-foreground">Documentos</h2>
           <HelpTip title="Documentos">
-            <p>Cotações, termos, ofícios, boletos, notas e comprovantes.</p>
+            <p>A cotação prévia e o termo de referência são de quem pede e entram com o pedido. Depois vêm as cotações do fornecedor, ofícios, boletos, notas e comprovantes.</p>
           </HelpTip>
         </div>
         <span className={`rounded-md px-2 py-1 text-xs ${temDocumentoCotacao ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
@@ -93,28 +100,22 @@ export function PedidoDocumentos({
           <input type="hidden" name="pedido_interno_id" value={pedidoId} />
           <div>
             <label htmlFor="adicionarAnexoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
-            <select id="adicionarAnexoPedidoInterno-tipo" name="tipo" defaultValue="orcamento_previo" className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`}>
-              <option value="orcamento_previo">Cotação prévia</option>
-              <option value="proposta">Cotação do fornecedor</option>
-              <option value="print">Print</option>
-              <option value="email">E-mail</option>
-              <option value="termo_referencia">Termo de referência</option>
-              <option value="oficio">Ofício</option>
-              <option value="boleto">Boleto</option>
-              <option value="nota_fiscal">Nota fiscal</option>
-              <option value="comprovante">Comprovante</option>
-              <option value="outro">Outro</option>
+            <select id="adicionarAnexoPedidoInterno-tipo" name="tipo" defaultValue={tipos[0]?.valor} className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`}>
+              {tipos.map((tipo) => (
+                <option key={tipo.valor} value={tipo.valor}>{tipo.rotulo}</option>
+              ))}
             </select>
+            {!comSolicitante && (
+              <p className="mt-1 text-xs text-muted-foreground" data-testid="documentos-da-solicitacao">
+                Cotação prévia e termo de referência entram com o pedido, por quem pede.
+              </p>
+            )}
           </div>
           <div>
             <label htmlFor="adicionarAnexoPedidoInterno-titulo" className="block text-xs text-muted-foreground/80">Título</label>
             <input id="adicionarAnexoPedidoInterno-titulo" name="titulo" required className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`} />
           </div>
-          <div className="md:col-span-2">
-            <label htmlFor="adicionarAnexoPedidoInterno-arquivo" className="block text-xs text-muted-foreground/80">Arquivo</label>
-            <input id="adicionarAnexoPedidoInterno-arquivo" name="arquivo" type="file" accept="application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx" className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`} />
-            <p className="mt-1 text-[11px] text-muted-foreground">PDF, imagem, DOCX ou XLSX, até 15 MB.</p>
-          </div>
+          <CampoArquivosAnexo id="adicionarAnexoPedidoInterno-arquivo" name="arquivo" label="Arquivo" className="md:col-span-2" />
           <div className="md:col-span-2">
             <label htmlFor="adicionarAnexoPedidoInterno-url" className="block text-xs text-muted-foreground/80">Link ou referência externa (opcional)</label>
             <input id="adicionarAnexoPedidoInterno-url" name="url" placeholder="https://..." className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`} />

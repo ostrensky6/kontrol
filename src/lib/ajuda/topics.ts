@@ -441,7 +441,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo e justificativa. Fonte e rubrica são definidas pelo administrativo; o formulário não pede.",
           "Os itens entram no próprio formulário: preencha um item e use 'Adicionar item'; ele vai para a lista, onde dá para editar ou remover. Para enviar, o pedido precisa de ao menos um item com especificação, quantidade e unidade.",
-          "'Enviar para aprovação' grava o pedido com os itens e já o envia a quem aprova, sem passar por rascunho. 'Guardar rascunho' guarda para terminar depois, no próprio pedido.",
+          "A cotação prévia e o termo de referência são de quem pede e entram no próprio 'Novo pedido' (opcional; PDF, imagem, DOCX ou XLSX, até 3,5 MB somando os arquivos). Enquanto o pedido está em rascunho ou devolvido para ajuste, dá para registrá-los também em 'Documentos'; da Aprovação em diante, esses dois tipos não entram mais.",
+          "'Enviar para aprovação' grava o pedido com os itens e os documentos e já o envia a quem aprova, sem passar por rascunho. 'Guardar rascunho' guarda para terminar depois, no próprio pedido.",
           "Fechar o formulário com algo preenchido pede confirmação antes de descartar. Se o pedido for gravado e o envio não sair (projeto sem coordenador, por exemplo), ele fica como rascunho e abre com o aviso do que falta.",
           "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês; depois disso, no ciclo seguinte. Vale a data da última aprovação da coordenação (a do coordenador do projeto e, em material de laboratório, a da coordenação do laboratório). Se o dia 10 cair no sábado ou no domingo, o prazo vai para a segunda. Feriado ainda não entra na conta. O pedido mostra a data da solicitação, a da aprovação e o ciclo.",
           "Pedido do ciclo seguinte fica travado em 'Validado': o administrativo só formaliza a partir do dia 1 do mês do ciclo. O pedido mostra a data, ele não aparece em 'Aguardando você' antes disso, e no dia 1 o responsável do administrativo recebe um aviso. Se o administrativo definir o pedido como urgente, com justificativa, ele fura a trava.",
@@ -1032,7 +1033,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Recursos de navegação",
         itens: [
-          "Menu lateral, na ordem do trabalho: Início, Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
+          "Menu lateral: Início, Cadastros, Estoque, Compras, Projetos, Análises e custeio, Orçamentos, Governança e Ajuda. Cada um abre a sua barra, no topo da tela.",
           "Projetos reúne os orçamentos, planejamentos e compras de cada projeto, e o Planejamento do que cada um vai usar.",
           "Compras vai do pedido ao recebimento; o recebimento lança o lote no Estoque. O custo dos insumos forma o custo das análises, e só então sai o Orçamento ao cliente.",
           "Barra do topo: à esquerda, os lugares do módulo aberto; à direita, a busca, o sino e a ajuda.",

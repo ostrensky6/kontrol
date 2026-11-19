@@ -13,18 +13,18 @@ test.afterEach(async ({ page }) => {
   await page.context().clearCookies();
 });
 
-test("barra lateral na ordem do processo: Projetos, Compras, Estoque, Análises e custeio e só então Orçamentos (L3, L4; organização de 11/11)", async ({ page }) => {
+test("barra lateral na ordem pedida em 19/11: Início, Cadastros, Estoque, Compras, Projetos, Análises e custeio, Orçamentos (L3, L4)", async ({ page }) => {
   await page.setViewportSize({ width: 1366, height: 850 });
   await page.goto("/");
   const principal = page.getByRole("navigation", { name: "Navegação principal" });
   await expect(principal.getByRole("link")).toHaveText([
     "Início",
-    "Projetos",
-    "Compras",
+    "Cadastros",
     "Estoque",
+    "Compras",
+    "Projetos",
     "Análises e custeio",
     "Orçamentos",
-    "Cadastros",
     "Governança",
     "Ajuda",
   ]);
