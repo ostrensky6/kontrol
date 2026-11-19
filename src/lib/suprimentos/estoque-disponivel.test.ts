@@ -47,6 +47,49 @@ describe("estoque disponível da visão geral", () => {
     expect(linhaAtendeFiltro(linha, "ok")).toBe(false);
   });
 
+  // decisão de Antonio em 19/11/2026 (pergunta do Giorgi sobre item nunca comprado)
+  it("zerado que nunca teve lote é Nunca recebido, não Sem estoque; o que já teve lote segue Sem estoque", () => {
+    const linhas = montarEstoqueDisponivel({
+      ...base,
+      saldo: [saldo(1, "Acetona", 0), saldo(2, "Tampão novo", 0, { ponto_reposicao: 0 }), saldo(3, "Etanol", 5)],
+      // só a Acetona e o Etanol já tiveram lote
+      recebidos: new Set([1, 3]),
+    });
+    const [acetona, etanol, tampao] = linhas;
+    expect([acetona.situacao, acetona.nuncaRecebido]).toEqual(["Sem estoque", false]);
+    expect([etanol.situacao, etanol.nuncaRecebido]).toEqual(["Em dia", false]);
+    expect(tampao).toMatchObject({ situacao: "Nunca recebido", tom: "neutro", sinais: [], nuncaRecebido: true });
+    expect(linhaAtendeFiltro(tampao, "nunca_recebido")).toBe(true);
+    expect(linhaAtendeFiltro(tampao, "sem_disponivel")).toBe(false);
+    expect(linhaAtendeFiltro(tampao, "atencao")).toBe(false);
+    expect(linhaAtendeFiltro(tampao, "ok")).toBe(false);
+    expect(linhaAtendeFiltro(tampao, "todos")).toBe(true);
+    expect(linhaAtendeFiltro(acetona, "nunca_recebido")).toBe(false);
+  });
+
+  it("nunca recebido com sugestão de compra aparece em Repor, sem o Sem estoque", () => {
+    const [linha] = montarEstoqueDisponivel({
+      ...base,
+      saldo: [saldo(2, "Tampão novo", 0)],
+      previsao: [{ insumo_id: 2, qtd_sugerida_compra: 10, qtd_pedida_aberta: 0 }],
+      recebidos: new Set<number>(),
+    });
+    expect(linha).toMatchObject({ sinais: ["reposicao"], situacao: "Repor", nuncaRecebido: true });
+    expect(linhaAtendeFiltro(linha, "atencao")).toBe(true);
+    expect(linhaAtendeFiltro(linha, "nunca_recebido")).toBe(true);
+  });
+
+  it("sem a leitura dos lotes (ou com saldo) ninguém vira Nunca recebido", () => {
+    const semLeitura = montarEstoqueDisponivel({ ...base, saldo: [saldo(2, "Tampão novo", 0)], recebidos: null });
+    expect(semLeitura[0]).toMatchObject({ situacao: "Sem estoque", nuncaRecebido: false });
+    const comSaldo = montarEstoqueDisponivel({ ...base, saldo: [saldo(2, "Tampão novo", 3)], recebidos: new Set<number>() });
+    expect(comSaldo[0].nuncaRecebido).toBe(false);
+  });
+
+  it("o filtro Nunca recebido é uma opção válida da URL", () => {
+    expect(filtroEstoqueValido("nunca_recebido")).toBe("nunca_recebido");
+  });
+
   it("validade mais próxima entre os lotes com saldo, considerando a validade após abertura", () => {
     const [linha] = montarEstoqueDisponivel({
       ...base,

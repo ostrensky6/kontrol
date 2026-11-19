@@ -21,6 +21,8 @@ const TOM_SITUACAO: Record<LinhaEstoqueDisponivel["tom"], string> = {
   red: "bg-danger-soft text-danger-strong",
   amber: "bg-warning-soft text-warning-strong",
   slate: "bg-success-soft text-success-strong",
+  // nunca recebido: nem em dia, nem alerta
+  neutro: "bg-muted text-muted-foreground",
 };
 
 const TOM_FILTRO: Partial<Record<FiltroEstoqueDisponivel, "red" | "amber">> = {
@@ -189,7 +191,14 @@ export function EstoqueDisponivelTable<L extends LinhaEstoqueDisponivel>({
 
   return (
     <div className="space-y-3">
-      <FiltroCartoes opcoes={opcoes} valor={filtro} aoMudar={mudar} rotulo="Filtrar por situação" />
+      {/* sete situações: quatro e três até a tela larga, que mostra todas numa linha */}
+      <FiltroCartoes
+        opcoes={opcoes}
+        valor={filtro}
+        aoMudar={mudar}
+        rotulo="Filtrar por situação"
+        className="sm:grid-cols-4 xl:grid-cols-4 2xl:grid-cols-7"
+      />
       <DataTable
         data={visiveis}
         columns={columns}

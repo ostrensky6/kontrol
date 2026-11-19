@@ -14,6 +14,7 @@ import {
   opcoesFiltro,
   resumoPorCategoria,
   urlComFiltros,
+  type CategoriaResumo,
   type FiltrosPainel,
   type MovimentoPainelDb,
 } from "@/lib/cadastros/painel-insumos";
@@ -40,6 +41,7 @@ const COR = {
   critico: "#b91c1c",
   ambar: "#d97706",
   semMinimo: "#94a3b8",
+  nuncaRecebido: "#cbd5e1",
   entradas: "#008a00",
   saidas: "#01489d",
   valor: "#01489d",
@@ -131,6 +133,7 @@ export function PainelSituacaoEstoque({
     () => resumoPorCategoria(recorte.filter((item) => item.estadoSaldo === "saldo_sistema"), campoCategoria, 8),
     [recorte, campoCategoria],
   );
+  const temNuncaRecebido = porCategoria.some((linha) => linha.nuncaRecebido > 0);
   const valores = useMemo(() => valorPorCategoria(recorte, campoCategoria), [recorte, campoCategoria]);
   const cobertura = useMemo(() => faixasCobertura(recorte), [recorte]);
   const movimentosMes = useMemo(
@@ -297,7 +300,10 @@ export function PainelSituacaoEstoque({
                 <Legend verticalAlign="top" height={28} wrapperStyle={{ fontSize: 12 }} />
                 <Bar dataKey="critico" name="Crítico no sistema" stackId="s" fill={COR.critico} />
                 <Bar dataKey="ok" name="Acima do mínimo" stackId="s" fill={COR.ok} />
-                <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="semMinimo" name="Sem mínimo" stackId="s" fill={COR.semMinimo} radius={temNuncaRecebido ? undefined : [0, 4, 4, 0]} />
+                {temNuncaRecebido && (
+                  <Bar dataKey="nuncaRecebido" name="Nunca recebido" stackId="s" fill={COR.nuncaRecebido} radius={[0, 4, 4, 0]} />
+                )}
               </BarChart>
             </ResponsiveContainer>
           ) : (
@@ -311,6 +317,7 @@ export function PainelSituacaoEstoque({
                 { rotulo: "Crítico no sistema", valor: (l) => formatInteger(l.critico) },
                 { rotulo: "Acima do mínimo", valor: (l) => formatInteger(l.ok) },
                 { rotulo: "Sem mínimo", valor: (l) => formatInteger(l.semMinimo) },
+                ...(temNuncaRecebido ? [{ rotulo: "Nunca recebido", valor: (l: CategoriaResumo) => formatInteger(l.nuncaRecebido) }] : []),
               ]}
               linhas={porCategoria}
               chave={(l) => l.categoria}

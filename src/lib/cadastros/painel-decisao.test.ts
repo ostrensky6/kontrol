@@ -207,6 +207,47 @@ describe("painel de alertas", () => {
     expect(resumirDecisao(decisao.insumos)).toMatchObject({ semMinimo: 1 });
   });
 
+  // decisão de Antonio em 19/11/2026 (pergunta do Giorgi sobre item nunca comprado)
+  it("zerado que nunca teve lote sai de Sem estoque e vai para o quadro cinza Nunca recebidos", () => {
+    // 1 (mínimo 2) e 4 (sem mínimo) zerados; só o 1 já teve lote
+    const base = montarInsumosPainel(insumos, [saldos[0], { insumo_id: 4, disponivel: 0 }, saldos[1], saldos[2]], { recebidos: new Set([1, 2, 3]) });
+    const decisao = montarDecisao(base, [{ insumo_id: 4, qtd_sugerida_compra: 0, qtd_pedida_aberta: 2 }], [], []);
+    const alertas = montarAlertas({ itens: decisao.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    const por = Object.fromEntries(alertas.map((a) => [a.chave, a]));
+    expect(por["em-falta"].itens.map((i) => i.chave)).toEqual(["i1"]);
+    expect(por["nunca-recebido"]).toMatchObject({
+      titulo: "Nunca recebidos",
+      tom: "cinza",
+      itens: [{ chave: "i4", titulo: "Tubo", detalhe: "2 a caminho" }],
+    });
+    // um quadro só: o nunca recebido não aparece também em "Sem mínimo definido"
+    expect(por["sem-minimo"].itens).toEqual([]);
+    const tubo = decisao.insumos.find((i) => i.id === 4)!;
+    expect(tubo).toMatchObject({ nuncaRecebido: true, situacao: "nunca_recebido", motivos: [] });
+    expect(resumirDecisao(decisao.insumos)).toMatchObject({ emFalta: 1, nuncaRecebido: 1, semMinimo: 0 });
+    // cinza não entra na contagem do Início nem de Cadastros
+    expect(linhasDeAtencao(alertas).map((l) => l.alerta)).not.toContain("nunca-recebido");
+    const faixas = faixasCobertura(decisao.insumos);
+    expect(faixas[0]).toEqual({ faixa: "Sem estoque", insumos: 1, tom: "ambar" });
+    expect(faixas.at(-1)).toEqual({ faixa: "Nunca recebido", insumos: 1, tom: "cinza" });
+  });
+
+  it("nunca recebido com sugestão de compra aparece em Repor; sem nenhum, o quadro não aparece", () => {
+    const base = montarInsumosPainel(insumos, [{ insumo_id: 1, disponivel: 0 }], { recebidos: new Set<number>() });
+    const decisao = montarDecisao(base, [{ insumo_id: 1, qtd_sugerida_compra: 5, qtd_pedida_aberta: 0 }], [], []);
+    const alertas = montarAlertas({ itens: decisao.insumos, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    const por = Object.fromEntries(alertas.map((a) => [a.chave, a]));
+    expect(decisao.insumos.find((i) => i.id === 1)!.motivos).toEqual(["comprar"]);
+    expect(por["em-falta"].itens).toEqual([]);
+    expect(por["repor"].itens).toEqual([expect.objectContaining({ chave: "i1", detalhe: "comprar 5 · nunca recebido" })]);
+    expect(por["nunca-recebido"].itens.map((i) => i.chave)).toEqual(["i1"]);
+
+    const semNenhum = montarAlertas({ itens, lotesVencendo: [], lotes: [], movimentos: [], hojeIso: hoje });
+    expect(semNenhum.map((a) => a.chave)).not.toContain("nunca-recebido");
+    // sem a leitura dos lotes a faixa de cobertura não ganha a barra
+    expect(faixasCobertura(itens).map((f) => f.faixa)).not.toContain("Nunca recebido");
+  });
+
   it("o número de Sem estoque e a linha da tabela do Início contam os mesmos insumos", () => {
     const base = montarInsumosPainel(insumos, [saldos[0], { insumo_id: 4, disponivel: 0 }]);
     const decisao = montarDecisao(base, [], [], []);

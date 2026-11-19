@@ -138,8 +138,18 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   const { data: lotes } = await cliente.from("lotes_estoque").select("id").eq("insumo_id", item.insumo_id!);
   expect(lotes ?? [], "insumo nunca recebido não tem lote").toEqual([]);
 
+  // no Estoque, o insumo recém-cadastrado é "Nunca recebido", não "Sem estoque" (a lista tem páginas: a busca acha)
+  await page.goto("/estoque?situacao=nunca_recebido");
+  await page.getByRole("searchbox", { name: "Buscar insumo" }).fill(insumoNome);
+  await expect(page.getByRole("row", { name: new RegExp(insumoNome) })).toContainText("Nunca recebido");
+  await page.goto("/estoque?situacao=sem_disponivel");
+  await page.getByRole("searchbox", { name: "Buscar insumo" }).fill(insumoNome);
+  // a contagem da tabela confirma que a busca rodou e não achou nada entre os "Sem estoque"
+  await expect(page.getByRole("status").filter({ hasText: /^0 de \d+$/ })).toBeVisible();
+  await expect(page.getByRole("row", { name: new RegExp(insumoNome) })).toHaveCount(0);
+
   // ---- 4. com o item ligado, a tela libera a formalização e a compra leva o insumo
-  await page.reload();
+  await page.goto(`/pedido/${pedidoId}`);
   await expect(page.getByText("Parte desta tela não carregou")).toHaveCount(0);
   await expect(page.getByText(`vinculado: ${insumoNome}`)).toBeVisible();
   await expect(page.getByText(/Há 1 item novo, ainda sem cadastro/)).toHaveCount(0);

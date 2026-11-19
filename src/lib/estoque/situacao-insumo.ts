@@ -7,6 +7,11 @@
  * filtros e cartões dos sinais que tem. O sinal mais grave (situação principal)
  * só define o rótulo e o tom do cartão. Insumo sem nenhum sinal = estoque em dia
  * (é o que a "Saúde do estoque" conta).
+ *
+ * Nunca recebido (decisão de Antonio em 19/11/2026): insumo cadastrado que
+ * nunca teve lote não é "Sem estoque". É um estado neutro, não um sinal: não
+ * pede atenção, não conta como "em dia" e fica fora da base da saúde. Se
+ * tiver outro sinal (Repor, compra atrasada), o sinal continua valendo.
  */
 
 import { loteVencido } from "./baixa";
@@ -38,6 +43,9 @@ export const META_SINAL: Record<SinalInsumo, { rotulo: string; tom: TomSinal }> 
 // glossário da revisão de 11/11 (10.5): o mesmo "Em dia" do filtro
 export const ROTULO_ESTOQUE_OK = "Em dia";
 
+/** Insumo cadastrado que nunca teve lote: ainda não chegou nada ao estoque. */
+export const ROTULO_NUNCA_RECEBIDO = "Nunca recebido";
+
 /** Tipo da linha de v_alertas_estoque que liga cada sinal vindo do banco. */
 const SINAL_POR_TIPO_ALERTA: Record<string, SinalInsumo> = {
   vencido: "vencido",
@@ -53,6 +61,8 @@ export type SaldoParaSinais = {
   disponivel?: Numerico;
   /** sugestão de compra da previsão (0130): > 0 = repor */
   qtd_sugerida_compra?: Numerico;
+  /** o insumo nunca teve lote, de nenhum status: zerado assim não é "Sem estoque" */
+  nunca_recebido?: boolean | null;
 };
 
 export type AlertaParaSinais = { tipo: string | null };
@@ -60,7 +70,8 @@ export type AlertaParaSinais = { tipo: string | null };
 /**
  * Todos os sinais do insumo, em ordem de gravidade.
  * - Reposição: a previsão sugere comprar (uma regra só, 0130).
- * - Sem estoque: disponível zerado.
+ * - Sem estoque: disponível zerado de insumo que já teve lote. O que nunca foi
+ *   recebido não entra aqui.
  * - Demais: linhas de v_alertas_estoque do insumo (vencido, sem validade,
  *   vencimento, compra atrasada e reposição aguardando aprovação).
  */
@@ -70,27 +81,32 @@ export function sinaisDoInsumo(saldo: SaldoParaSinais, alertas: readonly AlertaP
     const sinal = alerta.tipo ? SINAL_POR_TIPO_ALERTA[alerta.tipo] : undefined;
     if (sinal) presentes.add(sinal);
   }
-  if (Number(saldo.disponivel ?? 0) <= 0) presentes.add("sem_disponivel");
+  if (!saldo.nunca_recebido && Number(saldo.disponivel ?? 0) <= 0) presentes.add("sem_disponivel");
   if (Number(saldo.qtd_sugerida_compra ?? 0) > 0) presentes.add("reposicao");
   return SINAIS_INSUMO.filter((sinal) => presentes.has(sinal));
 }
 
 export type SituacaoInsumo = {
   sinais: SinalInsumo[];
-  /** sinal mais grave; null = estoque em dia */
+  /** sinal mais grave; null = estoque em dia ou insumo nunca recebido */
   principal: SinalInsumo | null;
+  /** nunca teve lote: sem sinal, o rótulo é "Nunca recebido", não "Em dia" */
+  nuncaRecebido: boolean;
   rotulo: string;
-  tom: TomSinal | "slate";
+  /** "slate" = em dia; "neutro" = nunca recebido e sem sinal */
+  tom: TomSinal | "slate" | "neutro";
 };
 
 export function situacaoDoInsumo(saldo: SaldoParaSinais, alertas: readonly AlertaParaSinais[]): SituacaoInsumo {
   const sinais = sinaisDoInsumo(saldo, alertas);
   const principal = sinais[0] ?? null;
+  const nuncaRecebido = Boolean(saldo.nunca_recebido);
   return {
     sinais,
     principal,
-    rotulo: principal ? META_SINAL[principal].rotulo : ROTULO_ESTOQUE_OK,
-    tom: principal ? META_SINAL[principal].tom : "slate",
+    nuncaRecebido,
+    rotulo: principal ? META_SINAL[principal].rotulo : nuncaRecebido ? ROTULO_NUNCA_RECEBIDO : ROTULO_ESTOQUE_OK,
+    tom: principal ? META_SINAL[principal].tom : nuncaRecebido ? "neutro" : "slate",
   };
 }
 
@@ -104,6 +120,7 @@ export const FILTROS_INSUMO = [
   { valor: "sem_validade", rotulo: "Sem validade" },
   { valor: "compra_atrasada", rotulo: "Compra atrasada" },
   { valor: "ok", rotulo: ROTULO_ESTOQUE_OK },
+  { valor: "nunca_recebido", rotulo: ROTULO_NUNCA_RECEBIDO },
 ] as const;
 
 export type FiltroInsumo = (typeof FILTROS_INSUMO)[number]["valor"];
@@ -112,12 +129,17 @@ function ehSinal(valor: string): valor is SinalInsumo {
   return (SINAIS_INSUMO as readonly string[]).includes(valor);
 }
 
-/** O insumo entra no filtro se tiver o sinal (não só se for o principal). */
-export function insumoAtendeFiltro(sinais: readonly SinalInsumo[], filtro: string): boolean {
+/**
+ * O insumo entra no filtro se tiver o sinal (não só se for o principal).
+ * "Nunca recebido" é um fato do insumo, tenha ou não sinal; sem sinal, ele
+ * não é "em dia" nem pede atenção.
+ */
+export function insumoAtendeFiltro(sinais: readonly SinalInsumo[], filtro: string, nuncaRecebido = false): boolean {
   if (filtro === "todos") return true;
-  // "precisa de atenção": qualquer sinal (o contrário de "em dia")
+  // "precisa de atenção": qualquer sinal
   if (filtro === "atencao") return sinais.length > 0;
-  if (filtro === "ok") return sinais.length === 0;
+  if (filtro === "ok") return sinais.length === 0 && !nuncaRecebido;
+  if (filtro === "nunca_recebido") return nuncaRecebido;
   if (filtro === "vencido_vencendo") return sinais.includes("vencido") || sinais.includes("vencendo");
   return ehSinal(filtro) && sinais.includes(filtro);
 }
@@ -130,9 +152,16 @@ export function contarComSinal(
   return itens.filter((item) => sinais.some((sinal) => item.sinais.includes(sinal))).length;
 }
 
-/** Insumos sem nenhum sinal: a base da "Saúde do estoque". */
-export function contarSemSinal(itens: readonly { sinais: readonly SinalInsumo[] }[]): number {
-  return itens.filter((item) => item.sinais.length === 0).length;
+type ItemComSinais = { sinais: readonly SinalInsumo[]; nuncaRecebido?: boolean };
+
+/** Insumos em dia: já recebidos e sem nenhum sinal. É o que a "Saúde do estoque" conta. */
+export function contarSemSinal(itens: readonly ItemComSinais[]): number {
+  return itens.filter((item) => item.sinais.length === 0 && !item.nuncaRecebido).length;
+}
+
+/** Insumos nunca recebidos e sem sinal: nem em dia, nem em alerta; ficam fora da base da saúde. */
+export function contarNuncaRecebidosSemSinal(itens: readonly ItemComSinais[]): number {
+  return itens.filter((item) => item.sinais.length === 0 && item.nuncaRecebido).length;
 }
 
 // ── Lotes ────────────────────────────────────────────────────────────────

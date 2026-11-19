@@ -20,6 +20,7 @@ import {
   type MovimentoPainelDb,
   type SaldoPainelDb,
 } from "@/lib/cadastros/painel-insumos";
+import { lerInsumosJaRecebidos } from "@/lib/estoque/ja-recebidos";
 import { lerTudo } from "@/lib/supabase/ler-tudo";
 
 /**
@@ -37,7 +38,7 @@ export async function carregarSituacaoEstoque(
   const completo = para === "painel";
   const inicio = inicioJanelaMeses(hoje, 12);
   const naoLido = <T,>() => Promise.resolve({ data: [] as T[], error: null as { message: string } | null });
-  const [insumos, saldos, movimentos, previsoes, custos, alertas, lotes] = await Promise.all([
+  const [insumos, saldos, movimentos, previsoes, custos, alertas, lotes, jaRecebidos] = await Promise.all([
     lerTudo<InsumoPainelDb>((de, ate) =>
       supabase
         .from("insumos")
@@ -93,11 +94,13 @@ export async function carregarSituacaoEstoque(
         .order("id")
         .range(de, ate),
     ),
+    // quem nunca teve lote é "Nunca recebido", não "Sem estoque" (19/11/2026)
+    lerInsumosJaRecebidos(supabase),
   ]);
-  const erros = [insumos, saldos, movimentos, previsoes, custos, alertas, lotes]
+  const erros = [insumos, saldos, movimentos, previsoes, custos, alertas, lotes, jaRecebidos]
     .map((leitura) => leitura.error?.message)
     .filter(Boolean);
-  const base = montarInsumosPainel(insumos.data, saldos.data, { saldosCompletos: !saldos.error });
+  const base = montarInsumosPainel(insumos.data, saldos.data, { saldosCompletos: !saldos.error, recebidos: jaRecebidos.recebidos });
   const decisao = montarDecisao(base, previsoes.data, custos.data, alertas.data, { previsoesCompletas: !previsoes.error });
   return {
     insumos: decisao.insumos,

@@ -12,6 +12,7 @@ import {
   type LoteDbBaixa,
 } from "@/lib/estoque/baixa";
 import { janelaVencimentoDias } from "@/lib/estoque/situacao-insumo";
+import { lerInsumosJaRecebidos } from "@/lib/estoque/ja-recebidos";
 import {
   VISOES_ESTOQUE,
   destinoAntigoDoEstoque,
@@ -123,6 +124,7 @@ export default async function EstoquePage({
     { data: vinculosCompra, error: vinculosCompraError },
     { data: vinculosInternos, error: vinculosInternosError },
     { data: reservasRaw, error: reservasError },
+    { recebidos },
   ] = await Promise.all([
     // listas de estoque lidas de mil em mil (o PostgREST corta em 1.000 linhas)
     lerTudo<Tables<"v_estoque_saldo">>((de, ate) =>
@@ -152,6 +154,8 @@ export default async function EstoquePage({
         .order("id")
         .range(de, ate),
     ),
+    // quem nunca teve lote é "Nunca recebido", não "Sem estoque" (19/11/2026); sem leitura, vale "Sem estoque"
+    leitura.de("insumos já recebidos", lerInsumosJaRecebidos(supabaseSemTipos)),
   ]);
   const lotes = (lotesRaw ?? []) as unknown as LoteEstoqueDb[];
   // reserva não lida não pode virar "nada reservado" (o disponível ficaria maior)
@@ -194,6 +198,7 @@ export default async function EstoquePage({
       quantidade_atual: l.quantidade_atual,
       status: l.status,
     })),
+    recebidos,
     hoje,
     janelaVencimento: janelaVencimentoDias((parametros as { valor: unknown }[] | null)?.[0]?.valor),
   });

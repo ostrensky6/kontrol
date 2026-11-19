@@ -724,6 +724,19 @@ const baseStore = (): Store => {
   movimentacoes_estoque: [],
   lotes_estoque: [
     {
+      // "Mix PCR" já foi recebido e acabou: zerado assim é "Sem estoque", não "Nunca recebido"
+      id: 3,
+      insumo_id: 1,
+      codigo_lote: "MIX-E2E-ACABOU",
+      validade: "2026-06-30",
+      validade_apos_abertura: null,
+      quantidade_inicial: 100,
+      quantidade_atual: 0,
+      custo_unitario: 1,
+      status: "consumido",
+      modelo_quantidade: "LEGADO",
+    },
+    {
       id: 1,
       insumo_id: 900,
       codigo_lote: "EMB-E2E-A",
@@ -3297,6 +3310,17 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           ativo: true,
         };
         (store.insumos ??= []).push(insumo);
+        // como na view de verdade: o insumo novo já tem linha de saldo, zerada e sem lote
+        store.v_estoque_saldo.push({
+          insumo_id: insumo.id,
+          especificacao: insumo.especificacao,
+          unidade: (dados.unidade as string | undefined) ?? null,
+          em_maos: 0,
+          em_quarentena: 0,
+          reservado: 0,
+          disponivel: 0,
+          ponto_reposicao: 0,
+        });
         return { data: { insumo_id: insumo.id, lote_id: null, quantidade_embalagens: 0, repetido: false }, error: null };
       }
       if (fn === "registrar_entrada_manual_embalagens") {

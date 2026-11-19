@@ -133,6 +133,7 @@ describe("resumo", () => {
       emFalta: 1,
       abaixoMinimo: 1,
       semMinimo: 0,
+      nuncaRecebido: 0,
       saldoIndisponivel: 1,
       saude: 1 / 3,
     });
@@ -144,10 +145,55 @@ describe("resumo", () => {
 
   it("agrupa por categoria, das mais críticas para as menos", () => {
     expect(resumoPorCategoria(itens, "categoriaCompra")).toEqual([
-      { categoria: "Reagentes", total: 2, ok: 0, critico: 2, semMinimo: 0, saldoIndisponivel: 0 },
-      { categoria: "Plásticos", total: 1, ok: 1, critico: 0, semMinimo: 0, saldoIndisponivel: 0 },
-      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 0, saldoIndisponivel: 1 },
+      { categoria: "Reagentes", total: 2, ok: 0, critico: 2, semMinimo: 0, nuncaRecebido: 0, saldoIndisponivel: 0 },
+      { categoria: "Plásticos", total: 1, ok: 1, critico: 0, semMinimo: 0, nuncaRecebido: 0, saldoIndisponivel: 0 },
+      { categoria: SEM_CATEGORIA, total: 1, ok: 0, critico: 0, semMinimo: 0, nuncaRecebido: 0, saldoIndisponivel: 1 },
     ]);
+  });
+});
+
+// decisão de Antonio em 19/11/2026 (pergunta do Giorgi sobre item nunca comprado)
+describe("insumo nunca recebido", () => {
+  const cadastro = [
+    { id: 10, especificacao: "Tampão novo", categoria_compra: "Reagentes", ponto_reposicao: 0 },
+    { id: 11, especificacao: "Tampão novo com mínimo", categoria_compra: "Reagentes", ponto_reposicao: 4 },
+    { id: 12, especificacao: "Tampão que acabou", categoria_compra: "Reagentes", ponto_reposicao: 4 },
+    { id: 13, especificacao: "Tampão sem leitura", categoria_compra: "Reagentes", ponto_reposicao: 4 },
+  ];
+  const zerados = [
+    { insumo_id: 10, disponivel: 0, em_maos: 0 },
+    { insumo_id: 11, disponivel: 0, em_maos: 0 },
+    { insumo_id: 12, disponivel: 0, em_maos: 0 },
+  ];
+  // só o 12 já teve lote
+  const recebidos = new Set([12]);
+
+  it("zerado sem nenhum lote é Nunca recebido, com ou sem mínimo; o que já teve lote segue em falta", () => {
+    const linhas = montarInsumosPainel(cadastro, zerados, { recebidos });
+    expect(linhas.map((i) => [i.id, i.situacao, i.nuncaRecebido])).toEqual([
+      [12, "em_falta", false],
+      [10, "nunca_recebido", true],
+      [11, "nunca_recebido", true],
+      [13, "saldo_indisponivel", false],
+    ]);
+    expect(resumirPainel(linhas)).toMatchObject({ emFalta: 1, critico: 1, semMinimo: 0, nuncaRecebido: 2, saldoIndisponivel: 1 });
+    expect(resumoPorCategoria(linhas, "categoriaCompra")).toEqual([
+      { categoria: "Reagentes", total: 4, ok: 0, critico: 1, semMinimo: 0, nuncaRecebido: 2, saldoIndisponivel: 1 },
+    ]);
+    expect(filtrarLista(linhas, { ...FILTROS_PAINEL_VAZIOS, situacao: "nunca_recebido" }).map((i) => i.id)).toEqual([10, 11]);
+    expect(filtrarLista(linhas, { ...FILTROS_PAINEL_VAZIOS, situacao: "critico" }).map((i) => i.id)).toEqual([12]);
+  });
+
+  it("sem a leitura dos lotes ninguém vira Nunca recebido: o zerado continua em falta", () => {
+    const linhas = montarInsumosPainel(cadastro, zerados);
+    expect(linhas.filter((i) => i.nuncaRecebido)).toEqual([]);
+    expect(linhas.find((i) => i.id === 11)!.situacao).toBe("em_falta");
+    expect(linhas.find((i) => i.id === 10)!.situacao).toBe("sem_minimo");
+  });
+
+  it("com saldo, o insumo já foi recebido, mesmo que a leitura dos lotes não o traga", () => {
+    const linhas = montarInsumosPainel(cadastro, [{ insumo_id: 10, disponivel: 3, em_maos: 3 }], { recebidos: new Set<number>() });
+    expect(linhas.find((i) => i.id === 10)).toMatchObject({ nuncaRecebido: false, situacao: "sem_minimo" });
   });
 });
 

@@ -11,11 +11,13 @@
  * - Sem mínimo = ponto de reposição zero ou vazio: não entra no crítico, mas
  *   aparece para o cadastro ser completado.
  * - Sem linha ou sem valor válido, a quantidade é desconhecida.
+ * - Nunca recebido (decisão de Antonio em 19/11/2026) = insumo zerado que
+ *   nunca teve lote: não está em falta nem abaixo do mínimo, só ainda não chegou.
  */
 
 import { normalizarBusca } from "@/lib/busca";
 
-export type SituacaoPainel = "em_falta" | "abaixo_minimo" | "ok" | "sem_minimo" | "saldo_indisponivel";
+export type SituacaoPainel = "em_falta" | "abaixo_minimo" | "ok" | "sem_minimo" | "nunca_recebido" | "saldo_indisponivel";
 
 export type EstadoSaldoPainel = "nao_conferido" | "saldo_indisponivel" | "saldo_sistema";
 
@@ -24,7 +26,8 @@ export const META_SITUACAO_PAINEL: Record<SituacaoPainel, { rotulo: string; orde
   abaixo_minimo: { rotulo: "Abaixo do mínimo", ordem: 1 },
   sem_minimo: { rotulo: "Sem mínimo definido", ordem: 2 },
   ok: { rotulo: "Acima do mínimo", ordem: 3 },
-  saldo_indisponivel: { rotulo: "Saldo indisponível", ordem: 4 },
+  nunca_recebido: { rotulo: "Nunca recebido", ordem: 4 },
+  saldo_indisponivel: { rotulo: "Saldo indisponível", ordem: 5 },
 };
 
 export const SEM_CATEGORIA = "Sem categoria";
@@ -74,6 +77,8 @@ export type InsumoPainel = {
   emMaos: number | null;
   estadoSaldo: EstadoSaldoPainel;
   minimo: number;
+  /** zerado que nunca teve lote: não conta como "Sem estoque" */
+  nuncaRecebido: boolean;
   situacao: SituacaoPainel;
 };
 
@@ -111,7 +116,14 @@ export function ehCritico(situacao: SituacaoPainel): boolean {
 export function montarInsumosPainel(
   insumos: readonly InsumoPainelDb[],
   saldos: readonly SaldoPainelDb[],
-  { saldosCompletos = true }: { saldosCompletos?: boolean } = {},
+  {
+    saldosCompletos = true,
+    recebidos = null,
+  }: {
+    saldosCompletos?: boolean;
+    /** insumos que já tiveram algum lote; null = não lido (ninguém vira "Nunca recebido") */
+    recebidos?: ReadonlySet<number> | null;
+  } = {},
 ): InsumoPainel[] {
   const saldoPorInsumo = new Map<number, SaldoPainelDb>();
   for (const saldo of saldos) saldoPorInsumo.set(Number(saldo.insumo_id), saldo);
@@ -124,6 +136,9 @@ export function montarInsumosPainel(
         ? "saldo_sistema"
         : !saldo && saldosCompletos ? "nao_conferido" : "saldo_indisponivel";
       const minimo = numero(insumo.ponto_reposicao);
+      const emMaos = numeroSaldo(saldo?.em_maos);
+      // só o zero lido do sistema vira "Nunca recebido": saldo desconhecido continua desconhecido
+      const nuncaRecebido = Boolean(recebidos) && !recebidos!.has(Number(insumo.id)) && disponivel === 0 && !((emMaos ?? 0) > 0);
       return {
         id: Number(insumo.id),
         especificacao: texto(insumo.especificacao) || `Insumo ${insumo.id}`,
@@ -133,14 +148,17 @@ export function montarInsumosPainel(
         codigoFabricante: texto(insumo.codigo_fabricante),
         unidade: texto(saldo?.unidade_saldo) || texto(saldo?.unidade) || texto(insumo.unidade),
         disponivel,
-        emMaos: numeroSaldo(saldo?.em_maos),
+        emMaos,
         estadoSaldo,
         minimo,
+        nuncaRecebido,
         // Origem da leitura e situação operacional são independentes.
         // Zero explícito é avaliado pelo mínimo, sem afirmar falta física.
         situacao: disponivel === null
           ? ("saldo_indisponivel" as const)
-          : situacaoPainel(disponivel, minimo),
+          : nuncaRecebido
+            ? ("nunca_recebido" as const)
+            : situacaoPainel(disponivel, minimo),
       };
     })
     .sort(
@@ -269,6 +287,8 @@ export type ResumoPainel = {
   emFalta: number;
   abaixoMinimo: number;
   semMinimo: number;
+  /** zerados que nunca tiveram lote: fora do crítico e da saúde */
+  nuncaRecebido: number;
   /** itens sem avaliação do mínimo por ausência, falha ou saldo inválido */
   saldoIndisponivel: number;
   /** % dos itens com mínimo definido que estão acima dele */
@@ -289,6 +309,7 @@ export function resumirPainel(itens: readonly InsumoPainel[]): ResumoPainel {
     emFalta,
     abaixoMinimo,
     semMinimo: conta("sem_minimo"),
+    nuncaRecebido: conta("nunca_recebido"),
     saldoIndisponivel: conta("saldo_indisponivel"),
     saude: comMinimo > 0 ? acimaMinimo / comMinimo : null,
   };
@@ -300,6 +321,7 @@ export type CategoriaResumo = {
   ok: number;
   critico: number;
   semMinimo: number;
+  nuncaRecebido: number;
   saldoIndisponivel: number;
 };
 
@@ -312,11 +334,12 @@ export function resumoPorCategoria(
   const mapa = new Map<string, CategoriaResumo>();
   for (const item of itens) {
     const categoria = item[campo];
-    const linha = mapa.get(categoria) ?? { categoria, total: 0, ok: 0, critico: 0, semMinimo: 0, saldoIndisponivel: 0 };
+    const linha = mapa.get(categoria) ?? { categoria, total: 0, ok: 0, critico: 0, semMinimo: 0, nuncaRecebido: 0, saldoIndisponivel: 0 };
     linha.total += 1;
     if (ehCritico(item.situacao)) linha.critico += 1;
     else if (item.situacao === "ok") linha.ok += 1;
     else if (item.situacao === "saldo_indisponivel") linha.saldoIndisponivel += 1;
+    else if (item.situacao === "nunca_recebido") linha.nuncaRecebido += 1;
     else linha.semMinimo += 1;
     mapa.set(categoria, linha);
   }

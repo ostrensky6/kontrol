@@ -95,6 +95,17 @@ describe("os quatro filtros da visão por insumo", () => {
   const base = { busca: "", situacao: "todos", criticidade: "todos", avisos: "todos" };
   const ids = (filtros: Partial<typeof base>) => filtrarInsumosDoControle(itens, { ...base, ...filtros }).map((i) => i.insumoId);
 
+  it("situação: Nunca recebido tem filtro próprio e fica fora de Em dia e de Precisa de atenção", () => {
+    const comNunca = [...itens, insumo({ insumoId: 4, especificacao: "Tampão novo", sinais: [], nuncaRecebido: true, categoriaCompra: "operacional" })];
+    const idsDe = (situacao: string) => filtrarInsumosDoControle(comNunca, { ...base, situacao }).map((i) => i.insumoId);
+    expect(idsDe("nunca_recebido")).toEqual([4]);
+    expect(idsDe("ok")).toEqual([3]);
+    expect(idsDe("atencao")).toEqual([1, 2]);
+    expect(idsDe("sem_disponivel")).toEqual([1]);
+    expect(idsDe("todos")).toEqual([1, 2, 3, 4]);
+    expect(filtroSituacaoControleValido("nunca_recebido")).toBe("nunca_recebido");
+  });
+
   it("situação: o insumo aparece em todo filtro de sinal que tem", () => {
     expect(ids({ situacao: "atencao" })).toEqual([1, 2]);
     expect(ids({ situacao: "sem_disponivel" })).toEqual([1]);
@@ -151,9 +162,28 @@ describe("números do estoque (topo da Situação e Início)", () => {
       vencidosOuVencendo: 2,
       semValidade: 1,
       compraAtrasada: 1,
+      nuncaRecebido: 0,
       emDia: 3,
+      baseSaude: 8,
       saudePct: 38,
     });
+  });
+
+  // decisão de Antonio em 19/11/2026: o que nunca chegou não é falta nem está em dia
+  it("nunca recebido não conta em Sem estoque nem em dia, e fica fora da base da saúde", () => {
+    const resumo = resumirSinais([
+      { sinais: ["sem_disponivel"] as SinalInsumo[] },
+      { sinais: [] as SinalInsumo[] },
+      { sinais: [] as SinalInsumo[], nuncaRecebido: true },
+      // nunca recebido com mínimo: o Repor continua valendo e ele entra na base
+      { sinais: ["reposicao"] as SinalInsumo[], nuncaRecebido: true },
+    ]);
+    expect(resumo).toMatchObject({ total: 4, semEstoque: 1, repor: 1, nuncaRecebido: 2, emDia: 1, baseSaude: 3, saudePct: 33 });
+    expect(numerosDoEstoque(resumo)[0]).toMatchObject({ label: "Sem estoque", value: 1 });
+  });
+
+  it("só nunca recebidos: a saúde não divide por zero", () => {
+    expect(resumirSinais([{ sinais: [], nuncaRecebido: true }])).toMatchObject({ emDia: 0, baseSaude: 0, saudePct: 0 });
   });
 
   it("sem estoque e vencidos ou vencendo são números separados", () => {
@@ -178,6 +208,15 @@ describe("números do estoque (topo da Situação e Início)", () => {
       { situacao: "Em dia", insumos: 3, tom: "ok" },
     ]);
     expect(barras.reduce((soma, barra) => soma + barra.insumos, 0)).toBe(itens.length);
+  });
+
+  it("gráfico: o nunca recebido sem sinal tem a própria barra, neutra, e a soma continua o total", () => {
+    const comNunca = [...itens, { sinais: [] as SinalInsumo[], nuncaRecebido: true }, { sinais: ["reposicao"] as SinalInsumo[], nuncaRecebido: true }];
+    const barras = insumosPorSituacaoPrincipal(comNunca);
+    expect(barras.at(-1)).toEqual({ situacao: "Nunca recebido", insumos: 1, tom: "neutro" });
+    expect(barras.find((barra) => barra.situacao === "Em dia")?.insumos).toBe(3);
+    expect(barras.find((barra) => barra.situacao === "Repor")?.insumos).toBe(1);
+    expect(barras.reduce((soma, barra) => soma + barra.insumos, 0)).toBe(comNunca.length);
   });
 });
 

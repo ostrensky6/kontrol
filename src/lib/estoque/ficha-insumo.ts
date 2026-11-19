@@ -372,6 +372,7 @@ export function montarFichaInsumo({
   compras,
   analises,
   movimentos,
+  jaRecebido,
   hoje,
   janelaVencimento,
 }: {
@@ -386,6 +387,8 @@ export function montarFichaInsumo({
   compras: readonly ItemACaminho[];
   analises: readonly AnaliseFichaDb[];
   movimentos: readonly MovimentoFichaDb[];
+  /** o insumo já teve algum lote? null ou ausente = não lido (não vira "Nunca recebido") */
+  jaRecebido?: boolean | null;
   hoje: string;
   janelaVencimento: number;
 }): FichaInsumo {
@@ -396,6 +399,7 @@ export function montarFichaInsumo({
         previsao: previsao ? [previsao] : [],
         alertas,
         lotes: lotes.map((lote) => ({ ...lote, insumo_id: saldo.insumo_id })),
+        recebidos: jaRecebido == null ? null : new Set(jaRecebido ? [Number(saldo.insumo_id)] : []),
         hoje,
         janelaVencimento,
       })[0] ?? null)
