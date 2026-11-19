@@ -25,8 +25,8 @@ import {
   normalizarItemNovoPedido,
   type CampoItemNovoPedido,
 } from "@/lib/pedido/itens-novo-pedido";
-import { CampoArquivosAnexo } from "./CampoArquivosAnexo";
 import { FormComMensagem } from "./FormComMensagem";
+import { NovoPedidoDocumentos } from "./NovoPedidoDocumentos";
 import { NovoPedidoItensLista, type ItemDaLista } from "./NovoPedidoItensLista";
 import { PedidoItemCamposAssistidos, type PedidoItemDefaults } from "./PedidoItemCamposAssistidos";
 
@@ -49,8 +49,8 @@ const CATALOGO_INDISPONIVEL: CatalogoNovoPedido = { catalogo: [], fornecedores: 
  * (ajuste 4). Fechar com algo preenchido pede confirmação antes de descartar;
  * "Guardar rascunho" guarda para terminar depois. Quem pede não define a
  * urgência (ajuste 2) nem sugere a fonte do recurso (ajuste 3). A cotação
- * prévia e o termo de referência entram aqui, com o pedido (ajustes de
- * 19/11/2026, ajuste 2).
+ * prévia e o termo de referência entram aqui, com o pedido e com os mesmos
+ * campos de "Registrar documento" (ajustes de 19/11/2026, ajuste 2).
  */
 export function NovoPedidoDialog({
   projetos,
@@ -433,16 +433,7 @@ function NovoPedidoFormulario({
           )}
         </section>
 
-        <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-2" aria-labelledby="novo-pedido-documentos-titulo">
-          <div className="md:col-span-2">
-            <h3 id="novo-pedido-documentos-titulo" className="text-sm font-semibold">Cotação prévia e termo de referência</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Opcional. Anexe aqui, com o pedido: da Aprovação em diante, esses dois documentos não entram mais.
-            </p>
-          </div>
-          <CampoArquivosAnexo id="novo-pedido-cotacao-previa" name="documento_orcamento_previo" label="Cotação prévia" multiple />
-          <CampoArquivosAnexo id="novo-pedido-termo-referencia" name="documento_termo_referencia" label="Termo de referência" multiple />
-        </section>
+        <NovoPedidoDocumentos />
 
         <DialogFooter className="sm:items-center">
           <p className="text-xs text-muted-foreground sm:mr-auto sm:max-w-md">

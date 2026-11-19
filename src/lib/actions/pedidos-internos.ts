@@ -19,7 +19,7 @@ import { CAMPOS_ITEM_NOVO_PEDIDO, faltaNosItens, lerItensNovoPedido } from "@/li
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
-import { motivoArquivosRecusados, motivoTipoForaDaEtapa } from "@/lib/pedido/anexos";
+import { lerDocumentosNovoPedido, motivoArquivosRecusados, motivoTipoForaDaEtapa } from "@/lib/pedido/anexos";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
@@ -231,12 +231,6 @@ async function mudarStatus({
  * exemplo), ele fica como rascunho e a pessoa cai nele com o aviso, em vez de
  * perder o que preencheu.
  */
-/** Campos de arquivo do "Novo pedido" e o tipo de documento de cada um. */
-const DOCUMENTOS_NOVO_PEDIDO = [
-  { campo: "documento_orcamento_previo", tipo: "orcamento_previo" },
-  { campo: "documento_termo_referencia", tipo: "termo_referencia" },
-] as const;
-
 export async function criarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   const u = await usuarioAtual();
   const enviar = texto(formData, "acao") === "enviar";
@@ -269,10 +263,11 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   const faltaItens = faltaNosItens(lidos.itens, enviar);
   if (faltaItens) return { ok: false, message: faltaItens };
   // ajuste de 19/11/2026: cotação prévia e termo de referência entram com o pedido
-  const documentos = DOCUMENTOS_NOVO_PEDIDO.flatMap(({ campo, tipo }) =>
-    arquivosDoCampo(formData, campo).map((arquivo) => ({ tipo, arquivo })),
+  // (tipo, título, arquivo, link e observação, como em "Registrar documento")
+  const documentos = lerDocumentosNovoPedido(formData);
+  const arquivosRecusados = motivoArquivosRecusados(
+    documentos.flatMap((documento) => (documento.arquivo ? [documento.arquivo] : [])),
   );
-  const arquivosRecusados = motivoArquivosRecusados(documentos.map((documento) => documento.arquivo));
   if (arquivosRecusados) return { ok: false, message: arquivosRecusados };
 
   const supabase = await createClientUntyped();
@@ -331,15 +326,11 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
     if (erroItens || (gravados ?? []).length !== lidos.itens.length) aviso = "itens";
   }
   // os documentos vão antes do envio: se um não gravou, o pedido fica como rascunho para registrá-lo
-  for (const { tipo, arquivo } of documentos) {
+  for (const documento of documentos) {
     const erro = await gravarAnexoPedido(supabase, {
       pedidoId,
       etapa: "rascunho",
-      tipo,
-      titulo: arquivo.name,
-      arquivo,
-      url: null,
-      observacao: null,
+      ...documento,
       usuario: u?.email ?? null,
     });
     if (erro && !aviso) aviso = "documentos";

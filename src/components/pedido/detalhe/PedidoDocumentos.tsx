@@ -4,7 +4,7 @@ import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { ConfirmSubmitButton } from "@/components/common/ConfirmSubmitButton";
 import { formatDateTime } from "@/lib/formatters";
-import { pedidoComSolicitante, tiposDeDocumentoNoStatus } from "@/lib/pedido/anexos";
+import { ehEnderecoWeb, pedidoComSolicitante, tiposDeDocumentoNoStatus } from "@/lib/pedido/anexos";
 import { CampoArquivosAnexo } from "@/components/pedido/CampoArquivosAnexo";
 import {
   ANEXO_TIPO_LABEL,
@@ -55,15 +55,24 @@ export function PedidoDocumentos({
                 <p className="mt-1 text-xs text-muted-foreground">
                   {ANEXO_TIPO_LABEL[anexo.tipo] ?? anexo.tipo} · {rotuloEtapa(anexo.etapa) ?? "sem etapa"} · {formatDateTime(anexo.criado_em)}
                 </p>
-                {anexo.downloadUrl || anexo.url ? (
-                  <a href={(anexo.downloadUrl ?? anexo.url) as string} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
-                    {anexo.downloadUrl ? "Abrir arquivo" : "Abrir referência"}
+                {anexo.downloadUrl ? (
+                  <a href={anexo.downloadUrl} target="_blank" rel="noreferrer" className="mt-1 mr-3 inline-block text-xs text-primary hover:underline">
+                    Abrir arquivo
                   </a>
                 ) : anexo.storage_path ? (
-                  <span className="mt-1 inline-block cursor-not-allowed text-xs text-muted-foreground/80" aria-disabled="true">
+                  <span className="mt-1 mr-3 inline-block cursor-not-allowed text-xs text-muted-foreground/80" aria-disabled="true">
                     Arquivo indisponível no momento
                   </span>
                 ) : null}
+                {/* documento com arquivo e link mostra os dois; referência que não é endereço fica como texto */}
+                {anexo.url &&
+                  (ehEnderecoWeb(anexo.url) ? (
+                    <a href={anexo.url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary hover:underline">
+                      Abrir referência
+                    </a>
+                  ) : (
+                    <span className="mt-1 inline-block text-xs text-muted-foreground">Referência: {anexo.url}</span>
+                  ))}
                 {(anexo.arquivo_nome || anexo.storage_path) && (
                   <p className="mt-1 text-xs text-muted-foreground">
                     {anexo.arquivo_nome ?? "Arquivo preparado"}

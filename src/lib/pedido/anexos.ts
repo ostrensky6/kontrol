@@ -82,3 +82,59 @@ export function motivoArquivosRecusados(arquivos: readonly { name: string; size:
   }
   return null;
 }
+
+/** Tipos que o "Novo pedido" oferece: os documentos de quem pede. */
+export const TIPOS_DOCUMENTO_NOVO_PEDIDO = TIPOS_DOCUMENTO_PEDIDO.filter((tipo) =>
+  TIPOS_DOCUMENTO_SOLICITACAO.includes(tipo.valor),
+);
+
+/** Quantos documentos cabem num "Novo pedido"; os demais entram depois, em Documentos. */
+export const MAXIMO_DOCUMENTOS_NOVO_PEDIDO = 6;
+
+/** Nome dos campos de um documento do "Novo pedido" (um conjunto por documento). */
+export function campoDocumentoNovoPedido(
+  indice: number,
+  campo: "tipo" | "titulo" | "arquivo" | "url" | "observacao",
+): string {
+  return `documento_${indice}_${campo}`;
+}
+
+export type DocumentoNovoPedido = {
+  tipo: string;
+  titulo: string;
+  arquivo: File | null;
+  url: string | null;
+  observacao: string | null;
+};
+
+/**
+ * Documentos preenchidos no "Novo pedido": os mesmos campos de "Registrar
+ * documento" (tipo, título, arquivo, link e observação). Conjunto em branco
+ * não conta. Sem título, vale o nome do arquivo e, sem arquivo, o nome do tipo.
+ */
+export function lerDocumentosNovoPedido(formData: FormData): DocumentoNovoPedido[] {
+  const texto = (campo: string) => String(formData.get(campo) ?? "").trim() || null;
+  const indices = String(formData.get("documentos_indices") ?? "")
+    .split(",")
+    .filter((indice) => /^\d{1,4}$/.test(indice))
+    .map(Number)
+    .slice(0, MAXIMO_DOCUMENTOS_NOVO_PEDIDO);
+  const documentos: DocumentoNovoPedido[] = [];
+  for (const indice of indices) {
+    const enviado = formData.get(campoDocumentoNovoPedido(indice, "arquivo"));
+    const arquivo = enviado instanceof File && enviado.size > 0 ? enviado : null;
+    const titulo = texto(campoDocumentoNovoPedido(indice, "titulo"));
+    const url = texto(campoDocumentoNovoPedido(indice, "url"));
+    const observacao = texto(campoDocumentoNovoPedido(indice, "observacao"));
+    if (!arquivo && !titulo && !url && !observacao) continue;
+    const tipoInformado = texto(campoDocumentoNovoPedido(indice, "tipo"));
+    const tipo = TIPOS_DOCUMENTO_NOVO_PEDIDO.find((t) => t.valor === tipoInformado) ?? TIPOS_DOCUMENTO_NOVO_PEDIDO[0];
+    documentos.push({ tipo: tipo.valor, titulo: titulo ?? arquivo?.name ?? tipo.rotulo, arquivo, url, observacao });
+  }
+  return documentos;
+}
+
+/** "Link ou referência externa": só vira link na tela quando é endereço http(s). */
+export function ehEnderecoWeb(valor: string | null | undefined): boolean {
+  return /^https?:\/\/\S+$/i.test((valor ?? "").trim());
+}
