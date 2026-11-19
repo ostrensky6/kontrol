@@ -80,7 +80,7 @@ export default async function PedidoInternoDetalhe({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  /** aviso: o "Novo pedido" gravou o pedido, mas os itens ou o envio não saíram */
+  /** aviso: o "Novo pedido" gravou o pedido, mas os itens, um documento ou o envio não saíram */
   searchParams?: Promise<{ aviso?: string }>;
 }) {
   const leitura = novaLeitura("/pedido/[id]");
@@ -306,9 +306,11 @@ export default async function PedidoInternoDetalhe({
       ? null
       : aviso === "itens"
         ? "O pedido foi guardado como rascunho, mas os itens não foram gravados. Inclua os itens abaixo e envie para aprovação."
-        : aviso === "envio"
-          ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
-          : null;
+        : aviso === "documentos"
+          ? "O pedido foi guardado como rascunho, mas um documento não foi gravado. Registre-o em “Documentos”, abaixo, e envie para aprovação."
+          : aviso === "envio"
+            ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
+            : null;
   const temDocumentoCotacao = anexoRows.some((anexo) => ["orcamento_previo", "proposta", "print", "email"].includes(anexo.tipo));
   const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
@@ -506,6 +508,7 @@ export default async function PedidoInternoDetalhe({
             anexoRows={anexoRows}
             editavel={editavel}
             pedidoId={pedidoId}
+            status={pedido.status}
           />
 
           <PedidoComunicacoes comunicacaoRows={comunicacaoRows} pedidoId={pedidoId} />

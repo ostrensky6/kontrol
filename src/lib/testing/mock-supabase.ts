@@ -2524,11 +2524,30 @@ export function createMockAdminClient() {
   };
 }
 
+/** Storage simulado: guarda só o caminho; o link assinado aponta para um endereço fictício. */
+const mockStorage = {
+  from: (bucket: string) => ({
+    upload: async (path: string) => {
+      (store.__storage ??= []).push({ bucket, path });
+      return { data: { path }, error: null };
+    },
+    remove: async (paths: string[]) => {
+      store.__storage = (store.__storage ?? []).filter((o) => o.bucket !== bucket || !paths.includes(String(o.path)));
+      return { data: paths.map((path) => ({ name: path })), error: null };
+    },
+    createSignedUrl: async (path: string) => ({
+      data: { signedUrl: `/simulado/storage/${bucket}/${encodeURIComponent(path)}` },
+      error: null,
+    }),
+  }),
+};
+
 export function createMockSupabaseClient(sessao: SessaoMock = {}) {
   return {
     auth: {
       getUser: async () => ({ data: { user: { id: MOCK_USER_ID, email: "admin@example.com" } }, error: null }),
     },
+    storage: mockStorage,
     from: (table: string) => new MockQuery(table, sessao),
     rpc: async (fn: string, args: Row = {}) => {
       // Permissão efetiva e leituras sigilosas (migration 0112).

@@ -2,6 +2,7 @@ import { separarSinonimos } from "@/lib/pedido/natureza";
 import { type PedidoItemCatalogo } from "@/components/pedido/PedidoItemCamposAssistidos";
 import { PEDIDO_INTERNO_STATUS, type PedidoInternoStatus } from "@/lib/pedido/status";
 import type { Tables } from "@/lib/supabase/database.types";
+import { TIPOS_DOCUMENTO_PEDIDO } from "@/lib/pedido/anexos";
 
 /** Linha de pedidos_internos, como a tela do pedido recebe do banco. */
 export type PedidoDetalhe = Tables<"pedidos_internos">;
@@ -129,18 +130,9 @@ export const URGENCIA_LABEL: Record<string, string> = {
   critica: "Crítica",
 };
 
-export const ANEXO_TIPO_LABEL: Record<string, string> = {
-  orcamento_previo: "Cotação prévia",
-  proposta: "Cotação do fornecedor",
-  print: "Print",
-  email: "E-mail",
-  termo_referencia: "Termo de referência",
-  oficio: "Ofício",
-  boleto: "Boleto",
-  nota_fiscal: "Nota fiscal",
-  comprovante: "Comprovante",
-  outro: "Outro",
-};
+export const ANEXO_TIPO_LABEL: Record<string, string> = Object.fromEntries(
+  TIPOS_DOCUMENTO_PEDIDO.map((tipo) => [tipo.valor, tipo.rotulo]),
+);
 
 export const COMUNICACAO_TIPO_LABEL: Record<string, string> = {
   email: "E-mail",

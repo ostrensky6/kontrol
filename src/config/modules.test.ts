@@ -194,16 +194,16 @@ describe("hrefAtivoNaBarra", () => {
 describe("revisão de 11/11: barra lateral e lugares", () => {
   const admin = { papel: "admin", permissoes: { admin: true, permissoes: {} } };
 
-  it("barra lateral na ordem do processo: Orçamentos depois de Análises e custeio, Cadastros embaixo (11/11)", async () => {
+  it("barra lateral na ordem pedida em 19/11: Cadastros em 2º, Estoque antes de Compras, Projetos antes de Análises e custeio", async () => {
     const { getSidebarGroups } = await import("./modules");
     expect(getSidebarGroups(admin).map((g) => g.title)).toEqual([
       "Início",
-      "Projetos",
-      "Compras",
+      "Cadastros",
       "Estoque",
+      "Compras",
+      "Projetos",
       "Análises e custeio",
       "Orçamentos",
-      "Cadastros",
       "Governança",
       "Ajuda",
     ]);

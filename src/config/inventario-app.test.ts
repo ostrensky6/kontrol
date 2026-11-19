@@ -252,15 +252,15 @@ describe("inventário do app: tudo o que estava na seção 2 continua alcançáv
     });
   }
 
-  it("a barra lateral segue a ordem do processo aprovada em 11/11/2026", () => {
+  it("a barra lateral segue a ordem pedida por Antonio em 19/11/2026", () => {
     expect(getSidebarGroups(admin).map((g) => g.title)).toEqual([
       "Início",
-      "Projetos",
-      "Compras",
+      "Cadastros",
       "Estoque",
+      "Compras",
+      "Projetos",
       "Análises e custeio",
       "Orçamentos",
-      "Cadastros",
       "Governança",
       "Ajuda",
     ]);

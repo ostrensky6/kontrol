@@ -70,6 +70,8 @@ const grupoCadastroChildren: ModuleChild[] = GRUPOS_CADASTROS.map((grupo) => ({
   showInCommand: false,
 }));
 
+// Ordem da barra lateral pedida por Antonio em 19/11/2026: Início, Cadastros, Estoque,
+// Compras, Projetos, Análises e custeio, Orçamentos, Governança e Ajuda.
 export const APP_MODULES: AppModule[] = [
   {
     id: "inicio",
@@ -97,78 +99,23 @@ export const APP_MODULES: AppModule[] = [
     ],
   },
   {
-    // o projeto planeja o que vai usar, e o plano vem antes da compra (organização de 11/11, seção 4)
-    id: "projetos",
-    label: "Projetos",
-    href: "/projetos",
-    desc: "cada projeto e o planejamento do que ele vai usar",
-    icon: "FolderKanban",
-    accent: "amber",
-    activePaths: ["/projetos", "/planejamento"],
+    id: "cadastros",
+    label: "Cadastros",
+    href: "/cadastros",
+    desc: "dados mestres do laboratório",
+    icon: "Database",
+    accent: "violet",
+    activePaths: ["/cadastros"],
     children: [
       {
-        href: "/projetos",
-        label: "Projetos",
-        desc: "orçamentos, planejamentos e compras de cada projeto",
-        icon: "FolderKanban",
-      },
-      {
-        href: "/planejamento",
-        label: "Planejamento",
-        desc: "reservas de insumo para as análises previstas",
-        icon: "CalendarClock",
-        shortcut: "P",
-      },
-      {
-        href: "/planejamento/disputas",
-        label: "Disputas de reserva",
-        desc: "pedir e decidir reserva de outro plano quando falta insumo",
-        icon: "ClipboardCheck",
-        showInTopNav: false,
-      },
-    ],
-  },
-  {
-    // Compras vai do pedido ao recebimento; o recebimento lança o lote no Estoque
-    // (pedido de Antonio em 11/11: Compras como módulo próprio, na ordem do processo)
-    id: "compras",
-    label: "Compras",
-    href: "/suprimentos",
-    desc: "do pedido ao recebimento",
-    icon: "ShoppingCart",
-    accent: "blue",
-    activePaths: ["/suprimentos", "/pedido", "/compras", "/recebimento"],
-    children: [
-      {
-        href: "/suprimentos",
+        href: "/cadastros",
         label: "Visão geral",
-        desc: "o que espera você e o andamento dos pedidos",
+        desc: "todos os cadastros e o que falta preencher",
         icon: "LayoutGrid",
+        shortcut: "D",
       },
-      {
-        href: "/pedido",
-        label: "Pedidos",
-        desc: "cada pedido e a etapa em que está, da solicitação ao pagamento",
-        icon: "ClipboardList",
-      },
-      {
-        href: "/compras",
-        label: "Compras com fornecedor",
-        desc: "as compras fechadas com fornecedor, cada uma ligada ao seu pedido",
-        icon: "ShoppingCart",
-      },
-      {
-        href: "/recebimento",
-        label: "Recebimento",
-        desc: "registrar a chegada do que foi comprado; a chegada cria o lote no Estoque",
-        icon: "PackageCheck",
-      },
-      {
-        href: "/suprimentos/prazos",
-        label: "Prazos de compra",
-        desc: "quanto tempo as compras levaram, do pedido à chegada",
-        icon: "CalendarClock",
-      },
+      ...grupoCadastroChildren,
+      ...cadastroChildren,
     ],
   },
   {
@@ -230,6 +177,81 @@ export const APP_MODULES: AppModule[] = [
         label: "Códigos não reconhecidos",
         desc: "triagem de códigos lidos que ainda não têm cadastro",
         icon: "ScanLine",
+        showInTopNav: false,
+      },
+    ],
+  },
+  {
+    // Compras vai do pedido ao recebimento; o recebimento lança o lote no Estoque
+    // (pedido de Antonio em 11/11: Compras como módulo próprio)
+    id: "compras",
+    label: "Compras",
+    href: "/suprimentos",
+    desc: "do pedido ao recebimento",
+    icon: "ShoppingCart",
+    accent: "blue",
+    activePaths: ["/suprimentos", "/pedido", "/compras", "/recebimento"],
+    children: [
+      {
+        href: "/suprimentos",
+        label: "Visão geral",
+        desc: "o que espera você e o andamento dos pedidos",
+        icon: "LayoutGrid",
+      },
+      {
+        href: "/pedido",
+        label: "Pedidos",
+        desc: "cada pedido e a etapa em que está, da solicitação ao pagamento",
+        icon: "ClipboardList",
+      },
+      {
+        href: "/compras",
+        label: "Compras com fornecedor",
+        desc: "as compras fechadas com fornecedor, cada uma ligada ao seu pedido",
+        icon: "ShoppingCart",
+      },
+      {
+        href: "/recebimento",
+        label: "Recebimento",
+        desc: "registrar a chegada do que foi comprado; a chegada cria o lote no Estoque",
+        icon: "PackageCheck",
+      },
+      {
+        href: "/suprimentos/prazos",
+        label: "Prazos de compra",
+        desc: "quanto tempo as compras levaram, do pedido à chegada",
+        icon: "CalendarClock",
+      },
+    ],
+  },
+  {
+    // o projeto planeja o que vai usar (organização de 11/11, seção 4)
+    id: "projetos",
+    label: "Projetos",
+    href: "/projetos",
+    desc: "cada projeto e o planejamento do que ele vai usar",
+    icon: "FolderKanban",
+    accent: "amber",
+    activePaths: ["/projetos", "/planejamento"],
+    children: [
+      {
+        href: "/projetos",
+        label: "Projetos",
+        desc: "orçamentos, planejamentos e compras de cada projeto",
+        icon: "FolderKanban",
+      },
+      {
+        href: "/planejamento",
+        label: "Planejamento",
+        desc: "reservas de insumo para as análises previstas",
+        icon: "CalendarClock",
+        shortcut: "P",
+      },
+      {
+        href: "/planejamento/disputas",
+        label: "Disputas de reserva",
+        desc: "pedir e decidir reserva de outro plano quando falta insumo",
+        icon: "ClipboardCheck",
         showInTopNav: false,
       },
     ],
@@ -339,26 +361,6 @@ export const APP_MODULES: AppModule[] = [
         icon: "LayoutGrid",
         showInTopNav: false,
       },
-    ],
-  },
-  {
-    id: "cadastros",
-    label: "Cadastros",
-    href: "/cadastros",
-    desc: "dados mestres do laboratório",
-    icon: "Database",
-    accent: "violet",
-    activePaths: ["/cadastros"],
-    children: [
-      {
-        href: "/cadastros",
-        label: "Visão geral",
-        desc: "todos os cadastros e o que falta preencher",
-        icon: "LayoutGrid",
-        shortcut: "D",
-      },
-      ...grupoCadastroChildren,
-      ...cadastroChildren,
     ],
   },
   {

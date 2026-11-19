@@ -91,6 +91,12 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await camposItem.locator('[name="quantidade"]').fill("5");
   await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
   await expect(novo.getByTestId("novo-pedido-itens")).toContainText(insumoNome);
+  // a cotação prévia entra com o pedido, por quem pede (ajustes de 19/11/2026, ajuste 2)
+  await novo.getByLabel("Cotação prévia", { exact: true }).setInputFiles({
+    name: "cotacao-previa-roteiro.pdf",
+    mimeType: "application/pdf",
+    buffer: Buffer.from("%PDF-1.4\n% roteiro automático\n"),
+  });
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
@@ -103,6 +109,15 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   const { data: nascido } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, fonte_recurso").eq("id", pedidoId).single();
   expect(nascido).toEqual({ urgencia: "normal", urgencia_justificativa: null, fonte_recurso: null });
   await expect(page.getByRole("cell", { name: new RegExp(insumoNome) }).first()).toBeVisible();
+  // a cotação prévia foi gravada no Storage e registrada na Solicitação
+  const { data: cotacaoPrevia } = await cliente
+    .from("pedidos_internos_anexos")
+    .select("tipo, etapa, titulo, storage_bucket, storage_path")
+    .eq("pedido_interno_id", pedidoId);
+  expect(cotacaoPrevia).toEqual([
+    expect.objectContaining({ tipo: "orcamento_previo", etapa: "rascunho", titulo: "cotacao-previa-roteiro.pdf", storage_bucket: "pedidos-internos-anexos" }),
+  ]);
+  expect(String((cotacaoPrevia?.[0] as { storage_path?: string } | undefined)?.storage_path)).toMatch(new RegExp(`^${pedidoId}/`));
 
   // ---- 2. a urgência é de quem tem a permissão "Definir urgência do pedido" (0183). Ela fura o ciclo do
   // dia 10 (0172/0176): com isso o roteiro não depende do dia em que roda
@@ -147,7 +162,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
       const { data } = await cliente.from("pedidos_internos_anexos").select("id").eq("pedido_interno_id", pedidoId);
       return (data ?? []).length;
     })
-    .toBe(1);
+    .toBe(2); // a cotação prévia da solicitação e as cotações do roteiro
   await page.reload();
 
   const quadro = page.getByTestId("orcamentos-pedido");
