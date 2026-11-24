@@ -10,10 +10,10 @@ async function abrirEdicao(page: import("@playwright/test").Page) {
 test("edição de usuário agrupa permissões e mantém ações acessíveis", async ({ page }) => {
   const dialog = await abrirEdicao(page);
 
-  await expect(dialog.getByLabel("Nome")).toHaveValue("Admin E2E");
+  await expect(dialog.getByLabel("Nome", { exact: true })).toHaveValue("Admin E2E");
   await expect(dialog.getByLabel("Função")).toHaveValue("admin");
-  // 39 desde a 0183 ("Definir urgência do pedido"); eram 38 desde a 0137.
-  await expect(dialog.locator('input[name="permissoes"]')).toHaveCount(39);
+  // 40 desde a 0184 ("Conduzir a compra inteira"); 39 desde a 0183, 38 desde a 0137.
+  await expect(dialog.locator('input[name="permissoes"]')).toHaveCount(40);
   await expect(dialog.getByLabel("Definir urgência do pedido")).toHaveCount(1);
   // um grupo por módulo, na ordem da barra lateral
   await expect(dialog.locator("details")).toHaveCount(7); // Projetos, Compras, Estoque, Análises e custeio, Orçamentos, Cadastros, Governança
@@ -37,7 +37,7 @@ test("edição de usuário cabe no mobile sem perder nome, grupos ou salvar", as
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.width).toBeLessThanOrEqual(320);
   expect(box!.height).toBeLessThanOrEqual(640);
-  await expect(dialog.getByLabel("Nome")).toBeVisible();
+  await expect(dialog.getByLabel("Nome", { exact: true })).toBeVisible();
   await expect(dialog.locator("summary").first()).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Salvar" })).toBeVisible();
 });

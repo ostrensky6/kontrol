@@ -337,7 +337,8 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   }
   if (enviar && !aviso) {
     // O banco também trava (0169); a mensagem fica no quadro "Conferir e enviar" do pedido.
-    const trava = travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
+    // 0184: quem conduz a compra inteira envia mesmo sem coordenador indicado
+    const trava = (await pode("compras.conduzir")) ? null : travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
     const envio = trava
       ? { ok: false }
       : await mudarStatus({ pedidoId, para: "em_validacao", etapa: "Lista de materiais", decisao: "registrado" });
@@ -717,7 +718,8 @@ export async function enviarParaValidacao(_prev: FormState, formData: FormData):
     return { ok: false, message: "Todos os itens precisam de especificação, quantidade e unidade." };
   }
   // O banco também trava (0169); a mensagem daqui é a mesma, antes da tentativa.
-  const trava = travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
+  // 0184: quem conduz a compra inteira envia mesmo sem coordenador indicado
+  const trava = (await pode("compras.conduzir")) ? null : travaDoEnvio(await lerAprovadores(supabase as never, pedidoId));
   if (trava) return { ok: false, message: trava };
   // D5 (0175): devolvido e reenviado sem mudar valor, justificativa e projeto
   // mantém as aprovações; o banco decide e registra.
@@ -752,15 +754,16 @@ export async function validarInformacoes(_prev: FormState, formData: FormData): 
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const permissao = await podeAprovarComoCoordenadorProjeto(pedidoId);
   if (!permissao.ok) return permissao;
-  // 0169: só o coordenador competente valida; o Administrador, como substituto.
+  // 0169: só o coordenador competente valida; como substituto, o Administrador
+  // ou quem tem "Conduzir a compra inteira" (0184).
   const supabase = await createClientUntyped();
   const aprovadores = await lerAprovadores(supabase as never, pedidoId);
-  const ehAdmin = permissao.usuario.papel === "admin";
+  const ehAdmin = permissao.usuario.papel === "admin" || (await pode("compras.conduzir"));
   if (aprovadores && !usuarioDecide(aprovadores.coordenador?.ids, permissao.usuario.id, ehAdmin)) {
     return {
       ok: false,
       message: aprovadores.coordenador
-        ? `Este pedido é aprovado por ${aprovadores.coordenador.nome ?? "quem coordena"} (${aprovadores.coordenador.rotulo}). Na ausência, o Administrador aprova como substituto.`
+        ? `Este pedido é aprovado por ${aprovadores.coordenador.nome ?? "quem coordena"} (${aprovadores.coordenador.rotulo}). Na ausência, o Administrador ou quem tem “Conduzir a compra inteira” aprova como substituto.`
         : aprovadores.falta_coordenador ?? "Este pedido não tem coordenador indicado.",
     };
   }

@@ -57,7 +57,8 @@ begin
            suspenso = false, senha_provisoria = false,
            permissoes = case v_rotulo
              when 'pedinte' then '{"pedido.criar": true}'::jsonb
-             else '{"pedido.criar": true, "pedido.aprovar": true, "compras.aprovar": true}'::jsonb end
+             -- 0184: sem "Conduzir a compra inteira" (a função Compra nasce com ela), a trava do ciclo vale
+             else '{"pedido.criar": true, "pedido.aprovar": true, "compras.aprovar": true, "compras.conduzir": false}'::jsonb end
      where id = pg_temp.uid(v_rotulo);
   end loop;
 

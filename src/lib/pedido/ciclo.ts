@@ -121,7 +121,23 @@ export function motivoCicloTravado(
 ): string | null {
   const libera = cicloLiberaEm(ciclo, urgencia, justificativa, hoje);
   if (!libera) return null;
-  return `Este pedido entrou no ciclo de compras de ${rotuloCiclo(libera)} porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de ${rotuloData(libera)}. Só pedido urgente, com justificativa, fura o ciclo.`;
+  return `Este pedido entrou no ciclo de compras de ${rotuloCiclo(libera)} porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de ${rotuloData(libera)}. Só pedido urgente, com justificativa, ou quem tem "Conduzir a compra inteira" fura o ciclo.`;
+}
+
+/**
+ * 0184: quem tem "Conduzir a compra inteira" segue antes do ciclo abrir. Texto
+ * para essa pessoa (o botão fica liberado); null quando o pedido não está
+ * travado pelo ciclo.
+ */
+export function avisoCicloParaQuemConduz(
+  ciclo: string | null | undefined,
+  urgencia: string | null | undefined,
+  justificativa: string | null | undefined,
+  hoje: string,
+): string | null {
+  const libera = cicloLiberaEm(ciclo, urgencia, justificativa, hoje);
+  if (!libera) return null;
+  return `Pelo ciclo do dia 10, este pedido seguiria para compras em ${rotuloData(libera)}. Como você conduz a compra inteira, pode seguir agora; fica registrado na linha do tempo do pedido.`;
 }
 
 /**

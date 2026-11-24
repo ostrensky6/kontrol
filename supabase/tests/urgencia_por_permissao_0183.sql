@@ -67,9 +67,10 @@ begin
   if (select permissoes ->> 'pedido.urgencia' from public.permissoes_categorias where papel = 'administrativo') is distinct from 'true' then
     raise exception '0183: o Administrativo deveria nascer com "Definir urgência do pedido"';
   end if;
+  -- 0184: a função Compra também passou a ter todas as caixinhas de Compras
   if exists (select 1 from public.permissoes_categorias
-              where papel <> 'administrativo' and permissoes ->> 'pedido.urgencia' = 'true') then
-    raise exception '0183: só o Administrativo nasce com "Definir urgência do pedido"';
+              where papel not in ('administrativo', 'compra') and permissoes ->> 'pedido.urgencia' = 'true') then
+    raise exception '0183: só o Administrativo e a Compra nascem com "Definir urgência do pedido"';
   end if;
 end $$;
 
