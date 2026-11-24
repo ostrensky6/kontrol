@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { HelpTip } from "@/components/common/HelpTip";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { agruparMensagensPorLinha } from "@/lib/cadastros/mensagens-importacao";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const initialState: ImportCadastrosState = { ok: false };
@@ -121,6 +122,9 @@ export function ResultadoImportacaoCadastros() {
   );
   const erros = state.resumo?.flatMap((item) => item.erros.map((erro) => `${item.aba} · ${erro}`)) ?? [];
   const avisos = state.resumo?.flatMap((item) => item.avisos.map((aviso) => `${item.aba} · ${aviso}`)) ?? [];
+  // A mesma mensagem em várias linhas aparece uma vez só, com as linhas listadas.
+  const errosAgrupados = agruparMensagensPorLinha(erros).map((grupo) => grupo.texto);
+  const avisosAgrupados = agruparMensagensPorLinha(avisos).map((grupo) => grupo.texto);
 
   return (
     <section aria-label="Resultado da importação" className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
@@ -171,10 +175,10 @@ export function ResultadoImportacaoCadastros() {
               Erros ({erros.length}) — estas linhas não foram importadas
             </summary>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              {erros.slice(0, LIMITE_MENSAGENS).map((erro, index) => (
+              {errosAgrupados.slice(0, LIMITE_MENSAGENS).map((erro, index) => (
                 <li key={index}>{erro}</li>
               ))}
-              {erros.length > LIMITE_MENSAGENS && <li>… e mais {erros.length - LIMITE_MENSAGENS}.</li>}
+              {errosAgrupados.length > LIMITE_MENSAGENS && <li>… e mais {errosAgrupados.length - LIMITE_MENSAGENS}.</li>}
             </ul>
           </details>
         )}
@@ -183,10 +187,10 @@ export function ResultadoImportacaoCadastros() {
           <details className="mt-3 rounded-md border border-border p-3 text-xs">
             <summary className="cursor-pointer font-medium">Avisos ({avisos.length})</summary>
             <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">
-              {avisos.slice(0, LIMITE_MENSAGENS).map((aviso, index) => (
+              {avisosAgrupados.slice(0, LIMITE_MENSAGENS).map((aviso, index) => (
                 <li key={index}>{aviso}</li>
               ))}
-              {avisos.length > LIMITE_MENSAGENS && <li>… e mais {avisos.length - LIMITE_MENSAGENS}.</li>}
+              {avisosAgrupados.length > LIMITE_MENSAGENS && <li>… e mais {avisosAgrupados.length - LIMITE_MENSAGENS}.</li>}
             </ul>
           </details>
         )}
