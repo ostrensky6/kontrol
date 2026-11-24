@@ -102,6 +102,11 @@ test("item preenchido sem apertar Adicionar item também segue com o pedido", as
 });
 
 test("envio que não sai guarda o pedido como rascunho e avisa o que falta", async ({ page }) => {
+  // 0184: o Administrador e quem tem "Conduzir a compra inteira" enviam mesmo
+  // sem coordenador (aprovam como substitutos); o Gestor não tem a caixinha
+  const baseURL = test.info().project.use.baseURL;
+  if (!baseURL) throw new Error("baseURL ausente na configuração do Playwright");
+  await page.context().addCookies([{ name: "kontrol_e2e_papel", value: "gestor", url: baseURL }]);
   const titulo = `Reagentes sem coordenador ${Date.now()}`;
   const form = await abrirNovoPedido(page);
   // o Projeto E2E não tem coordenador cadastrado: o envio trava
@@ -118,6 +123,7 @@ test("envio que não sai guarda o pedido como rascunho e avisa o que falta", asy
   await expect(page.getByText("Rascunho").first()).toBeVisible();
   // o item não se perdeu
   await expect(page.getByText("Etanol absoluto").first()).toBeVisible();
+  await page.context().clearCookies();
 });
 
 test("fechar o Novo pedido com algo preenchido pede confirmação", async ({ page }) => {

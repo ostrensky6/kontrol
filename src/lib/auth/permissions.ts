@@ -156,7 +156,7 @@ export const PERMISSOES: Array<{
   { key: "compras.receber", modulo: "Compras", label: "Registrar chegada de compras", descricao: "Registrar a chegada dos itens de uma compra." },
   { key: "compras.cancelar", modulo: "Compras", label: "Cancelar compras e pedidos", descricao: "Cancelar compras e pedidos." },
   // 0184 (Antonio, 24/11/2026): quem conduz a compra não para em nenhuma etapa.
-  { key: "compras.conduzir", modulo: "Compras", label: "Conduzir a compra inteira", descricao: "Fazer todas as etapas do pedido e da compra sem parar: aprovar no lugar do coordenador do projeto e da coordenação do laboratório, dar a aprovação final do próprio pedido e seguir para compras antes do ciclo do dia 10 abrir. Fica registrado com o nome de quem fez." },
+  { key: "compras.conduzir", modulo: "Compras", label: "Conduzir a compra inteira", descricao: "Fazer todas as etapas do pedido e da compra sem parar: aprovar no lugar do coordenador do projeto e da coordenação do laboratório, dar a aprovação final do próprio pedido e seguir para compras antes do ciclo do dia 10 abrir. Cada passo fica registrado, com quem fez." },
   { key: "recebimento.ver", modulo: "Compras", label: "Acessar Recebimento", descricao: "Ver o que falta chegar." },
   { key: "recebimento.registrar", modulo: "Compras", label: "Confirmar entrega de pedidos", descricao: "Confirmar que o material chegou ou o serviço foi feito, antes do pagamento. A chegada de cada item é registrada pela compra (“Registrar chegada de compras”)." },
   // ---- Estoque (antes, parte de "Suprimentos") ----
