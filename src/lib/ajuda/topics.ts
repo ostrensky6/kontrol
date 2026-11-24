@@ -294,6 +294,8 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
           "Estoque → 'Planilha de insumos' baixa a lista completa de insumos em Excel.",
           "Cadastros → Insumos → 'Planilha' baixa a mesma lista.",
           "Para importar alterações, use Cadastros → 'Importar XLSX' (no topo da tela, ao lado de 'Cadastrar insumo'); escolher o arquivo já envia.",
+          "Na importação, 'Categoria de compra' aceita só Crítico, Operacional ou Eventual (é a prioridade). O tipo do material vai em 'Categoria curta'. Valor fora da lista ou fornecedor ainda não cadastrado não trava a linha: o campo fica em branco e aparece um aviso.",
+          "Avisos e erros iguais em várias linhas aparecem uma vez só, com as linhas listadas.",
         ],
       },
       {

@@ -281,9 +281,12 @@ export function valorParaCampo(
       });
       if (candidatos.length === 1) return { ok: true, valor: candidatos[0][0] };
     }
+    if (campo.opcoesDe) return { ok: false, erro: `"${bruto}" não encontrado no cadastro` };
+    // Lista fixa (ex.: Crítico, Operacional, Eventual): diz o que é aceito.
+    const aceitos = [...opcoes.values()].map((label) => `"${label}"`);
     return {
       ok: false,
-      erro: campo.opcoesDe ? `"${bruto}" não encontrado no cadastro` : `valor inválido "${bruto}"`,
+      erro: `valor inválido "${bruto}" (aceitos: ${aceitos.join(", ")}${campo.dicaImportacao ? `; ${campo.dicaImportacao}` : ""})`,
     };
   }
   return { ok: true, valor: typeof value === "string" ? value : String(value) };
@@ -426,9 +429,10 @@ export function lerAbaCadastro(
         celulaEmPercentual: formatoPercentual(cell),
       });
       if (convertido.ok) valores[chave] = convertido.valor;
-      else if (campo.opcoesDe && !campo.obrigatorio) {
-        // Vínculo opcional que não existe no cadastro (ex.: fornecedor ainda
-        // não cadastrado): a linha entra e o campo fica em branco.
+      else if (campo.tipo === "select" && !campo.obrigatorio) {
+        // Escolha opcional que não existe (fornecedor ainda não cadastrado,
+        // categoria de compra fora da lista): a linha entra e o campo não é
+        // gravado (em branco no novo, valor atual mantido no existente).
         avisos.push(erroLinha(rowNumber, campo.label, `${convertido.erro}; ficou em branco`));
       } else erros.push(erroLinha(rowNumber, campo.label, convertido.erro));
     });

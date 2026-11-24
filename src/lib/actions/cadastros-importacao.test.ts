@@ -304,6 +304,32 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(avisos).toContain('Linha 3: sem Unidade da embalagem nem de consumo; considerado "unidade"');
   });
 
+  it("categoria de compra fora da lista não recusa a linha: aviso com os valores aceitos", async () => {
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const result = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Insumos: [
+          ["Item específico / SKU", "Categoria curta", "Unidade da embalagem", "Categoria de compra"],
+          ["Ponteira 200 µL", "Plástico", "caixa", "Plástico"],
+          ["Luva nitrílica M", "EPI", "caixa", "EPI"],
+          ["Taq polimerase", "Reagente molecular", "kit", "critico"],
+        ],
+      }),
+    );
+
+    expect(result.resumo?.[0]).toMatchObject({ inseridos: 3, ignorados: 0 });
+    const dados = rpc.mock.calls.map((chamada) => chamada[1].p_dados_insumo);
+    expect(dados[0]).toMatchObject({ especificacao: "Ponteira 200 µL", nome_item: "Plástico" });
+    expect(dados[0].categoria_compra ?? null).toBeNull();
+    expect(dados[2]).toMatchObject({ categoria_compra: "critico" });
+    const avisos = result.resumo?.[0].avisos.join("\n") ?? "";
+    expect(avisos).toContain(
+      'Linha 2, Categoria de compra: valor inválido "Plástico" (aceitos: "Crítico", "Operacional", "Eventual"; é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Categoria curta); ficou em branco',
+    );
+  });
+
   it("modelo exportado traz Instruções, quantidade atual e volta sem alterações ao ser reimportado", async () => {
     db.insumos = [insumoExistente({ data_validade: "2027-03-05", fornecedor_id: 3 })];
     db.fornecedores = [{ id: 3, nome: "Fornecedor Três" }];

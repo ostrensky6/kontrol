@@ -63,6 +63,11 @@ export type Campo = {
   aviso?: string;
   /** explicação curta exibida no "?" ao lado do rótulo */
   ajuda?: string;
+  /**
+   * Dica acrescentada ao aviso da importação quando a planilha traz um valor
+   * fora da lista do campo (ex.: o que vai em outra coluna).
+   */
+  dicaImportacao?: string;
   /** exemplo curto exibido junto da ajuda */
   exemplo?: string;
   colSpan?: 1 | 2;
@@ -523,6 +528,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
           { value: "eventual", label: "Eventual" },
         ],
         ajuda: "**Crítico** ganha destaque nas sugestões de compra. Ao aceitar um lote crítico, é preciso informar responsável e critério de aceite.",
+        dicaImportacao: "é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Categoria curta",
       },
       {
         name: "controlado",
