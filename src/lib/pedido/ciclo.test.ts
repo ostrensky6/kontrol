@@ -8,6 +8,7 @@ import {
   explicarCicloHoje,
   faltaJustificativaUrgencia,
   motivoCicloTravado,
+  avisoCicloParaQuemConduz,
   prazoDoCiclo,
   rotuloCiclo,
   rotuloData,
@@ -71,9 +72,17 @@ describe("trava do ciclo seguinte (0176)", () => {
   it("explica com o mesmo texto do banco", () => {
     expect(rotuloData("2026-12-01")).toBe("01/12/2026");
     expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-11-20")).toBe(
-      "Este pedido entrou no ciclo de compras de dezembro/2026 porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de 01/12/2026. Só pedido urgente, com justificativa, fura o ciclo.",
+      "Este pedido entrou no ciclo de compras de dezembro/2026 porque foi aprovado depois do prazo do dia 10. Ele segue para compras a partir de 01/12/2026. Só pedido urgente, com justificativa, ou quem tem \"Conduzir a compra inteira\" fura o ciclo.",
     );
     expect(motivoCicloTravado("2026-12-01", "normal", null, "2026-12-01")).toBeNull();
+  });
+
+  it("0184: quem conduz a compra inteira vê o aviso e segue antes do ciclo abrir", () => {
+    expect(avisoCicloParaQuemConduz("2026-12-01", "normal", null, "2026-11-24")).toBe(
+      "Pelo ciclo do dia 10, este pedido seguiria para compras em 01/12/2026. Como você conduz a compra inteira, pode seguir agora; fica registrado na linha do tempo do pedido.",
+    );
+    expect(avisoCicloParaQuemConduz("2026-12-01", "normal", null, "2026-12-01")).toBeNull();
+    expect(avisoCicloParaQuemConduz("2026-12-01", "alta", "Reagente acabou e a coleta é amanhã.", "2026-11-24")).toBeNull();
   });
 
   it("guarda as duas datas do ciclo: a solicitação e a aprovação da coordenação que o define", () => {

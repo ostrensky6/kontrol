@@ -77,7 +77,8 @@ begin
            suspenso = false, senha_provisoria = false,
            permissoes = case v_rotulo
              when 'pedinte' then '{"pedido.criar": true}'::jsonb
-             else '{"pedido.criar": true, "pedido.aprovar": true, "compras.aprovar": true, "compras.cancelar": true}'::jsonb end
+             -- 0184: sem "Conduzir a compra inteira" (a função Compra nasce com ela), a trava do ciclo vale
+             else '{"pedido.criar": true, "pedido.aprovar": true, "compras.aprovar": true, "compras.cancelar": true, "compras.conduzir": false}'::jsonb end
      where id = pg_temp.uid(v_rotulo);
   end loop;
 
@@ -191,7 +192,7 @@ select pg_temp.exigir_erro(
   '22023', 'segue para compras a partir de ' || to_char(current_setting('t0176.ciclo')::date, 'DD/MM/YYYY'));
 select pg_temp.exigir_erro(
   format('select public.transicionar_pedido_interno(%s, ''formalizado'', ''Formalização'', ''registrado'', null)', current_setting('t0176.b')),
-  '22023', 'Só pedido urgente, com justificativa, fura o ciclo');
+  '22023', 'Só pedido urgente, com justificativa,');
 select public.formalizar_pedido_interno(current_setting('t0176.u')::bigint);
 select public.cancelar_pedido_interno_operacional(current_setting('t0176.c')::bigint, null, 'TS-0176 cancelado');
 

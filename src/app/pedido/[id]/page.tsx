@@ -25,6 +25,7 @@ import {
   ehUrgente,
   faltaJustificativaUrgencia,
   motivoCicloTravado,
+  avisoCicloParaQuemConduz,
 } from "@/lib/pedido/ciclo";
 import { PedidoTrilha } from "@/components/pedido/PedidoTrilha";
 import { etapaDoPedido } from "@/lib/pedido/etapas";
@@ -120,6 +121,7 @@ export default async function PedidoInternoDetalhe({
     podeUrgencia,
     podeEstornar,
     podeEditarInsumos,
+    podeConduzir,
   ] = await Promise.all([
     leitura.de("itens do pedido", supabase
       .from("pedidos_internos_itens")
@@ -175,6 +177,7 @@ export default async function PedidoInternoDetalhe({
     pode("pedido.urgencia"),
     pode("estoque.lote.gerir"),
     pode("insumos.editar"),
+    pode("compras.conduzir"),
   ]);
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
@@ -182,17 +185,21 @@ export default async function PedidoInternoDetalhe({
   const statusMeta = pedidoInternoSituacao(pedido);
   const esperaLaboratorio = aguardaLaboratorio(pedido);
   const ehAdmin = usuario?.papel === "admin";
-  const podeValidar = usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, ehAdmin);
-  const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, ehAdmin);
+  // 0184: quem tem "Conduzir a compra inteira" substitui como o Administrador
+  const substituto = ehAdmin || podeConduzir;
+  const comoSubstituto = ehAdmin ? "como Administrador" : "porque conduz a compra inteira";
+  const podeValidar = usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, substituto);
+  const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, substituto);
   // 0136 (D2), mesma regra do banco: quem pediu não dá a aprovação final do próprio pedido
   const motivoProprio = motivoProprioPedido({
     solicitante: pedido.solicitante,
     emailUsuario: usuario?.email,
-    ehAdmin,
+    ehAdmin: substituto,
     coordenaProjeto: pedido.projeto_id != null && usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, false),
   });
   const etapasQuemAprova = etapasAprovacao(aprovadores, pedido);
-  const travaEnvio = travaDoEnvio(aprovadores);
+  // 0184: quem conduz a compra inteira envia mesmo sem coordenador indicado (aprova depois)
+  const travaEnvio = podeConduzir ? null : travaDoEnvio(aprovadores);
   // D6 (0170): pagamento só depois da entrega
   const pendenciaPagamento = ETAPAS_ANTES_DO_PAGAMENTO.includes(pedido.status)
     ? await lerPendenciaPagamento(supabase, pedidoId)
@@ -331,9 +338,14 @@ export default async function PedidoInternoDetalhe({
     pedido.status === "validado"
       ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
+  // 0184: quem conduz a compra inteira não para no ciclo; o botão fica liberado
   const motivoCiclo =
-    pedido.status === "validado"
+    pedido.status === "validado" && !podeConduzir
       ? motivoCicloTravado(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
+      : null;
+  const avisoCicloConduz =
+    pedido.status === "validado" && podeConduzir
+      ? avisoCicloParaQuemConduz(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
   const proxima = proximoPasso(pedido, {
     coordenador: aprovadores?.coordenador?.nome,
@@ -341,7 +353,7 @@ export default async function PedidoInternoDetalhe({
     laboratorio: aprovadores?.laboratorio?.nome
       ? `${aprovadores.laboratorio.nome} (${aprovadores.laboratorio.area})`
       : null,
-    cicloAbreEm: cicloTravadoAte,
+    cicloAbreEm: podeConduzir ? null : cicloTravadoAte,
   });
   // De quem é a vez. "Sua vez" só quando o banco aponta o usuário como quem
   // decide (coordenador ou laboratório); nas outras etapas vale a permissão.
@@ -365,7 +377,7 @@ export default async function PedidoInternoDetalhe({
               rotulo: "Sua vez",
               texto: titularLaboratorio
                 ? "Você responde pela coordenação deste laboratório. Confira os itens abaixo e aprove ou devolva."
-                : "Você pode decidir como Administrador, na ausência da coordenação do laboratório.",
+                : `Você pode decidir ${comoSubstituto}, na ausência da coordenação do laboratório.`,
             }
           : { tom: "espera", rotulo: "Aguardando o laboratório", texto: null }
         : pedido.status === "em_validacao"
@@ -375,10 +387,12 @@ export default async function PedidoInternoDetalhe({
                 rotulo: "Sua vez",
                 texto: titularCoordenador
                   ? "Você é quem aprova este pedido. Confira os itens abaixo e aprove ou devolva ao solicitante."
-                  : `Você pode aprovar como Administrador, na ausência de ${aprovadores?.coordenador?.nome ?? "quem aprova"}.`,
+                  : `Você pode aprovar ${comoSubstituto}, na ausência de ${aprovadores?.coordenador?.nome ?? "quem aprova"}.`,
               }
             : { tom: "espera", rotulo: "Aguardando aprovação", texto: null }
-          : cicloTravadoAte
+          : cicloTravadoAte && avisoCicloConduz
+            ? { tom: "sua", rotulo: "Você pode agir", texto: avisoCicloConduz }
+            : cicloTravadoAte
             ? { tom: "espera", rotulo: "Aguardando o ciclo abrir", texto: null }
             : podeGerir || (aguardandoChegada && (podeReceberCompra || podeConfirmar))
               ? { tom: "sua", rotulo: "Você pode agir", texto: null }

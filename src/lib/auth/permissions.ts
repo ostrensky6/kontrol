@@ -89,6 +89,7 @@ export type PermissaoUsuario =
   | "compras.ver"
   | "compras.receber"
   | "compras.cancelar"
+  | "compras.conduzir"
   | "recebimento.ver"
   | "recebimento.registrar"
   | "orcamento.parametros.editar"
@@ -147,13 +148,15 @@ export const PERMISSOES: Array<{
   // ---- Compras: do pedido ao recebimento (antes, parte de "Suprimentos") ----
   { key: "pedido.ver", modulo: "Compras", label: "Acessar Pedidos", descricao: "Ver a visão geral de Compras, os pedidos e suas etapas." },
   { key: "pedido.criar", modulo: "Compras", label: "Criar pedidos", descricao: "Abrir pedidos, anexar documentos e enviar para aprovação." },
-  { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Formalizar, autorizar, registrar orçamentos, dar a aprovação final e conduzir as etapas de compra. A aprovação do coordenador é de quem coordena o projeto (o Administrador substitui), e quem pediu não dá a aprovação final do próprio pedido." },
+  { key: "pedido.aprovar", modulo: "Compras", label: "Aprovar pedidos", descricao: "Formalizar, autorizar, registrar orçamentos, dar a aprovação final e conduzir as etapas de compra. A aprovação do coordenador é de quem coordena o projeto (o Administrador e quem tem “Conduzir a compra inteira” substituem), e quem pediu não dá a aprovação final do próprio pedido." },
   { key: "pedido.urgencia", modulo: "Compras", label: "Definir urgência do pedido", descricao: "Dizer se o pedido é urgente. A urgência fura o ciclo de compras do dia 10; quem pede não a define." },
   { key: "compras.ver", modulo: "Compras", label: "Acessar Compras", descricao: "Ver as compras com fornecedor e os prazos de compra." },
   { key: "compras.solicitar", modulo: "Compras", label: "Solicitar compras", descricao: "Criar compras, incluir itens e gerar reposição." },
   { key: "compras.aprovar", modulo: "Compras", label: "Aprovar compras", descricao: "Aprovar, enviar ao fornecedor e encerrar compras com pendência." },
   { key: "compras.receber", modulo: "Compras", label: "Registrar chegada de compras", descricao: "Registrar a chegada dos itens de uma compra." },
   { key: "compras.cancelar", modulo: "Compras", label: "Cancelar compras e pedidos", descricao: "Cancelar compras e pedidos." },
+  // 0184 (Antonio, 24/11/2026): quem conduz a compra não para em nenhuma etapa.
+  { key: "compras.conduzir", modulo: "Compras", label: "Conduzir a compra inteira", descricao: "Fazer todas as etapas do pedido e da compra sem parar: aprovar no lugar do coordenador do projeto e da coordenação do laboratório, dar a aprovação final do próprio pedido e seguir para compras antes do ciclo do dia 10 abrir. Fica registrado com o nome de quem fez." },
   { key: "recebimento.ver", modulo: "Compras", label: "Acessar Recebimento", descricao: "Ver o que falta chegar." },
   { key: "recebimento.registrar", modulo: "Compras", label: "Confirmar entrega de pedidos", descricao: "Confirmar que o material chegou ou o serviço foi feito, antes do pagamento. A chegada de cada item é registrada pela compra (“Registrar chegada de compras”)." },
   // ---- Estoque (antes, parte de "Suprimentos") ----
@@ -225,7 +228,9 @@ const LABORATORIO: PermissaoUsuario[] = [
 
 /**
  * Compra (nova, 0146): acompanha o que falta, solicita, conduz e recebe
- * compras. Validar pedido interno segue com o coordenador.
+ * compras. Desde a 0184 (Antonio, 24/11/2026) tem todas as caixinhas de
+ * Compras, inclusive "Conduzir a compra inteira": executa todas as etapas do
+ * pedido, como substituto de quem aprova, sem parar no ciclo do dia 10.
  */
 const COMPRA: PermissaoUsuario[] = [
   "cadastros.ver",
@@ -236,9 +241,13 @@ const COMPRA: PermissaoUsuario[] = [
   "compras.ver",
   "recebimento.ver",
   "pedido.criar",
+  "pedido.aprovar",
+  "pedido.urgencia",
   "compras.solicitar",
   "compras.aprovar",
   "compras.receber",
+  "compras.cancelar",
+  "compras.conduzir",
   "recebimento.registrar",
 ];
 
