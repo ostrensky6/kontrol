@@ -20,6 +20,7 @@ import {
 
 import { LegendaObrigatorio, MarcaObrigatorio } from "@/components/common/Campo";
 import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
+import { NumeroPasso } from "@/components/common/NumeroPasso";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Button } from "@/components/ui/button";
 import {
@@ -298,7 +299,7 @@ function NovoPedidoFormulario({
       <div className="grid gap-5" onInput={aoMexer} onKeyDown={aoTeclar}>
         <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-12">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 md:col-span-12">
-            <h3 className="text-sm font-semibold">Identificação do pedido</h3>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><NumeroPasso n={1} />Identificação do pedido</h3>
             <LegendaObrigatorio />
           </div>
           <div className="md:col-span-6">
@@ -413,7 +414,7 @@ function NovoPedidoFormulario({
 
         <section className="grid gap-3 rounded-lg border border-border p-4">
           <div className="flex items-center gap-0.5">
-            <h3 className="text-sm font-semibold">Justificativa</h3>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><NumeroPasso n={2} />Justificativa</h3>
             <HelpTip title="Justificativa">Fonte e rubrica são definidas pelo administrativo.</HelpTip>
           </div>
           <div>
@@ -432,7 +433,7 @@ function NovoPedidoFormulario({
 
         <section className="grid gap-3 rounded-lg border border-border p-4" aria-labelledby="novo-pedido-itens-titulo">
           <div className="flex items-center gap-0.5">
-            <h3 id="novo-pedido-itens-titulo" className="text-sm font-semibold">Materiais, serviços e equipamentos</h3>
+            <h3 id="novo-pedido-itens-titulo" className="flex items-center gap-2 text-sm font-semibold"><NumeroPasso n={3} />Materiais, serviços e equipamentos</h3>
             <HelpTip title="Itens do pedido">
               Preencha um item e aperte “Adicionar item”. Para enviar, o pedido precisa de ao menos um item com especificação,
               quantidade e unidade.
