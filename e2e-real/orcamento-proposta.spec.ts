@@ -22,7 +22,7 @@ test("orçamento de projeto vira proposta emitida, com o documento do cliente", 
   // ---- 1. dados do orçamento (modalidade só de projeto: não depende do catálogo de análises)
   await page.goto("/orcamento/demandas/nova");
   await page.getByLabel(/^Título/).fill(titulo);
-  await page.getByLabel(/^Modalidade/).selectOption("projeto");
+  await page.getByRole("radiogroup", { name: "Modalidade" }).getByText("Projeto sem análises", { exact: true }).click();
   await page.getByLabel("Nome do cliente").fill(cliente);
   await page.getByLabel(/^Descrição do orçamento/).fill("Levantamento de campo do roteiro automático.");
   await page.getByRole("button", { name: "Criar orçamento" }).click();
