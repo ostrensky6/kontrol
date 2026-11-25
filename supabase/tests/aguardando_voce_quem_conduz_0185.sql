@@ -33,11 +33,13 @@ create function pg_temp.id(p_chave text) returns bigint language sql as $$
   select current_setting('tav.' || p_chave)::bigint
 $$;
 
-create function pg_temp.na_fila(p_pedido bigint) returns boolean language sql as $$
-  select exists (
-    select 1 from jsonb_array_elements(public.aguardando_voce()) e,
-                  jsonb_array_elements(e -> 'itens') i
-     where e ->> 'chave' = 'pedidos_administrativo' and (i ->> 'id')::bigint = p_pedido)
+-- quantos pedidos a fila "formalizar e autorizar" mostra a quem está na sessão
+-- (null quando a fila não aparece). Conta a fila inteira: a lista do cartão
+-- traz só os 3 mais antigos, e num banco com pedidos o de teste fica de fora.
+create function pg_temp.qtd_fila() returns bigint language sql as $$
+  select (e ->> 'quantidade')::bigint
+    from jsonb_array_elements(public.aguardando_voce()) e
+   where e ->> 'chave' = 'pedidos_administrativo'
 $$;
 
 -- ---- pessoas, projeto, laboratório e insumo ------------------------------------------------
@@ -90,6 +92,11 @@ begin
 end $$;
 select public.registrar_etapa_pedido_interno(pg_temp.id('pedido'), 'em_validacao', 'em_validacao', 'registrado', null, '{}');
 reset role;
+-- antes da aprovação: quantos pedidos a fila já tem para o Administrador
+select pg_temp.como('adm');
+set local role authenticated;
+select set_config('tav.antes', coalesce(pg_temp.qtd_fila(), 0)::text, true);
+reset role;
 select pg_temp.como('coord');
 set local role authenticated;
 select public.registrar_etapa_pedido_interno(pg_temp.id('pedido'), 'validado', 'validado', 'aprovado', null, '{}');
@@ -114,59 +121,36 @@ begin
 end $$;
 
 -- ---- quem conduz vê já; quem não conduz, não ----------------------------------------------
-select pg_temp.como('adm');
-set local role authenticated;
-do $$
+-- quem conduz conta o pedido travado: a fila tem um a mais que antes da aprovação
+create function pg_temp.exigir_qtd(p_quem text, p_esperado bigint, p_msg text) returns void language plpgsql as $$
+declare
+  v_qtd bigint;
 begin
-  if not pg_temp.na_fila(pg_temp.id('pedido')) then
-    raise exception 'aguardando_voce_0185: o Administrador deveria ver o pedido travado: %', public.aguardando_voce();
+  perform pg_temp.como(p_quem);
+  set local role authenticated;
+  v_qtd := pg_temp.qtd_fila();
+  reset role;
+  if v_qtd is distinct from p_esperado then
+    raise exception 'aguardando_voce_0185: % (esperado %, veio %)', p_msg, p_esperado, v_qtd;
   end if;
 end $$;
-reset role;
 
-select pg_temp.como('compras');
-set local role authenticated;
-do $$
-begin
-  if not pg_temp.na_fila(pg_temp.id('pedido')) then
-    raise exception 'aguardando_voce_0185: quem conduz a compra inteira deveria ver o pedido travado: %', public.aguardando_voce();
-  end if;
-end $$;
-reset role;
-
-select pg_temp.como('gestor2');
-set local role authenticated;
-do $$
-begin
-  if pg_temp.na_fila(pg_temp.id('pedido')) then
-    raise exception 'aguardando_voce_0185: sem a caixinha, o Gestor não deveria ver o pedido travado: %', public.aguardando_voce();
-  end if;
-end $$;
-reset role;
+select pg_temp.exigir_qtd('adm', pg_temp.id('antes') + 1,
+  'o Administrador deveria ver o pedido travado na fila de formalizar');
+select pg_temp.exigir_qtd('compras', pg_temp.id('antes') + 1,
+  'quem conduz a compra inteira deveria ver o pedido travado na fila de formalizar');
+-- o Gestor sem a caixinha não é do administrativo: a fila nem aparece para ele
+select pg_temp.exigir_qtd('gestor2', null,
+  'sem a caixinha, o Gestor não deveria ver a fila de formalizar');
 
 -- a caixinha marcada só para o Gestor vale; desmarcada na pessoa da Compra, não vale
 update public.perfis set permissoes = '{"compras.conduzir": true}'::jsonb where id = pg_temp.uid('gestor2');
 update public.perfis set permissoes = '{"compras.conduzir": false}'::jsonb where id = pg_temp.uid('compras');
 
-select pg_temp.como('gestor2');
-set local role authenticated;
-do $$
-begin
-  if not pg_temp.na_fila(pg_temp.id('pedido')) then
-    raise exception 'aguardando_voce_0185: com a caixinha, o Gestor deveria ver o pedido travado: %', public.aguardando_voce();
-  end if;
-end $$;
-reset role;
-
-select pg_temp.como('compras');
-set local role authenticated;
-do $$
-begin
-  if pg_temp.na_fila(pg_temp.id('pedido')) then
-    raise exception 'aguardando_voce_0185: com a caixinha desmarcada, a Compra não deveria ver o pedido travado: %', public.aguardando_voce();
-  end if;
-end $$;
-reset role;
+select pg_temp.exigir_qtd('gestor2', pg_temp.id('antes') + 1,
+  'com a caixinha, o Gestor deveria ver o pedido travado na fila de formalizar');
+select pg_temp.exigir_qtd('compras', null,
+  'com a caixinha desmarcada, a Compra não deveria ver a fila de formalizar');
 
 select 'aguardando_voce_quem_conduz_0185: ok' as resultado;
 
