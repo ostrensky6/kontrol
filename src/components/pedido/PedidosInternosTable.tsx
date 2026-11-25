@@ -113,7 +113,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorKey: "numero",
       header: "Nº",
       cell: ({ row }) => (
-        <Link href={`/pedido/${row.original.id}`} className="whitespace-nowrap font-mono text-xs text-muted-foreground hover:underline">
+        <Link href={`/pedido/${row.original.id}`} className="whitespace-nowrap text-sm tabular-nums text-muted-foreground hover:text-primary hover:underline">
           {row.original.numero}
         </Link>
       ),
@@ -124,7 +124,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.titulo} ${row.projeto} ${row.solicitante} ${row.coordenador}`,
       header: "Pedido",
       cell: ({ row }) => (
-        <div className="min-w-44">
+        <div className="min-w-40">
           <Link href={`/pedido/${row.original.id}`} className="font-medium text-primary hover:underline">
             {row.original.titulo}
           </Link>
@@ -143,9 +143,9 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       // ordena pela posição no fluxo, não pelo nome do status
       sortingFn: (a, b) => posicaoEtapa(a.original.etapa) - posicaoEtapa(b.original.etapa),
       cell: ({ row }) => (
-        <div className="min-w-40 space-y-1">
+        <div className="min-w-36 space-y-1">
           <EtapaProgresso etapa={row.original.etapa} />
-          <StatusBadge status={row.original.status} label={row.original.statusLabel} />
+          <StatusBadge status={row.original.status} label={row.original.statusLabel} className="whitespace-normal rounded-md" />
           {row.original.ciclo && row.original.ciclo !== "—" && (
             <p className="text-xs text-muted-foreground">Ciclo {row.original.ciclo}</p>
           )}
@@ -160,7 +160,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.proximaAcao} ${row.responsavelAtual}`,
       header: "Próximo passo",
       cell: ({ row }) => (
-        <div className="min-w-40">
+        <div className="min-w-36">
           <p className="font-medium text-foreground">{row.original.proximaAcao}</p>
           {row.original.responsavelAtual !== "—" && (
             <p className="text-xs text-muted-foreground">com {row.original.responsavelAtual}</p>
@@ -189,10 +189,10 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.necessidade} ${row.urgencia}`,
       header: "Precisa até",
       cell: ({ row }) => (
-        <div className="whitespace-nowrap">
-          <p className="tabular-nums">{row.original.necessidade}</p>
+        <div className="space-y-1">
+          <p className="whitespace-nowrap tabular-nums">{row.original.necessidade}</p>
           {URGENTE.has(row.original.urgencia) && (
-            <span className="inline-flex rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
+            <span className="inline-flex rounded-md bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
               Urgência {row.original.urgencia.toLowerCase()}
             </span>
           )}
@@ -251,7 +251,7 @@ export function PedidosInternosTable({
       ]}
       getMobileTitle={(row) => (
         <Link href={`/pedido/${row.id}`} className="text-primary hover:underline">
-          <span className="font-mono text-xs text-muted-foreground/80">{row.numero}</span> · {row.titulo}
+          <span className="text-sm tabular-nums text-muted-foreground">{row.numero}</span> · {row.titulo}
         </Link>
       )}
       getMobileDescription={(row) => (

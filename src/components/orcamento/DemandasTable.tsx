@@ -50,6 +50,15 @@ function Valor({ row }: { row: DemandaRow }) {
   );
 }
 
+/** "Solicitada em 03/11/2026 · prioridade alta", só com o que foi preenchido. */
+export function linhaSolicitacao(row: Pick<DemandaRow, "dataSolicitacao" | "prioridade">) {
+  const partes = [
+    row.dataSolicitacao && row.dataSolicitacao !== "—" ? `Solicitada em ${row.dataSolicitacao}` : null,
+    row.prioridade && row.prioridade !== "—" ? `prioridade ${row.prioridade.toLowerCase()}` : null,
+  ].filter(Boolean);
+  return partes.join(" · ");
+}
+
 const columns: ColumnDef<DemandaRow, unknown>[] = [
   {
     accessorKey: "titulo",
@@ -59,9 +68,9 @@ const columns: ColumnDef<DemandaRow, unknown>[] = [
         <Link href={`/orcamento/demandas/${row.original.id}`} className="font-medium text-primary hover:underline">
           {row.original.titulo}
         </Link>
-        <span className="block text-xs text-muted-foreground">
-          Solicitada em {row.original.dataSolicitacao} · prioridade {row.original.prioridade}
-        </span>
+        {linhaSolicitacao(row.original) && (
+          <span className="block text-xs text-muted-foreground">{linhaSolicitacao(row.original)}</span>
+        )}
       </div>
     ),
   },

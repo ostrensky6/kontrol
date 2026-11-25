@@ -16,8 +16,8 @@ export function EtapaProgresso({ etapa, className }: { etapa: EtapaPedidoId; cla
         ? "Cancelado"
         : `Etapa ${posicao} de ${total}: ${rotuloEtapa(etapa)}`;
   return (
-    <span role="img" aria-label={descricao} title={descricao} className={cn("flex items-center gap-2", className)}>
-      <span className="flex flex-1 gap-0.5" aria-hidden>
+    <span role="img" aria-label={descricao} title={descricao} className={cn("flex flex-wrap items-center gap-x-2 gap-y-0.5", className)}>
+      <span className="flex w-24 shrink-0 gap-0.5" aria-hidden>
         {ETAPAS_PEDIDO.map((e, i) => (
           <span
             key={e.id}
@@ -34,7 +34,7 @@ export function EtapaProgresso({ etapa, className }: { etapa: EtapaPedidoId; cla
           />
         ))}
       </span>
-      <span aria-hidden className="shrink-0 text-xs font-medium text-muted-foreground">
+      <span aria-hidden className="whitespace-nowrap text-xs font-medium text-muted-foreground">
         {etapa === "concluido" || etapa === "cancelado" ? rotuloEtapa(etapa) : `${posicao}/${total} ${rotuloEtapa(etapa)}`}
       </span>
     </span>

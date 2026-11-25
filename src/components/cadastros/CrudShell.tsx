@@ -24,6 +24,7 @@ import {
 } from "@/lib/tabela-linhas";
 import { ChevronDown, ChevronUp, ChevronsUpDown, Plus, Search } from "lucide-react";
 import { contemBusca } from "@/lib/busca";
+import { useRolagemLateral } from "@/components/common/useRolagemLateral";
 import type { Campo, Coluna } from "@/lib/cadastros/config";
 import { type PreAprovadoOpcao } from "@/lib/cadastros/pessoas";
 import { Badge } from "@/components/ui/badge";
@@ -270,6 +271,7 @@ export function CrudShell({
     return dataCols;
   }, [campos, colunas, slug, rotulo, editar, exibir, somenteLeitura, apenasEditar]);
 
+  const rolagem = useRolagemLateral<HTMLDivElement>();
   // O React Compiler não memoiza componentes que usam useReactTable (a API
   // retorna funções não-memoizáveis); o TanStack faz a própria memoização e os
   // resultados são consumidos direto no render, então é seguro.
@@ -465,7 +467,7 @@ export function CrudShell({
       <MensagemAcao estado={retorno} className="mt-3" />
 
       {/* Tabela */}
-      <div className="mt-4 overflow-x-auto rounded-lg border border-border bg-card text-xs shadow-sm">
+      <div {...rolagem} className="mt-4 overflow-x-auto rounded-lg border border-border bg-card text-xs shadow-sm">
         <Table>
           <TableHeader className="bg-muted/60">
             {table.getHeaderGroups().map((hg) => (
@@ -492,6 +494,7 @@ export function CrudShell({
                         alinhaDir ? "text-right" : "text-left",
                         meta?.calculada && "text-primary",
                         meta?.largura && larguraClasse[meta.largura],
+                        header.column.id === "_acoes" && "app-coluna-acoes",
                       )}
                     >
                       {header.column.getCanSort() ? (
@@ -530,7 +533,7 @@ export function CrudShell({
                   const meta = cell.column.columnDef.meta as ColMeta | undefined;
                   const cls =
                     cell.column.id === "_acoes"
-                      ? "whitespace-nowrap px-3 py-2 text-right"
+                      ? "app-coluna-acoes whitespace-nowrap px-3 py-2 text-right"
                       : cn(
                           "px-3 py-2 align-middle",
                           meta?.alinhar === "right" ? "text-right tabular-nums" : "text-left",
