@@ -477,7 +477,8 @@ function NovoPedidoFormulario({
 
         {/* rodapé preso embaixo: os botões de enviar ficam à vista no pedido comprido */}
         <DialogFooter className="sticky -bottom-5 z-10 -mx-5 border-t border-border bg-card px-5 py-3 sm:items-center">
-          <div className="sm:mr-auto">
+          <div className="flex items-center gap-0.5 text-xs text-muted-foreground sm:mr-auto">
+            Enviar ou guardar?
             <HelpTip title="Enviar ou guardar" side="top" align="start">
               “Enviar para aprovação” grava o pedido e já o envia a quem aprova. “Guardar rascunho” guarda para terminar
               depois.

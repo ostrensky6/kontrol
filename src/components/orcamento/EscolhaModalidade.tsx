@@ -50,6 +50,7 @@ export function EscolhaModalidade({
       legenda="Modalidade"
       obrigatorio={obrigatorio}
       variante="cartao"
+      empilhado
       opcoes={opcoes.map(([v, rotulo]) => ({ valor: v, rotulo, icone: ICONE_MODALIDADE[v] }))}
       valor={valor}
       valorInicial={valorInicial}
@@ -77,6 +78,7 @@ export function EscolhaPrioridade({
       name={name}
       legenda="Prioridade"
       opcoes={OPCOES_PRIORIDADE_ORCAMENTO}
+      compacto
       valorInicial={valorInicial ?? "normal"}
       className={className}
     />

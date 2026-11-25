@@ -49,8 +49,8 @@ export function PedidoCabecalho({
   podeDefinirUrgencia,
 }: Props) {
   return (
-    <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
-      <div>
+    <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:flex-nowrap">
+      <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium tabular-nums text-muted-foreground">{pedidoInternoNumero(pedido.id)}</p>
           <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusMeta.className}`}>
@@ -97,7 +97,7 @@ export function PedidoCabecalho({
               : null}
         </p>
       </div>
-      <div className="flex flex-col items-start gap-2 sm:items-end">
+      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
         <span className="text-xs text-muted-foreground">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
         {podeDefinirUrgencia && (
           <PedidoUrgenciaDefinir
