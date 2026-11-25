@@ -52,14 +52,14 @@ export function PedidoCabecalho({
     <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm">
       <div>
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-xs font-medium text-muted-foreground/80">{pedidoInternoNumero(pedido.id)}</p>
+          <p className="text-sm font-medium tabular-nums text-muted-foreground">{pedidoInternoNumero(pedido.id)}</p>
           <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusMeta.className}`}>
             {statusMeta.label}
           </span>
         </div>
         <h1 className="text-xl font-semibold tracking-tight">{pedido.titulo}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Projeto: {projeto} · Solicitante: {pedido.solicitante ?? "—"}
+          {projeto && projeto !== "—" ? `Projeto: ${projeto}` : "Sem projeto"} · Solicitante: {pedido.solicitante ?? "—"}
           {pedido.data_necessidade ? ` · Necessidade: ${formatDate(pedido.data_necessidade)}` : ""}
           {` · Urgência: ${URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia}`}
         </p>

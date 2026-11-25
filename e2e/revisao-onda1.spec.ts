@@ -473,7 +473,8 @@ test("campo padrão nos formulários de criação: rótulo de 12 px em frase nor
   for (const formulario of formularios) {
     await page.goto(formulario.url);
     await page.getByRole("button", { name: formulario.botao, exact: true }).click();
-    const rotulo = page.locator("label", { hasText: new RegExp(`^${formulario.rotulo}$`) }).first();
+    // o * de campo obrigatório (rodada 3 de 25/11) fica no fim do rótulo
+    const rotulo = page.locator("label", { hasText: new RegExp(`^${formulario.rotulo}\\*?$`) }).first();
     await expect(rotulo, formulario.url).toBeVisible();
     const estilo = await rotulo.evaluate((el) => {
       const css = getComputedStyle(el);
