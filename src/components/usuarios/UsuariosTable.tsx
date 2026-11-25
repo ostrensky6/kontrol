@@ -99,8 +99,9 @@ export function UsuariosTable({ rows }: { rows: UsuarioRow[] }) {
         row.nome === "—" ? <span className="text-warning-strong">Nome não informado</span> : row.nome
       }
       getMobileDescription={(row) => `${row.email} · ${statusTexto(row)}`}
-      getMobileMeta={(row) => (
-        <div className="flex flex-col items-end gap-2">
+      // no celular a função e as ações ficam numa linha embaixo do nome, sem empilhar
+      getMobileActions={(row) => (
+        <div className="flex w-full items-center justify-between gap-2">
           <FuncaoNaLista row={row} />
           <UsuarioAcoes row={row} />
         </div>

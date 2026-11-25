@@ -18,7 +18,7 @@ import {
  */
 export function IndicadoresEstoque({ resumo }: { resumo: ResumoSinais | null }) {
   return (
-    <section aria-label="Números do estoque" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+    <section aria-label="Números do estoque" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {numerosDoEstoque(resumo).map((cartao) => (
         <Link
           key={cartao.filtro}

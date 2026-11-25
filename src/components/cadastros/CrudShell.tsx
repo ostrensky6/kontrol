@@ -271,7 +271,7 @@ export function CrudShell({
     return dataCols;
   }, [campos, colunas, slug, rotulo, editar, exibir, somenteLeitura, apenasEditar]);
 
-  const rolagem = useRolagemLateral<HTMLDivElement>();
+  const rolagem = useRolagemLateral<HTMLDivElement>().props;
   // O React Compiler não memoiza componentes que usam useReactTable (a API
   // retorna funções não-memoizáveis); o TanStack faz a própria memoização e os
   // resultados são consumidos direto no render, então é seguro.

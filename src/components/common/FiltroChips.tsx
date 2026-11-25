@@ -106,7 +106,8 @@ export function FiltroCartoes<T extends string>({
             aria-pressed={ativo}
             onClick={() => aoMudar(opcao.valor)}
             className={cn(
-              "flex min-h-[4.5rem] flex-col justify-between gap-1 rounded-lg border p-3 text-left transition-colors",
+              // no celular a descrição some: o cartão fica baixo, só nome e contagem
+              "flex min-h-11 flex-col justify-center gap-1 rounded-lg border px-3 py-2 text-left transition-colors sm:min-h-[4.5rem] sm:justify-between sm:py-3",
               ativo
                 ? "border-primary bg-primary/5 ring-1 ring-primary"
                 : "border-border bg-card hover:border-primary/50 hover:bg-primary/5",

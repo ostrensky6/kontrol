@@ -31,7 +31,8 @@ describe("edição de usuário", () => {
   it("expõe nome ausente e ação de correção também no mobile", () => {
     expect(tabela).toContain("Nome não informado");
     expect(acoes).toContain("Completar nome");
-    expect(tabela).toMatch(/getMobileMeta=\{\(row\) => \([\s\S]*<UsuarioAcoes row=\{row\} \/>/);
+    // no celular as ações ficam na linha de baixo do cartão (rodada 2 de 25/11)
+    expect(tabela).toMatch(/getMobileActions=\{\(row\) => \([\s\S]*<UsuarioAcoes row=\{row\} \/>/);
   });
 });
 

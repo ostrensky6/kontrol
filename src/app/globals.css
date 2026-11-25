@@ -413,6 +413,23 @@ tbody tr:hover > .app-coluna-fixa {
   box-shadow: 1px 0 0 var(--border), 8px 0 8px -6px rgb(15 23 42 / 0.28);
 }
 
+/* Lugares do módulo no celular: a borda esmaece enquanto há mais lugares
+   escondidos à direita (ou à esquerda, depois de rolar). */
+@media (max-width: 767px) {
+  .app-lugares-modulo {
+    scrollbar-width: none;
+  }
+  .app-lugares-modulo[data-mais-a-direita="true"] {
+    mask-image: linear-gradient(to right, #000 calc(100% - 2.5rem), transparent);
+  }
+  .app-lugares-modulo[data-rolado="true"] {
+    mask-image: linear-gradient(to right, transparent, #000 2.5rem);
+  }
+  .app-lugares-modulo[data-rolado="true"][data-mais-a-direita="true"] {
+    mask-image: linear-gradient(to right, transparent, #000 2.5rem, #000 calc(100% - 2.5rem), transparent);
+  }
+}
+
 /* Coluna de ações fixa à direita: em tabela larga os botões da linha
    continuam à vista, sem precisar rolar até o fim. */
 .app-coluna-acoes {

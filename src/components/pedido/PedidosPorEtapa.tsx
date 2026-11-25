@@ -67,7 +67,7 @@ export function PedidosPorEtapa({
                   aria-pressed={ativa}
                   onClick={() => mudar(ativa ? "andamento" : etapa.id)}
                   className={cn(
-                    "flex h-full w-full flex-col rounded-lg border p-3 text-left transition",
+                    "flex h-full w-full flex-col rounded-lg border px-3 py-2 text-left transition sm:py-3",
                     ativa
                       ? "border-primary bg-primary/10 ring-1 ring-primary"
                       : "border-border bg-card hover:border-primary/50 hover:bg-primary/5",

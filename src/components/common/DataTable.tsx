@@ -147,7 +147,7 @@ export function DataTable<TData>({
   const [density, setDensity] = React.useState<"comfortable" | "compact">("comfortable");
   // a primeira coluna (o nome) fica fixa ao rolar para o lado; a sombra só aparece rolando (10.3).
   // A coluna de ações fica fixa à direita enquanto houver colunas escondidas.
-  const rolagem = useRolagemLateral<HTMLDivElement>();
+  const rolagem = useRolagemLateral<HTMLDivElement>().props;
 
   React.useEffect(() => {
     try {

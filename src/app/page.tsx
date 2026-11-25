@@ -333,7 +333,7 @@ export default async function Home() {
       <AguardandoVoce pendencias={pendencias} />
 
       {indicadores.length > 0 && (
-        <section aria-label="Indicadores" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <section aria-label="Indicadores" className="grid grid-cols-2 gap-3 lg:grid-cols-5">
           {indicadores.slice(0, 5).map((indicador) => (
             <Indicador key={indicador.label} {...indicador} />
           ))}
