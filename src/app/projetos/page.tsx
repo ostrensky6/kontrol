@@ -7,13 +7,17 @@ import { coordenadorDoProjeto, type UsuarioCoordenador } from "./_lib/responsave
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { STATUS_PEDIDO_ENCERRADO } from "@/lib/pedido/etapas";
+
+// compra recebida ou cancelada já não está em andamento (mesma régua da lista de Compras)
+const STATUS_COMPRA_ENCERRADA = ["recebido", "cancelado"];
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjetosPage() {
   const leitura = novaLeitura("/projetos");
   const supabase = await createClient();
-  const [{ data: projetos }, { data: clientes }, { data: usuarios }] = await Promise.all([
+  const [{ data: projetos }, { data: clientes }, { data: usuarios }, { data: pedidosAbertos }, { data: comprasAbertas }] = await Promise.all([
     leitura.de("projetos", supabase
       .from("projetos")
       .select("id, nome, cliente_id, responsavel, coordenador, coordenador_nome, status, data_inicio, data_fim")
@@ -21,7 +25,25 @@ export default async function ProjetosPage() {
     leitura.de("clientes", supabase.from("clientes").select("id, nome")),
     // quem aprova os pedidos do projeto é o usuário indicado como coordenador (0136/0169)
     leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso")),
+    // o que está em andamento em cada projeto: só os ids, para contar
+    leitura.de("pedidos", supabase
+      .from("pedidos_internos")
+      .select("id, projeto_id")
+      .not("projeto_id", "is", null)
+      .not("status", "in", `(${STATUS_PEDIDO_ENCERRADO.join(",")})`)),
+    leitura.de("compras", supabase
+      .from("pedidos_compra")
+      .select("id, projeto_id")
+      .not("projeto_id", "is", null)
+      .not("status", "in", `(${STATUS_COMPRA_ENCERRADA.join(",")})`)),
   ]);
+  const contar = (linhas: { projeto_id: number | null }[] | null) => {
+    const m = new Map<number, number>();
+    for (const l of linhas ?? []) if (l.projeto_id != null) m.set(l.projeto_id, (m.get(l.projeto_id) ?? 0) + 1);
+    return m;
+  };
+  const pedidosPorProjeto = contar(pedidosAbertos);
+  const comprasPorProjeto = contar(comprasAbertas);
   const perfis = (usuarios ?? []) as UsuarioCoordenador[];
   // coordenador_id ainda não está nos tipos gerados: lido à parte
   const { data: coordenadores } = await (await createClientUntyped()).from("projetos").select("id, coordenador_id");
@@ -44,7 +66,11 @@ export default async function ProjetosPage() {
           <div className="flex items-center gap-1">
             <h1 className="text-xl font-semibold tracking-tight">Projetos</h1>
             <HelpTip title="Projetos">
-              <p>Orçamentos, planejamentos e compras de cada projeto num só lugar.</p>
+              <p>Orçamentos, planejamentos, pedidos e compras de cada projeto num só lugar.</p>
+              <p>
+                <b>Em andamento</b> conta os pedidos e as compras do projeto que ainda não foram
+                concluídos nem cancelados.
+              </p>
               <p>
                 O <b>coordenador</b> é o usuário que aprova os pedidos do projeto. Projeto sem
                 coordenador não consegue enviar pedido para aprovação. O nome escrito no campo
@@ -93,6 +119,7 @@ export default async function ProjetosPage() {
                   <TableHead>Projeto</TableHead>
                   <TableHead>Cliente</TableHead>
                   <TableHead>Coordenador</TableHead>
+                  <TableHead>Em andamento</TableHead>
                   <TableHead>Período</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
@@ -124,6 +151,21 @@ export default async function ProjetosPage() {
                             <span className="text-xs text-muted-foreground">
                               {c.situacao === "suspenso" ? c.nome : c.escrito ? `escrito: ${c.escrito}` : "indicar"}
                             </span>
+                          </Link>
+                        );
+                      })()}
+                    </TableCell>
+                    <TableCell>
+                      {(() => {
+                        const nPed = pedidosPorProjeto.get(p.id) ?? 0;
+                        const nCom = comprasPorProjeto.get(p.id) ?? 0;
+                        if (nPed + nCom === 0) return <span className="text-muted-foreground">Nada em andamento</span>;
+                        return (
+                          <Link href={`/projetos/${p.id}#projeto-pedidos`} className="tabular-nums text-brand-700 hover:underline dark:text-brand-300">
+                            {[
+                              nPed > 0 ? `${nPed} ${nPed === 1 ? "pedido" : "pedidos"}` : null,
+                              nCom > 0 ? `${nCom} ${nCom === 1 ? "compra" : "compras"}` : null,
+                            ].filter(Boolean).join(" · ")}
                           </Link>
                         );
                       })()}

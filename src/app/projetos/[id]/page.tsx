@@ -15,6 +15,9 @@ import { VinculosProjeto, type VinculoPessoa } from "@/components/projetos/Vincu
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EtapaProgresso } from "@/components/pedido/EtapaProgresso";
+import { etapaDoPedido } from "@/lib/pedido/etapas";
+import { pedidoInternoNumero, pedidoInternoStatus } from "@/lib/pedido/status";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,11 @@ const STATUS_ORC: Record<string, { label: string; cls: string }> = {
   enviado: { label: "Enviado", cls: "bg-info-soft text-info-strong" },
   aprovado: { label: "Aprovado", cls: "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" },
   recusado: { label: "Recusado", cls: "bg-muted text-muted-foreground" },
+};
+
+const ROTULO_TIPO_ORC: Record<string, string> = {
+  analises: "Análises de laboratório",
+  projeto: "Custos do projeto",
 };
 
 const STATUS_COMPRA: Record<string, { label: string; cls: string }> = {
@@ -55,9 +63,9 @@ function Kpi({
   ajuda?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-border bg-card p-3 shadow-sm sm:p-4">
       <p className="flex items-center gap-1 text-xs font-medium text-muted-foreground">{label}{ajuda}</p>
-      <p className="mt-1 text-xl font-semibold tracking-tight text-foreground">{valor}</p>
+      <p className="mt-1 text-lg font-semibold tracking-tight text-foreground tabular-nums sm:text-xl">{valor}</p>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground/80">{hint}</p>}
     </div>
   );
@@ -118,6 +126,7 @@ export default async function ProjetoHubPage({
     { data: demandas },
     { data: fornecedores },
     { data: parametrosGlobais },
+    { data: pedidosInternos },
   ] = await Promise.all([
     projeto.cliente_id != null
       ? leitura.de("clientes", supabase.from("clientes").select("id, nome").eq("id", projeto.cliente_id).single())
@@ -151,7 +160,39 @@ export default async function ProjetoHubPage({
       .order("criado_em", { ascending: false })),
     leitura.de("fornecedores", supabase.from("fornecedores").select("id, nome")),
     leitura.de("parâmetros", supabase.from("parametros").select("chave, valor")),
+    // pedidos do projeto (o que se pediu, antes de virar compra com fornecedor)
+    leitura.de("pedidos", supabase
+      .from("pedidos_internos")
+      .select("id, titulo, status, natureza, aprovacao_area_em, data_necessidade, criado_em, pedidos_internos_itens(quantidade, orcamento_previo)")
+      .eq("projeto_id", id)
+      .order("criado_em", { ascending: false })),
   ]);
+
+  // Orçamento ligado ao projeto só pela entrada (demanda) também é do projeto:
+  // o módulo de laboratório ou de custos pode não ter o projeto preenchido.
+  const demandaIds = (demandas ?? []).map((d) => d.id);
+  const [{ data: orcamentosPelaDemanda }, { data: orcProjetosPelaDemanda }] = demandaIds.length
+    ? await Promise.all([
+        leitura.de("orçamentos de laboratório", supabase
+          .from("orcamentos")
+          .select("id, tipo, status, data_orcamento, demanda_id, orcamento_itens(n_amostras, custo_unitario, preco_unitario)")
+          .in("demanda_id", demandaIds)
+          .order("criado_em", { ascending: false })),
+        leitura.de("orçamentos de projeto", supabase
+          .from("orcamento_projetos")
+          .select(
+            "id, demanda_id, titulo, status, data_orcamento, margem_lucro, impostos, impostos_legacy, incubacao, reserva, investimentos, lucro, orcamento_projeto_analises(n_amostras, custo_unitario, preco_unitario), orcamento_projeto_custos(rubrica, quantidade, custo_unitario, preco_unitario, meses_selecionados)",
+          )
+          .in("demanda_id", demandaIds)
+          .order("criado_em", { ascending: false })),
+      ])
+    : [{ data: [] }, { data: [] }];
+  const semRepetir = <T extends { id: number }>(...listas: Array<T[] | null | undefined>) => {
+    const vistos = new Set<number>();
+    return listas.flatMap((lista) => lista ?? []).filter((linha) => !vistos.has(linha.id) && vistos.add(linha.id));
+  };
+  const orcamentosDoProjeto = semRepetir(orcamentos, orcamentosPelaDemanda);
+  const orcProjetosDoProjeto = semRepetir(orcProjetos, orcProjetosPelaDemanda);
   // ORC-9/ORC2-5: "orçado" = propostas aprovadas em vigor (uma por orçamento),
   // pelo total congelado na emissão; o status dos módulos não chega a "aprovado".
   const { data: propostasVigentes } = await leitura.de("proposta aprovada", supabase
@@ -165,9 +206,9 @@ export default async function ProjetoHubPage({
   type OrcLinha = { key: string; href: string; titulo: string; tipo: string; data: string; status: string; total: number };
 
   // valores pela mesma regra da emissão (custo técnico + gross-up único com as taxas da proposta)
-  const taxasDa = criarResolvedorDeTaxas({ projetos: orcProjetos, demandas, parametrosGlobais });
+  const taxasDa = criarResolvedorDeTaxas({ projetos: orcProjetosDoProjeto, demandas, parametrosGlobais });
 
-  const orcAnalises: OrcLinha[] = (orcamentos ?? []).map((o) => {
+  const orcAnalises: OrcLinha[] = orcamentosDoProjeto.map((o) => {
     const total = valorLaboratorioNaProposta(o.orcamento_itens ?? [], taxasDa(o.demanda_id));
     return {
       key: `a-${o.id}`,
@@ -180,7 +221,7 @@ export default async function ProjetoHubPage({
     };
   });
 
-  const orcProjetoLinhas: OrcLinha[] = (orcProjetos ?? []).map((o) => {
+  const orcProjetoLinhas: OrcLinha[] = orcProjetosDoProjeto.map((o) => {
     const total = valorProjetoNaProposta(
       { custos: o.orcamento_projeto_custos, analises: o.orcamento_projeto_analises },
       taxasDa(o.demanda_id, o),
@@ -217,6 +258,19 @@ export default async function ProjetoHubPage({
   const comprometidoCompras = comprasLinhas
     .filter((c) => c.status !== "cancelado")
     .reduce((a, c) => a + c.total, 0);
+
+  const pedidosLinhas = (pedidosInternos ?? []).map((p) => ({
+    id: p.id,
+    numero: pedidoInternoNumero(p.id),
+    titulo: p.titulo,
+    etapa: etapaDoPedido(p),
+    situacao: pedidoInternoStatus(p.status).label,
+    necessidade: p.data_necessidade,
+    previo: (p.pedidos_internos_itens ?? []).reduce(
+      (a, it) => a + Number(it.quantidade ?? 0) * Number(it.orcamento_previo ?? 0),
+      0,
+    ),
+  }));
 
   const podeGerirPlanos = await pode("planejamento.editar");
   const planosLinhas = (planos ?? []).map((p) => ({
@@ -288,7 +342,7 @@ export default async function ProjetoHubPage({
         )}
 
         {/* KPIs */}
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <Kpi
             label="Orçado (aprovado)"
             valor={moeda(orcadoAprovado)}
@@ -302,10 +356,10 @@ export default async function ProjetoHubPage({
           <Kpi
             label="Comprometido em compras"
             valor={moeda(comprometidoCompras)}
-            hint={`${comprasLinhas.length} pedido(s)`}
+            hint={`${comprasLinhas.length} compra(s) com fornecedor`}
             ajuda={
               <HelpTip title="Comprometido em compras">
-                <p>Valor <b>estimado</b> dos pedidos ligados ao projeto, exceto os cancelados.</p>
+                <p>Valor <b>estimado</b> das compras com fornecedor ligadas ao projeto, exceto as canceladas.</p>
               </HelpTip>
             }
           />
@@ -313,46 +367,75 @@ export default async function ProjetoHubPage({
           <Kpi label="Orçamentos" valor={String((demandas ?? []).length)} hint="entradas do projeto" />
         </div>
 
-        {/* Orçamentos */}
-        <section className="mt-8">
+        {/* Orçamentos: a entrada (o que o cliente pediu) e, embaixo, os valores de cada módulo */}
+        <section className="mt-8" aria-labelledby="projeto-orcamentos">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Orçamentos</h2>
+            <h2 id="projeto-orcamentos" className="text-lg font-semibold tracking-tight">Orçamentos</h2>
             <Link href="/orcamento" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Ver todos</Link>
           </div>
-          <div className={`${cardCls} overflow-x-auto`}>
-            {orcLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum orçamento vinculado a este projeto.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Documento</TableHead>
-                    <TableHead>Tipo</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orcLinhas.map((o) => (
-                    <TableRow key={o.key}>
-                      <TableCell><Link href={o.href} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{o.titulo}</Link></TableCell>
-                      <TableCell>{o.tipo}</TableCell>
-                      <TableCell>{fmtData(o.data)}</TableCell>
-                      <TableCell><Badge map={STATUS_ORC} status={o.status} /></TableCell>
-                      <TableCell className="text-right tabular-nums">{moeda(o.total)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </div>
+          {(demandas ?? []).length === 0 && orcLinhas.length === 0 ? (
+            <div className={cardCls}>
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum orçamento ligado a este projeto.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {(demandas ?? []).length > 0 && (
+                <div className={`${cardCls} overflow-x-auto`}>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="min-w-44">Orçamento</TableHead>
+                        <TableHead>Solicitado em</TableHead>
+                        <TableHead>Situação</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {(demandas ?? []).map((d) => (
+                        <TableRow key={d.id}>
+                          <TableCell><Link href={`/orcamento/demandas/${d.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{d.titulo}</Link></TableCell>
+                          <TableCell>{fmtData(d.data_solicitacao)}</TableCell>
+                          <TableCell>{rotuloStatusOrcamento(d.status)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+              {orcLinhas.length > 0 && (
+                <div className={`${cardCls} overflow-x-auto`}>
+                  <p className="px-3 pt-3 text-sm font-medium text-muted-foreground">Valores por módulo (laboratório e custos do projeto)</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="hover:bg-transparent">
+                        <TableHead className="min-w-36">Documento</TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead>Data</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead className="text-right">Total</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {orcLinhas.map((o) => (
+                        <TableRow key={o.key}>
+                          <TableCell><Link href={o.href} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{o.titulo}</Link></TableCell>
+                          <TableCell>{ROTULO_TIPO_ORC[o.tipo] ?? o.tipo}</TableCell>
+                          <TableCell>{fmtData(o.data)}</TableCell>
+                          <TableCell><Badge map={STATUS_ORC} status={o.status} /></TableCell>
+                          <TableCell className="text-right tabular-nums">{moeda(o.total)}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Planejamentos */}
-        <section className="mt-8">
+        <section className="mt-8" aria-labelledby="projeto-planejamentos">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Planejamentos</h2>
+            <h2 id="projeto-planejamentos" className="text-lg font-semibold tracking-tight">Planejamentos</h2>
             <Link href="/planejamento" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Ver todos</Link>
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
@@ -362,7 +445,7 @@ export default async function ProjetoHubPage({
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Plano</TableHead>
+                    <TableHead className="min-w-36">Plano</TableHead>
                     <TableHead>Data-alvo</TableHead>
                     <TableHead className="text-right">Análises</TableHead>
                     <TableHead className="text-right">Amostras</TableHead>
@@ -392,21 +475,64 @@ export default async function ProjetoHubPage({
           </div>
         </section>
 
-        {/* Compras */}
-        <section className="mt-8">
+        {/* Pedidos do projeto */}
+        <section className="mt-8" aria-labelledby="projeto-pedidos">
           <div className="mb-2 flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Compras</h2>
-            <Link href="/compras" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Ver todas</Link>
+            <h2 id="projeto-pedidos" className="text-lg font-semibold tracking-tight">Pedidos</h2>
+            <Link href="/pedido" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Ver todos</Link>
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
-            {comprasLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido ligado a este projeto.</p>
+            {pedidosLinhas.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido deste projeto.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>Pedido</TableHead>
-                    <TableHead>Fornecedor</TableHead>
+                    <TableHead className="min-w-52">Pedido</TableHead>
+                    <TableHead className="min-w-48">Etapa</TableHead>
+                    <TableHead>Precisa até</TableHead>
+                    <TableHead className="text-right">Valor prévio</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pedidosLinhas.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell>
+                        <Link href={`/pedido/${p.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">
+                          <span className="tabular-nums text-muted-foreground">{p.numero}</span> · {p.titulo}
+                        </Link>
+                      </TableCell>
+                      <TableCell>
+                        <div className="min-w-36 space-y-1">
+                          <EtapaProgresso etapa={p.etapa} />
+                          <span className="block text-xs text-muted-foreground">{p.situacao}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap">{fmtData(p.necessidade)}</TableCell>
+                      <TableCell className="text-right tabular-nums">{p.previo > 0 ? moeda(p.previo) : "—"}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </section>
+
+        {/* Compras */}
+        <section className="mt-8" aria-labelledby="projeto-compras">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 id="projeto-compras" className="text-lg font-semibold tracking-tight">Compras</h2>
+            <Link href="/compras" className="text-sm font-medium text-brand-700 hover:underline dark:text-brand-300">Ver todas</Link>
+          </div>
+          <div className={`${cardCls} overflow-x-auto`}>
+            {comprasLinhas.length === 0 ? (
+              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhuma compra com fornecedor ligada a este projeto.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="min-w-28">Compra</TableHead>
+                    <TableHead className="min-w-36">Fornecedor</TableHead>
                     <TableHead>Data</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead className="text-right">Itens</TableHead>
@@ -416,7 +542,7 @@ export default async function ProjetoHubPage({
                 <TableBody>
                   {comprasLinhas.map((c) => (
                     <TableRow key={c.id}>
-                      <TableCell><Link href={`/compras/${c.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">Pedido {c.id}</Link></TableCell>
+                      <TableCell><Link href={`/compras/${c.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">Compra #{c.id}</Link></TableCell>
                       <TableCell>{c.fornecedor}</TableCell>
                       <TableCell>{fmtData(c.data)}</TableCell>
                       <TableCell><Badge map={STATUS_COMPRA} status={c.status} /></TableCell>
@@ -432,32 +558,6 @@ export default async function ProjetoHubPage({
 
         {vinculos && <VinculosProjeto projetoId={id} pessoas={vinculos} />}
 
-        {/* Orçamentos (demandas_propostas) */}
-        {(demandas ?? []).length > 0 && (
-          <section className="mt-8">
-            <h2 className="mb-2 text-lg font-semibold tracking-tight">Orçamentos e propostas</h2>
-            <div className={`${cardCls} overflow-x-auto`}>
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead>Título</TableHead>
-                    <TableHead>Data</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(demandas ?? []).map((d) => (
-                    <TableRow key={d.id}>
-                      <TableCell><Link href={`/orcamento/demandas/${d.id}`} className="font-medium text-brand-700 hover:underline dark:text-brand-300">{d.titulo}</Link></TableCell>
-                      <TableCell>{fmtData(d.data_solicitacao)}</TableCell>
-                      <TableCell>{rotuloStatusOrcamento(d.status)}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </section>
-        )}
       </main>
     </div>
   );
