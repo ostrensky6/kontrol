@@ -8,6 +8,7 @@ import { proximaIdentificacaoGrupo } from "@/lib/orcamento/grupos-amostras";
 import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
 import { formatCurrency } from "@/lib/formatters";
 import { Pencil, Trash2 } from "lucide-react";
+import { EscolhaModalidade, EscolhaPrioridade } from "@/components/orcamento/EscolhaModalidade";
 import {
   Dialog,
   DialogContent,
@@ -262,14 +263,13 @@ export function DemandaForm({
                 <label htmlFor="nd-titulo" className={lbl}>Título <Obrigatorio /></label>
                 <input id="nd-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
               </div>
-              <div className="col-span-6 sm:col-span-3">
-                <label htmlFor="nd-modalidade" className={lbl}>Modalidade <Obrigatorio /></label>
-                <select id="nd-modalidade" name="modalidade" value={modalidade} onChange={(event) => setModalidade(event.target.value)} className={campo}>
-                  <option value="analises">Análises laboratoriais</option>
-                  <option value="projeto">Projeto sem análises</option>
-                  <option value="projeto_com_analises">Projeto com análises</option>
-                </select>
-              </div>
+              <EscolhaModalidade
+                id="nd-modalidade"
+                obrigatorio
+                valor={modalidade}
+                aoMudar={setModalidade}
+                className="col-span-6"
+              />
               <div className="col-span-6 sm:col-span-3">
                 <label htmlFor="demanda-instituicao" className={lbl} title="Empresa que emite a proposta (cabeçalho do documento)">
                   Empresa emissora
@@ -279,7 +279,7 @@ export function DemandaForm({
                   {OPCOES_INSTITUICAO.map((opcao) => <option key={opcao.valor} value={opcao.valor}>{opcao.rotulo}</option>)}
                 </select>
               </div>
-              <div className="col-span-6">
+              <div className="col-span-6 sm:col-span-3">
                 <label htmlFor="nd-projeto" className={lbl}>Projeto</label>
                 <select id="nd-projeto" name="projeto_id" defaultValue={demanda.projeto_id ?? ""} className={campo}>
                   <option value="">Sem projeto vinculado</option>
@@ -324,15 +324,11 @@ export function DemandaForm({
                 <p className={lbl} title="Número do orçamento">Nº do orçamento</p>
                 <div className={campoCalculado}>{demanda.id > 0 ? `#${demanda.id}` : "Gerado ao salvar"}</div>
               </div>
-              <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
-                <label htmlFor="nd-prioridade" className={lbl}>Prioridade</label>
-                <select id="nd-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
-                  <option value="baixa">Baixa</option>
-                  <option value="normal">Normal</option>
-                  <option value="alta">Alta</option>
-                  <option value="urgente">Urgente</option>
-                </select>
-              </div>
+              <EscolhaPrioridade
+                id="nd-prioridade"
+                valorInicial={demanda.prioridade ?? "normal"}
+                className="col-span-6 sm:col-span-6 lg:col-span-4 2xl:col-span-6"
+              />
               <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
                 <label htmlFor="nd-responsavel" className={lbl}>Responsável interno</label>
                 <input id="nd-responsavel" name="responsavel_interno" defaultValue={demanda.responsavel_interno ?? ""} className={campo} />

@@ -77,9 +77,9 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const novo = page.getByRole("dialog");
   await novo.getByLabel("Título do pedido").fill(titulo);
-  await novo.getByLabel("Projeto").selectOption(String(projeto!.id));
-  await novo.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
-  await novo.getByLabel("Objetivo").selectOption("projeto");
+  await novo.getByRole("combobox", { name: "Projeto", exact: true }).selectOption(String(projeto!.id));
+  await novo.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
+  await novo.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   // quem pede não define a urgência nem sugere a fonte do recurso (ajustes 2 e 3)
   await expect(novo.getByLabel("Urgência")).toHaveCount(0);
   await expect(novo.getByLabel(/Fonte sugerida/)).toHaveCount(0);

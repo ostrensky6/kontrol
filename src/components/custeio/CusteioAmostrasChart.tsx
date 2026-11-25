@@ -1,5 +1,6 @@
 "use client";
 
+import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -14,10 +15,14 @@ import {
 import { calcularAnalise, calcularAnaliseOrcamento, type Parametros } from "@/lib/costing/engine";
 import type { SimuladorAnalise } from "@/lib/costing/loader";
 import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/formatters";
-import { TOM_ENTRADA } from "@/lib/orcamento/tom-valor";
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
+
+const OPCOES_METRICA = [
+  { valor: "total", rotulo: "Custo total" },
+  { valor: "unitario", rotulo: "Custo por amostra" },
+] as const;
 
 const COLORS = ["#01489d", "#008e9c", "#008a00", "#d97706", "#7c3aed", "#dc2626"];
 const DEFAULT_MAX_AMOSTRAS = 192;
@@ -169,18 +174,13 @@ export function CusteioAmostrasChart({
             </HelpTip>
           </div>
         </div>
-        <label className="block min-w-44">
-          <span className="text-xs font-medium text-muted-foreground">Métrica</span>
-          <select
-            value={metric}
-            suppressHydrationWarning
-            onChange={(event) => setMetric(event.target.value as Metric)}
-            className={`mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-medium ${TOM_ENTRADA}`}
-          >
-            <option value="total">Custo total</option>
-            <option value="unitario">Custo por amostra</option>
-          </select>
-        </label>
+        <EscolhaCartoes
+          id="custeio-metrica"
+          legenda="Métrica"
+          opcoes={OPCOES_METRICA}
+          valor={metric}
+          aoMudar={setMetric}
+        />
       </div>
 
       <div className="mt-5 grid gap-5">
@@ -296,17 +296,39 @@ export function CusteioAmostrasChart({
               </button>
             </div>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {analises.map((analise) => (
-                <label key={analise.codigo} className="flex items-center gap-2 rounded-md px-2 py-1.5 hover:bg-card">
-                  <input
-                    type="checkbox"
-                    checked={selecionadas.includes(analise.codigo)}
-                    onChange={() => toggleAnalise(analise.codigo)}
-                    className="h-4 w-4 accent-brand-600"
-                  />
-                  <span className="min-w-0 truncate text-sm" title={analise.codigo}>{rotuloDa(analise)}</span>
-                </label>
-              ))}
+              {analises.map((analise) => {
+                const marcada = selecionadas.includes(analise.codigo);
+                const ordem = analisesSelecionadas.findIndex((item) => item.codigo === analise.codigo);
+                return (
+                  <label
+                    key={analise.codigo}
+                    className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
+                      marcada
+                        ? "border-primary/60 bg-card shadow-xs"
+                        : "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:bg-card"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={marcada}
+                      onChange={() => toggleAnalise(analise.codigo)}
+                      className="peer sr-only"
+                    />
+                    <span
+                      aria-hidden
+                      className="h-3 w-3 shrink-0 rounded-full border"
+                      style={
+                        marcada && ordem >= 0
+                          ? { backgroundColor: COLORS[ordem % COLORS.length], borderColor: COLORS[ordem % COLORS.length] }
+                          : undefined
+                      }
+                    />
+                    <span className={`min-w-0 truncate text-sm ${marcada ? "font-medium text-foreground" : ""}`} title={analise.codigo}>
+                      {rotuloDa(analise)}
+                    </span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </div>

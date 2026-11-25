@@ -32,9 +32,9 @@ test("quem pede não define a urgência; quem tem a permissão define, com justi
   await expect(form.locator('[name="urgencia"], [name="urgencia_justificativa"], [name="fonte_recurso"]')).toHaveCount(0);
 
   await form.getByLabel("Título do pedido").fill(titulo);
-  await form.getByLabel("Projeto").selectOption({ label: "Projeto E2E" });
-  await form.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
-  await form.getByLabel("Objetivo").selectOption("projeto");
+  await form.getByRole("combobox", { name: "Projeto", exact: true }).selectOption({ label: "Projeto E2E" });
+  await form.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
+  await form.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   await form.getByLabel("Justificativa técnica").fill("Coleta de campo da próxima semana.");
   await form.getByRole("button", { name: "Guardar rascunho" }).click();
 

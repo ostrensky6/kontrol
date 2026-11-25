@@ -6,6 +6,7 @@ import { ESTADO_INICIAL } from "@/lib/erros";
 import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
+import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 
 const campo = "mt-1 block w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm";
 
@@ -38,20 +39,21 @@ export function NovoIncidenteForm() {
         <textarea name="descricao" required maxLength={2000} rows={3} className={campo} />
         <Erro texto={e.descricao} />
       </label>
-      <label className="text-sm font-medium">
+      <label className="text-sm font-medium sm:col-span-2">
         Quem ou o que foi afetado
         <Input name="afetados" required maxLength={500} className="mt-1" placeholder="Ex.: amostras do freezer 2, pedidos de hoje" />
         <Erro texto={e.afetados} />
       </label>
-      <label className="text-sm font-medium">
-        Quem recebe o aviso
-        <select name="papel_destino" defaultValue="laboratorio" className={campo}>
-          {Object.entries(DESTINO_INCIDENTE).map(([valor, rotulo]) => (
-            <option key={valor} value={valor}>{rotulo}</option>
-          ))}
-        </select>
+      <div className="sm:col-span-2">
+        <EscolhaCartoes
+          id="incidente-destino"
+          name="papel_destino"
+          legenda="Quem recebe o aviso"
+          opcoes={Object.entries(DESTINO_INCIDENTE).map(([valor, rotulo]) => ({ valor, rotulo }))}
+          valorInicial="laboratorio"
+        />
         <Erro texto={e.papel_destino} />
-      </label>
+      </div>
       <label className="text-sm font-medium sm:col-span-2">
         O que fazer enquanto isso
         <textarea name="orientacao" required maxLength={2000} rows={2} className={campo} placeholder="Ação segura para quem foi afetado" />

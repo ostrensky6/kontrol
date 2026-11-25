@@ -60,9 +60,9 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const novo = page.getByRole("dialog");
   await novo.getByLabel("Título do pedido").fill(titulo);
-  await novo.getByLabel("Projeto").selectOption(String(projeto!.id));
-  await novo.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
-  await novo.getByLabel("Objetivo").selectOption("projeto");
+  await novo.getByRole("combobox", { name: "Projeto", exact: true }).selectOption(String(projeto!.id));
+  await novo.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
+  await novo.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   await novo.getByLabel("Justificativa técnica").fill("Protocolo novo: o laboratório nunca comprou este tampão.");
   const camposItem = novo.getByTestId("novo-pedido-item-campos");
   await expect(camposItem).toBeVisible();
