@@ -10,10 +10,10 @@ test("pedido de material de laboratório mostra quem aprova e trava sem coordena
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const form = page.getByRole("dialog");
   await form.getByLabel("Título do pedido").fill(titulo);
-  await form.getByLabel("Projeto").selectOption({ label: "Projeto E2E" });
-  await form.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_lab");
+  await form.getByRole("combobox", { name: "Projeto", exact: true }).selectOption({ label: "Projeto E2E" });
+  await form.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo de laboratório", { exact: true }).click();
   await expect(form.getByText("passa também pela coordenação do laboratório")).toBeVisible();
-  await form.getByLabel("Objetivo").selectOption("projeto");
+  await form.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   await form.getByLabel(/Laboratório ou área/).selectOption({ label: "Genética · Coordenação E2E" });
   await form.getByLabel("Justificativa técnica").fill("Extração de DNA das amostras de campo.");
   await form.getByRole("button", { name: "Guardar rascunho" }).click();

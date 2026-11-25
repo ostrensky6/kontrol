@@ -1,9 +1,24 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { Plus } from "lucide-react";
+import {
+  Briefcase,
+  CalendarDays,
+  Ellipsis,
+  FlaskConical,
+  Fuel,
+  KeyRound,
+  Microscope,
+  Package,
+  Plane,
+  Plus,
+  ShieldCheck,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 
 import { LegendaObrigatorio, MarcaObrigatorio } from "@/components/common/Campo";
+import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,7 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { carregarCatalogoNovoPedido, type CatalogoNovoPedido } from "@/lib/actions/catalogo-pedido";
 import { criarPedidoInterno } from "@/lib/actions/pedidos-internos";
-import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO } from "@/lib/pedido/natureza";
+import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO, USOS_PEDIDO } from "@/lib/pedido/natureza";
 import { dataEmBrasilia, explicarCicloHoje } from "@/lib/pedido/ciclo";
 import {
   CAMPOS_ITEM_NOVO_PEDIDO,
@@ -42,6 +57,21 @@ type ProjetoOption = {
 export type AreaOption = { id: number; nome: string; coordenador_nome?: string | null };
 
 const inputCls = "mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm";
+const ICONE_NATUREZA: Record<string, LucideIcon> = {
+  material_consumo_lab: FlaskConical,
+  material_consumo_geral: Package,
+  equipamento: Microscope,
+  servico: Briefcase,
+  manutencao: Wrench,
+  diaria: CalendarDays,
+  combustivel: Fuel,
+  seguro: ShieldCheck,
+  passagem: Plane,
+  locacao: KeyRound,
+  outro: Ellipsis,
+};
+const NATUREZAS_COM_ICONE = NATUREZAS_PEDIDO.map((n) => ({ ...n, icone: ICONE_NATUREZA[n.valor] }));
+
 const CATALOGO_INDISPONIVEL: CatalogoNovoPedido = { catalogo: [], fornecedores: [], incompleto: true };
 
 /**
@@ -301,32 +331,35 @@ function NovoPedidoFormulario({
               O coordenador do projeto aprova o pedido. Sem coordenador cadastrado, o envio trava.
             </p>
           </div>
-          <div className="md:col-span-4">
-            <label htmlFor="novo-pedido-natureza" className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa<MarcaObrigatorio /></label>
-            <select
-              id="novo-pedido-natureza"
-              name="natureza"
-              required
-              value={natureza}
-              onChange={(e) => setNatureza(e.target.value)}
-              className={inputCls}
-            >
-              <option value="" disabled>Escolha…</option>
-              {NATUREZAS_PEDIDO.map((n) => (
-                <option key={n.valor} value={n.valor}>{n.rotulo}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-4">
-            <label htmlFor="novo-pedido-objetivo" className="block text-xs font-medium text-muted-foreground">Objetivo<MarcaObrigatorio /></label>
-            <select id="novo-pedido-objetivo" name="objetivo" required defaultValue="" className={inputCls}>
-              <option value="" disabled>Escolha…</option>
-              {OBJETIVOS_PEDIDO.map((o) => (
-                <option key={o.valor} value={o.valor}>{o.rotulo}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-4">
+          <EscolhaCartoes
+            id="novo-pedido-natureza"
+            name="natureza"
+            legenda="Tipo de material ou despesa"
+            obrigatorio
+            variante="cartao"
+            colunas={4}
+            opcoes={NATUREZAS_COM_ICONE}
+            valor={natureza}
+            aoMudar={setNatureza}
+            className="md:col-span-12"
+          />
+          <EscolhaCartoes
+            id="novo-pedido-objetivo"
+            name="objetivo"
+            legenda="Objetivo"
+            obrigatorio
+            opcoes={OBJETIVOS_PEDIDO}
+            className="md:col-span-12"
+          />
+          <EscolhaCartoes
+            id="novo-pedido-tipo"
+            name="tipo_demanda"
+            legenda="Onde será usado"
+            opcoes={USOS_PEDIDO}
+            valorInicial="laboratorio"
+            className="md:col-span-12"
+          />
+          <div className="md:col-span-6">
             <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
               Laboratório ou área{exigeLaboratorio ? <MarcaObrigatorio /> : null}
             </label>
@@ -352,17 +385,7 @@ function NovoPedidoFormulario({
               Material de consumo de laboratório passa também pela coordenação do laboratório, depois do coordenador do projeto.
             </p>
           )}
-          <div className="md:col-span-4">
-            <label htmlFor="novo-pedido-tipo" className="block text-xs font-medium text-muted-foreground">Onde será usado</label>
-            <select id="novo-pedido-tipo" name="tipo_demanda" defaultValue="laboratorio" className={inputCls}>
-              <option value="laboratorio">Laboratório</option>
-              <option value="campo">Campo</option>
-              <option value="laboratorio_campo">Lab./campo</option>
-              <option value="administrativo">Administrativo</option>
-              <option value="outro">Outro</option>
-            </select>
-          </div>
-          <div className="md:col-span-4">
+          <div className="md:col-span-6">
             <label htmlFor="novo-pedido-data" className="block text-xs font-medium text-muted-foreground">Necessidade</label>
             <input id="novo-pedido-data" name="data_necessidade" type="date" className={inputCls} />
           </div>

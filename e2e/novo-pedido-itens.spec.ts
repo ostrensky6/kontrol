@@ -20,9 +20,9 @@ async function abrirNovoPedido(page: Page): Promise<Locator> {
 
 async function identificar(form: Locator, titulo: string, projeto: string) {
   await form.getByLabel("Título do pedido").fill(titulo);
-  await form.getByLabel("Projeto").selectOption({ label: projeto });
-  await form.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
-  await form.getByLabel("Objetivo").selectOption("projeto");
+  await form.getByRole("combobox", { name: "Projeto", exact: true }).selectOption({ label: projeto });
+  await form.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
+  await form.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   await form.getByLabel("Justificativa técnica").fill("Reposição para a campanha de campo de dezembro.");
 }
 

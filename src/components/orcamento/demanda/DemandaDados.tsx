@@ -1,5 +1,6 @@
 import { OPCOES_INSTITUICAO, opcaoInstituicao } from "@/lib/orcamento/identidade-institucional";
 import { HelpTip } from "@/components/common/HelpTip";
+import { EscolhaModalidade, EscolhaPrioridade } from "@/components/orcamento/EscolhaModalidade";
 import { SalvarDemandaForm } from "@/components/orcamento/SalvarDemandaForm";
 import {
   ClienteCadastradoSelect,
@@ -70,23 +71,8 @@ export function DemandaDados({
                 <label htmlFor="d-titulo" className={lbl}>Título {obrigatorio}</label>
                 <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
               </div>
-              <div className="col-span-4">
-                <label htmlFor="d-modalidade" className={lbl}>Modalidade</label>
-                <select {...hydrationSafe} id="d-modalidade" name="modalidade" defaultValue={demanda.modalidade ?? "analises"} className={campo}>
-                  {opcoesModalidade.map(([value, label]) => (
-                    <option key={value} value={value}>{label}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="col-span-2">
-                <label htmlFor="d-prioridade" className={lbl}>Prioridade</label>
-                <select {...hydrationSafe} id="d-prioridade" name="prioridade" defaultValue={demanda.prioridade ?? "normal"} className={campo}>
-                  <option value="baixa">Baixa</option>
-                  <option value="normal">Normal</option>
-                  <option value="alta">Alta</option>
-                  <option value="urgente">Urgente</option>
-                </select>
-              </div>
+              <EscolhaModalidade id="d-modalidade" name="modalidade" opcoes={opcoesModalidade} valorInicial={demanda.modalidade ?? "analises"} className="col-span-6" />
+              <EscolhaPrioridade id="d-prioridade" name="prioridade" valorInicial={demanda.prioridade ?? "normal"} className="col-span-6" />
               <div className="col-span-3">
                 <label htmlFor="orcamento-instituicao" className={lbl}>Empresa emissora</label>
                 <select {...hydrationSafe} id="orcamento-instituicao" name="instituicao" defaultValue={opcaoInstituicao(demanda.instituicao)} className={campo}>

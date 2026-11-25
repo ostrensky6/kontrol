@@ -1,5 +1,7 @@
 "use client";
 
+import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
+import { OPCOES_PRIORIDADE_ORCAMENTO } from "@/components/orcamento/EscolhaModalidade";
 import { useActionState, useEffect, useRef } from "react";
 
 import { atualizarPlanejamentoExecutivo } from "@/lib/actions/planejamento";
@@ -80,15 +82,13 @@ export function PlanoContextoForm({
             ))}
           </select>
         </div>
-        <div>
-          <label htmlFor={id("prioridade")} className={lbl}>Prioridade</label>
-          <select id={id("prioridade")} name="prioridade" defaultValue={valores.prioridade} className={inp}>
-            <option value="baixa">Baixa</option>
-            <option value="normal">Normal</option>
-            <option value="alta">Alta</option>
-            <option value="urgente">Urgente</option>
-          </select>
-        </div>
+        <EscolhaCartoes
+          id={id("prioridade")}
+          name="prioridade"
+          legenda="Prioridade"
+          opcoes={OPCOES_PRIORIDADE_ORCAMENTO}
+          valorInicial={valores.prioridade}
+        />
         <div>
           <label htmlFor={id("inicio")} className={lbl}>Início previsto</label>
           <input id={id("inicio")} name="data_inicio_prevista" type="date" defaultValue={valores.dataInicioPrevista} className={inp} />

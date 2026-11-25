@@ -9,8 +9,9 @@ test("Novo pedido marca os campos obrigatórios e mantém os botões de enviar �
   await page.getByRole("button", { name: "Novo pedido" }).first().click();
   const dialogo = page.getByRole("dialog");
   await expect(dialogo.getByText(/são obrigatórios/)).toBeVisible();
-  for (const rotulo of ["Título do pedido", "Tipo de material ou despesa", "Objetivo"]) {
-    await expect(dialogo.locator("label", { hasText: rotulo }).first()).toContainText("*");
+  await expect(dialogo.locator("label", { hasText: "Título do pedido" }).first()).toContainText("*");
+  for (const rotulo of ["Tipo de material ou despesa", "Objetivo"]) {
+    await expect(dialogo.locator("[data-escolha-cartoes]", { hasText: rotulo }).first()).toContainText("*");
   }
   // o nome acessível continua sem o *
   await expect(dialogo.getByRole("textbox", { name: "Título do pedido", exact: true })).toBeVisible();

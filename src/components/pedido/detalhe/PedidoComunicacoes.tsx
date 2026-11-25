@@ -1,4 +1,5 @@
 import { registrarComunicacaoPedidoInterno } from "@/lib/actions/pedidos-internos";
+import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 import { HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -8,6 +9,14 @@ import {
   type PedidoInternoComunicacao,
   CLASSE_CAMPO_PEDIDO,
 } from "@/lib/pedido/detalhe";
+
+const TIPOS_COMUNICACAO = [
+  { valor: "email", rotulo: "E-mail" },
+  { valor: "reuniao", rotulo: "Reunião" },
+  { valor: "telefone", rotulo: "Telefone" },
+  { valor: "mensagem", rotulo: "Mensagem" },
+  { valor: "outro", rotulo: "Outro" },
+] as const;
 
 type Props = {
   comunicacaoRows: PedidoInternoComunicacao[];
@@ -46,16 +55,14 @@ export function PedidoComunicacoes({
         <summary className="cursor-pointer text-xs font-medium text-primary hover:underline">Registrar comunicação</summary>
         <FormComMensagem action={registrarComunicacaoPedidoInterno} className="mt-3 grid gap-3 md:grid-cols-2">
           <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-          <div>
-            <label htmlFor="registrarComunicacaoPedidoInterno-tipo" className="block text-xs text-muted-foreground/80">Tipo</label>
-            <select id="registrarComunicacaoPedidoInterno-tipo" name="tipo" defaultValue="email" className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`}>
-              <option value="email">E-mail</option>
-              <option value="reuniao">Reunião</option>
-              <option value="telefone">Telefone</option>
-              <option value="mensagem">Mensagem</option>
-              <option value="outro">Outro</option>
-            </select>
-          </div>
+          <EscolhaCartoes
+            id="registrarComunicacaoPedidoInterno-tipo"
+            name="tipo"
+            legenda="Tipo"
+            opcoes={TIPOS_COMUNICACAO}
+            valorInicial="email"
+            className="md:col-span-2"
+          />
           <div>
             <label htmlFor="registrarComunicacaoPedidoInterno-remetente" className="block text-xs text-muted-foreground/80">Remetente</label>
             <input id="registrarComunicacaoPedidoInterno-remetente" name="remetente" defaultValue="giacompras2025@gmail.com" className={`${CLASSE_CAMPO_PEDIDO} mt-1 w-full`} />

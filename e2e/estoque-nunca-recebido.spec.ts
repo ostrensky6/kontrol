@@ -18,9 +18,9 @@ async function cadastrarItemNovoPeloPedido(page: Page, insumo: string) {
   const campos = form.getByTestId("novo-pedido-item-campos");
   await expect(campos).toBeVisible();
   await form.getByLabel("Título do pedido").fill(`Pedido do ${insumo}`);
-  await form.getByLabel("Projeto").selectOption({ label: "Projeto com coordenação E2E · Coordenação E2E" });
-  await form.getByLabel("Tipo de material ou despesa").selectOption("material_consumo_geral");
-  await form.getByLabel("Objetivo").selectOption("projeto");
+  await form.getByRole("combobox", { name: "Projeto", exact: true }).selectOption({ label: "Projeto com coordenação E2E · Coordenação E2E" });
+  await form.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
+  await form.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
   await form.getByLabel("Justificativa técnica").fill("Protocolo novo: o laboratório nunca comprou este tampão.");
   await campos.getByLabel("Especificação", { exact: true }).fill(insumo);
   await campos.getByLabel("Qtd").fill("2");
