@@ -91,12 +91,13 @@ export default async function PrazosCompraPage() {
             <p>Conta os dias do envio do pedido para aprovação até a chegada de cada item. Pedido ainda aberto, atrasado ou cancelado não entra.</p>
             <p><b>Curto</b>: metade das compras chegou até aqui. <b>Intermediário</b>: 3 de cada 4. <b>Conservador</b>: 9 de cada 10.</p>
             <p>O caminho vem da instituição do pedido (por exemplo, Funpar) ou da modalidade (compra direta pela ATGC, fundação, universidade).</p>
+            <p>Use o prazo <b>conservador</b> para insumo crítico. O prazo do fornecedor de cada insumo fica em Cadastros → Insumos.</p>
           </HelpTip>
         }
         description={
           <>
-            {amostras.length} {amostras.length === 1 ? "item recebido medido" : "itens recebidos medidos"}. Use o prazo conservador para insumo crítico.
-            O prazo do fornecedor de cada insumo fica em <Link href="/cadastros/insumos" className="text-primary underline underline-offset-2">Cadastros → Insumos</Link>.
+            {amostras.length} {amostras.length === 1 ? "item recebido medido" : "itens recebidos medidos"} ·{" "}
+            <Link href="/cadastros/insumos" className="text-primary underline underline-offset-2">Prazo do fornecedor por insumo</Link>
           </>
         }
       />

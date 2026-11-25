@@ -8,6 +8,8 @@ const ICONE_MODALIDADE: Record<string, LucideIcon> = {
   analises: FlaskConical,
   projeto: FolderKanban,
   projeto_com_analises: Layers,
+  projeto_analises_custos: Layers,
+  analises_projeto: FlaskConical,
 };
 
 export const OPCOES_MODALIDADE_ORCAMENTO: [string, string][] = [
@@ -33,9 +35,13 @@ export function EscolhaModalidade({
   aoMudar,
   obrigatorio,
   className,
+  empilhado = true,
+  colunas,
 }: {
   id: string;
   name?: string;
+  empilhado?: boolean;
+  colunas?: 2 | 3 | 4;
   opcoes?: [string, string][];
   valor?: string;
   valorInicial?: string;
@@ -50,6 +56,8 @@ export function EscolhaModalidade({
       legenda="Modalidade"
       obrigatorio={obrigatorio}
       variante="cartao"
+      empilhado={empilhado}
+      colunas={colunas}
       opcoes={opcoes.map(([v, rotulo]) => ({ valor: v, rotulo, icone: ICONE_MODALIDADE[v] }))}
       valor={valor}
       valorInicial={valorInicial}
@@ -77,6 +85,7 @@ export function EscolhaPrioridade({
       name={name}
       legenda="Prioridade"
       opcoes={OPCOES_PRIORIDADE_ORCAMENTO}
+      compacto
       valorInicial={valorInicial ?? "normal"}
       className={className}
     />

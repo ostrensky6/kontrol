@@ -228,11 +228,13 @@ export default async function PedidoDetalhe({ params }: { params: Promise<{ id: 
         )}
 
         <section aria-labelledby="prazo-recebimento" className="mt-4 rounded-lg border border-border bg-card px-4 py-3 text-sm">
-          <h2 id="prazo-recebimento" className="font-semibold">Da compra à chegada completa</h2>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Da criação da compra ao registro da chegada completa no livro. A chegada física, a tramitação do
-            pedido ou da Funpar e o prazo total do processo ficam fora deste intervalo.
-          </p>
+          <div className="flex items-center gap-0.5">
+            <h2 id="prazo-recebimento" className="font-semibold">Da compra à chegada completa</h2>
+            <HelpTip title="O que este prazo mede">
+              Da criação da compra ao registro da chegada completa no livro. A chegada física, a tramitação do pedido ou
+              da Funpar e o prazo total do processo ficam fora deste intervalo.
+            </HelpTip>
+          </div>
           {prazo.estado === "observado" ? (
             <>
               <dl className="mt-2 flex flex-wrap gap-x-6 gap-y-2">

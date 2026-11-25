@@ -190,11 +190,13 @@ export function PedidoCompraPainel({
       {compra.status === "solicitado" && (
         <div className="mt-3 flex flex-wrap items-start gap-3" data-testid="painel-compra-aprovacao">
           {podeAprovarCompra ? <AprovarCompra pedidoId={compra.id} /> : null}
-          <p className="max-w-xl text-xs text-muted-foreground">
-            A compra é aprovada junto com o pedido. Esta continua solicitada, o que acontece quando ela atende
-            também outro pedido. Se ele ainda não chegou à aprovação final, a aprovação é recusada e a mensagem diz
-            qual pedido falta.
-            {podeAprovarCompra ? "" : " Aprovar a compra exige a permissão “Aprovar compras”."}
+          <p className="flex max-w-xl items-center gap-0.5 text-xs text-muted-foreground">
+            {podeAprovarCompra ? "Compra ainda solicitada" : "Aprovar a compra exige a permissão “Aprovar compras”."}
+            <HelpTip title="Por que a compra segue solicitada">
+              A compra é aprovada junto com o pedido. Esta continua solicitada, o que acontece quando ela atende também
+              outro pedido. Se ele ainda não chegou à aprovação final, a aprovação é recusada e a mensagem diz qual pedido
+              falta.
+            </HelpTip>
           </p>
         </div>
       )}

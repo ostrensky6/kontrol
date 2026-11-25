@@ -25,7 +25,9 @@ test("quem pede não define a urgência; quem tem a permissão define, com justi
   await page.getByRole("button", { name: "Novo pedido" }).click();
   const form = page.getByRole("dialog");
   await expect(form.getByTestId("ciclo-pedido")).toContainText("ciclo");
-  await expect(form.getByTestId("ciclo-pedido")).toContainText("A urgência é definida pelo administrativo, não por quem pede");
+  await form.getByTestId("ciclo-pedido").getByRole("button", { name: "Ajuda: Ciclo de compras" }).click();
+  await expect(page.getByRole("dialog", { name: "Ciclo de compras" })).toContainText("A urgência é definida pelo administrativo, não por quem pede");
+  await page.keyboard.press("Escape");
   // ajustes 2 e 3: o formulário não pede urgência nem fonte do recurso
   await expect(form.getByLabel("Urgência")).toHaveCount(0);
   await expect(form.getByLabel(/Fonte sugerida/)).toHaveCount(0);

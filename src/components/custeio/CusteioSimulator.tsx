@@ -1,5 +1,6 @@
 "use client";
 
+import { NumeroPasso } from "@/components/common/NumeroPasso";
 import { useMemo, useState } from "react";
 
 import { calcularAnalise, type Parametros } from "@/lib/costing/engine";
@@ -60,14 +61,16 @@ export function CusteioSimulator({
             </HelpTip>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-xs text-muted-foreground">Preço simulado</div>
-          <div className="text-2xl font-semibold text-brand-700 dark:text-brand-300">{formatCurrency(resultado.preco)}</div>
-        </div>
       </div>
 
-      <div className="mt-5 grid gap-4 lg:grid-cols-3">
-        <label className="block">
+      <div className="mt-5 grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="min-w-0 space-y-4 rounded-md border border-border/70 bg-muted/30 p-4">
+        <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <NumeroPasso n={1} />
+          Ajuste o cenário
+        </p>
+      <div className="grid gap-4 md:grid-cols-2">
+        <label className="block md:col-span-2">
           <span className="text-xs font-medium text-muted-foreground">Análise</span>
           <select
             value={analise.codigo}
@@ -124,7 +127,7 @@ export function CusteioSimulator({
       </div>
 
       {analise.grupos.length > 0 && (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 md:grid-cols-2">
           {analise.grupos.map((grupo) => (
             <label key={grupo.nome} className="block">
               <span className="text-xs font-medium text-muted-foreground">{grupo.nome}</span>
@@ -148,18 +151,29 @@ export function CusteioSimulator({
         </div>
       )}
 
-      <div className="mt-5 grid gap-3 sm:grid-cols-4">
-        {[
-          ["Reagentes", resultado.reagentes],
-          ["Equipamento", resultado.equipamento],
-          ["Pessoal", resultado.pessoal],
-          ["Overhead", resultado.overhead],
-        ].map(([label, value]) => (
-          <div key={label} className="rounded-md border border-border/70 bg-muted/50 p-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 font-semibold tabular-nums">{formatCurrency(Number(value))}</div>
-          </div>
-        ))}
+      </div>
+
+      <div className="flex flex-col rounded-md border border-success-strong/25 bg-success-soft/40 p-4" data-testid="simulador-resultado">
+        <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+          <NumeroPasso n={2} tom="resultado" />
+          Resultado
+        </p>
+        <div className="mt-3 text-xs text-muted-foreground">Preço simulado</div>
+        <div className="text-3xl font-semibold tabular-nums text-brand-700 dark:text-brand-300">{formatCurrency(resultado.preco)}</div>
+        <dl className="mt-4 divide-y divide-border/60 text-sm">
+          {[
+            ["Reagentes", resultado.reagentes],
+            ["Equipamento", resultado.equipamento],
+            ["Pessoal", resultado.pessoal],
+            ["Overhead", resultado.overhead],
+          ].map(([label, value]) => (
+            <div key={label} className="flex items-center justify-between py-1.5">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="font-semibold tabular-nums">{formatCurrency(Number(value))}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
       </div>
     </section>
   );

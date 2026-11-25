@@ -700,8 +700,11 @@ export async function EditorCustosProjeto({
               className="mt-2 space-y-2"
             >
               {campos}
-              <p className="text-xs leading-5 text-muted-foreground">
-                Concluir trava a edição destes custos e libera os parâmetros e a emissão da proposta.
+              <p className="flex items-center gap-0.5 text-xs leading-5 text-muted-foreground">
+                Concluir trava a edição
+                <HelpTip title="Concluir a revisão">
+                  Concluir trava a edição destes custos e libera os parâmetros e a emissão da proposta.
+                </HelpTip>
               </p>
               <ConfirmSubmitButton
                 className={botaoPrimario}

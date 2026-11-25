@@ -1,6 +1,7 @@
 "use client";
 
 import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
+import { NumeroPasso } from "@/components/common/NumeroPasso";
 import { useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -185,9 +186,64 @@ export function CusteioAmostrasChart({
 
       <div className="mt-5 grid gap-5">
         <div className="min-w-0">
+          <div className="rounded-md border border-border/70 bg-muted/30 p-3">
+            <div className="flex items-center justify-between gap-3">
+              <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <NumeroPasso n={1} />
+                Escolha as análises
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelecionadas([])}
+                className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300"
+              >
+                Limpar
+              </button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {analises.map((analise) => {
+                const marcada = selecionadas.includes(analise.codigo);
+                const ordem = analisesSelecionadas.findIndex((item) => item.codigo === analise.codigo);
+                return (
+                  <label
+                    key={analise.codigo}
+                    className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
+                      marcada
+                        ? "border-primary/60 bg-card shadow-xs"
+                        : "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:bg-card"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={marcada}
+                      onChange={() => toggleAnalise(analise.codigo)}
+                      className="peer sr-only"
+                    />
+                    <span
+                      aria-hidden
+                      className="h-3 w-3 shrink-0 rounded-full border"
+                      style={
+                        marcada && ordem >= 0
+                          ? { backgroundColor: COLORS[ordem % COLORS.length], borderColor: COLORS[ordem % COLORS.length] }
+                          : undefined
+                      }
+                    />
+                    <span className={`min-w-0 truncate text-sm ${marcada ? "font-medium text-foreground" : ""}`} title={analise.codigo}>
+                      {rotuloDa(analise)}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+        <div className="min-w-0">
           <label className="block">
-            <span className="flex justify-between text-xs font-medium text-muted-foreground">
-              <span>Número máximo de amostras</span>
+            <span className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+              <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                <NumeroPasso n={2} />
+                Número máximo de amostras
+              </span>
               <span>{formatNumber(maxAmostras)} amostras</span>
             </span>
             <input
@@ -202,7 +258,11 @@ export function CusteioAmostrasChart({
             />
           </label>
 
-          <div className="mt-4 h-[520px] min-h-[520px] min-w-0 rounded-md border border-border/60 bg-background/40 p-3">
+          <p className="mt-5 flex items-center gap-2 text-sm font-semibold text-foreground">
+            <NumeroPasso n={3} tom="resultado" />
+            Resultado: {metric === "total" ? "custo total" : "custo por amostra"}
+          </p>
+          <div className="mt-2 h-[520px] min-h-[520px] min-w-0 rounded-md border border-border/60 bg-background/40 p-3">
             {mounted && analisesSelecionadas.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 16, right: 28, left: 8, bottom: 24 }}>
@@ -283,55 +343,6 @@ export function CusteioAmostrasChart({
           </div>
         </div>
 
-        <div className="min-w-0">
-          <div className="rounded-md border border-border/70 bg-muted/30 p-3">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-xs font-semibold text-muted-foreground">Análises</p>
-              <button
-                type="button"
-                onClick={() => setSelecionadas([])}
-                className="text-xs font-medium text-brand-700 hover:underline dark:text-brand-300"
-              >
-                Limpar
-              </button>
-            </div>
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {analises.map((analise) => {
-                const marcada = selecionadas.includes(analise.codigo);
-                const ordem = analisesSelecionadas.findIndex((item) => item.codigo === analise.codigo);
-                return (
-                  <label
-                    key={analise.codigo}
-                    className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring ${
-                      marcada
-                        ? "border-primary/60 bg-card shadow-xs"
-                        : "border-dashed border-border text-muted-foreground hover:border-primary/50 hover:bg-card"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={marcada}
-                      onChange={() => toggleAnalise(analise.codigo)}
-                      className="peer sr-only"
-                    />
-                    <span
-                      aria-hidden
-                      className="h-3 w-3 shrink-0 rounded-full border"
-                      style={
-                        marcada && ordem >= 0
-                          ? { backgroundColor: COLORS[ordem % COLORS.length], borderColor: COLORS[ordem % COLORS.length] }
-                          : undefined
-                      }
-                    />
-                    <span className={`min-w-0 truncate text-sm ${marcada ? "font-medium text-foreground" : ""}`} title={analise.codigo}>
-                      {rotuloDa(analise)}
-                    </span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       </div>
     </section>
   );

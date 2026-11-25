@@ -71,7 +71,7 @@ export function DemandaDados({
                 <label htmlFor="d-titulo" className={lbl}>Título {obrigatorio}</label>
                 <input {...hydrationSafe} id="d-titulo" name="titulo" defaultValue={demanda.titulo ?? ""} className={campo} />
               </div>
-              <EscolhaModalidade id="d-modalidade" name="modalidade" opcoes={opcoesModalidade} valorInicial={demanda.modalidade ?? "analises"} className="col-span-6" />
+              <EscolhaModalidade id="d-modalidade" name="modalidade" empilhado={false} colunas={2} opcoes={opcoesModalidade} valorInicial={demanda.modalidade ?? "analises"} className="col-span-6" />
               <EscolhaPrioridade id="d-prioridade" name="prioridade" valorInicial={demanda.prioridade ?? "normal"} className="col-span-6" />
               <div className="col-span-3">
                 <label htmlFor="orcamento-instituicao" className={lbl}>Empresa emissora</label>
