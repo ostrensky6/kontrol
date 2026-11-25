@@ -56,3 +56,16 @@ test("lista de pedidos mostra quando o ciclo abre", async ({ page }) => {
   const linha = page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ });
   await expect(linha).toContainText("dezembro/2099 · abre 01/12/2099");
 });
+
+test("lista de pedidos segue a mesma regra do ciclo que a tela do pedido", async ({ page }) => {
+  // quem conduz a compra inteira (o Admin do teste) vê o próximo passo de verdade
+  await page.goto("/pedido?etapa=administrativo");
+  const linha = page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ });
+  await expect(linha).toContainText("Formalizar em compras");
+  await expect(linha).not.toContainText("Aguardar o ciclo");
+
+  // quem não tem a caixinha continua esperando o ciclo abrir
+  await comoCategoria(page, "gestor");
+  await page.goto("/pedido?etapa=administrativo");
+  await expect(page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ })).toContainText("Aguardar o ciclo de dezembro/2099");
+});
