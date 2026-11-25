@@ -69,14 +69,15 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
       <input type="hidden" name="permissoes_presentes" value="1" />
 
       <div className="mt-4 max-h-[70dvh] overflow-auto rounded-md border border-border">
-        <Table className="min-w-[980px]">
+        {/* cabe em 1280 px: colunas das funções estreitas, a do privilégio com largura mínima */}
+        <Table className="min-w-[900px]">
           <TableHeader className="sticky top-0 z-10 bg-muted shadow-sm">
             <TableRow className="hover:bg-transparent">
-              <TableHead scope="col">
+              <TableHead scope="col" className="min-w-48">
                 Privilégio
               </TableHead>
               {PAPEIS.map((papel) => (
-                <TableHead key={papel.value} scope="col" className="w-28 text-center">
+                <TableHead key={papel.value} scope="col" className="w-[5.75rem] px-1 text-center text-xs">
                   {papel.label}
                 </TableHead>
               ))}
@@ -106,7 +107,7 @@ export function PrivilegiosMatriz({ permissoesPorCategoria }: { permissoesPorCat
                   {PAPEIS.map((papel) => {
                     const admin = papel.value === "admin";
                     return (
-                      <TableCell key={`${permissao.key}-${papel.value}`} className="text-center">
+                      <TableCell key={`${permissao.key}-${papel.value}`} className="px-1 text-center">
                         <Checkbox
                           name={`permissoes:${papel.value}`}
                           value={permissao.key}

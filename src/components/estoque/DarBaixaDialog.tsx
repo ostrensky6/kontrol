@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { LegendaObrigatorio, MarcaObrigatorio } from "@/components/common/Campo";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
@@ -188,6 +189,7 @@ export function DarBaixaDialog({
                 {especificacao ? `${especificacao}. ` : ""}Registra a saída do estoque com motivo; fica no histórico do lote.
               </DialogDescription>
             </DialogHeader>
+            <LegendaObrigatorio />
 
             {candidatos.length > 1 ? (
               <div className="grid gap-1">
@@ -222,6 +224,7 @@ export function DarBaixaDialog({
             <div className="grid gap-1">
               <Label htmlFor={`${uid}-quantidade`}>
                 {emEmbalagens ? "Frascos a baixar" : `Quantidade a baixar (${unidade || "unidade do insumo"})`}
+                <MarcaObrigatorio />
               </Label>
               <Input
                 id={`${uid}-quantidade`}
@@ -245,7 +248,10 @@ export function DarBaixaDialog({
             </div>
 
             <div className="grid gap-1">
-              <Label htmlFor={`${uid}-motivo`}>Motivo</Label>
+              <Label htmlFor={`${uid}-motivo`}>
+                Motivo
+                <MarcaObrigatorio />
+              </Label>
               <Select
                 id={`${uid}-motivo`}
                 name="motivo_tipo"

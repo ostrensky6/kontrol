@@ -395,51 +395,56 @@ export default async function ParametrosEconomicosPage() {
                 titulo="Orçamentos de projeto considerados"
                 subtitulo="Leitura recente para validar base, itens, fator de gross-up e bloqueios."
               />
+              {/* três colunas, cada uma com o detalhe embaixo: em 1280 px o quadro tem uns
+                  470 px e as seis colunas antigas empurravam Total e Validação para fora */}
               <Table densidade="compacta">
                 <TableHeader className={cabecalhoTabela}>
                   <TableRow className="hover:bg-transparent">
                     <TableHead>Projeto</TableHead>
-                    <TableHead>Cliente</TableHead>
-                    <TableHead className="text-right">Itens</TableHead>
-                    <TableHead className="text-right">Custo</TableHead>
-                    <TableHead className="text-right">Gross-up</TableHead>
-                    <TableHead className="text-right">Total</TableHead>
-                    <TableHead>Validação</TableHead>
+                    <TableHead className="text-right">Custo e gross-up</TableHead>
+                    <TableHead className="text-right">Total e validação</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {projetosCalculados.map((projeto) => (
-                    <TableRow key={projeto.id}>
-                      <TableCell className="max-w-56">
-                        <Link
-                          href={projeto.href}
-                          className="block truncate font-medium text-brand-700 hover:underline dark:text-brand-300"
-                          title={`#${projeto.id} ${projeto.titulo ?? "Sem título"}`}
-                        >
-                          #{projeto.id} {projeto.titulo ?? "Sem título"}
-                        </Link>
-                        <span className="block text-xs text-muted-foreground">{projeto.status ?? "sem status"}</span>
-                      </TableCell>
-                      <TableCell className="max-w-40 truncate text-muted-foreground" title={projeto.cliente_nome ?? undefined}>
-                        {projeto.cliente_nome ?? "—"}
-                      </TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{projeto.analisesCount + projeto.custosCount}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">{brl(projeto.calculo.subtotal)}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
-                        {pct(projeto.calculo.markupRate)} · {projeto.calculo.grossUpFactor.toFixed(4).replace(".", ",")}x
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-right font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</TableCell>
-                      <TableCell>
-                        <span className={`whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
-                          projeto.calculo.validationError
-                            ? "bg-danger-soft text-danger-strong"
-                            : "bg-success-soft text-success-strong"
-                        }`}>
-                          {projeto.calculo.validationError || "Válido"}
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {projetosCalculados.map((projeto) => {
+                    const itens = projeto.analisesCount + projeto.custosCount;
+                    return (
+                      <TableRow key={projeto.id}>
+                        <TableCell className="max-w-56">
+                          <Link
+                            href={projeto.href}
+                            className="block truncate font-medium text-brand-700 hover:underline dark:text-brand-300"
+                            title={`#${projeto.id} ${projeto.titulo ?? "Sem título"}`}
+                          >
+                            #{projeto.id} {projeto.titulo ?? "Sem título"}
+                          </Link>
+                          <span className="block truncate text-xs text-muted-foreground" title={projeto.cliente_nome ?? undefined}>
+                            {[projeto.status ?? "sem status", projeto.cliente_nome, `${itens} ${itens === 1 ? "item" : "itens"}`]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right tabular-nums text-muted-foreground">
+                          {brl(projeto.calculo.subtotal)}
+                          <span className="block text-xs">
+                            +{pct(projeto.calculo.markupRate)} · {projeto.calculo.grossUpFactor.toFixed(4).replace(".", ",")}x
+                          </span>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-right">
+                          <span className="font-semibold tabular-nums">{brl(projeto.calculo.grossTotal)}</span>
+                          <span className="mt-0.5 block">
+                            <span className={`inline-block whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${
+                              projeto.calculo.validationError
+                                ? "bg-danger-soft text-danger-strong"
+                                : "bg-success-soft text-success-strong"
+                            }`}>
+                              {projeto.calculo.validationError || "Válido"}
+                            </span>
+                          </span>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </section>

@@ -1,7 +1,20 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 // 0180 (13/11/2026): função Administrativo, troca de função direto na lista e
 // lixeira que remove quem saiu da equipe guardando o histórico.
+
+/**
+ * Escolhe a opção e confere o efeito. Logo que a página abre, o HTML do
+ * servidor já mostra a lista suspensa, mas o React ainda está assumindo a
+ * página: a troca feita nesse instante se perde e o React volta ao valor do
+ * servidor. Se o efeito não aparecer, escolhe de novo.
+ */
+async function escolherEConferir(lista: Locator, opcao: string, efeito: Locator) {
+  await expect(async () => {
+    await lista.selectOption(opcao);
+    await expect(efeito).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+}
 
 test("troca a função na lista e remove o usuário guardando o histórico", async ({ page }) => {
   const email = `adm.${Date.now()}@example.com`;
@@ -16,8 +29,8 @@ test("troca a função na lista e remove o usuário guardando o histórico", asy
   await page.goto("/usuarios");
   const funcao = page.getByRole("combobox", { name: "Função de Pessoa Lab E2E" });
   await expect(funcao).toHaveValue("laboratorio");
-  await funcao.selectOption("administrativo");
   const trocar = page.getByRole("dialog", { name: "Trocar a função" });
+  await escolherEConferir(funcao, "administrativo", trocar);
   await expect(trocar).toContainText("Laboratório");
   await trocar.getByRole("button", { name: "Passar para Administrativo" }).click();
   await expect(page.getByText("Pessoa Lab E2E agora é Administrativo.")).toBeVisible();

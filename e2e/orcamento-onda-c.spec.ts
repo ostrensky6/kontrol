@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 // Onda C do módulo Orçamentos: lista com funil que filtra, histórico enxuto e
 // catálogo de análises que cabe no celular.
@@ -22,6 +22,19 @@ async function cabeNaTela(page: Page, seletor: string) {
   expect(medidas.conteudo, `${seletor} rola para o lado por dentro`).toBeLessThanOrEqual(medidas.largura + 1);
 }
 
+/**
+ * Escolhe a opção e confere o efeito. Logo que a página abre, o HTML do
+ * servidor já mostra a lista suspensa, mas o React ainda está assumindo a
+ * página: a troca feita nesse instante se perde e o React volta ao valor do
+ * servidor. Se o efeito não aparecer, escolhe de novo.
+ */
+async function escolherEConferir(lista: Locator, opcao: string, efeito: Locator) {
+  await expect(async () => {
+    await lista.selectOption(opcao);
+    await expect(efeito).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 10_000 });
+}
+
 test("lista: resumo em uma linha e fase como filtro em lista suspensa", async ({ page }) => {
   await page.goto("/orcamento/demandas");
   await expect(page.getByRole("link", { name: "Novo orçamento" }).first()).toBeVisible();
@@ -30,8 +43,7 @@ test("lista: resumo em uma linha e fase como filtro em lista suspensa", async ({
   await expect(page.getByRole("navigation", { name: "Fases dos orçamentos" })).toHaveCount(0);
 
   const fase = page.getByRole("combobox", { name: "Filtrar por Fase" });
-  await fase.selectOption("Em elaboração");
-  await expect(page.getByRole("status").filter({ hasText: / de \d+/ })).toBeVisible();
+  await escolherEConferir(fase, "Em elaboração", page.getByRole("status").filter({ hasText: / de \d+/ }));
   // Modalidade, Completude e Projeto ficam em "Mais filtros", como no Histórico
   await expect(page.getByRole("combobox", { name: "Filtrar por Modalidade" })).toBeHidden();
   await page.getByText("Mais filtros").click();

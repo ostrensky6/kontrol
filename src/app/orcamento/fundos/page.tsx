@@ -16,7 +16,6 @@ import {
 import { createClient } from "@/lib/supabase/server";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
 
@@ -219,7 +218,7 @@ export default async function FundosPage() {
           </Link>
         </div>
 
-        <section className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <section className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">
           <Resumo titulo="Versões monitoradas" valor={linhas.length.toLocaleString("pt-BR")} detalhe="classificadas como aprovadas" />
           <Resumo titulo="Total aprovado" valor={brl(totais.totalFinal)} detalhe="base das versões finais aprovadas" />
           <Resumo titulo="Valor recebido" valor={brl(totais.recebido)} detalhe={formatPercent(totais.totalFinal > 0 ? (totais.recebido / totais.totalFinal) * 100 : 0)} />
@@ -253,104 +252,108 @@ export default async function FundosPage() {
               </HelpTip>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <Table className="min-w-[1480px]">
-              <TableHeader className="bg-muted/60">
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>Orçamento</TableHead>
-                  <TableHead className="text-right">Total</TableHead>
-                  <TableHead className="text-right">Recebido</TableHead>
-                  <TableHead className="text-right">Impostos pagos</TableHead>
-                  <TableHead className="text-right">Incubação paga</TableHead>
-                  <TableHead className="text-right">Baixa reserva</TableHead>
-                  <TableHead className="text-right">Baixa invest.</TableHead>
-                  <TableHead className="text-right">Saldo reserva</TableHead>
-                  <TableHead className="text-right">Saldo invest.</TableHead>
-                  <TableHead>Saldos</TableHead>
-                  <TableHead>Ação</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {linhas.map((linha) => (
-                  <TableRow key={linha.versao.id} className="align-top">
-                    <TableCell>
-                      <Link href={`/orcamento/final/${linha.versao.id}`} className="font-semibold text-primary hover:underline">
-                        {linha.versao.numero}
-                      </Link>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{linha.demanda?.titulo ?? `Orçamento #${linha.versao.demanda_id}`}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {linha.demanda?.cliente_nome ?? "Cliente sem nome"} · {rotuloStatus(linha.versao.status)} · validade {formatDate(linha.versao.valido_ate)}
-                      </p>
-                    </TableCell>
-                    <TableCell className="text-right font-semibold tabular-nums">{brl(Number(linha.versao.total_final ?? 0))}</TableCell>
-                    <TableCell colSpan={7}>
-                      <form action={salvarAcompanhamentoFundos} className="grid grid-cols-7 gap-2">
-                        <input type="hidden" name="orcamento_final_versao_id" value={linha.versao.id} />
-                        <CampoMoeda name="valor_recebido" defaultValue={linha.lancamentos.valorRecebido} disabled={!podeEditar} />
-                        <CampoMoeda name="impostos_pagos" defaultValue={linha.lancamentos.impostosPagos} disabled={!podeEditar} />
-                        <CampoMoeda name="incubacao_paga" defaultValue={linha.lancamentos.incubacaoPaga} disabled={!podeEditar} />
-                        <CampoMoeda name="reserva_gasta" defaultValue={linha.lancamentos.reservaGasta} disabled={!podeEditar} />
-                        <CampoMoeda name="investimento_gasto" defaultValue={linha.lancamentos.investimentoGasto} disabled={!podeEditar} />
-                        <CampoMoeda
-                          name="reserva_saldo_ajustado"
-                          defaultValue={linha.lancamentos.reservaSaldoAjustado}
-                          disabled={!podeEditar}
-                          placeholder={Math.max(0, linha.calculo.liberado.reserva - linha.calculo.executado.reserva).toFixed(2)}
-                        />
-                        <CampoMoeda
-                          name="investimento_saldo_ajustado"
-                          defaultValue={linha.lancamentos.investimentoSaldoAjustado}
-                          disabled={!podeEditar}
-                          placeholder={Math.max(0, linha.calculo.liberado.investimentos - linha.calculo.executado.investimentos).toFixed(2)}
-                        />
+          {/* um cartão por proposta, com cada campo rotulado: a tabela antiga tinha
+              1.480 px e escondia metade das colunas atrás da rolagem */}
+          {linhas.length === 0 ? (
+            <p className="px-4 py-6 text-sm text-muted-foreground/80">
+              Nenhuma proposta aprovada. Classifique uma versão como Aprovada no{" "}
+              <Link href="/orcamento/historico" className="text-brand-700 hover:underline dark:text-brand-300">
+                Histórico de orçamentos
+              </Link>
+              .
+            </p>
+          ) : (
+            <ul className="divide-y divide-border">
+              {linhas.map((linha) => (
+                <li
+                  key={linha.versao.id}
+                  aria-label={`Proposta ${linha.versao.numero}`}
+                  className="grid gap-4 px-4 py-4 xl:grid-cols-[minmax(0,1fr)_14rem]"
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <Link href={`/orcamento/final/${linha.versao.id}`} className="font-semibold text-primary hover:underline">
+                          {linha.versao.numero}
+                        </Link>
+                        <p className="mt-0.5 text-sm">{linha.demanda?.titulo ?? `Orçamento #${linha.versao.demanda_id}`}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {linha.demanda?.cliente_nome ?? "Cliente sem nome"} · {rotuloStatus(linha.versao.status)} · validade {formatDate(linha.versao.valido_ate)}
+                        </p>
+                      </div>
+                      <div className="sm:text-right">
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="font-semibold tabular-nums">{brl(Number(linha.versao.total_final ?? 0))}</p>
+                      </div>
+                    </div>
+                    <form action={salvarAcompanhamentoFundos} className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-7">
+                      <input type="hidden" name="orcamento_final_versao_id" value={linha.versao.id} />
+                      <CampoMoeda rotulo="Recebido" name="valor_recebido" defaultValue={linha.lancamentos.valorRecebido} disabled={!podeEditar} />
+                      <CampoMoeda rotulo="Impostos pagos" name="impostos_pagos" defaultValue={linha.lancamentos.impostosPagos} disabled={!podeEditar} />
+                      <CampoMoeda rotulo="Incubação paga" name="incubacao_paga" defaultValue={linha.lancamentos.incubacaoPaga} disabled={!podeEditar} />
+                      <CampoMoeda rotulo="Baixa reserva" name="reserva_gasta" defaultValue={linha.lancamentos.reservaGasta} disabled={!podeEditar} />
+                      <CampoMoeda rotulo="Baixa invest." name="investimento_gasto" defaultValue={linha.lancamentos.investimentoGasto} disabled={!podeEditar} />
+                      <CampoMoeda
+                        rotulo="Saldo reserva"
+                        name="reserva_saldo_ajustado"
+                        defaultValue={linha.lancamentos.reservaSaldoAjustado}
+                        disabled={!podeEditar}
+                        placeholder={Math.max(0, linha.calculo.liberado.reserva - linha.calculo.executado.reserva).toFixed(2).replace(".", ",")}
+                      />
+                      <CampoMoeda
+                        rotulo="Saldo invest."
+                        name="investimento_saldo_ajustado"
+                        defaultValue={linha.lancamentos.investimentoSaldoAjustado}
+                        disabled={!podeEditar}
+                        placeholder={Math.max(0, linha.calculo.liberado.investimentos - linha.calculo.executado.investimentos).toFixed(2).replace(".", ",")}
+                      />
+                      <label className="col-span-2 block xl:col-span-3">
+                        <span className={rotuloCampoCls}>Observação</span>
                         <input
                           name="observacao"
                           defaultValue={linha.acompanhamento?.observacao ?? ""}
                           disabled={!podeEditar}
-                          placeholder="Observação"
-                          className="col-span-3 h-8 rounded-md border border-input bg-card px-2 text-xs"
+                          className="mt-0.5 h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
                         />
+                      </label>
+                      <label className="col-span-2 block xl:col-span-3">
+                        <span className={rotuloCampoCls}>Motivo do saldo manual</span>
                         <input
                           name="saldo_ajustado_motivo"
                           defaultValue={linha.acompanhamento?.saldo_ajustado_motivo ?? ""}
                           disabled={!podeEditar}
-                          placeholder="Motivo do saldo manual"
-                          className="col-span-3 h-8 rounded-md border border-input bg-card px-2 text-xs"
+                          className="mt-0.5 h-8 w-full rounded-md border border-input bg-card px-2 text-xs"
                         />
+                      </label>
+                      <div className="col-span-2 flex items-end sm:col-span-4 xl:col-span-1">
                         <SubmitButton
                           disabled={!podeEditar}
                           size="sm"
                           pendingLabel="Salvando…"
-                          className="h-8 bg-brand-600 px-3 text-xs text-white hover:bg-brand-500"
+                          className="h-8 w-full bg-brand-600 px-3 text-xs text-white hover:bg-brand-500 sm:w-auto xl:w-full"
                         >
                           Salvar
                         </SubmitButton>
-                      </form>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 text-xs">
-                        <LinhaSaldo label="Recebido" valor={formatPercent(linha.calculo.percentualRecebido * 100)} />
-                        <LinhaSaldo label="Impostos" valor={brl(linha.calculo.saldo.impostos)} />
-                        <LinhaSaldo label="Incubação" valor={brl(linha.calculo.saldo.incubacao)} />
-                        <LinhaSaldo label="Reserva" valor={brl(linha.calculo.saldo.reserva)} destaque />
-                        <LinhaSaldo label="Invest." valor={brl(linha.calculo.saldo.investimentos)} destaque />
                       </div>
-                    </TableCell>
-                    <TableCell className="text-xs text-muted-foreground">
+                    </form>
+                  </div>
+                  <div className="rounded-md bg-muted/40 p-3 text-xs">
+                    <p className="mb-1.5 font-semibold text-foreground">Saldos</p>
+                    <div className="space-y-1">
+                      <LinhaSaldo label="Recebido" valor={formatPercent(linha.calculo.percentualRecebido * 100)} />
+                      <LinhaSaldo label="Impostos" valor={brl(linha.calculo.saldo.impostos)} />
+                      <LinhaSaldo label="Incubação" valor={brl(linha.calculo.saldo.incubacao)} />
+                      <LinhaSaldo label="Reserva" valor={brl(linha.calculo.saldo.reserva)} destaque />
+                      <LinhaSaldo label="Invest." valor={brl(linha.calculo.saldo.investimentos)} destaque />
+                    </div>
+                    <p className="mt-2 text-muted-foreground">
                       {linha.acompanhamento?.atualizado_em ? `Atualizado ${formatDate(linha.acompanhamento.atualizado_em)}` : "Sem lançamento"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {linhas.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={11} className="py-6 text-left text-muted-foreground/80">
-                      <p className="sticky left-3 inline-block max-w-md">Nenhuma proposta aprovada. Classifique uma versão como Aprovada no Histórico.</p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                    </p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
           {!podeEditar && (
             <div className="border-t border-border bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
               Somente consulta: lançamentos exigem perfil Gestor ou Administrador.
@@ -362,51 +365,67 @@ export default async function FundosPage() {
   );
 }
 
+const rotuloCampoCls = "text-[11px] font-medium text-muted-foreground";
+
 function CampoMoeda({
+  rotulo,
   name,
   defaultValue,
   disabled,
   placeholder,
 }: {
+  rotulo: string;
   name: string;
   defaultValue?: number | null;
   disabled: boolean;
   placeholder?: string;
 }) {
   return (
-    <input
-      name={name}
-      type="number"
-      min="0"
-      step="0.01"
-      defaultValue={defaultValue || ""}
-      disabled={disabled}
-      placeholder={placeholder}
-      className={inputCls}
-    />
+    <label className="block min-w-0">
+      <span className={rotuloCampoCls}>{rotulo}</span>
+      <input
+        name={name}
+        type="number"
+        min="0"
+        step="0.01"
+        defaultValue={defaultValue || ""}
+        disabled={disabled}
+        placeholder={placeholder}
+        className={`mt-0.5 ${inputCls}`}
+      />
+    </label>
   );
 }
 
 function Resumo({ titulo, valor, detalhe }: { titulo: string; valor: string; detalhe: string }) {
   return (
-    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+    <div className="min-w-0 rounded-lg border border-border bg-card p-3 shadow-sm sm:p-4">
       <p className="text-xs font-medium text-muted-foreground">{titulo}</p>
-      <p className="mt-1 text-lg font-semibold tabular-nums">{valor}</p>
+      <p className="mt-1 break-words text-lg font-semibold tabular-nums">{valor}</p>
       <p className="mt-1 text-xs text-muted-foreground">{detalhe}</p>
     </div>
   );
 }
+
+const gradePainelCls = "grid grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] gap-3";
 
 function PainelConsolidado({ titulo, linhas }: { titulo: string; linhas: Array<[string, number, number, number?]> }) {
   return (
     <section className="rounded-lg border border-border bg-card p-4 shadow-sm">
       <h2 className="text-sm font-semibold">{titulo}</h2>
       <div className="mt-3 divide-y divide-border/70">
+        {/* o título de cada coluna fica em cima, uma vez, e o nome da linha não quebra */}
+        <div className={`${gradePainelCls} pb-1.5 text-xs font-medium text-muted-foreground`}>
+          <span />
+          <span className="text-right">Liberado</span>
+          <span className="text-right">Executado</span>
+          <span className="text-right">Saldo</span>
+        </div>
         {linhas.map(([label, liberado, executado, saldo]) => (
-          <div key={label} className="grid grid-cols-4 gap-3 py-2 text-sm">
+          <div key={label} className={`${gradePainelCls} py-2 text-sm`}>
             <span className="font-medium">{label}</span>
-            <span className="text-right tabular-nums text-muted-foreground">{brl(liberado)} liberado</span>
-            <span className="text-right tabular-nums text-muted-foreground">{brl(executado)} executado</span>
+            <span className="text-right tabular-nums text-muted-foreground">{brl(liberado)}</span>
+            <span className="text-right tabular-nums text-muted-foreground">{brl(executado)}</span>
             <span className="text-right font-semibold tabular-nums">{brl(saldo ?? liberado - executado)}</span>
           </div>
         ))}
