@@ -258,7 +258,7 @@ export function DemandaForm({
         // no lg), como em "Dados do orçamento" da edição.
         <div className="grid gap-2.5 lg:grid-cols-2 2xl:grid-cols-[1fr_1fr_0.8fr]">
           <fieldset className={grupoCampos}>
-            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={1} className="h-5 w-5 text-[11px]" />Identificação do orçamento</legend>
+            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={1} className="h-5 w-5 text-xs" />Identificação do orçamento</legend>
             <div className={grade}>
               <div className="col-span-6">
                 <label htmlFor="nd-titulo" className={lbl}>Título <Obrigatorio /></label>
@@ -294,7 +294,7 @@ export function DemandaForm({
           </fieldset>
 
           <fieldset className={grupoCampos}>
-            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={2} className="h-5 w-5 text-[11px]" />Cliente</legend>
+            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={2} className="h-5 w-5 text-xs" />Cliente</legend>
             <div className={grade}>
               <div className="col-span-6">
                 <label htmlFor="nd-cliente" className={lbl}>Cliente <Obrigatorio /></label>
@@ -319,7 +319,7 @@ export function DemandaForm({
           </fieldset>
 
           <fieldset className={`${grupoCampos} lg:col-span-2 2xl:col-span-1`}>
-            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={3} className="h-5 w-5 text-[11px]" />Controle e prazos</legend>
+            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={3} className="h-5 w-5 text-xs" />Controle e prazos</legend>
             <div className={`${grade} lg:grid-cols-12 2xl:grid-cols-6`}>
               <div className="col-span-6 sm:col-span-3 lg:col-span-2 2xl:col-span-3">
                 <p className={lbl} title="Número do orçamento">Nº do orçamento</p>
@@ -350,7 +350,7 @@ export function DemandaForm({
           </fieldset>
 
           <fieldset className={`${grupoCampos} lg:col-span-2 2xl:col-span-3`}>
-            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={4} className="h-5 w-5 text-[11px]" />Escopo inicial</legend>
+            <legend className={`${legenda} flex items-center gap-1.5`}><NumeroPasso n={4} className="h-5 w-5 text-xs" />Escopo inicial</legend>
             <div className="clear-both grid gap-x-2.5 gap-y-1.5 md:grid-cols-3">
               <div className="md:col-span-2">
                 <label htmlFor="descricao" className={lbl}>Descrição do orçamento <Obrigatorio /></label>

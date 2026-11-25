@@ -132,7 +132,7 @@ describe("PedidoCompraPainel (compra única na tela)", () => {
     const compra = { id: 9404, status: "solicitado", fornecedor_id: 71, data_prevista_entrega: null, fornecedores: { nome: "Sigma Aldrich" } };
     const saida = html({ pedidoStatus: "aprovado_para_compra", compra });
     expect(saida).toContain("painel-compra-aprovacao");
-    expect(saida).toContain("atende também outro pedido");
+    expect(saida).toContain("Ajuda: Por que a compra segue solicitada");
     expect(botoes(saida)).toEqual(["Aprovar compra"]);
     // solicitada não tem envio a registrar ainda
     expect(saida).not.toContain("painel-compra-envio");
