@@ -623,7 +623,7 @@ export function UsuarioAcoes({ row }: { row: UsuarioRow }) {
   }
 
   return (
-    <div className="flex flex-col items-end justify-end gap-1 md:flex-row md:items-center">
+    <div className="flex items-center justify-end gap-1">
       {nomeAusente && (
         <Button
           type="button"

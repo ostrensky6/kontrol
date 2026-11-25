@@ -117,7 +117,10 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
         </Link>
       )}
       getMobileDescription={(row) =>
-        `${row.origem === "—" ? "Sem pedido" : `Pedido ${row.origem}`} · ${row.fornecedor} · ${row.projeto} · ${row.solicitante}`
+        // no cartão do celular o que está vazio não aparece (sem "· — ·")
+        [row.origem === "—" ? "Sem pedido" : `Pedido ${row.origem}`, row.fornecedor, row.projeto, row.solicitante]
+          .filter((parte) => parte && parte !== "—")
+          .join(" · ")
       }
       getMobileMeta={(row) => <StatusBadge status={row.status} label={row.statusLabel} />}
     />

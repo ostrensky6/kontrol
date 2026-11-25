@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 import { HelpCircle, Search } from "lucide-react";
 
 import { abrirAjudaContextual } from "@/components/layout/ContextHelp";
 import { NAV_ICONS, type NavIcon } from "@/components/layout/SideNav";
 import { SinoAvisos } from "@/components/layout/SinoAvisos";
+import { useRolagemLateral } from "@/components/common/useRolagemLateral";
 import { Button } from "@/components/ui/button";
 import { hrefAtivoNaBarra, moduleIsActive } from "@/config/modules";
 import { cn } from "@/lib/utils";
@@ -33,6 +35,15 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
   // módulo com um lugar só (Início, Projetos, Ajuda) não precisa de barra de lugares
   const itens = modulo && modulo.itens.length > 1 ? modulo.itens : [];
   const hrefAtivo = hrefAtivoNaBarra(itens, pathname);
+  // No celular os lugares rolam para o lado: o lugar aberto entra na tela e a
+  // borda direita esmaece enquanto houver mais lugares escondidos.
+  const { caixa: barra, props: rolagem } = useRolagemLateral<HTMLElement>();
+  useEffect(() => {
+    const ativo = barra?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!barra || !ativo || barra.scrollWidth <= barra.clientWidth) return;
+    const inicio = ativo.getBoundingClientRect().left - barra.getBoundingClientRect().left + barra.scrollLeft;
+    barra.scrollTo({ left: Math.max(0, inicio - (barra.clientWidth - ativo.offsetWidth) / 2) });
+  }, [hrefAtivo, barra]);
 
   return (
     <div
@@ -48,8 +59,9 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
           // abaixo de 1640 px o ícone sai e fica o nome. Se ainda assim não couber, a barra
           // quebra em duas linhas: nenhum lugar fica escondido. No celular ela rola para o lado.
           <nav
+            {...rolagem}
             aria-label={`Navegação de ${modulo.label}`}
-            className="flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:gap-1.5 md:overflow-visible"
+            className="app-lugares-modulo flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:gap-1.5 md:overflow-visible"
           >
             {itens.map((item) => {
               const ativo = item.href === hrefAtivo;

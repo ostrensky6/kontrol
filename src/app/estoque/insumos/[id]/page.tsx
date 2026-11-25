@@ -346,7 +346,8 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                   <TableHeader>
                     <TableRow>
                       <TableHead>Pedido ou compra</TableHead>
-                      <TableHead>Etapa</TableHead>
+                      {/* no celular a etapa vai para baixo do nome: a tabela cabe sem espremer */}
+                      <TableHead className="hidden sm:table-cell">Etapa</TableHead>
                       <TableHead className="text-right">Quantidade</TableHead>
                       <TableHead>Previsão de chegada</TableHead>
                     </TableRow>
@@ -358,8 +359,14 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                           <Link href={linha.href} className="text-primary underline-offset-2 hover:underline">
                             {linha.rotulo}
                           </Link>
+                          <div className="mt-1 flex flex-wrap items-center gap-1.5 font-normal sm:hidden">
+                            <span className="text-xs text-muted-foreground">{linha.situacao}</span>
+                            <Selo tom={linha.confirmado ? "slate" : "neutro"}>
+                              {linha.confirmado ? "A caminho" : "Ainda não comprado"}
+                            </Selo>
+                          </div>
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="hidden sm:table-cell">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span>{linha.situacao}</span>
                             <Selo tom={linha.confirmado ? "slate" : "neutro"}>
