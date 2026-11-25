@@ -1301,7 +1301,7 @@ function mockMinhasNotificacoes(): Row[] {
   });
 }
 
-/** Mesma regra de public.aguardando_voce (0128), com os dados do mock. */
+/** Mesma regra de public.aguardando_voce (0128, 0176 e 0185), com os dados do mock. */
 function mockAguardandoVoce(sessao: SessaoMock) {
   const saida: Row[] = [];
   const linha = (chave: string, rows: Row[], rotulo: (row: Row) => string) =>
@@ -1319,6 +1319,7 @@ function mockAguardandoVoce(sessao: SessaoMock) {
     // 0173: etapas por competência; no mock, quem aprova pedidos responde por todas
     const pedidos = store.pedidos_internos ?? [];
     const rotulo = (row: Row) => `#${row.id} · ${row.titulo ?? "sem título"}`;
+    const conduz = mockTemPermissao("compras.conduzir", sessao);
     const esperaLab = (row: Row) =>
       row.status === "validado" && row.natureza === "material_consumo_lab" && !row.aprovacao_area_em;
     const filas: [string, Row[]][] = [
@@ -1330,7 +1331,8 @@ function mockAguardandoVoce(sessao: SessaoMock) {
             ["formalizado", "analise_administrativa"].includes(String(row.status)) ||
             (row.status === "validado" &&
               !esperaLab(row) &&
-              !(row.ciclo_pagamento && String(row.ciclo_pagamento).slice(0, 10) > new Date().toISOString().slice(0, 10))),
+              // 0185: quem conduz a compra inteira vê já o pedido travado no ciclo seguinte
+              (conduz || !(row.ciclo_pagamento && String(row.ciclo_pagamento).slice(0, 10) > new Date().toISOString().slice(0, 10)))),
         ),
       ],
       [

@@ -6,6 +6,7 @@ import { expect, test, type Page } from "@playwright/test";
  * compras" com o motivo e a lista mostra quando o ciclo abre.
  * 0184: quem tem "Conduzir a compra inteira" (e o Administrador) não para no
  * ciclo: vê o aviso e o botão fica liberado. O Gestor não tem a caixinha.
+ * 0185: o "Aguardando você" mostra o pedido travado a quem conduz.
  */
 async function comoCategoria(page: Page, papel: string) {
   const baseURL = test.info().project.use.baseURL;
@@ -68,4 +69,17 @@ test("lista de pedidos segue a mesma regra do ciclo que a tela do pedido", async
   await comoCategoria(page, "gestor");
   await page.goto("/pedido?etapa=administrativo");
   await expect(page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ })).toContainText("Aguardar o ciclo de dezembro/2099");
+});
+
+test("Aguardando você mostra o pedido travado no ciclo a quem conduz a compra inteira (0185)", async ({ page }) => {
+  // o Admin do teste conduz a compra inteira: o pedido já espera por ele
+  await page.goto("/suprimentos");
+  const aguardando = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
+  await expect(aguardando.getByRole("link", { name: /Reagente do ciclo seguinte E2E/ })).toHaveAttribute("href", "/pedido/501");
+
+  // o Gestor não tem a caixinha: o pedido só aparece quando o ciclo abrir
+  await comoCategoria(page, "gestor");
+  await page.goto("/suprimentos");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Reagente do ciclo seguinte E2E/ })).toHaveCount(0);
 });

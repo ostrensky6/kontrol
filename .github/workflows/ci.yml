@@ -192,6 +192,8 @@ jobs:
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/item_novo_do_pedido.sql
       - name: Validar que quem conduz a compra inteira faz todas as etapas (0184)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/conduzir_compra_inteira_0184.sql
+      - name: Validar que o Aguardando você mostra a quem conduz o pedido travado no ciclo (0185)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/aguardando_voce_quem_conduz_0185.sql
 
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
