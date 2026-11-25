@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Plus } from "lucide-react";
 
+import { LegendaObrigatorio, MarcaObrigatorio } from "@/components/common/Campo";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Button } from "@/components/ui/button";
 import {
@@ -263,11 +264,12 @@ function NovoPedidoFormulario({
       {/* só observa a digitação dos campos de dentro: marca que há o que perder e segura o Enter */}
       <div className="grid gap-5" onInput={aoMexer} onKeyDown={aoTeclar}>
         <section className="grid gap-3 rounded-lg border border-border p-4 md:grid-cols-12">
-          <div className="md:col-span-12">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 md:col-span-12">
             <h3 className="text-sm font-semibold">Identificação do pedido</h3>
+            <LegendaObrigatorio />
           </div>
           <div className="md:col-span-6">
-            <label htmlFor="novo-pedido-titulo" className="block text-xs font-medium text-muted-foreground">Título do pedido</label>
+            <label htmlFor="novo-pedido-titulo" className="block text-xs font-medium text-muted-foreground">Título do pedido<MarcaObrigatorio /></label>
             <input
               id="novo-pedido-titulo"
               name="titulo"
@@ -300,7 +302,7 @@ function NovoPedidoFormulario({
             </p>
           </div>
           <div className="md:col-span-4">
-            <label htmlFor="novo-pedido-natureza" className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa</label>
+            <label htmlFor="novo-pedido-natureza" className="block text-xs font-medium text-muted-foreground">Tipo de material ou despesa<MarcaObrigatorio /></label>
             <select
               id="novo-pedido-natureza"
               name="natureza"
@@ -316,7 +318,7 @@ function NovoPedidoFormulario({
             </select>
           </div>
           <div className="md:col-span-4">
-            <label htmlFor="novo-pedido-objetivo" className="block text-xs font-medium text-muted-foreground">Objetivo</label>
+            <label htmlFor="novo-pedido-objetivo" className="block text-xs font-medium text-muted-foreground">Objetivo<MarcaObrigatorio /></label>
             <select id="novo-pedido-objetivo" name="objetivo" required defaultValue="" className={inputCls}>
               <option value="" disabled>Escolha…</option>
               {OBJETIVOS_PEDIDO.map((o) => (
@@ -326,7 +328,7 @@ function NovoPedidoFormulario({
           </div>
           <div className="md:col-span-4">
             <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
-              Laboratório ou área{exigeLaboratorio ? " (obrigatório)" : ""}
+              Laboratório ou área{exigeLaboratorio ? <MarcaObrigatorio /> : null}
             </label>
             <select
               id="novo-pedido-area"
@@ -435,7 +437,8 @@ function NovoPedidoFormulario({
 
         <NovoPedidoDocumentos />
 
-        <DialogFooter className="sm:items-center">
+        {/* rodapé preso embaixo: os botões de enviar ficam à vista no pedido comprido */}
+        <DialogFooter className="sticky -bottom-5 z-10 -mx-5 border-t border-border bg-card px-5 py-3 sm:items-center">
           <p className="text-xs text-muted-foreground sm:mr-auto sm:max-w-md">
             “Enviar para aprovação” grava o pedido e já o envia a quem aprova. “Guardar rascunho” guarda para terminar depois.
           </p>

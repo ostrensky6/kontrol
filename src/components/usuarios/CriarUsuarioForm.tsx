@@ -28,7 +28,7 @@ export function CriarUsuarioForm() {
         <Campo rotulo="Nome" htmlFor="novo-usuario-nome" className="min-w-52 flex-1">
           <Input id="novo-usuario-nome" name="nome" />
         </Campo>
-        <Campo rotulo="E-mail" htmlFor="novo-usuario-email" className="min-w-56 flex-1">
+        <Campo rotulo="E-mail" htmlFor="novo-usuario-email" className="min-w-56 flex-1" obrigatorio>
           <Input id="novo-usuario-email" name="email" type="email" required />
         </Campo>
         <Campo rotulo="Função" htmlFor="novo-usuario-papel">

@@ -79,10 +79,10 @@ export function NovaPessoaDialog({
           </div>
         ) : (
           <form action={acao} {...formularioSemPerda(estado)} className="space-y-3">
-            <Campo rotulo="Nome" htmlFor="nova-pessoa-nome">
+            <Campo rotulo="Nome" htmlFor="nova-pessoa-nome" obrigatorio>
               <Input id="nova-pessoa-nome" name="nome" required autoComplete="off" defaultValue={nomeInicial} />
             </Campo>
-            <Campo rotulo="E-mail" htmlFor="nova-pessoa-email">
+            <Campo rotulo="E-mail" htmlFor="nova-pessoa-email" obrigatorio>
               <Input id="nova-pessoa-email" name="email" type="email" required autoComplete="off" defaultValue={emailInicial} />
             </Campo>
             <Campo rotulo="Função" htmlFor="nova-pessoa-papel">

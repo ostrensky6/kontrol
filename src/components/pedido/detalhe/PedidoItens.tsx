@@ -156,7 +156,7 @@ export function PedidoItens({
                 <TableCell className="text-muted-foreground">
                   {[item.modelo, item.volume].filter(Boolean).join(" · ") || "—"}
                 </TableCell>
-                <TableCell className="text-right tabular-nums">
+                <TableCell className="whitespace-nowrap text-right tabular-nums">
                   {item.quantidade_em === "embalagem" && item.conteudo_embalagem
                     ? `${fmt(item.quantidade)} ${Number(item.quantidade) === 1 ? "frasco" : "frascos"} de ${fmt(item.conteudo_embalagem)} ${item.insumos?.unidade ?? ""}`.trim()
                     : `${fmt(item.quantidade)} ${item.unidade ?? item.insumos?.unidade ?? ""}`}
