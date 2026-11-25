@@ -266,25 +266,31 @@ export default async function AnaliseDetalhe({
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
         <AvisoLeitura falhas={leitura.falhas} />
-        <Breadcrumbs items={[{ label: "Análises", href: "/analises" }, { label: codigo }]} />
+        <Breadcrumbs items={[{ label: "Análises", href: "/analises" }, { label: analise.nome_simplificado || analise.nome || codigo }]} />
 
         <section className="mt-3 rounded-lg border border-border bg-card shadow-sm">
           <div className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px]">
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl font-semibold tracking-tight">{analise.codigo}</h1>
+                {/* o nome que a equipe usa é o título; o código do sistema fica ao lado, menor */}
+                <h1 className="text-xl font-semibold tracking-tight">{analise.nome_simplificado || analise.nome || analise.codigo}</h1>
+                {(analise.nome_simplificado || analise.nome) && (
+                  <span className="font-mono text-sm text-muted-foreground">{analise.codigo}</span>
+                )}
                 <Badge>{analise.ativo ? "Ativa" : "Inativa"}</Badge>
                 <Badge muted>{analise.ofertavel ? "Ofertável" : "Não ofertável"}</Badge>
                 {analise.status && <Badge muted>{analise.status}</Badge>}
               </div>
-              <p className="mt-1 text-lg font-medium">{analise.nome_simplificado || analise.nome || "Sem nome"}</p>
+              {analise.nome_simplificado && analise.nome && analise.nome !== analise.nome_simplificado && (
+                <p className="mt-1 text-sm font-medium text-muted-foreground">{analise.nome}</p>
+              )}
               {analise.descricao && <p className="mt-2 max-w-4xl text-sm leading-5 text-muted-foreground">{analise.descricao}</p>}
               <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
                 <MiniStat label="Etapas" value={String(etapasT.length)} />
                 <MiniStat label="Insumos" value={String(materiaisT.length)} />
                 <MiniStat label="Equip." value={String(equipamentosT.length)} />
-                <MiniStat label="Capacidade" value={g.amostrasDia > 0 ? `${formatNumber(g.amostrasDia)}/dia` : "-"} />
-                <MiniStat label="Preço" value={custo ? formatCurrency(custo.preco) : "-"} />
+                <MiniStat label="Capacidade" value={g.amostrasDia > 0 ? `${formatNumber(g.amostrasDia)}/dia` : "—"} />
+                <MiniStat label="Preço" value={custo ? formatCurrency(custo.preco) : "—"} />
               </div>
             </div>
 
@@ -353,12 +359,12 @@ export default async function AnaliseDetalhe({
         </nav>
 
         {activeView === "resumo" && (
-          <section className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <Stat label="Execuções/dia" value={g.execucoesDia > 0 ? formatNumber(g.execucoesDia) : "-"} compact />
-            <Stat label="Amostras/exec." value={g.amostrasPorExecucao > 0 ? formatNumber(g.amostrasPorExecucao) : "-"} compact />
+          <section className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <Stat label="Execuções/dia" value={g.execucoesDia > 0 ? formatNumber(g.execucoesDia) : "—"} compact />
+            <Stat label="Amostras/exec." value={g.amostrasPorExecucao > 0 ? formatNumber(g.amostrasPorExecucao) : "—"} compact />
             <Stat
               label="Bancada/amostra"
-              value={tempoBancada > 0 ? `${formatNumber(tempoBancada)} h` : "-"}
+              value={tempoBancada > 0 ? `${formatNumber(tempoBancada)} h` : "—"}
               compact
               ajuda={
                 <HelpTip title="Bancada por amostra">
@@ -367,10 +373,10 @@ export default async function AnaliseDetalhe({
                 </HelpTip>
               }
             />
-            <Stat label="Prazo lab." value={prazoLaboratorio > 0 ? `${prazoLaboratorio} dias` : "-"} compact />
+            <Stat label="Prazo lab." value={prazoLaboratorio > 0 ? `${prazoLaboratorio} dias` : "—"} compact />
             <Stat
               label="Prazo total"
-              value={prazoTotal > 0 ? `${prazoTotal} dias` : "-"}
+              value={prazoTotal > 0 ? `${prazoTotal} dias` : "—"}
               compact
               ajuda={
                 <HelpTip title="Prazo total">
@@ -378,10 +384,8 @@ export default async function AnaliseDetalhe({
                 </HelpTip>
               }
             />
-            <Stat label="Materiais" value={String(materiaisT.length)} compact />
-            <Stat label="Equipamentos" value={String(equipamentosT.length)} compact />
-            <Stat label="Custo total" value={custo ? formatCurrency(custo.custoTotal) : "-"} compact />
-            <Stat label="Preço atual" value={custo ? formatCurrency(custo.preco) : "-"} compact />
+            {/* insumos, equipamentos e preço já estão nos números do alto: aqui não se repetem */}
+            <Stat label="Custo total" value={custo ? formatCurrency(custo.custoTotal) : "—"} compact />
           </section>
         )}
         {custo && custo.insumosSemCusto.length > 0 && (
@@ -487,17 +491,17 @@ export default async function AnaliseDetalhe({
         >
           {erroCusteio && <p className="text-sm text-warning-strong">Não foi possível carregar o custeio atual.</p>}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat label="Reagentes" value={custo ? formatCurrency(custo.reagentes) : "-"} compact />
-            <Stat label="Equipamento" value={custo ? formatCurrency(custo.equipamento) : "-"} compact />
-            <Stat label="Pessoal" value={custo ? formatCurrency(custo.pessoal) : "-"} compact />
-            <Stat label="Overhead" value={custo ? formatCurrency(custo.overhead) : "-"} compact />
-            <Stat label="Custo analítico" value={custo ? formatCurrency(custo.custoAnalitico) : "-"} compact />
-            <Stat label="Custo total" value={custo ? formatCurrency(custo.custoTotal) : "-"} compact />
-            <Stat label="Fatores" value={custo ? `${formatNumber(custo.fatores * 100)}%` : "-"} compact />
-            <Stat label="Preço" value={custo ? formatCurrency(custo.preco) : "-"} compact />
-            <Stat label="Prazo laboratório" value={prazoLaboratorio > 0 ? `${prazoLaboratorio} dias` : "-"} compact />
-            <Stat label="Prazo pós-análise" value={prazoPosAnalise > 0 ? `${prazoPosAnalise} dias` : "-"} compact />
-            <Stat label="Prazo total" value={prazoTotal > 0 ? `${prazoTotal} dias` : "-"} compact />
+            <Stat label="Reagentes" value={custo ? formatCurrency(custo.reagentes) : "—"} compact />
+            <Stat label="Equipamento" value={custo ? formatCurrency(custo.equipamento) : "—"} compact />
+            <Stat label="Pessoal" value={custo ? formatCurrency(custo.pessoal) : "—"} compact />
+            <Stat label="Overhead" value={custo ? formatCurrency(custo.overhead) : "—"} compact />
+            <Stat label="Custo analítico" value={custo ? formatCurrency(custo.custoAnalitico) : "—"} compact />
+            <Stat label="Custo total" value={custo ? formatCurrency(custo.custoTotal) : "—"} compact />
+            <Stat label="Fatores" value={custo ? `${formatNumber(custo.fatores * 100)}%` : "—"} compact />
+            <Stat label="Preço" value={custo ? formatCurrency(custo.preco) : "—"} compact />
+            <Stat label="Prazo laboratório" value={prazoLaboratorio > 0 ? `${prazoLaboratorio} dias` : "—"} compact />
+            <Stat label="Prazo pós-análise" value={prazoPosAnalise > 0 ? `${prazoPosAnalise} dias` : "—"} compact />
+            <Stat label="Prazo total" value={prazoTotal > 0 ? `${prazoTotal} dias` : "—"} compact />
           </div>
           {posAnaliseSemParametros && (
             <p className="mt-3 text-sm text-warning-strong">
@@ -541,16 +545,16 @@ export default async function AnaliseDetalhe({
                         {/* com vínculo, vale o nome atual do cadastro do insumo; o texto da receita pode estar desatualizado */}
                         {material.insumo_id && material.insumos?.especificacao
                           ? material.insumos.especificacao
-                          : material.especificacao_insumo ?? "-"}
+                          : material.especificacao_insumo ?? "—"}
                         {material.insumo_id && material.insumos?.especificacao && material.especificacao_insumo &&
                           material.especificacao_insumo.trim() !== material.insumos.especificacao.trim() && (
                             <span className="block text-[11px] text-muted-foreground">Na receita: {material.especificacao_insumo}</span>
                           )}
                       </TableCell>
-                      <TableCell>{material.insumo_id ? `${fmt(disponivel)} ${saldo?.unidade ?? material.insumos?.unidade ?? ""}` : "-"}</TableCell>
+                      <TableCell>{material.insumo_id ? `${fmt(disponivel)} ${saldo?.unidade ?? material.insumos?.unidade ?? ""}` : "—"}</TableCell>
                       <TableCell>{fmt(material.insumos?.ponto_reposicao)}</TableCell>
                       <TableCell>{fmt(material.insumos?.estoque_seguranca)}</TableCell>
-                      <TableCell>{material.insumos?.lead_time_dias ? `${material.insumos.lead_time_dias} dias` : "-"}</TableCell>
+                      <TableCell>{material.insumos?.lead_time_dias ? `${material.insumos.lead_time_dias} dias` : "—"}</TableCell>
                       <TableCell>{!material.insumo_id ? "sem vínculo" : ponto > 0 && disponivel <= ponto ? "abaixo do ponto" : "ok"}</TableCell>
                     </TableRow>
                   );
@@ -580,7 +584,7 @@ export default async function AnaliseDetalhe({
 }
 
 function fmt(value: number | null | undefined) {
-  return value == null ? "-" : formatNumber(value);
+  return value == null ? "—" : formatNumber(value);
 }
 
 function isEtapaPosAnalise(etapa: Etapa) {
@@ -671,7 +675,7 @@ function maxAmostrasCurva(amostrasDia: number) {
 function toEquipamentoEditRowData(linha: EquipamentoVinculado): EquipamentoEditRowData {
   return {
     id: linha.id,
-    nome: linha.equipamentos?.nome ?? "-",
+    nome: linha.equipamentos?.nome ?? "—",
     peso_alocacao: linha.peso_alocacao,
     quantidade: linha.equipamentos?.quantidade ?? null,
     custo_unitario: linha.equipamentos?.custo_unitario ?? null,

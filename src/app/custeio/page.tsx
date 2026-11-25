@@ -6,6 +6,7 @@ import { CusteioSimulator } from "@/components/custeio/CusteioSimulator";
 import { HelpExample, HelpFormula, HelpTip } from "@/components/common/HelpTip";
 import { podeVerSalario, pode } from "@/lib/auth/permissao-efetiva";
 import { formatCurrency as brl } from "@/lib/formatters";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,15 @@ export default async function CusteioPage() {
     pode("orcamento.parametros.editar"),
   ]);
   const codigosAtivos = new Set(simulador.analises.map((analise) => analise.codigo));
+  // o código é para o sistema; na tela vai o nome que a equipe usa, com o código embaixo
+  const { data: nomesLidos } = await (await createClient())
+    .from("analises")
+    .select("codigo, nome, nome_simplificado");
+  const nomeDa = new Map(
+    (nomesLidos ?? []).map((a) => [a.codigo, (a.nome_simplificado || a.nome || "").trim()] as const),
+  );
+  const nome = (codigo: string) => nomeDa.get(codigo) || undefined;
+  const analisesComNome = simulador.analises.map((analise) => ({ ...analise, nome: nome(analise.codigo) }));
 
   const fatoresPct = (
     params.margem_lucro +
@@ -30,6 +40,7 @@ export default async function CusteioPage() {
     .filter((b) => codigosAtivos.has(b.codigo))
     .map((b) => ({
       codigo: b.codigo,
+      nome: nome(b.codigo),
       lote: b.lote,
       reagentes: b.reagentes,
       equipamento: b.equipamento,
@@ -72,14 +83,14 @@ export default async function CusteioPage() {
         </div>
 
         <CusteioAmostrasChart
-          analises={simulador.analises}
+          analises={analisesComNome}
           params={simulador.params}
           valorHoraPessoal={simulador.valorHoraPessoal}
           custoHoraOverhead={simulador.custoHoraOverhead}
         />
 
         <CusteioSimulator
-          analises={simulador.analises}
+          analises={analisesComNome}
           params={simulador.params}
           valorHoraPessoal={simulador.valorHoraPessoal}
           custoHoraOverhead={simulador.custoHoraOverhead}

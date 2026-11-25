@@ -128,13 +128,13 @@ export default async function AnalisesPage() {
     const avisos: string[] = [];
 
     if (etapasDaAnalise.length === 0) avisos.push("sem etapas");
-    if (insumosDaAnalise.length === 0) avisos.push("sem materiais/insumos");
+    if (insumosDaAnalise.length === 0) avisos.push("sem insumos");
     if (equipamentosDaAnalise.length === 0) avisos.push("sem equipamentos");
     if (insumosDaAnalise.some((linha) => Number(linha.quantidade_por_amostra ?? 0) > 0 && !linha.insumo_id)) {
-      avisos.push("material consumido sem vínculo com insumo de estoque");
+      avisos.push("material sem insumo do estoque ligado");
     }
     if (analise.ativo && statusTextualIndicaRevisao(analise.status)) {
-      avisos.push("ativa com status textual de revisão");
+      avisos.push("status diz que está em revisão");
     }
     if (analise.ativo && !analise.ofertavel) avisos.push("ativa, mas fora da oferta comercial");
     if (analise.ativo && (custos.get(analise.codigo) ?? 0) <= 0) avisos.push("sem preço calculado");
@@ -329,8 +329,8 @@ function AnalisesResumoTable({
                   <TableCell className={tableNumber}>{item.nEtapas}</TableCell>
                   <TableCell className={tableNumber}>{item.nInsumos}</TableCell>
                   <TableCell className={tableNumber}>{item.nEquipamentos}</TableCell>
-                  <TableCell className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "-"}</TableCell>
-                  <TableCell className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "-"}</TableCell>
+                  <TableCell className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "—"}</TableCell>
+                  <TableCell className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "—"}</TableCell>
                   <TableCell className="min-w-36 max-w-64">
                     {item.avisos.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
@@ -342,7 +342,7 @@ function AnalisesResumoTable({
                         {item.avisos.length > 3 && <span className="text-[11px] text-muted-foreground">+{item.avisos.length - 3}</span>}
                       </div>
                     ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
+                      <span className="text-xs text-muted-foreground">Sem alertas</span>
                     )}
                   </TableCell>
                   <TableCell className="whitespace-nowrap text-right">
