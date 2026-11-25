@@ -124,7 +124,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.titulo} ${row.projeto} ${row.solicitante} ${row.coordenador}`,
       header: "Pedido",
       cell: ({ row }) => (
-        <div className="min-w-44">
+        <div className="min-w-40">
           <Link href={`/pedido/${row.original.id}`} className="font-medium text-primary hover:underline">
             {row.original.titulo}
           </Link>
@@ -189,10 +189,10 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       accessorFn: (row) => `${row.necessidade} ${row.urgencia}`,
       header: "Precisa até",
       cell: ({ row }) => (
-        <div className="whitespace-nowrap">
-          <p className="tabular-nums">{row.original.necessidade}</p>
+        <div className="space-y-1">
+          <p className="whitespace-nowrap tabular-nums">{row.original.necessidade}</p>
           {URGENTE.has(row.original.urgencia) && (
-            <span className="inline-flex rounded-full bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
+            <span className="inline-flex rounded-md bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
               Urgência {row.original.urgencia.toLowerCase()}
             </span>
           )}
