@@ -169,9 +169,10 @@ export default async function NotificacoesPage() {
                         <button
                           type="submit"
                           aria-label={`Marcar como lida: ${item.titulo}`}
-                          className="toque inline-flex items-center justify-center rounded-md border border-success-strong/30 bg-success-soft px-3 py-1.5 text-xs font-semibold text-success-strong hover:bg-success-soft"
+                          className="toque inline-flex items-center justify-center rounded-md border border-border bg-card px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted/50"
                         >
-                          Lida
+                          {/* é uma ação: o verde fazia parecer que já estava lida */}
+                          Marcar como lida
                         </button>
                       </form>
                     )}

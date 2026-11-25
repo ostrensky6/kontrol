@@ -382,6 +382,7 @@ export function LoteAcoes({
             <div>
               <label htmlFor={`lote-${loteId}-saldo-contado`} className="block text-xs font-medium text-muted-foreground">
                 Saldo contado{emEmbalagens ? " (frascos inteiros)" : ""}
+                <span className="text-danger-strong"> *</span>
               </label>
               <input
                 id={`lote-${loteId}-saldo-contado`}

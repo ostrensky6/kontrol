@@ -36,9 +36,12 @@ export function DemandaCabecalho({
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-xs font-medium">
-        <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
-          {rotuloStatusOrcamento(demanda.status)}
-        </span>
+        {/* sem situação gravada não se mostra uma pílula vazia com traço */}
+        {demanda.status && (
+          <span className="rounded-full bg-brand-100 px-2.5 py-0.5 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300">
+            {rotuloStatusOrcamento(demanda.status)}
+          </span>
+        )}
         <span className="rounded-full bg-muted px-2.5 py-0.5 text-muted-foreground">
           Prioridade {ROTULO_PRIORIDADE[demanda.prioridade ?? "normal"] ?? demanda.prioridade}
         </span>
