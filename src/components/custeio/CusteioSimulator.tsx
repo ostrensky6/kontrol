@@ -82,7 +82,7 @@ export function CusteioSimulator({
           >
             {analises.map((a) => (
               <option key={a.codigo} value={a.codigo}>
-                {a.codigo}
+                {a.nome ? `${a.nome} (${a.codigo})` : a.codigo}
               </option>
             ))}
           </select>

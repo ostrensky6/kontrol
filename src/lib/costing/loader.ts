@@ -16,6 +16,8 @@ import {
 
 export type SimuladorAnalise = {
   codigo: string;
+  /** Nome que as pessoas reconhecem (nome simplificado ou nome); a tela de custeio preenche. */
+  nome?: string;
   etapas: Etapa[];
   equip: EquipAlloc[];
   insumos: InsumoLinha[];

@@ -21,10 +21,14 @@ export default async function InsumosPage({
 
   const { data: analises } = await leitura.de("análises", supabase
     .from("analises")
-    .select("codigo")
+    .select("codigo, nome, nome_simplificado")
     .order("codigo"));
+  // o nome que a equipe usa vai no botão; o código fica na dica e no rodapé
+  const nomeDa = (a: { codigo: string; nome?: string | null; nome_simplificado?: string | null }) =>
+    (a.nome_simplificado || a.nome || "").trim() || a.codigo;
 
   const atual = analise ?? analises?.[0]?.codigo ?? "";
+  const analiseAtual = analises?.find((a) => a.codigo === atual);
 
   const { data: linhas } = await leitura.de("insumos das análises", supabase
     .from("insumo_analise")
@@ -89,18 +93,20 @@ export default async function InsumosPage({
           </HelpTip>
         </div>
 
-        <nav className="mt-6 flex flex-wrap gap-2">
+        <nav aria-label="Escolher a análise" className="mt-6 flex flex-wrap gap-2">
           {analises?.map((a) => (
             <Link
               key={a.codigo}
               href={`/insumos?analise=${encodeURIComponent(a.codigo)}`}
+              aria-current={a.codigo === atual ? "page" : undefined}
+              title={a.codigo}
               className={`toque inline-flex items-center rounded-full px-3 py-1 text-xs ${
                 a.codigo === atual
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-foreground"
               }`}
             >
-              {a.codigo}
+              {nomeDa(a)}
             </Link>
           ))}
         </nav>
@@ -110,7 +116,19 @@ export default async function InsumosPage({
         </div>
 
         <p className="mt-4 text-xs text-muted-foreground/80">
-          {rows.length} linhas · análise {atual}
+          {rows.length} {rows.length === 1 ? "linha" : "linhas"}
+          {analiseAtual && (
+            <>
+              {" · "}
+              <Link
+                href={`/analises/${encodeURIComponent(analiseAtual.codigo)}`}
+                className="text-brand-700 hover:underline dark:text-brand-300"
+              >
+                {nomeDa(analiseAtual)}
+              </Link>{" "}
+              <span className="font-mono">({analiseAtual.codigo})</span>
+            </>
+          )}
         </p>
       </main>
     </div>

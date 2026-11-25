@@ -74,7 +74,8 @@ export function InsumosAnaliseTable({
     },
     {
       accessorKey: "grupoEscolha",
-      header: "Grupo",
+      // grupo e cobrança se editam juntos, na mesma linha
+      header: "Grupo e cobrança",
       filterFn: "equalsString",
       cell: ({ row }) => (
         <form action={atualizarInsumoLinha} className="flex min-w-96 items-center gap-2">
@@ -108,6 +109,8 @@ export function InsumosAnaliseTable({
       accessorKey: "modoCobrancaLabel",
       header: "Cobrança",
       filterFn: "equalsString",
+      // a cobrança já aparece no seletor da coluna anterior; esta fica só para o filtro
+      meta: { className: "hidden" },
     },
   ];
 

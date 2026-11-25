@@ -24,6 +24,22 @@ const DEFAULT_MAX_AMOSTRAS = 192;
 const DEFAULT_VISIBLE_SERIES = 4;
 
 type Metric = "total" | "unitario";
+
+/** Nome que a equipe usa; o código só quando a análise não tem nome. */
+const rotuloDa = (analise: { codigo: string; nome?: string }) => analise.nome || analise.codigo;
+
+/**
+ * Marcas do eixo das amostras em passos redondos (múltiplos do lote mais comum,
+ * 12), no máximo umas 10 marcas: antes eram ~40 números espremidos.
+ */
+export function marcasDeAmostras(maximo: number): number[] {
+  const passos = [6, 12, 24, 48, 96];
+  const passo = passos.find((p) => maximo / p <= 10) ?? 96;
+  const marcas = [1];
+  for (let v = passo; v <= maximo; v += passo) marcas.push(v);
+  if (marcas[marcas.length - 1] !== maximo) marcas.push(maximo);
+  return marcas;
+}
 type ChartRow = { amostras: number } & Record<string, number>;
 
 export function CusteioAmostrasChart({
@@ -103,6 +119,7 @@ export function CusteioAmostrasChart({
 
         return {
           codigo: analise.codigo,
+          rotulo: rotuloDa(analise),
           lote: base.lote,
           custoTotalMaximo: ultimo.totais.custoTotal,
           custoUnitarioMaximo: ultimo.custoTotal,
@@ -141,7 +158,7 @@ export function CusteioAmostrasChart({
                         className="h-[3px] w-4 shrink-0 rounded-full"
                         style={{ backgroundColor: COLORS[index % COLORS.length] }}
                       />
-                      <span className="text-foreground">{analise.codigo}</span>
+                      <span className="text-foreground">{rotuloDa(analise)}</span>
                     </li>
                   ))}
                 </ul>
@@ -190,7 +207,17 @@ export function CusteioAmostrasChart({
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={data} margin={{ top: 16, right: 28, left: 8, bottom: 24 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="rgba(148, 163, 184, 0.28)" />
-                  <XAxis dataKey="amostras" fontSize={12} tickLine={MARCA_EIXO} axisLine={LINHA_EIXO} label={tituloEixoX("Amostras")} />
+                  <XAxis
+                    dataKey="amostras"
+                    type="number"
+                    domain={[1, Math.max(1, Math.min(1000, maxAmostras))]}
+                    ticks={marcasDeAmostras(Math.max(1, Math.min(1000, maxAmostras)))}
+                    allowDecimals={false}
+                    fontSize={12}
+                    tickLine={MARCA_EIXO}
+                    axisLine={LINHA_EIXO}
+                    label={tituloEixoX("Amostras")}
+                  />
                   <YAxis
                     fontSize={12}
                     tickLine={MARCA_EIXO}
@@ -209,6 +236,7 @@ export function CusteioAmostrasChart({
                       key={analise.codigo}
                       type="stepAfter"
                       dataKey={analise.codigo}
+                      name={rotuloDa(analise)}
                       stroke={COLORS[index % COLORS.length]}
                       strokeWidth={2.75}
                       dot={false}
@@ -229,7 +257,7 @@ export function CusteioAmostrasChart({
             colunas={[
               { rotulo: "Amostras", valor: (l: ChartRow) => formatNumber(Number(l.amostras)) },
               ...analisesSelecionadas.map((analise) => ({
-                rotulo: analise.codigo,
+                rotulo: rotuloDa(analise),
                 valor: (l: ChartRow) => formatCurrency(Number(l[analise.codigo] ?? 0)),
               })),
             ]}
@@ -242,9 +270,11 @@ export function CusteioAmostrasChart({
               <div key={item.codigo} className="rounded-md border border-border/70 bg-muted/40 p-3">
                 <div className="flex items-center gap-2">
                   <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                  <span className="min-w-0 truncate text-xs font-medium">{item.codigo}</span>
+                  <span className="min-w-0 truncate text-xs font-medium" title={item.codigo}>{item.rotulo}</span>
                 </div>
-                <p className="mt-2 text-[11px] text-muted-foreground">Lote {formatNumber(item.lote)} amostras</p>
+                <p className="mt-2 text-[11px] text-muted-foreground">
+                  Lote de {formatNumber(item.lote)} · {metric === "total" ? "total" : "por amostra"} com {formatNumber(maxAmostras)}
+                </p>
                 <p className="mt-1 text-sm font-semibold tabular-nums">
                   {metric === "total" ? formatCurrency(item.custoTotalMaximo) : formatCurrency(item.custoUnitarioMaximo)}
                 </p>
@@ -274,7 +304,7 @@ export function CusteioAmostrasChart({
                     onChange={() => toggleAnalise(analise.codigo)}
                     className="h-4 w-4 accent-brand-600"
                   />
-                  <span className="min-w-0 truncate text-sm">{analise.codigo}</span>
+                  <span className="min-w-0 truncate text-sm" title={analise.codigo}>{rotuloDa(analise)}</span>
                 </label>
               ))}
             </div>
