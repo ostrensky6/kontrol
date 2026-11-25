@@ -413,6 +413,27 @@ tbody tr:hover > .app-coluna-fixa {
   box-shadow: 1px 0 0 var(--border), 8px 0 8px -6px rgb(15 23 42 / 0.28);
 }
 
+/* Coluna de ações fixa à direita: em tabela larga os botões da linha
+   continuam à vista, sem precisar rolar até o fim. */
+.app-coluna-acoes {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background-color: var(--card);
+}
+
+thead .app-coluna-acoes {
+  background-color: color-mix(in srgb, var(--muted) 60%, var(--card));
+}
+
+tbody tr:hover > .app-coluna-acoes {
+  background-color: color-mix(in srgb, var(--muted) 50%, var(--card));
+}
+
+[data-mais-a-direita="true"] .app-coluna-acoes {
+  box-shadow: -1px 0 0 var(--border), -8px 0 8px -6px rgb(15 23 42 / 0.28);
+}
+
 /* Impressão de orçamentos: esconde navegação e controles de edição,
    mostra só o documento (.print-area). */
 @media print {

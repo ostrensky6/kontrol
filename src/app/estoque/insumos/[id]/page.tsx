@@ -292,7 +292,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                   {ficha.lotes.map((lote) => (
                     <TableRow key={lote.id}>
                       <TableCell className="whitespace-nowrap font-medium">
-                        <Link href={`/estoque/lotes/${lote.id}`} className="underline-offset-2 hover:underline">
+                        <Link href={`/estoque/lotes/${lote.id}`} className="text-primary underline-offset-2 hover:underline">
                           {lote.codigo}
                         </Link>
                       </TableCell>
@@ -355,7 +355,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                     {ficha.andamento.map((linha) => (
                       <TableRow key={linha.chave}>
                         <TableCell className="font-medium">
-                          <Link href={linha.href} className="underline-offset-2 hover:underline">
+                          <Link href={linha.href} className="text-primary underline-offset-2 hover:underline">
                             {linha.rotulo}
                           </Link>
                         </TableCell>
@@ -397,7 +397,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                     <TableRow key={reserva.planejamentoId ?? "sem-plano"}>
                       <TableCell className="font-medium">
                         {pode.planos && reserva.planejamentoId != null ? (
-                          <Link href={`/planejamento/${reserva.planejamentoId}`} className="underline-offset-2 hover:underline">
+                          <Link href={`/planejamento/${reserva.planejamentoId}`} className="text-primary underline-offset-2 hover:underline">
                             {reserva.plano}
                           </Link>
                         ) : (
@@ -422,7 +422,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
             <Link
               prefetch={false}
               href={`/estoque?consumo_insumo=${insumo.id}#consumo-manual`}
-              className="font-medium underline underline-offset-2"
+              className="font-medium text-primary underline-offset-2 hover:underline"
             >
               Estimativa manual e histórico de revisões
             </Link>
@@ -449,7 +449,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                     {ficha.analises.map((analise) => (
                       <TableRow key={analise.chave}>
                         <TableCell className="font-medium">
-                          <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="underline-offset-2 hover:underline">
+                          <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="text-primary underline-offset-2 hover:underline">
                             {analise.codigo}
                           </Link>
                         </TableCell>
@@ -492,7 +492,7 @@ export default async function FichaDoInsumoPage({ params }: { params: Promise<{ 
                       <TableCell className="text-muted-foreground">{movimento.motivo ?? "—"}</TableCell>
                       <TableCell>
                         {movimento.loteId != null ? (
-                          <Link href={`/estoque/lotes/${movimento.loteId}`} className="underline-offset-2 hover:underline">
+                          <Link href={`/estoque/lotes/${movimento.loteId}`} className="text-primary underline-offset-2 hover:underline">
                             Lote #{movimento.loteId}
                           </Link>
                         ) : (

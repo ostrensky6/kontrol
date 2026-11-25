@@ -100,7 +100,7 @@ function colunas(insumos: Insumo[], locais: Local[], podeEstornar: boolean): Col
       accessorKey: "origemRotulo",
       header: "Origem",
       cell: ({ row }) => (
-        <Link href={row.original.origemHref} className="whitespace-nowrap font-mono text-xs text-muted-foreground hover:underline">
+        <Link href={row.original.origemHref} className="whitespace-nowrap text-sm tabular-nums text-primary hover:underline">
           {row.original.origemRotulo}
         </Link>
       ),
@@ -190,7 +190,7 @@ export function RecebimentoItensTable({
       ]}
       getMobileTitle={(row) => (
         <span>
-          <span className="font-mono text-xs text-muted-foreground/80">{row.origemRotulo}</span> · {row.especificacao}
+          <span className="text-sm tabular-nums text-muted-foreground">{row.origemRotulo}</span> · {row.especificacao}
         </span>
       )}
       getMobileDescription={(row) => `${row.projeto} · ${quantidadeDaLinha(row)}`}

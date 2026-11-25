@@ -33,6 +33,7 @@ import { Tooltip } from "@/components/ui/tooltip";
 import { contemBusca, normalizarBusca } from "@/lib/busca";
 import { cn } from "@/lib/utils";
 import { chaveFiltros, restaurarFiltros, serializarFiltros } from "@/lib/tabela-filtros";
+import { useRolagemLateral } from "@/components/common/useRolagemLateral";
 import {
   CHAVE_LINHAS_POR_PAGINA,
   LINHAS_POR_PAGINA_PADRAO,
@@ -118,6 +119,11 @@ function EstadoVazio({ titulo, texto, acao }: { titulo?: string; texto: string; 
   );
 }
 
+/** Colunas de ação da linha ficam fixas à direita em tabela larga. */
+export function ehColunaDeAcoes(id: string) {
+  return id === "acoes" || id === "_acoes";
+}
+
 export function DataTable<TData>({
   columns,
   data,
@@ -139,8 +145,9 @@ export function DataTable<TData>({
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [density, setDensity] = React.useState<"comfortable" | "compact">("comfortable");
-  // a primeira coluna (o nome) fica fixa ao rolar para o lado; a sombra só aparece rolando (10.3)
-  const [roladoParaOLado, setRoladoParaOLado] = React.useState(false);
+  // a primeira coluna (o nome) fica fixa ao rolar para o lado; a sombra só aparece rolando (10.3).
+  // A coluna de ações fica fixa à direita enquanto houver colunas escondidas.
+  const rolagem = useRolagemLateral<HTMLDivElement>();
 
   React.useEffect(() => {
     try {
@@ -378,11 +385,7 @@ export function DataTable<TData>({
       </div>
 
       <div
-        data-rolado={roladoParaOLado ? "true" : undefined}
-        onScroll={(evento) => {
-          const rolado = evento.currentTarget.scrollLeft > 0;
-          if (rolado !== roladoParaOLado) setRoladoParaOLado(rolado);
-        }}
+        {...rolagem}
         className={cn(
           "mt-4 hidden overflow-x-auto border border-border bg-card shadow-sm md:block",
           semLinhas ? "rounded-t-lg border-b-0" : "rounded-lg",
@@ -418,6 +421,7 @@ export function DataTable<TData>({
                         align === "right" && "text-right",
                         align === "center" && "text-center",
                         indice === 0 && "app-coluna-fixa",
+                        ehColunaDeAcoes(header.column.id) && "app-coluna-acoes",
                         meta?.className,
                       )}
                     >
@@ -463,6 +467,7 @@ export function DataTable<TData>({
                         meta?.align === "right" && "text-right tabular-nums",
                         meta?.align === "center" && "text-center",
                         indice === 0 && "app-coluna-fixa",
+                        ehColunaDeAcoes(cell.column.id) && "app-coluna-acoes",
                         meta?.className,
                       )}
                     >

@@ -35,7 +35,19 @@ const columns: ColumnDef<CompraRow, unknown>[] = [
       </Link>
     ),
   },
-  { accessorKey: "origem", header: "Pedido" },
+  {
+    accessorKey: "origem",
+    header: "Pedido",
+    // a compra nascida de pedido abre o próprio pedido (href já aponta para ele)
+    cell: ({ row }) =>
+      row.original.origem === "—" ? (
+        "—"
+      ) : (
+        <Link href={row.original.href} className="whitespace-nowrap text-primary hover:underline">
+          {row.original.origem}
+        </Link>
+      ),
+  },
   { accessorKey: "fornecedor", header: "Fornecedor" },
   { accessorKey: "projeto", header: "Projeto" },
   { accessorKey: "solicitante", header: "Solicitante" },
@@ -68,7 +80,7 @@ export function ComprasTable({ rows }: { rows: CompraRow[] }) {
     <DataTable
       data={rows}
       columns={columns}
-      searchPlaceholder="Buscar compra, pedido, fornecedor ou projeto..."
+      searchPlaceholder="Buscar compra, pedido, fornecedor..."
       emptyText="Nenhuma compra ainda."
       filters={[
         {
