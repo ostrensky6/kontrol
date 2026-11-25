@@ -58,18 +58,24 @@ export function PedidoCabecalho({
           </span>
         </div>
         <h1 className="text-xl font-semibold tracking-tight">{pedido.titulo}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {projeto && projeto !== "—" ? `Projeto: ${projeto}` : "Sem projeto"} · Solicitante: {pedido.solicitante ?? "—"}
-          {pedido.data_necessidade ? ` · Necessidade: ${formatDate(pedido.data_necessidade)}` : ""}
-          {` · Urgência: ${URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia}`}
-        </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {pedido.natureza ? `${rotuloNatureza(pedido.natureza)} · ` : ""}
-          {pedido.objetivo ? `Objetivo: ${rotuloObjetivo(pedido.objetivo)} · ` : ""}
-          Uso: {rotuloUso(pedido.tipo_demanda)} · Coordenador: {coordenadorProjeto}
-          {pedido.aprovador_coordenador_diferente ? " · aprovado por substituto" : ""}
-          {pedido.modalidade_compra ? ` · Modalidade: ${modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra}` : ""}
-        </p>
+        <ul className="mt-2.5 flex flex-wrap gap-1.5" aria-label="Dados do pedido" data-testid="pedido-fatos">
+          <Fato rotulo={projeto && projeto !== "—" ? "Projeto" : null}>{projeto && projeto !== "—" ? projeto : "Sem projeto"}</Fato>
+          <Fato rotulo="Solicitante">{pedido.solicitante ?? "—"}</Fato>
+          {pedido.data_necessidade && <Fato rotulo="Necessidade">{formatDate(pedido.data_necessidade)}</Fato>}
+          <Fato rotulo="Urgência" destaque={ehUrgente(pedido.urgencia)}>
+            {URGENCIA_LABEL[pedido.urgencia ?? "normal"] ?? pedido.urgencia}
+          </Fato>
+          {pedido.natureza && <Fato rotulo={null}>{rotuloNatureza(pedido.natureza)}</Fato>}
+          {pedido.objetivo && <Fato rotulo="Objetivo">{rotuloObjetivo(pedido.objetivo)}</Fato>}
+          <Fato rotulo="Uso">{rotuloUso(pedido.tipo_demanda)}</Fato>
+          <Fato rotulo="Coordenador">
+            {coordenadorProjeto}
+            {pedido.aprovador_coordenador_diferente ? " (aprovado por substituto)" : ""}
+          </Fato>
+          {pedido.modalidade_compra && (
+            <Fato rotulo="Modalidade">{modalidadeLabel[pedido.modalidade_compra] ?? pedido.modalidade_compra}</Fato>
+          )}
+        </ul>
         {pedido.justificativa && (
           <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{pedido.justificativa}</p>
         )}
@@ -83,7 +89,7 @@ export function PedidoCabecalho({
             <span aria-hidden="true">! </span>{avisoControlado}
           </p>
         )}
-        <p className="mt-1 text-xs text-muted-foreground" data-testid="ciclo-pagamento">
+        <p className="mt-2 inline-flex max-w-3xl items-start gap-1.5 rounded-md bg-info-soft px-2.5 py-1.5 text-xs text-foreground empty:hidden" data-testid="ciclo-pagamento">
           {pedido.ciclo_pagamento
             ? `${datasCiclo.solicitadoEm ? `Solicitado em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.solicitadoEm)))} · ` : ""}${datasCiclo.aprovadoEm ? `Aprovado pela coordenação em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.aprovadoEm)))} (esta data define o ciclo) · ` : ""}Ciclo de compras: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
             : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado"].includes(pedido.status)
@@ -120,5 +126,29 @@ export function PedidoCabecalho({
         />
       </div>
     </div>
+  );
+}
+
+/** Um dado do pedido numa caixinha: "Rótulo: valor". */
+function Fato({
+  rotulo,
+  destaque = false,
+  children,
+}: {
+  rotulo: string | null;
+  destaque?: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <li
+      className={
+        destaque
+          ? "inline-flex items-center rounded-md border border-warning-strong/30 bg-warning-soft px-2 py-1 text-xs text-warning-strong"
+          : "inline-flex items-center rounded-md border border-border bg-muted/40 px-2 py-1 text-xs text-foreground"
+      }
+    >
+      {rotulo && <span className="mr-1 text-muted-foreground">{rotulo}:{" "}</span>}
+      <span className="font-medium">{children}</span>
+    </li>
   );
 }

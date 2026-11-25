@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import {
   Briefcase,
+  CalendarClock,
   CalendarDays,
   Ellipsis,
   FlaskConical,
@@ -34,7 +35,8 @@ import {
 import { carregarCatalogoNovoPedido, type CatalogoNovoPedido } from "@/lib/actions/catalogo-pedido";
 import { criarPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO, USOS_PEDIDO } from "@/lib/pedido/natureza";
-import { dataEmBrasilia, explicarCicloHoje } from "@/lib/pedido/ciclo";
+import { cicloPara, dataEmBrasilia, explicarCicloHoje, rotuloCiclo } from "@/lib/pedido/ciclo";
+import { HelpTip } from "@/components/common/HelpTip";
 import {
   CAMPOS_ITEM_NOVO_PEDIDO,
   faltaNoItem,
@@ -210,6 +212,7 @@ function NovoPedidoFormulario({
   aoMexer: () => void;
 }) {
   const [natureza, setNatureza] = useState("");
+  const hojeBrasilia = dataEmBrasilia(new Date());
   const [itens, setItens] = useState<ItemDaLista[]>([]);
   /** campos do item em preenchimento: a versão troca para limpar ou carregar um item da lista */
   const [emPreenchimento, setEmPreenchimento] = useState<{ versao: number; defaults: PedidoItemDefaults }>({ versao: 0, defaults: {} });
@@ -309,12 +312,17 @@ function NovoPedidoFormulario({
             />
           </div>
           <div className="md:col-span-6">
-            <label htmlFor="novo-pedido-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
+            <div className="flex items-center gap-0.5">
+              <label htmlFor="novo-pedido-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
+              <HelpTip title="Quem aprova o pedido">
+                O coordenador do projeto aprova o pedido. Sem coordenador cadastrado, o envio trava. Sem projeto, a Supervisão
+                aprova.
+              </HelpTip>
+            </div>
             <select
               id="novo-pedido-projeto"
               name="projeto_id"
               defaultValue=""
-              aria-describedby="novo-pedido-projeto-ajuda"
               className={inputCls}
             >
               <option value="">Sem projeto (a Supervisão aprova)</option>
@@ -327,9 +335,6 @@ function NovoPedidoFormulario({
                 </option>
               ))}
             </select>
-            <p id="novo-pedido-projeto-ajuda" className="mt-1 text-xs text-muted-foreground">
-              O coordenador do projeto aprova o pedido. Sem coordenador cadastrado, o envio trava.
-            </p>
           </div>
           <EscolhaCartoes
             id="novo-pedido-natureza"
@@ -360,15 +365,22 @@ function NovoPedidoFormulario({
             className="md:col-span-12"
           />
           <div className="md:col-span-6">
-            <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
-              Laboratório ou área{exigeLaboratorio ? <MarcaObrigatorio /> : null}
-            </label>
+            <div className="flex items-center gap-0.5">
+              <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
+                Laboratório ou área{exigeLaboratorio ? <MarcaObrigatorio /> : null}
+              </label>
+              {exigeLaboratorio && (
+                <HelpTip title="Coordenação do laboratório">
+                  Material de consumo de laboratório passa também pela coordenação do laboratório, depois do coordenador do
+                  projeto.
+                </HelpTip>
+              )}
+            </div>
             <select
               id="novo-pedido-area"
               name="area_id"
               required={exigeLaboratorio}
               defaultValue=""
-              aria-describedby={exigeLaboratorio ? "novo-pedido-area-ajuda" : undefined}
               className={inputCls}
             >
               <option value="">{exigeLaboratorio ? "Escolha…" : "—"}</option>
@@ -380,27 +392,29 @@ function NovoPedidoFormulario({
               ))}
             </select>
           </div>
-          {exigeLaboratorio && (
-            <p id="novo-pedido-area-ajuda" className="text-xs text-muted-foreground md:col-span-12">
-              Material de consumo de laboratório passa também pela coordenação do laboratório, depois do coordenador do projeto.
-            </p>
-          )}
           <div className="md:col-span-6">
             <label htmlFor="novo-pedido-data" className="block text-xs font-medium text-muted-foreground">Necessidade</label>
             <input id="novo-pedido-data" name="data_necessidade" type="date" className={inputCls} />
           </div>
-          <p className="text-xs text-muted-foreground md:col-span-12" data-testid="ciclo-pedido">
-            {explicarCicloHoje(dataEmBrasilia(new Date()), false)} A urgência é definida pelo administrativo, não por quem pede: se o
-            pedido não pode esperar o ciclo, diga o porquê na justificativa.
-          </p>
+          <div
+            className="flex flex-wrap items-center gap-2 rounded-lg border border-info-strong/20 bg-info-soft px-3 py-2 text-sm md:col-span-12"
+            data-testid="ciclo-pedido"
+          >
+            <CalendarClock aria-hidden className="h-4 w-4 shrink-0 text-info-strong" />
+            <span>
+              Entra no ciclo de compras de <b className="font-semibold">{rotuloCiclo(cicloPara(hojeBrasilia, false))}</b>
+            </span>
+            <HelpTip title="Ciclo de compras">
+              {explicarCicloHoje(hojeBrasilia, false)} A urgência é definida pelo administrativo, não por quem pede: se o pedido
+              não pode esperar o ciclo, diga o porquê na justificativa.
+            </HelpTip>
+          </div>
         </section>
 
         <section className="grid gap-3 rounded-lg border border-border p-4">
-          <div>
+          <div className="flex items-center gap-0.5">
             <h3 className="text-sm font-semibold">Justificativa</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Fonte e rubrica são definidas pelo administrativo.
-            </p>
+            <HelpTip title="Justificativa">Fonte e rubrica são definidas pelo administrativo.</HelpTip>
           </div>
           <div>
             <label htmlFor="novo-pedido-justificativa" className="block text-xs font-medium text-muted-foreground">
@@ -417,12 +431,12 @@ function NovoPedidoFormulario({
         </section>
 
         <section className="grid gap-3 rounded-lg border border-border p-4" aria-labelledby="novo-pedido-itens-titulo">
-          <div>
+          <div className="flex items-center gap-0.5">
             <h3 id="novo-pedido-itens-titulo" className="text-sm font-semibold">Materiais, serviços e equipamentos</h3>
-            <p className="mt-0.5 text-xs text-muted-foreground">
+            <HelpTip title="Itens do pedido">
               Preencha um item e aperte “Adicionar item”. Para enviar, o pedido precisa de ao menos um item com especificação,
               quantidade e unidade.
-            </p>
+            </HelpTip>
           </div>
           <NovoPedidoItensLista itens={itens} aoEditar={editarItem} aoRemover={removerItem} />
           <input type="hidden" name="itens_json" value={JSON.stringify(itens.map((item) => item.campos))} />
@@ -462,9 +476,12 @@ function NovoPedidoFormulario({
 
         {/* rodapé preso embaixo: os botões de enviar ficam à vista no pedido comprido */}
         <DialogFooter className="sticky -bottom-5 z-10 -mx-5 border-t border-border bg-card px-5 py-3 sm:items-center">
-          <p className="text-xs text-muted-foreground sm:mr-auto sm:max-w-md">
-            “Enviar para aprovação” grava o pedido e já o envia a quem aprova. “Guardar rascunho” guarda para terminar depois.
-          </p>
+          <div className="sm:mr-auto">
+            <HelpTip title="Enviar ou guardar" side="top" align="start">
+              “Enviar para aprovação” grava o pedido e já o envia a quem aprova. “Guardar rascunho” guarda para terminar
+              depois.
+            </HelpTip>
+          </div>
           <DialogClose asChild>
             <Button type="button" variant="outline">
               Cancelar

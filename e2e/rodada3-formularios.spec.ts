@@ -33,7 +33,7 @@ test("cabeçalho do pedido mostra o número legível e 'Sem projeto' em vez de t
   const fonte = await numero.evaluate((el) => getComputedStyle(el).fontFamily);
   expect(fonte.toLowerCase()).not.toContain("mono");
   await expect(page.getByText("Projeto: —")).toHaveCount(0);
-  await expect(page.getByText(/Sem projeto · Solicitante/)).toBeVisible();
+  await expect(page.getByTestId("pedido-fatos").getByText("Sem projeto", { exact: true })).toBeVisible();
 });
 
 test("quantidade do item do pedido não quebra o número da unidade", async ({ page }) => {

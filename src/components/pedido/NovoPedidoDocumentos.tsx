@@ -1,5 +1,7 @@
 "use client";
 
+import { HelpTip } from "@/components/common/HelpTip";
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,11 +30,12 @@ export function NovoPedidoDocumentos() {
 
   return (
     <section className="grid gap-3 rounded-lg border border-border p-4" aria-labelledby="novo-pedido-documentos-titulo">
-      <div>
+      <div className="flex items-center gap-1.5">
         <h3 id="novo-pedido-documentos-titulo" className="text-sm font-semibold">Cotação prévia e termo de referência</h3>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          Opcional. Registre aqui, com o pedido: da Aprovação em diante, esses dois documentos não entram mais.
-        </p>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">Opcional</span>
+        <HelpTip title="Quando registrar">
+          Registre aqui, com o pedido: da Aprovação em diante, esses dois documentos não entram mais.
+        </HelpTip>
       </div>
       <input type="hidden" name="documentos_indices" value={indices.join(",")} />
       {indices.map((indice, posicao) => {

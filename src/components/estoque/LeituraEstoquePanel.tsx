@@ -1,5 +1,7 @@
 "use client";
 
+import { HelpTip } from "@/components/common/HelpTip";
+
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -524,8 +526,11 @@ export function LeituraEstoquePanel({
             ))}
           </ul>
         )}
-        <p className="mt-4 text-xs text-muted-foreground">
-          Tudo que é lido aqui fica na Auditoria com usuário, data e hora. Desfazer vale para quem leu, por até 2 horas.
+        <p className="mt-4 flex items-center gap-0.5 text-xs text-muted-foreground">
+          Fica registrado na Auditoria
+          <HelpTip title="Registro e desfazer">
+            Tudo que é lido aqui fica na Auditoria com usuário, data e hora. Desfazer vale para quem leu, por até 2 horas.
+          </HelpTip>
         </p>
       </aside>
     </div>
@@ -674,8 +679,11 @@ function CartaoIdentificado({
                   Entrada avulsa (sem pedido)
                 </label>
               </div>
-              <p className="mt-2 text-xs text-muted-foreground">
-                Pelo pedido, a entrada conta como recebimento e não é lançada duas vezes.
+              <p className="mt-1 flex items-center gap-0.5 text-xs text-muted-foreground">
+                Entrada pelo pedido ou avulsa
+                <HelpTip title="Entrada pelo pedido">
+                  Pelo pedido, a entrada conta como recebimento e não é lançada duas vezes.
+                </HelpTip>
               </p>
             </fieldset>
           )}
@@ -751,8 +759,11 @@ function CartaoIdentificado({
               Cancelar
             </button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            O lote é criado sozinho (código LEIT-…); sem validade, o alerta de vencimento não vale para ele.
+          <p className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            Lote criado sozinho
+            <HelpTip title="Lote da leitura">
+              O lote é criado sozinho (código LEIT-…); sem validade, o alerta de vencimento não vale para ele.
+            </HelpTip>
           </p>
         </form>
       )}
