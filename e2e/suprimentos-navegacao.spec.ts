@@ -117,7 +117,9 @@ test("pedidos aparecem pela etapa, da solicitação ao pagamento", async ({ page
   await expect(page).toHaveURL(/etapa=administrativo/);
   const linha = page.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ });
   await expect(linha.getByRole("img", { name: "Etapa 3 de 6: Administrativo" })).toBeVisible();
-  await expect(linha).toContainText("Aguardar o ciclo");
+  // o usuário do teste é Admin e conduz a compra inteira: não para no ciclo (0184)
+  await expect(linha).toContainText("Formalizar em compras");
+  await expect(linha).not.toContainText("Aguardar o ciclo");
 
   // compras com fornecedor, recebimento e prazos são lugares da barra de Compras
   await page.goto("/pedido");

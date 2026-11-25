@@ -135,7 +135,7 @@ export default async function PedidoPage({
   const abrirNovo = query.novo === "1";
   const todosEncerrados = (Array.isArray(query.encerrados) ? query.encerrados[0] : query.encerrados) === "todos";
   const supabase = await createClientUntyped();
-  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp] = await Promise.all([
+  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp, podeConduzir] = await Promise.all([
     lerPedidos(supabase, COLUNAS_PEDIDO, todosEncerrados),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
@@ -144,6 +144,8 @@ export default async function PedidoPage({
     carregarPendencias(),
     // quem aprova pelo projeto é o usuário coordenador (0136/0169), não o nome escrito no cadastro
     leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso")),
+    // 0184: quem conduz a compra inteira (e o Administrador) não para no ciclo
+    pode("compras.conduzir"),
   ]);
   const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
   const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PEDIDOS);
@@ -186,7 +188,8 @@ export default async function PedidoPage({
       coordenador: coordenadorAtual?.situacao === "ok" ? coordenadorAtual.nome : null,
       semCoordenador: Boolean(coordenadorAtual && coordenadorAtual.situacao !== "ok"),
       semProjeto: !projetoRow,
-      cicloAbreEm: cicloTravadoAte,
+      // mesma regra da página do pedido (0184): para quem conduz, o próximo passo é formalizar
+      cicloAbreEm: podeConduzir ? null : cicloTravadoAte,
     });
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
