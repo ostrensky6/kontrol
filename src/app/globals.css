@@ -29,7 +29,9 @@
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --border: #e2e8f0;
-  --input: #e2e8f0;
+  /* Borda de campo um tom acima da borda de caixa: o campo se lê como campo
+     (branco, contorno nítido) sem pesar a tela. */
+  --input: #cbd5e1;
   --ring: #1b5aac;
 
   /* Tons de status — soft = superfície, strong = texto/ícone (AA sobre soft) */
@@ -65,7 +67,7 @@
   --destructive: #f87171;
   --destructive-foreground: #0a0a0a;
   --border: #27272a;
-  --input: #27272a;
+  --input: #3f3f46;
   --ring: #5b9be0;
 
   --success-soft: #122f12;
@@ -151,6 +153,11 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+
+  /* Sombras de repouso mais leves (rodada 10): a caixa se separa do fundo pela
+     borda fina; a sombra só dá um apoio discreto. */
+  --shadow-xs: 0 1px 1px 0 rgb(15 23 42 / 0.03);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
 }
 
 body {
@@ -177,9 +184,17 @@ html:not(.dark) .text-brand-500 {
   color: #013a80;
 }
 
+/* Foco pelo teclado, um desenho só (rodada 10): contorno fino de 2 px. Em link e
+   botão ele fica afastado; em campo de digitação cobre a própria borda, que
+   passa a azul, sem um segundo quadro em volta. */
 :where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 3px solid color-mix(in srgb, var(--ring) 80%, white);
-  outline-offset: 3px;
+  outline: 2px solid color-mix(in srgb, var(--ring) 85%, white);
+  outline-offset: 2px;
+}
+
+:where(input:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="color"]), select, textarea):focus-visible {
+  outline-color: var(--ring);
+  outline-offset: -1px;
 }
 
 :where(a[href][class*="rounded-lg"][class*="border"][class*="bg-card"], a[href][class*="rounded-xl"][class*="border"][class*="bg-card"], a[href][class*="rounded-lg"][class*="border"][class*="bg-muted"], a[href][class*="rounded-xl"][class*="border"][class*="bg-muted"]):not([class*="inline-flex"]) {
@@ -205,22 +220,6 @@ html:not(.dark) .text-brand-500 {
 
 /* A faixa azul à esquerda marca só o cartão que é link (rounded-lg ou maior).
    Botão, aba e pílula têm o próprio desenho e ficam sem a faixa. */
-.app-nav-level-2 {
-  border-color: color-mix(in srgb, var(--primary) 25%, var(--border));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 5%, transparent), transparent),
-    var(--card);
-  color: var(--primary);
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.05);
-}
-
-.app-nav-level-2:hover {
-  border-color: color-mix(in srgb, var(--primary) 45%, var(--border));
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--primary) 9%, transparent), transparent),
-    var(--card);
-}
-
 .app-nav-level-3,
 .app-section-link {
   position: relative;

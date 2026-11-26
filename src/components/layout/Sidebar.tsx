@@ -68,7 +68,7 @@ function SidebarContent({
         </p>
         <div className="mt-1.5 flex items-center justify-between">
           {perfil?.papel && (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
               {PAPEL_LABEL[perfil.papel] ?? perfil.papel}
             </span>
           )}

@@ -54,7 +54,7 @@ function Botao({
               minLength={3}
               rows={1}
               placeholder={motivo.placeholder}
-              className="w-64 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+              className="w-64 rounded-md border border-input bg-card px-3 py-1.5 text-sm"
             />
           </div>
         )}
@@ -140,7 +140,7 @@ export function EncerrarComPendencia({ pedidoId }: { pedidoId: number }) {
               required
               minLength={3}
               placeholder="Ex.: fornecedor sem estoque"
-              className="h-9 w-64 rounded-md border border-input bg-background px-3 text-sm"
+              className="h-9 w-64 rounded-md border border-input bg-card px-3 text-sm"
             />
           </div>
           <ConfirmSubmitButton

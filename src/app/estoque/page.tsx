@@ -306,10 +306,10 @@ export default async function EstoquePage({
                 href={hrefVisaoEstoque(v.id)}
                 aria-current={ativa ? "page" : undefined}
                 className={cn(
-                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+                  "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
                   ativa
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5",
+                    ? "border-primary bg-primary/10 font-semibold text-primary"
+                    : "border-border bg-card font-medium text-foreground hover:border-primary/50 hover:bg-primary/5",
                 )}
               >
                 {v.rotulo}
@@ -317,7 +317,7 @@ export default async function EstoquePage({
                   <span
                     className={cn(
                       "rounded-full px-1.5 text-xs tabular-nums",
-                      ativa ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+                      ativa ? "bg-card text-primary" : "bg-muted text-muted-foreground",
                     )}
                   >
                     {contagem}
@@ -363,7 +363,7 @@ export default async function EstoquePage({
               <form action="/estoque#consumo-manual" method="get" className="mt-3 flex flex-wrap items-end gap-2">
                 <label className="min-w-0 flex-1 text-sm font-medium">
                   Insumo
-                  <select name="consumo_insumo" defaultValue={insumoSelecionado?.insumoId ?? ""} required className="mt-1 block min-h-11 w-full rounded-md border border-input bg-background px-2 text-sm">
+                  <select name="consumo_insumo" defaultValue={insumoSelecionado?.insumoId ?? ""} required className="mt-1 block min-h-11 w-full rounded-md border border-input bg-card px-2 text-sm">
                     <option value="" disabled>Selecione um insumo do saldo</option>
                     {insumosConsultaveis.map(({ insumoId, especificacao }) => (
                       <option key={insumoId} value={insumoId}>{especificacao} · #{insumoId}</option>

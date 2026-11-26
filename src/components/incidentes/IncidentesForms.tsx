@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 
-const campo = "mt-1 block w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm";
+const campo = "mt-1 block w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm";
 
 export const DESTINO_INCIDENTE: Record<string, string> = {
   laboratorio: "Todas as pessoas",

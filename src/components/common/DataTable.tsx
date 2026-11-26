@@ -335,7 +335,7 @@ export function DataTable<TData>({
               {filters.slice(0, limite).map((filter) => seletor(filter, false))}
               {extras.length > 0 && (
                 <details>
-                  <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent [&::-webkit-details-marker]:hidden">
+                  <summary className="flex h-9 cursor-pointer list-none items-center gap-1.5 rounded-md border border-input bg-card px-3 text-sm font-medium hover:bg-accent [&::-webkit-details-marker]:hidden">
                     <SlidersHorizontal className="h-4 w-4 text-muted-foreground" aria-hidden />
                     Mais filtros
                     {ativosExtras > 0 && (

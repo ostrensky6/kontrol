@@ -16,7 +16,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
       suppressHydrationWarning
       className={cn(
         // §8.2: o valor digitado pelo usuário é entrada -> azul institucional.
-        "flex h-9 w-full rounded-md border border-input bg-background px-3 py-2 text-sm font-medium shadow-xs transition-colors placeholder:text-muted-foreground placeholder:font-normal focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        "flex h-9 w-full rounded-md border border-input bg-card px-3 py-2 text-sm font-medium shadow-xs transition-colors placeholder:text-muted-foreground placeholder:font-normal disabled:cursor-not-allowed disabled:opacity-50",
         TOM_ENTRADA,
         className,
       )}

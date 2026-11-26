@@ -132,7 +132,7 @@ export function ExcluirOuCancelarPlano({
             minLength={3}
             rows={3}
             placeholder={textos.placeholder}
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="mt-1 w-full rounded-md border border-input bg-card px-3 py-2 text-sm"
           />
         </div>
         {state.message && !state.ok && (

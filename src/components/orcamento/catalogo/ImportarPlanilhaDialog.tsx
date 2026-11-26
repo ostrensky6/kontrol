@@ -114,7 +114,7 @@ export function ImportarPlanilhaDialog({ action }: { action: AcaoImportar }) {
                 setArquivo(evento.target.files?.[0] ?? null);
                 setEstado(null);
               }}
-              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-background file:px-3 file:py-1 file:text-sm file:font-medium"
+              className="mt-1 block w-full text-sm file:mr-3 file:rounded-md file:border file:border-input file:bg-card file:px-3 file:py-1 file:text-sm file:font-medium"
             />
           </div>
           <button

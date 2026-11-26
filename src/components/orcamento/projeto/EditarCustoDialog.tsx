@@ -111,7 +111,7 @@ export function EditarCustoDialog({
               name="rubrica"
               value={rubrica}
               onChange={(evento) => setRubrica(evento.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
             >
               {RUBRICAS.filter(([codigo]) => podePessoal || codigo !== "PE" || item.rubrica === "PE").map(([codigo, nome]) => (
                 <option key={codigo} value={codigo}>
