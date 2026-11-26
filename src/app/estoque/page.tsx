@@ -317,7 +317,7 @@ export default async function EstoquePage({
                   <span
                     className={cn(
                       "rounded-full px-1.5 text-xs tabular-nums",
-                      ativa ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
+                      ativa ? "bg-card text-primary" : "bg-muted text-muted-foreground",
                     )}
                   >
                     {contagem}

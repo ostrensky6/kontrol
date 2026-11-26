@@ -50,7 +50,7 @@ export function FiltroChips<T extends string>({
                 className={cn(
                   "rounded-full px-1.5 text-xs tabular-nums",
                   ativo
-                    ? "bg-primary/15 text-primary"
+                    ? "bg-card text-primary"
                     : destaque && opcao.tom === "red"
                       ? "bg-danger-soft text-danger-strong"
                       : destaque
