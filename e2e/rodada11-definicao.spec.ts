@@ -74,8 +74,13 @@ test.describe("rodada 11: definição (computador)", () => {
   test("análises: as duas etiquetas ficam lado a lado e a tabela cabe em 1280 px", async ({ page }) => {
     await page.goto("/analises");
     const linha = page.locator("main table tbody tr").first();
-    const ativa = (await linha.getByText("Ativa", { exact: true }).boundingBox())!;
-    const ofertavel = (await linha.getByText("Ofertável", { exact: true }).boundingBox())!;
+    // a primeira linha muda conforme o que os outros testes gravaram: vale para qualquer situação
+    const etiquetaAtiva = linha.getByText(/^(Ativa|Inativa)$/);
+    const etiquetaOfertavel = linha.getByText(/^(Ofertável|Não ofertável)$/);
+    await expect(etiquetaAtiva).toBeVisible();
+    await expect(etiquetaOfertavel).toBeVisible();
+    const ativa = (await etiquetaAtiva.boundingBox())!;
+    const ofertavel = (await etiquetaOfertavel.boundingBox())!;
     expect(Math.abs(ativa.y - ofertavel.y)).toBeLessThan(2);
     const sobra = await page
       .locator("main table")
