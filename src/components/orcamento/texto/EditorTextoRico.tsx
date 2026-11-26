@@ -41,7 +41,7 @@ export function EditorTextoRico({
       attributes: {
         "aria-label": rotulo,
         class:
-          "texto-rico min-h-28 max-w-none rounded-b-md border border-t-0 border-input bg-background px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h3]:pt-1 [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
+          "texto-rico min-h-28 max-w-none rounded-b-md border border-t-0 border-input bg-card px-3 py-2 text-sm leading-6 outline-none focus-visible:ring-2 focus-visible:ring-ring [&_h3]:pt-1 [&_h3]:font-semibold [&_ol]:list-decimal [&_ol]:pl-5 [&_p]:my-1 [&_ul]:list-disc [&_ul]:pl-5",
       },
     },
     onUpdate: ({ editor: e }) => onChange(normalizarTexto(e.getJSON())),

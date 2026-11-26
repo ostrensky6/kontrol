@@ -38,10 +38,10 @@ export function VisoesSituacao({ visao, contagens }: { visao: VisaoSituacao; con
             href={href(v.id)}
             aria-current={ativa ? "page" : undefined}
             className={cn(
-              "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+              "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
               ativa
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5",
+                ? "border-primary bg-primary/10 font-semibold text-primary"
+                : "border-border bg-card font-medium text-foreground hover:border-primary/50 hover:bg-primary/5",
             )}
           >
             {v.rotulo}
@@ -49,7 +49,7 @@ export function VisoesSituacao({ visao, contagens }: { visao: VisaoSituacao; con
               <span
                 className={cn(
                   "rounded-full px-1.5 text-xs tabular-nums",
-                  ativa ? "bg-primary-foreground/20" : "bg-muted text-muted-foreground",
+                  ativa ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground",
                 )}
               >
                 {contagem}

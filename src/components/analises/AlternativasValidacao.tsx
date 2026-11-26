@@ -57,7 +57,7 @@ function FormValidar({ linha, codigo }: { linha: AlternativaLinha; codigo: strin
       <label className="text-xs font-medium">
         Decisão
         <select name="decisao" defaultValue="" required aria-label={`Decisão sobre ${nome}`}
-          className="mt-1 block min-h-9 rounded-md border border-input bg-background px-2 text-xs">
+          className="mt-1 block min-h-9 rounded-md border border-input bg-card px-2 text-xs">
           <option value="" disabled>Escolha</option>
           <option value="valida">Serve</option>
           <option value="invalida">Não serve</option>

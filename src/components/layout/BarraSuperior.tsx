@@ -61,18 +61,26 @@ export function BarraSuperior({ modulos }: { modulos: ModuloDaBarra[] }) {
           <nav
             {...rolagem}
             aria-label={`Navegação de ${modulo.label}`}
-            className="app-lugares-modulo flex min-w-0 flex-1 gap-2 overflow-x-auto md:flex-wrap md:gap-1.5 md:overflow-visible"
+            className="app-lugares-modulo flex min-w-0 flex-1 gap-1 overflow-x-auto md:flex-wrap md:gap-0.5 md:overflow-visible"
           >
             {itens.map((item) => {
               const ativo = item.href === hrefAtivo;
               const Icon = item.icon ? NAV_ICONS[item.icon] : undefined;
               return (
+                // lugar aberto: pílula azul clara, a mesma marca do menu lateral.
+                // Os outros ficam só com o nome, sem moldura: o azul cheio fica
+                // para a ação principal da tela (rodada 10).
                 <Button
                   key={item.href}
                   asChild
                   size="sm"
-                  variant={ativo ? "default" : "outline"}
-                  className={cn("shrink-0 gap-2 md:px-2.5", !ativo && "app-nav-level-2 dark:bg-card dark:hover:bg-primary/10")}
+                  variant="ghost"
+                  className={cn(
+                    "shrink-0 gap-2 text-[13px] md:px-2.5",
+                    ativo
+                      ? "bg-primary/10 font-semibold text-primary hover:bg-primary/15 hover:text-primary"
+                      : "font-medium text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
                 >
                   <Link href={item.href} aria-current={ativo ? "page" : undefined} title={item.desc?.replaceAll("**", "")}>
                     {Icon && <Icon className="h-3.5 w-3.5 md:hidden min-[1640px]:block" aria-hidden="true" />}

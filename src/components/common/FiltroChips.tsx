@@ -36,10 +36,12 @@ export function FiltroChips<T extends string>({
             aria-pressed={ativo}
             onClick={() => aoMudar(opcao.valor)}
             className={cn(
-              "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors",
+              "inline-flex min-h-9 items-center gap-2 rounded-full border px-3 text-sm transition-colors",
+              // filtro ligado em azul claro com contorno: o azul cheio fica para
+              // a ação principal da tela (rodada 10)
               ativo
-                ? "border-primary bg-primary text-primary-foreground"
-                : "border-border bg-card text-foreground hover:border-primary/50 hover:bg-primary/5",
+                ? "border-primary bg-primary/10 font-semibold text-primary"
+                : "border-border bg-card font-medium text-foreground hover:border-primary/50 hover:bg-primary/5",
             )}
           >
             {opcao.rotulo}
@@ -48,7 +50,7 @@ export function FiltroChips<T extends string>({
                 className={cn(
                   "rounded-full px-1.5 text-xs tabular-nums",
                   ativo
-                    ? "bg-primary-foreground/20"
+                    ? "bg-primary/15 text-primary"
                     : destaque && opcao.tom === "red"
                       ? "bg-danger-soft text-danger-strong"
                       : destaque

@@ -77,7 +77,7 @@ export function LoginForm({ aviso }: { aviso?: string | null }) {
                 spellCheck={false}
                 disabled={pending}
                 required
-                className="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-1.5 h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
             <div>
@@ -95,7 +95,7 @@ export function LoginForm({ aviso }: { aviso?: string | null }) {
                 aria-describedby="senha-provisoria"
                 disabled={pending}
                 required
-                className="mt-1.5 h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-1.5 h-11 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
               />
             </div>
 
@@ -141,7 +141,7 @@ export function LoginForm({ aviso }: { aviso?: string | null }) {
                 spellCheck={false}
                 disabled={resetPending}
                 placeholder="seu@email.com"
-                className="h-11 min-w-0 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
+                className="h-11 min-w-0 w-full rounded-md border border-input bg-card px-3 py-2 text-sm text-foreground shadow-xs transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:flex-1"
               />
               <button
                 type="submit"

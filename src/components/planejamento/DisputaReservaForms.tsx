@@ -8,7 +8,7 @@ import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
 import { formatDate } from "@/lib/formatters";
 
-const campo = "mt-1 block min-h-9 w-full rounded-md border border-input bg-background px-2 text-sm";
+const campo = "mt-1 block min-h-9 w-full rounded-md border border-input bg-card px-2 text-sm";
 
 export function PedirReservaForm({ planId, insumoId, insumo }: { planId: number; insumoId: number; insumo: string }) {
   const [estado, enviar] = useActionState(pedirReservaDeOutroPlano, ESTADO_INICIAL);

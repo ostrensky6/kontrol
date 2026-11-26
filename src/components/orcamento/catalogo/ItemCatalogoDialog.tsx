@@ -126,7 +126,7 @@ export function ItemCatalogoDialog({
               value={rubrica}
               disabled={Boolean(cadastro)}
               onChange={(evento) => setRubrica(evento.target.value)}
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm disabled:opacity-70"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-card px-2 text-sm disabled:opacity-70"
             >
               {RUBRICAS.map(([valor, rotulo]) => (
                 <option key={valor} value={valor}>

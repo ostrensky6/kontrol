@@ -30,7 +30,7 @@ type TableProps = React.ComponentProps<"table"> & {
 const GRADE =
   "mx-auto w-auto border border-foreground/70 text-xs [--tabela-borda:0.625rem] [--tabela-px:0.625rem] [--tabela-py:0.375rem] [--tabela-th:auto] " +
   "[&_td]:border [&_td]:border-foreground/60 [&_th]:border [&_th]:border-foreground/60 " +
-  "[&_thead_th]:whitespace-nowrap [&_thead_th]:bg-muted/45 [&_thead_th]:py-2 [&_thead_th]:text-center [&_thead_th]:font-bold [&_thead_th]:text-foreground";
+  "[&_thead]:bg-transparent [&_thead_th]:whitespace-nowrap [&_thead_th]:bg-muted/45 [&_thead_th]:py-2 [&_thead_th]:text-center [&_thead_th]:font-bold [&_thead_th]:text-foreground";
 
 function Table({ className, densidade = "normal", rente = false, grade = false, ...props }: TableProps) {
   return (
@@ -49,7 +49,8 @@ function Table({ className, densidade = "normal", rente = false, grade = false, 
 }
 
 function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
-  return <thead className={cn("[&_tr]:border-b [&_tr]:border-border", className)} {...props} />;
+  // faixa clara igual em todas as tabelas (rodada 10): antes umas tinham e outras não
+  return <thead className={cn("bg-muted/60 [&_tr]:border-b [&_tr]:border-border [&_tr]:hover:bg-transparent", className)} {...props} />;
 }
 
 function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {

@@ -72,7 +72,7 @@ export function UnificarItemDialog({
               name="manter"
               required
               defaultValue=""
-              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+              className="mt-1 h-9 w-full rounded-md border border-input bg-card px-2 text-sm"
             >
               <option value="" disabled>
                 Selecione…

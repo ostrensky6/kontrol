@@ -101,7 +101,7 @@ const CAMPOS_VIAGEM: Array<{ chave: keyof ViagemInputs; rotulo: string; passo: s
   { chave: "passagens_aereas", rotulo: "Passagens aéreas", passo: "1" },
 ];
 
-const inp = "mt-1 h-9 w-full rounded-md border border-input bg-background px-3 text-sm font-medium text-brand-700 dark:text-brand-300";
+const inp = "mt-1 h-9 w-full rounded-md border border-input bg-card px-3 text-sm font-medium text-brand-700 dark:text-brand-300";
 const lbl = "block text-xs font-medium text-muted-foreground";
 const botaoPrimario = "rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-500 disabled:cursor-not-allowed disabled:opacity-60";
 

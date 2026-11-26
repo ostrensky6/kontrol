@@ -13,7 +13,7 @@ import { MensagemAcao } from "@/components/common/MensagemAcao";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { Input } from "@/components/ui/input";
 
-const selectClass = "mt-1 block min-h-11 w-full rounded-md border border-input bg-background px-2 text-sm";
+const selectClass = "mt-1 block min-h-11 w-full rounded-md border border-input bg-card px-2 text-sm";
 const labelClass = "block text-sm font-medium";
 
 type Acao = (estado: EstadoAcao, form: FormData) => Promise<EstadoAcao>;

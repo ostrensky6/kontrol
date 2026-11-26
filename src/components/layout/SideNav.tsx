@@ -178,24 +178,26 @@ export function SideNav({
             onClick={onNavigate}
             aria-current={ariaCorrente(temLinkAtivo, href)}
             className={cn(
-              "mb-1.5 flex items-center gap-2 rounded-md px-2.5 py-2.5 text-left transition-colors last:mb-0",
+              "group relative mb-1 flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-left transition-colors last:mb-0",
               temLinkAtivo
-                ? "bg-primary/10 font-semibold text-primary"
-                : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                ? "bg-primary/10 text-primary"
+                : "text-muted-foreground hover:bg-muted/70 hover:text-foreground",
             )}
           >
-            <span
-              className={cn(
-                "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border",
-                temLinkAtivo
-                  ? "border-primary/30 bg-card text-primary"
-                  : "border-border bg-card text-muted-foreground",
-              )}
-            >
-              <GrupoIcone className="h-4 w-4" />
-            </span>
+            {temLinkAtivo && (
+              <span
+                className="absolute left-0 top-1/2 h-5 w-1 -translate-y-1/2 rounded-full bg-primary"
+                aria-hidden="true"
+              />
+            )}
+            {/* ícone solto, sem caixinha em volta: o menu fica mais leve e o
+                módulo aberto se destaca pelo fundo e pela barrinha (rodada 10) */}
+            <GrupoIcone
+              className={cn("h-[18px] w-[18px] shrink-0", !temLinkAtivo && "text-muted-foreground/80 group-hover:text-foreground")}
+              aria-hidden="true"
+            />
             <span className="min-w-0 flex-1">
-              <span className="block text-[13px] font-semibold leading-5">{g.title}</span>
+              <span className={cn("block text-sm leading-5", temLinkAtivo ? "font-semibold" : "font-medium")}>{g.title}</span>
             </span>
           </Link>
         );
