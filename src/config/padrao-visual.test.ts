@@ -57,7 +57,7 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
   });
 
   it("letra menor que 12 px só diminui (meta do plano: zero)", () => {
-    const LIMITE = 85;
+    const LIMITE = 83;
     const total = telas.reduce(
       (soma, arquivo) => soma + (readFileSync(arquivo, "utf8").match(/text-\[(9|10|11)px\]/g)?.length ?? 0),
       0,

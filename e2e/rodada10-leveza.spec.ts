@@ -51,7 +51,7 @@ test.describe("rodada 10: leveza visual", () => {
     await expect(busca).toBeVisible();
     expect(await estilo(busca, "background-color")).toBe(BRANCO);
     expect(await estilo(busca, "border-top-color")).toBe("rgb(203, 213, 225)");
-    const densidade = page.getByRole("button", { name: /Compacta|Confortável/ });
+    const densidade = page.getByRole("button", { name: /^Usar densidade/ });
     expect(await estilo(densidade, "background-color")).toBe(BRANCO);
   });
 
@@ -68,7 +68,8 @@ test.describe("rodada 10: leveza visual", () => {
 
   test("toda tabela tem a mesma faixa clara no cabeçalho", async ({ page }) => {
     const faixas = new Set<string>();
-    for (const url of ["/pedido", "/suprimentos/prazos", "/projetos", "/estoque/custos"]) {
+    // a lista de Pedidos já tinha a faixa; o Início, a ficha do projeto e a lista de projetos, não
+    for (const url of ["/pedido", "/", "/projetos/1", "/projetos"]) {
       await page.goto(url);
       const cabecalho = page.locator("main table thead").first();
       await expect(cabecalho, url).toBeVisible();
