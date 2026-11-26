@@ -19,6 +19,7 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { excluirPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { FormComMensagem } from "./FormComMensagem";
 import { StatusBadge } from "@/components/app/StatusBadge";
+import { Etiqueta } from "@/components/common/Etiqueta";
 import { PedidoItensQuickView, type PedidoItemView } from "./PedidoItensQuickView";
 import { EtapaProgresso } from "./EtapaProgresso";
 import { posicaoEtapa, type EtapaPedidoId } from "@/lib/pedido/etapas";
@@ -107,7 +108,7 @@ function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
 
 const URGENTE = new Set(["Alta", "Crítica"]);
 
-function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown>[] {
+function buildColumns(podeExcluir: boolean, temExcluivel: boolean): ColumnDef<PedidoInternoRow, unknown>[] {
   const cols: ColumnDef<PedidoInternoRow, unknown>[] = [
     {
       accessorKey: "numero",
@@ -143,9 +144,10 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
       // ordena pela posição no fluxo, não pelo nome do status
       sortingFn: (a, b) => posicaoEtapa(a.original.etapa) - posicaoEtapa(b.original.etapa),
       cell: ({ row }) => (
-        <div className="min-w-36 space-y-1">
+        <div className="min-w-40 space-y-1">
           <EtapaProgresso etapa={row.original.etapa} />
-          <StatusBadge status={row.original.status} label={row.original.statusLabel} className="whitespace-normal rounded-md" />
+          {/* ponto colorido e nome: status longo quebra a linha sem virar um bloco pesado */}
+          <StatusBadge status={row.original.status} label={row.original.statusLabel} variante="ponto" />
           {row.original.ciclo && row.original.ciclo !== "—" && (
             <p className="text-xs text-muted-foreground">Ciclo {row.original.ciclo}</p>
           )}
@@ -192,9 +194,7 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
         <div className="space-y-1">
           <p className="whitespace-nowrap tabular-nums">{row.original.necessidade}</p>
           {URGENTE.has(row.original.urgencia) && (
-            <span className="inline-flex rounded-md bg-danger-soft px-2 py-0.5 text-xs font-semibold text-danger-strong">
-              Urgência {row.original.urgencia.toLowerCase()}
-            </span>
+            <Etiqueta tom="perigo">Urgência {row.original.urgencia.toLowerCase()}</Etiqueta>
           )}
         </div>
       ),
@@ -203,7 +203,9 @@ function buildColumns(podeExcluir: boolean): ColumnDef<PedidoInternoRow, unknown
     { accessorKey: "projeto", header: "Projeto" },
     { accessorKey: "modalidade", header: "Modalidade" },
   ];
-  if (podeExcluir) {
+  // a coluna só existe quando alguma linha tem o que fazer nela (um rascunho
+  // que dá para excluir): sem isso ficava uma coluna "Ações" vazia
+  if (podeExcluir && temExcluivel) {
     cols.push({
       id: "acoes",
       header: "Ações",
@@ -227,7 +229,7 @@ export function PedidosInternosTable({
   return (
     <DataTable
       data={rows}
-      columns={buildColumns(podeExcluir)}
+      columns={buildColumns(podeExcluir, rows.some((row) => podeExcluirPedido(row, podeExcluir)))}
       searchPlaceholder="Buscar pedido, projeto ou solicitante..."
       emptyText={emptyText}
       colunasOcultas={["projeto", "modalidade"]}

@@ -1,3 +1,7 @@
+import { FileText } from "lucide-react";
+
+import { VazioCompacto } from "@/components/app/EmptyState";
+import { Etiqueta } from "@/components/common/Etiqueta";
 import { adicionarAnexoPedidoInterno, removerAnexoPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
@@ -33,17 +37,17 @@ export function PedidoDocumentos({
   const tipos = tiposDeDocumentoNoStatus(status);
   const comSolicitante = pedidoComSolicitante(status);
   return (
-    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex min-h-6 items-center justify-between gap-3">
         <div className="flex items-center gap-1">
-          <h2 className="text-sm font-semibold text-muted-foreground">Documentos</h2>
+          <h2 className="text-sm font-semibold">Documentos</h2>
           <HelpTip title="Documentos">
             <p>A cotação prévia e o termo de referência são de quem pede e entram com o pedido. Depois vêm as cotações do fornecedor, ofícios, boletos, notas e comprovantes.</p>
           </HelpTip>
         </div>
-        <span className={`rounded-md px-2 py-1 text-xs ${temDocumentoCotacao ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-          {anexoRows.length} anexo(s)
-        </span>
+        <Etiqueta tom={temDocumentoCotacao ? "marca" : "atencao"}>
+          {anexoRows.length} {anexoRows.length === 1 ? "anexo" : "anexos"}
+        </Etiqueta>
       </div>
     
       <div className="mt-3 space-y-2">
@@ -100,7 +104,7 @@ export function PedidoDocumentos({
             </div>
           </div>
         ))}
-        {anexoRows.length === 0 && <p className="text-sm text-muted-foreground/80">Nenhum documento registrado.</p>}
+        {anexoRows.length === 0 && <VazioCompacto icon={FileText}>Nenhum documento registrado.</VazioCompacto>}
       </div>
     
       <details className="mt-3 border-t border-border/70 pt-3">

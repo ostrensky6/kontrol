@@ -1,3 +1,4 @@
+import { VazioCompacto } from "@/components/app/EmptyState";
 import Link from "next/link";
 import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
@@ -90,7 +91,7 @@ export default async function DisputasReservaPage() {
       {error && <p className="mt-3 text-sm text-danger-strong">Não foi possível ler os pedidos agora. Recarregue a página.</p>}
       <section className="mt-6 max-w-4xl space-y-3" aria-label="Pedidos de reserva">
         {disputas.length === 0 && !error && (
-          <p className="rounded-lg border border-border bg-card px-3 py-6 text-center text-sm text-muted-foreground">Nenhum pedido registrado.</p>
+          <VazioCompacto className="justify-center rounded-lg border border-border bg-card px-3 py-6">Nenhum pedido registrado.</VazioCompacto>
         )}
         {disputas.map((d) => {
           const destino = nomePlano.get(d.planejamento_destino_id) ?? `Plano #${d.planejamento_destino_id}`;

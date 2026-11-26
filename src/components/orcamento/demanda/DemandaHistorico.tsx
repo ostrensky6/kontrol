@@ -13,6 +13,7 @@ import type {
 } from "@/lib/orcamento/demanda-detalhe";
 import { TabelaSimples } from "@/components/orcamento/demanda/TabelaSimples";
 import type { avaliarCompletudeDemanda } from "@/lib/orcamento/demanda-completude";
+import { quantos } from "@/lib/plural";
 
 type Props = {
   /** "hidden" quando a etapa não é a que está aberta */
@@ -43,7 +44,7 @@ export function DemandaHistorico({
           </HelpTip>
         </div>
         <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-          {(versoesFinais?.length ?? 0) + todosOrcamentosAnalises.length + todosOrcamentosProjeto.length} registro(s)
+          {quantos((versoesFinais?.length ?? 0) + todosOrcamentosAnalises.length + todosOrcamentosProjeto.length, "registro")}
         </span>
       </div>
     
@@ -63,14 +64,14 @@ export function DemandaHistorico({
             "Custos laboratoriais",
             rotuloStatusModulo(orcamento.status),
             formatDate(orcamento.data_orcamento),
-            `${orcamento.orcamento_itens?.length ?? 0} item(ns)`,
+            quantos(orcamento.orcamento_itens?.length ?? 0, "item", "itens"),
           ]),
           ...todosOrcamentosProjeto.map((orcamento) => [
             orcamento.titulo || `Projeto #${orcamento.id}`,
             "Custos de projeto",
             rotuloStatusModulo(orcamento.status),
             formatDate(orcamento.data_orcamento),
-            `${(orcamento.orcamento_projeto_custos?.length ?? 0) + (orcamento.orcamento_projeto_analises?.length ?? 0)} item(ns)`,
+            quantos((orcamento.orcamento_projeto_custos?.length ?? 0) + (orcamento.orcamento_projeto_analises?.length ?? 0), "item", "itens"),
           ]),
           ...(versoesFinais ?? []).map((versao) => [
             versao.numero,

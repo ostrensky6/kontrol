@@ -5,7 +5,8 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { useEffect, useId, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Camera, CheckCircle2, Keyboard, Link2, Loader2, PackageMinus, PackagePlus, Plus, Undo2 } from "lucide-react";
+import { AlertCircle, Camera, CheckCircle2, Keyboard, Link2, Loader2, PackageMinus, PackagePlus, Plus, ScanLine, Undo2 } from "lucide-react";
+import { VazioCompacto } from "@/components/app/EmptyState";
 
 import {
   desfazerLeitura,
@@ -508,7 +509,7 @@ export function LeituraEstoquePanel({
           )}
         </div>
         {historico.length === 0 ? (
-          <p className="mt-3 text-sm text-muted-foreground">Nenhuma leitura registrada ainda.</p>
+          <VazioCompacto icon={ScanLine} className="mt-3">Nenhuma leitura registrada ainda.</VazioCompacto>
         ) : (
           <ul className="mt-3 space-y-2">
             {historico.map((item) => (

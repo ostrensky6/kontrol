@@ -42,6 +42,7 @@ import {
   mostraRodapeDePaginas,
   opcoesDeLinhas,
 } from "@/lib/tabela-linhas";
+import { quantos } from "@/lib/plural";
 
 export type DataTableFilter = {
   columnId: string;
@@ -368,7 +369,7 @@ export function DataTable<TData>({
         })()}
 
         <Badge variant={temFiltro ? "secondary" : "muted"} className="ml-auto" role="status" aria-live="polite">
-          {temFiltro ? `${totalFiltrado} de ${data.length}` : `${data.length} registro(s)`}
+          {temFiltro ? `${totalFiltrado} de ${data.length}` : quantos(data.length, "registro")}
         </Badge>
         <Button
           type="button"

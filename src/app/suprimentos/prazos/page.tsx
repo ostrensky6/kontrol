@@ -1,3 +1,5 @@
+import { CalendarClock } from "lucide-react";
+import { VazioCompacto } from "@/components/app/EmptyState";
 import Link from "next/link";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { pode } from "@/lib/auth/permissao-efetiva";
@@ -26,7 +28,7 @@ function Tabela({ titulo, coluna, linhas }: { titulo: string; coluna: string; li
       <h2 id={id} className="mb-2 text-lg font-semibold tracking-tight">{titulo}</h2>
       <div className="overflow-x-auto rounded-lg border border-border bg-card shadow-sm">
         {linhas.length === 0 ? (
-          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Ainda não há compra recebida para medir.</p>
+          <VazioCompacto icon={CalendarClock} className="justify-center px-3 py-6">Ainda não há compra recebida para medir.</VazioCompacto>
         ) : (
           <Table>
             <TableHeader>

@@ -1,3 +1,6 @@
+import { History } from "lucide-react";
+
+import { VazioCompacto } from "@/components/app/EmptyState";
 import { formatDateTime as quando } from "@/lib/formatters";
 import { PEDIDO_INTERNO_STATUS } from "@/lib/pedido/status";
 
@@ -29,7 +32,7 @@ const rotulo = (s: string | null) => (s ? STATUS_LABEL[s] ?? s : null);
 /** Linha do tempo de transições de status (Fase 3.4). */
 export function Timeline({ eventos }: { eventos: Evento[] }) {
   if (eventos.length === 0) {
-    return <p className="text-sm text-muted-foreground/80">Sem eventos registrados ainda.</p>;
+    return <VazioCompacto icon={History}>Sem eventos registrados ainda.</VazioCompacto>;
   }
   return (
     <ol className="space-y-3">

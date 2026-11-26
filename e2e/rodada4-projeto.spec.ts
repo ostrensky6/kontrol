@@ -28,7 +28,7 @@ test("compras do projeto aparecem como compra, não como pedido", async ({ page 
   const compras = page.getByRole("region", { name: "Compras" });
   await expect(compras.getByRole("link", { name: "Compra #9401" })).toHaveAttribute("href", "/compras/9401");
   await expect(compras.getByRole("link", { name: /^Pedido 94/ })).toHaveCount(0);
-  await expect(page.getByText(/compra\(s\) com fornecedor/)).toBeVisible();
+  await expect(page.getByText(/^\d+ compras? com fornecedor$/)).toBeVisible();
 });
 
 test("lista de projetos mostra o que está em andamento em cada um e leva à ficha", async ({ page }) => {

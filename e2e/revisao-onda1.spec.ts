@@ -304,7 +304,7 @@ test("Qualidade dos cadastros é o primeiro cartão de Cadastros, com o número 
   await cartao.click();
   await expect(page).toHaveURL(/\/cadastros\/qualidade$/);
   await expect(page.getByRole("heading", { level: 1, name: "Qualidade dos cadastros" })).toBeVisible();
-  await expect(page.getByText(`${total} pendência(s)`, { exact: true })).toBeVisible();
+  await expect(page.getByText(total === 1 ? "1 pendência" : `${total} pendências`, { exact: true })).toBeVisible();
 });
 
 test("Códigos não reconhecidos fica dentro de Entrada e saída por leitura, com contador (L11)", async ({ page }) => {

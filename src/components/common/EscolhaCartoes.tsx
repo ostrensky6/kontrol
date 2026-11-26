@@ -56,7 +56,7 @@ export function EscolhaCartoes<T extends string>({
   ajuda?: React.ReactNode;
   className?: string;
   id?: string;
-  /** cartão com o ícone em cima do rótulo, para colunas estreitas */
+  /** cartão com o ícone em cima do rótulo, para colunas estreitas (no celular, onde o cartão ocupa a linha inteira, o ícone fica ao lado) */
   empilhado?: boolean;
   /** pílulas menores, para caber numa coluna estreita */
   compacto?: boolean;
@@ -108,7 +108,7 @@ export function EscolhaCartoes<T extends string>({
                 "hover:border-primary/50 hover:bg-primary/[0.04]",
                 "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-1",
                 variante === "cartao"
-                  ? (empilhado ? "flex flex-col items-start gap-1.5 rounded-lg p-2.5 pr-6 " : "flex min-h-12 items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-7 ") + "has-[:checked]:border-primary has-[:checked]:bg-primary/[0.07] has-[:checked]:shadow-xs has-[:checked]:ring-1 has-[:checked]:ring-primary"
+                  ? (empilhado ? "flex min-h-12 items-center gap-2.5 rounded-lg p-2.5 pr-7 sm:flex-col sm:items-start sm:gap-1.5 sm:pr-6 " : "flex min-h-12 items-center gap-2.5 rounded-lg py-2 pl-2.5 pr-7 ") + "has-[:checked]:border-primary has-[:checked]:bg-primary/[0.07] has-[:checked]:shadow-xs has-[:checked]:ring-1 has-[:checked]:ring-primary"
                   : (compacto ? "inline-flex min-h-8 items-center gap-1 rounded-full px-2.5 text-xs font-medium " : "inline-flex min-h-9 items-center gap-1 rounded-full px-3 text-sm font-medium ") + "has-[:checked]:border-primary has-[:checked]:bg-primary has-[:checked]:text-primary-foreground",
               )}
             >

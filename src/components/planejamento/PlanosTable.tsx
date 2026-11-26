@@ -6,6 +6,7 @@ import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/common/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { PlanoLinhaAcoes, type AcaoGestaoPlano } from "./PlanoGestao";
+import { quantos } from "@/lib/plural";
 
 export type PlanoRow = {
   id: number;
@@ -155,7 +156,7 @@ export function PlanosTable({ rows }: { rows: PlanoRow[] }) {
       )}
       getMobileDescription={(row) => (
         <>
-          {`${row.projeto} · ${row.periodo} · ${row.itens} análise(s)`}
+          {`${row.projeto} · ${row.periodo} · ${quantos(Number(row.itens), "análise")}`}
           <div className="mt-2">
             <Acoes row={row} mobile />
           </div>

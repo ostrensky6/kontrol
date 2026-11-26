@@ -5,6 +5,7 @@ import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { createClientUntyped } from "@/lib/supabase/server";
 import { lerQualidadeDosCadastros } from "@/lib/cadastros/qualidade";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -44,7 +45,7 @@ export default async function QualidadeCadastrosPage() {
           }
           meta={
             <span className={`rounded-full px-3 py-1 text-sm font-semibold ${pendencias > 0 ? "bg-warning-soft text-warning-strong" : "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300"}`}>
-              {pendencias} pendência(s)
+              {quantos(pendencias, "pendência")}
             </span>
           }
         />

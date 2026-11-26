@@ -1,3 +1,5 @@
+import { ShieldCheck } from "lucide-react";
+import { VazioCompacto } from "@/components/app/EmptyState";
 import { PageHeader } from "@/components/app/PageHeader";
 import { HelpTip } from "@/components/common/HelpTip";
 import { AtualizarIncidenteForm, DESTINO_INCIDENTE, NovoIncidenteForm } from "@/components/incidentes/IncidentesForms";
@@ -71,7 +73,7 @@ export default async function IncidentesPage() {
 
       <section className="mt-6 max-w-4xl space-y-3" aria-label="Lista de incidentes">
         {incidentes.length === 0 && !error && (
-          <p className="rounded-lg border border-border bg-card px-3 py-6 text-center text-sm text-muted-foreground">Nenhum incidente registrado.</p>
+          <VazioCompacto icon={ShieldCheck} className="justify-center rounded-lg border border-border bg-card px-3 py-6">Nenhum incidente registrado.</VazioCompacto>
         )}
         {incidentes.map((i) => (
           <article key={i.id} id={`incidente-${i.id}`} className="rounded-lg border border-border bg-card p-4 shadow-sm" data-testid="incidente">

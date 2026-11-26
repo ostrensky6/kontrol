@@ -19,6 +19,7 @@ import { formatCompactCurrency, formatCurrency, formatNumber } from "@/lib/forma
 import { HelpExample, HelpTip } from "@/components/common/HelpTip";
 import { LINHA_EIXO, MARCA_EIXO, tituloEixoX, tituloEixoY } from "@/components/common/eixos-grafico";
 import { TabelaDoGrafico, amostrarPontos } from "@/components/common/TabelaDoGrafico";
+import { quantos } from "@/lib/plural";
 
 const OPCOES_METRICA = [
   { valor: "total", rotulo: "Custo total" },
@@ -288,7 +289,7 @@ export function CusteioAmostrasChart({
                   />
                   <Tooltip
                     formatter={(value, name) => [formatCurrency(Number(value)), name]}
-                    labelFormatter={(value) => `${value} amostra(s)`}
+                    labelFormatter={(value) => quantos(Number(value), "amostra")}
                     cursor={{ stroke: "rgba(15, 23, 42, 0.2)", strokeWidth: 1 }}
                   />
                   {analisesSelecionadas.map((analise, index) => (

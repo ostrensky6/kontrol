@@ -540,7 +540,7 @@ export default async function PedidoInternoDetalhe({
 
         <PedidoAprovacoes aprovacaoRows={aprovacaoRows} />
 
-        <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
+        <section className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
           <h2 className="text-sm font-semibold">Linha do tempo</h2>
           <div className="mt-3">
             <Timeline eventos={eventos} />

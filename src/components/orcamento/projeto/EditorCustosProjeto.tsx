@@ -674,7 +674,7 @@ export async function EditorCustosProjeto({
 
       {/* Exportação e conclusão da revisão */}
       <div className="flex flex-wrap items-start justify-between gap-4 rounded-md border border-border p-3">
-        <div>
+        <div className="min-w-0 max-w-full">
           <div className="flex items-center gap-1">
             <h4 className="text-sm font-semibold">Exportar custos do projeto</h4>
             <HelpTip title="Exportar custos">

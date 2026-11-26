@@ -8,6 +8,7 @@ import { createClientUntyped } from "@/lib/supabase/server";
 import { formatDate, formatNumber as fmt } from "@/lib/formatters";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -133,7 +134,7 @@ export default async function EtiquetasPage({
             Equipamentos
           </Link>
           <span className="rounded-md bg-muted px-3 py-1.5 text-muted-foreground">
-            {total} etiqueta(s)
+            {quantos(total, "etiqueta")}
           </span>
         </div>
 
