@@ -150,10 +150,11 @@ export default async function AuditoriaPage({
             <Link
               key={t || "todas"}
               href={hrefAuditoria({ tabela: t, de: filtro.de, ate: filtro.ate })}
-              className={`toque inline-flex items-center rounded-full px-3 py-1 ${
+              aria-current={tabela === t ? "page" : undefined}
+              className={`toque inline-flex items-center rounded-full border px-3 py-1 ${
                 tabela === t
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground hover:bg-muted/80"
+                  ? "border-primary bg-primary/10 font-semibold text-primary"
+                  : "border-border bg-card font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"
               }`}
             >
               {t ? LABEL[t] : "Todas"}

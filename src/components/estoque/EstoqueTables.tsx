@@ -84,7 +84,9 @@ function SaldoAcoes({
 }) {
   if (!podeMovimentar) return null;
   return (
-    <span className="inline-flex flex-wrap items-center justify-end gap-x-1 gap-y-0.5">
+    // lado a lado em tela larga; até 1535 px os dois botões ficam um sobre o
+    // outro, com a mesma largura, para a tabela caber sem rolar para o lado
+    <span className="inline-flex flex-row items-center gap-1.5 md:flex-col md:items-stretch md:gap-1 2xl:flex-row 2xl:items-center 2xl:gap-1.5 [&_button]:justify-center">
       <AjusteInventarioButton
         insumoId={row.insumoId}
         especificacao={row.especificacao}

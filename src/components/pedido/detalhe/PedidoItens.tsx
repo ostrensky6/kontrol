@@ -91,7 +91,7 @@ export function PedidoItens({
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <div className="flex items-center gap-1">
-            <h2 className="text-sm font-semibold text-muted-foreground">Materiais, serviços e equipamentos</h2>
+            <h2 className="text-sm font-semibold">Materiais, serviços e equipamentos</h2>
             <HelpTip title="Itens do pedido">
               <p>
                 Monte a lista antes de enviar para aprovação. O valor <b>prévio</b> é uma estimativa;

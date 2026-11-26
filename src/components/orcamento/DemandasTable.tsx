@@ -64,7 +64,7 @@ const columns: ColumnDef<DemandaRow, unknown>[] = [
     accessorKey: "titulo",
     header: "Orçamento",
     cell: ({ row }) => (
-      <div>
+      <div className="min-w-48">
         <Link href={`/orcamento/demandas/${row.original.id}`} className="font-medium text-primary hover:underline">
           {row.original.titulo}
         </Link>

@@ -100,10 +100,10 @@ export default async function InsumosPage({
               href={`/insumos?analise=${encodeURIComponent(a.codigo)}`}
               aria-current={a.codigo === atual ? "page" : undefined}
               title={a.codigo}
-              className={`toque inline-flex items-center rounded-full px-3 py-1 text-xs ${
+              className={`toque inline-flex items-center rounded-full border px-3 py-1 text-xs ${
                 a.codigo === atual
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-muted text-foreground"
+                  ? "border-primary bg-primary/10 font-semibold text-primary"
+                  : "border-border bg-card font-medium text-foreground hover:border-primary/50 hover:bg-primary/5"
               }`}
             >
               {nomeDa(a)}

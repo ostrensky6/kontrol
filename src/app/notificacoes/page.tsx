@@ -12,6 +12,7 @@ import { caminhoNotificacao, destinoNotificacao, rotuloTipoNotificacao } from "@
 import { createClient } from "@/lib/supabase/server";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
+import { FORMA_ETIQUETA } from "@/components/common/Etiqueta";
 
 type Notificacao = {
   id: number;
@@ -39,12 +40,12 @@ function formatarData(value: string) {
 
 function badgeClass(status: string) {
   if (status === "nao_lida") {
-    return "border-danger-strong/30 bg-danger-soft text-danger-strong";
+    return "bg-danger-soft text-danger-strong";
   }
   if (status === "arquivada") {
-    return "border-border bg-muted/50 text-muted-foreground";
+    return "bg-muted text-muted-foreground";
   }
-  return "border-success-strong/30 bg-success-soft text-success-strong";
+  return "bg-success-soft text-success-strong";
 }
 
 export default async function NotificacoesPage() {
@@ -134,7 +135,7 @@ export default async function NotificacoesPage() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${badgeClass(
+                        className={`${FORMA_ETIQUETA} ${badgeClass(
                           item.status,
                         )}`}
                       >

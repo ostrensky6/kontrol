@@ -1,3 +1,5 @@
+import { CalendarClock, ClipboardList, FileText, ShoppingCart } from "lucide-react";
+import { VazioCompacto } from "@/components/app/EmptyState";
 import Link from "next/link";
 import { createClient, createClientUntyped } from "@/lib/supabase/server";
 import { Breadcrumbs } from "@/components/common/Breadcrumbs";
@@ -18,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { EtapaProgresso } from "@/components/pedido/EtapaProgresso";
 import { etapaDoPedido } from "@/lib/pedido/etapas";
 import { pedidoInternoNumero, pedidoInternoStatus } from "@/lib/pedido/status";
+import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -346,7 +349,7 @@ export default async function ProjetoHubPage({
           <Kpi
             label="Orçado (aprovado)"
             valor={moeda(orcadoAprovado)}
-            hint={`${(propostasVigentes ?? []).length} proposta(s) aprovada(s)`}
+            hint={quantos((propostasVigentes ?? []).length, "proposta aprovada", "propostas aprovadas")}
             ajuda={
               <HelpTip title="Orçado (aprovado)">
                 <p>Soma das <b>propostas aprovadas em vigor</b> deste projeto, pelo valor final da emissão (uma por orçamento). Propostas canceladas ou substituídas não entram.</p>
@@ -356,7 +359,7 @@ export default async function ProjetoHubPage({
           <Kpi
             label="Comprometido em compras"
             valor={moeda(comprometidoCompras)}
-            hint={`${comprasLinhas.length} compra(s) com fornecedor`}
+            hint={`${quantos(comprasLinhas.length, "compra")} com fornecedor`}
             ajuda={
               <HelpTip title="Comprometido em compras">
                 <p>Valor <b>estimado</b> das compras com fornecedor ligadas ao projeto, exceto as canceladas.</p>
@@ -375,7 +378,7 @@ export default async function ProjetoHubPage({
           </div>
           {(demandas ?? []).length === 0 && orcLinhas.length === 0 ? (
             <div className={cardCls}>
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum orçamento ligado a este projeto.</p>
+              <VazioCompacto icon={FileText} className="justify-center px-3 py-6">Nenhum orçamento ligado a este projeto.</VazioCompacto>
             </div>
           ) : (
             <div className="space-y-3">
@@ -440,7 +443,7 @@ export default async function ProjetoHubPage({
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
             {planosLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum planejamento vinculado a este projeto.</p>
+              <VazioCompacto icon={CalendarClock} className="justify-center px-3 py-6">Nenhum planejamento vinculado a este projeto.</VazioCompacto>
             ) : (
               <Table>
                 <TableHeader>
@@ -483,7 +486,7 @@ export default async function ProjetoHubPage({
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
             {pedidosLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhum pedido deste projeto.</p>
+              <VazioCompacto icon={ClipboardList} className="justify-center px-3 py-6">Nenhum pedido deste projeto.</VazioCompacto>
             ) : (
               <Table>
                 <TableHeader>
@@ -526,7 +529,7 @@ export default async function ProjetoHubPage({
           </div>
           <div className={`${cardCls} overflow-x-auto`}>
             {comprasLinhas.length === 0 ? (
-              <p className="px-3 py-6 text-center text-sm text-muted-foreground/80">Nenhuma compra com fornecedor ligada a este projeto.</p>
+              <VazioCompacto icon={ShoppingCart} className="justify-center px-3 py-6">Nenhuma compra com fornecedor ligada a este projeto.</VazioCompacto>
             ) : (
               <Table>
                 <TableHeader>

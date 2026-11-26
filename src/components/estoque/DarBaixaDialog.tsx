@@ -32,7 +32,7 @@ import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
 const TRIGGER_PADRAO =
-  "toque whitespace-nowrap rounded px-2 py-1 text-xs font-medium text-danger-strong hover:bg-danger-soft disabled:opacity-50";
+  "toque inline-flex h-7 items-center whitespace-nowrap rounded-md border border-danger-strong/30 bg-card px-2.5 text-xs font-medium text-danger-strong hover:bg-danger-soft disabled:opacity-50";
 
 type Erros = Partial<Record<"lote" | "quantidade" | "motivo_tipo" | "motivo_detalhe", string>>;
 
@@ -174,7 +174,7 @@ export function DarBaixaDialog({
     } disponíveis`;
 
   return (
-    <span className="inline-flex flex-col items-end gap-1">
+    <span className="inline-flex flex-col items-stretch gap-1">
       <Dialog open={aberto} onOpenChange={alternar}>
         <DialogTrigger asChild>
           <button type="button" className={triggerClassName}>

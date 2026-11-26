@@ -73,7 +73,7 @@ test("cotação prévia e termo de referência entram no Novo pedido, com os cam
   await expect(page.getByText("termo-de-referencia.pdf").first()).toBeVisible();
   await expect(page.getByText(/Cotação prévia · Rascunho/)).toHaveCount(1);
   await expect(page.getByText(/Termo de referência · Rascunho/)).toHaveCount(1);
-  await expect(page.getByText("2 anexo(s)")).toBeVisible();
+  await expect(page.getByText("2 anexos")).toBeVisible();
 
   // na Aprovação, "Registrar documento" não oferece mais os dois tipos
   await page.getByText("Registrar documento", { exact: true }).first().click();

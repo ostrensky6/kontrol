@@ -1,3 +1,6 @@
+import { MessageSquare } from "lucide-react";
+
+import { VazioCompacto } from "@/components/app/EmptyState";
 import { registrarComunicacaoPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { EscolhaCartoes } from "@/components/common/EscolhaCartoes";
 import { HelpTip } from "@/components/common/HelpTip";
@@ -29,9 +32,9 @@ export function PedidoComunicacoes({
   pedidoId,
 }: Props) {
   return (
-    <div className="rounded-lg border border-border bg-card p-3 shadow-sm">
-      <div className="flex items-center gap-1">
-        <h2 className="text-sm font-semibold text-muted-foreground">Comunicações</h2>
+    <div className="rounded-lg border border-border bg-card p-4 shadow-sm">
+      <div className="flex min-h-6 items-center gap-1">
+        <h2 className="text-sm font-semibold">Comunicações</h2>
         <HelpTip title="Comunicações">
           <p>Registro interno de e-mails, reuniões, mensagens e encaminhamentos.</p>
         </HelpTip>
@@ -48,7 +51,7 @@ export function PedidoComunicacoes({
             {comunicacao.observacao && <p className="mt-1 text-xs text-muted-foreground">{comunicacao.observacao}</p>}
           </div>
         ))}
-        {comunicacaoRows.length === 0 && <p className="text-sm text-muted-foreground/80">Nenhuma comunicação registrada.</p>}
+        {comunicacaoRows.length === 0 && <VazioCompacto icon={MessageSquare}>Nenhuma comunicação registrada.</VazioCompacto>}
       </div>
     
       <details className="mt-3 border-t border-border/70 pt-3">

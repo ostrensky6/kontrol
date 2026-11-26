@@ -73,15 +73,23 @@ export function PedidosPorEtapa({
                       : "border-border bg-card hover:border-primary/50 hover:bg-primary/5",
                   )}
                 >
+                  {/* número da etapa numa bolinha, no lugar do texto "Etapa 1": a ordem
+                      das seis etapas fica à vista e a caixa ganha definição (rodada 11) */}
                   <span className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      Etapa {i + 1}
+                    <span
+                      className={cn(
+                        "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
+                        ativa ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground",
+                      )}
+                    >
+                      <span className="sr-only">Etapa </span>
+                      {i + 1}
                     </span>
-                    <span className={cn("text-xl font-semibold tabular-nums", n > 0 ? "text-foreground" : "text-muted-foreground")}>
+                    <span className={cn("text-xl font-semibold leading-6 tabular-nums", n > 0 ? "text-foreground" : "text-muted-foreground")}>
                       {n}
                     </span>
                   </span>
-                  <span className="text-sm font-medium text-foreground">{etapa.rotulo}</span>
+                  <span className="mt-1 text-sm font-semibold leading-5 text-foreground">{etapa.rotulo}</span>
                   <span className="mt-0.5 hidden text-xs leading-4 text-muted-foreground sm:block">{etapa.descricao}</span>
                 </button>
               </li>

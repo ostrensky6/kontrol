@@ -10,6 +10,7 @@ import {
   NovaAnaliseButton,
   type AnaliseOpcao,
 } from "@/components/analises/AnaliseCatalogoAcoes";
+import { Etiqueta, FORMA_ETIQUETA } from "@/components/common/Etiqueta";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const dynamic = "force-dynamic";
@@ -59,8 +60,8 @@ function rotuloPrincipal(analise: AnaliseCatalogo) {
 
 function badgeAtivo(ativo: boolean) {
   return ativo
-    ? "bg-success-soft text-success-strong ring-success-strong/30"
-    : "bg-muted text-muted-foreground ring-border";
+    ? "bg-success-soft text-success-strong"
+    : "bg-muted text-muted-foreground";
 }
 
 function erroConsulta(tabela: string, error: { message?: string | null; code?: string | null } | null) {
@@ -309,7 +310,7 @@ function AnalisesResumoTable({
               return (
                 <TableRow key={analise.codigo}>
                   {/* o código fica embaixo do nome: uma coluna a menos e a tabela cabe sem cortar a ação */}
-                  <TableCell className="min-w-40">
+                  <TableCell className="min-w-36">
                     <Link href={`/analises/${encodeURIComponent(analise.codigo)}`} className="text-sm font-medium hover:underline">
                       {rotuloPrincipal(analise)}
                     </Link>
@@ -317,13 +318,14 @@ function AnalisesResumoTable({
                     {analise.descricao && <p className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">{analise.descricao}</p>}
                   </TableCell>
                   <TableCell className="whitespace-nowrap">
-                    <div className="flex flex-wrap gap-1">
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${badgeAtivo(analise.ativo)}`}>
+                    {/* as duas etiquetas lado a lado, na forma padrão (rodada 11) */}
+                    <div className="flex gap-1">
+                      <span className={`${FORMA_ETIQUETA} px-2 ${badgeAtivo(analise.ativo)}`}>
                         {analise.ativo ? "Ativa" : "Inativa"}
                       </span>
-                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ${analise.ofertavel ? "bg-brand-50 text-brand-700 ring-brand-200 dark:bg-brand-950/40 dark:text-brand-300 dark:ring-brand-900" : "bg-muted text-muted-foreground ring-border"}`}>
+                      <Etiqueta tom={analise.ofertavel ? "marca" : "neutro"} className="px-2">
                         {analise.ofertavel ? "Ofertável" : "Não ofertável"}
-                      </span>
+                      </Etiqueta>
                     </div>
                   </TableCell>
                   <TableCell className={tableNumber}>{item.nEtapas}</TableCell>
@@ -331,7 +333,7 @@ function AnalisesResumoTable({
                   <TableCell className={tableNumber}>{item.nEquipamentos}</TableCell>
                   <TableCell className={tableNumber}>{item.amostrasDia > 0 ? `${formatNumber(item.amostrasDia)}/dia` : "—"}</TableCell>
                   <TableCell className={tableNumber}>{item.preco != null && item.preco > 0 ? formatCurrency(item.preco) : "—"}</TableCell>
-                  <TableCell className="min-w-36 max-w-64">
+                  <TableCell className="min-w-24 max-w-64">
                     {item.avisos.length > 0 ? (
                       <div className="flex flex-wrap gap-1">
                         {item.avisos.slice(0, 3).map((aviso) => (

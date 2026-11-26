@@ -36,6 +36,7 @@ import { NavegacaoEtapas } from "@/components/orcamento/NavegacaoEtapas";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 import { Table, TableBody, TableCell, TableFooter, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -198,11 +199,11 @@ export default async function OrcamentoDetalhe({
   const custoResumo = Number(totaisOperacionais.custo ?? totalCusto);
   const tabs = [
     { href: "#identificacao-tecnica", label: "Identificação", meta: orc.responsavel ? "preenchida" : "pendente" },
-    { href: "#analises-quantidades", label: "Análises", meta: `${itens.length} linha(s)` },
-    { href: "#composicao-tecnica", label: "Composição", meta: `${totalAmostras} amostra(s)` },
+    { href: "#analises-quantidades", label: "Análises", meta: quantos(itens.length, "linha") },
+    { href: "#composicao-tecnica", label: "Composição", meta: quantos(totalAmostras, "amostra") },
     { href: "#totais-tecnicos", label: "Totais", meta: brl(custoResumo) },
-    { href: "#revisao-laboratorio", label: "Revisão", meta: revisaoPendencias.length === 0 ? "liberada" : `${revisaoPendencias.length} pendência(s)` },
-    { href: "#historico-laboratorio", label: "Histórico", meta: `${eventos.length} evento(s)` },
+    { href: "#revisao-laboratorio", label: "Revisão", meta: revisaoPendencias.length === 0 ? "liberada" : quantos(revisaoPendencias.length, "pendência") },
+    { href: "#historico-laboratorio", label: "Histórico", meta: quantos(eventos.length, "evento") },
   ];
 
   const validade =
@@ -663,7 +664,7 @@ export default async function OrcamentoDetalhe({
               <p>Confira as pendências e marque os custos como revisados. Revisar congela análises e quantidades para a proposta.</p>
             </HelpTip>
             <span className={`ml-auto rounded-full px-2.5 py-0.5 text-xs font-medium ${revisaoPendencias.length === 0 ? "bg-brand-100 text-brand-800 dark:bg-brand-950/50 dark:text-brand-300" : "bg-warning-soft text-warning-strong"}`}>
-              {revisaoPendencias.length === 0 ? "Liberado" : `${revisaoPendencias.length} pendência(s)`}
+              {revisaoPendencias.length === 0 ? "Liberado" : quantos(revisaoPendencias.length, "pendência")}
             </span>
           </div>
 

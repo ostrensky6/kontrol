@@ -31,6 +31,7 @@ import {
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
 
@@ -377,8 +378,8 @@ export default async function PlanoDetalhe({
             {[
               ["#contexto", "Resumo", statusLabel],
               ["#margem", "Margem", margemReal ? "calculada" : "sem orçamento"],
-              ["#capacidade", "Capacidade", `${capacidadePorAnalise.length} análise(s)`],
-              ["#analises", "Análises", `${itens?.length ?? 0} item(ns)`],
+              ["#capacidade", "Capacidade", quantos(capacidadePorAnalise.length, "análise")],
+              ["#analises", "Análises", quantos(itens?.length ?? 0, "item", "itens")],
               ["#materiais", "Materiais", temFalta ? `${faltaTotal} em falta` : "disponível"],
               ["#acoes", "Próxima ação", statusLabel],
             ].map(([href, label, meta]) => (

@@ -1,3 +1,7 @@
+import { ClipboardCheck } from "lucide-react";
+
+import { VazioCompacto } from "@/components/app/EmptyState";
+import { Etiqueta } from "@/components/common/Etiqueta";
 import { formatDateTime } from "@/lib/formatters";
 import { DECISAO_LABEL, type PedidoInternoAprovacao, rotuloEtapa } from "@/lib/pedido/detalhe";
 
@@ -10,7 +14,7 @@ export function PedidoAprovacoes({
   aprovacaoRows,
 }: Props) {
   return (
-    <section className="mt-8 rounded-xl border border-border bg-card p-4 shadow-sm">
+    <section className="mt-4 rounded-lg border border-border bg-card p-4 shadow-sm">
       <h2 className="text-sm font-semibold">Aprovações e decisões</h2>
       <div className="mt-3 grid gap-3 md:grid-cols-2">
         {aprovacaoRows.map((aprovacao) => (
@@ -22,7 +26,7 @@ export function PedidoAprovacoes({
                   {aprovacao.responsavel ?? "—"} · {aprovacao.papel ?? "—"} · {formatDateTime(aprovacao.criado_em)}
                 </p>
               </div>
-              <span className="rounded-md bg-muted px-2 py-1 text-xs">{DECISAO_LABEL[aprovacao.decisao] ?? aprovacao.decisao}</span>
+              <Etiqueta>{DECISAO_LABEL[aprovacao.decisao] ?? aprovacao.decisao}</Etiqueta>
             </div>
             <p className="mt-2 text-xs text-muted-foreground">
               {rotuloEtapa(aprovacao.status_origem) ?? "início"} → {rotuloEtapa(aprovacao.status_destino) ?? "—"}
@@ -33,7 +37,7 @@ export function PedidoAprovacoes({
           </div>
         ))}
         {aprovacaoRows.length === 0 && (
-          <p className="text-sm text-muted-foreground/80">Nenhuma aprovação formal registrada ainda.</p>
+          <VazioCompacto icon={ClipboardCheck}>Nenhuma aprovação formal registrada ainda.</VazioCompacto>
         )}
       </div>
     </section>

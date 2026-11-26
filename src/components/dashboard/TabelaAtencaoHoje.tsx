@@ -16,12 +16,13 @@ import {
   type LinhaAtencaoHoje,
   type OrigemAtencao,
 } from "@/lib/inicio/atencao-hoje";
+import { FORMA_ETIQUETA } from "@/components/common/Etiqueta";
 import { cn } from "@/lib/utils";
 
 const TOM_SITUACAO: Record<GravidadeAtencao, string> = {
-  urgente: "border-danger-strong/30 bg-danger-soft text-danger-strong",
-  atencao: "border-warning-strong/30 bg-warning-soft text-warning-strong",
-  andamento: "border-info-strong/30 bg-info-soft text-info-strong",
+  urgente: "bg-danger-soft text-danger-strong",
+  atencao: "bg-warning-soft text-warning-strong",
+  andamento: "bg-info-soft text-info-strong",
 };
 
 const NOME_ORIGEM: Record<OrigemAtencao, string> = {
@@ -195,7 +196,7 @@ export function TabelaAtencaoHoje({
 /** A situação, com a cor da gravidade; o leitor de tela ouve a gravidade antes. */
 function Situacao({ linha }: { linha: LinhaAtencaoHoje }) {
   return (
-    <span className={cn("inline-block rounded-full border px-2 py-0.5 text-xs font-medium", TOM_SITUACAO[linha.gravidade])}>
+    <span data-etiqueta="" className={cn(FORMA_ETIQUETA, TOM_SITUACAO[linha.gravidade])}>
       <span className="sr-only">{ROTULO_GRAVIDADE[linha.gravidade]}: </span>
       {linha.situacao}
     </span>

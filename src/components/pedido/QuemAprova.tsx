@@ -28,7 +28,7 @@ export function QuemAprova({ etapas }: { etapas: EtapaAprovacao[] }) {
               <div className="min-w-0">
                 <p className="font-medium">
                   {etapa.titulo}: <span className="font-normal">{etapa.quem}</span>{" "}
-                  <span className={`ml-1 rounded px-1.5 py-0.5 text-xs font-medium ${marca.cls}`}>{etapa.rotuloSituacao}</span>
+                  <span className={`ml-1 rounded-full px-2 py-0.5 text-xs font-semibold ${marca.cls}`}>{etapa.rotuloSituacao}</span>
                 </p>
                 {etapa.detalhe && (
                   <p className={`mt-0.5 text-xs ${etapa.situacao === "travada" ? "font-medium text-danger-strong" : "text-muted-foreground"}`}>

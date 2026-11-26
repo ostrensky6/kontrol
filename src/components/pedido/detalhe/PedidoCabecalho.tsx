@@ -14,6 +14,7 @@ import { pedidoInternoNumero, type pedidoInternoSituacao } from "@/lib/pedido/st
 import { formatDate, formatDateTime } from "@/lib/formatters";
 import { URGENCIA_LABEL, type PedidoDetalhe } from "@/lib/pedido/detalhe";
 import type { AreaPedido } from "@/lib/pedido/areas";
+import { FORMA_ETIQUETA } from "@/components/common/Etiqueta";
 
 type Props = {
   pedido: PedidoDetalhe;
@@ -49,11 +50,13 @@ export function PedidoCabecalho({
   podeDefinirUrgencia,
 }: Props) {
   return (
-    <div className="mt-2 flex flex-wrap items-start justify-between gap-4 rounded-lg border border-border bg-card p-4 shadow-sm sm:flex-nowrap">
-      <div className="min-w-0 flex-1">
+    <div className="mt-2 flex flex-wrap items-start justify-between gap-x-4 gap-y-3 rounded-lg border border-border bg-card p-4 shadow-sm sm:flex-nowrap">
+      {/* no celular os dados ocupam a largura toda e as ações descem para a linha
+          de baixo; antes dividiam a tela ao meio e o título quebrava em três linhas */}
+      <div className="min-w-0 basis-full sm:flex-1 sm:basis-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-medium tabular-nums text-muted-foreground">{pedidoInternoNumero(pedido.id)}</p>
-          <span className={`rounded-md px-2.5 py-1 text-xs font-medium ${statusMeta.className}`}>
+          <span className={`${FORMA_ETIQUETA} ${statusMeta.className}`}>
             {statusMeta.label}
           </span>
         </div>
@@ -97,8 +100,8 @@ export function PedidoCabecalho({
               : null}
         </p>
       </div>
-      <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
-        <span className="text-xs text-muted-foreground">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
+      <div className="flex min-w-0 basis-full flex-row flex-wrap items-center gap-2 sm:shrink-0 sm:basis-auto sm:flex-col sm:items-end">
+        <span className="basis-full text-xs text-muted-foreground sm:basis-auto">Atualizado {formatDateTime(pedido.atualizado_em)}</span>
         {podeDefinirUrgencia && (
           <PedidoUrgenciaDefinir
             pedidoId={pedidoId}

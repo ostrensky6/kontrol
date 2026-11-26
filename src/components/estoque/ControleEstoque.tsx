@@ -31,16 +31,17 @@ import {
 import { hrefFichaInsumo } from "@/lib/estoque/ficha-insumo-rota";
 import { META_SINAL, ROTULO_ESTOQUE_OK, ROTULO_NUNCA_RECEBIDO } from "@/lib/estoque/situacao-insumo";
 import { formatDate, formatNumber } from "@/lib/formatters";
+import { FORMA_ETIQUETA } from "@/components/common/Etiqueta";
 import { cn } from "@/lib/utils";
 
 const POR_VEZ = 10;
 
 const TOM_SELO = {
-  red: "border-danger-strong/30 bg-danger-soft text-danger-strong",
-  amber: "border-warning-strong/30 bg-warning-soft text-warning-strong",
-  ok: "border-success-strong/30 bg-success-soft text-success-strong",
+  red: "bg-danger-soft text-danger-strong",
+  amber: "bg-warning-soft text-warning-strong",
+  ok: "bg-success-soft text-success-strong",
   // nunca recebido: nem em dia, nem alerta
-  neutro: "border-border bg-muted text-muted-foreground",
+  neutro: "bg-muted text-muted-foreground",
 } as const;
 
 /**
@@ -240,17 +241,17 @@ function CartaoInsumo({
         <div className="flex flex-wrap items-center gap-1.5">
           {insumo.sinais.length > 0 ? (
             insumo.sinais.map((sinal) => (
-              <span key={sinal} className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", TOM_SELO[META_SINAL[sinal].tom])}>
+              <span key={sinal} className={cn(FORMA_ETIQUETA, TOM_SELO[META_SINAL[sinal].tom])}>
                 {META_SINAL[sinal].rotulo}
               </span>
             ))
           ) : insumo.nuncaRecebido ? (
-            <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", TOM_SELO.neutro)}>{ROTULO_NUNCA_RECEBIDO}</span>
+            <span className={cn(FORMA_ETIQUETA, TOM_SELO.neutro)}>{ROTULO_NUNCA_RECEBIDO}</span>
           ) : (
-            <span className={cn("rounded-full border px-2 py-0.5 text-xs font-semibold", TOM_SELO.ok)}>{ROTULO_ESTOQUE_OK}</span>
+            <span className={cn(FORMA_ETIQUETA, TOM_SELO.ok)}>{ROTULO_ESTOQUE_OK}</span>
           )}
           {insumo.categoriaCompra === "critico" && (
-            <span className="rounded-full border border-danger-strong/30 px-2 py-0.5 text-xs font-semibold text-danger-strong">
+            <span className={cn(FORMA_ETIQUETA, "border border-danger-strong/40 py-px text-danger-strong")}>
               Crítico
             </span>
           )}
