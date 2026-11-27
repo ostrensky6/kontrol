@@ -3,6 +3,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 vi.mock("@/lib/actions/pedidos-internos", () => ({
+  anexarDocumentoOrcamento: vi.fn(),
   escolherOrcamento: vi.fn(),
   registrarOrcamento: vi.fn(),
   removerOrcamento: vi.fn(),
@@ -71,5 +72,14 @@ describe("PedidoOrcamentos (0171)", () => {
 
   it("leitura falha vira aviso, não lista vazia", () => {
     expect(render({ orcamentos: null })).toContain("Não foi possível ler os orçamentos");
+  });
+
+  it("cada orçamento recebe o próprio arquivo: no registro e no orçamento sem documento (bug 3 de 27/11/2026)", () => {
+    const html = render({ status: "orcamentos" });
+    expect(html).toContain("Documento do orçamento (PDF do fornecedor)");
+    expect(html).toContain("Documento do orçamento de Loja B");
+    expect(html).toContain("Documento do orçamento de Loja C");
+    // a Loja A já tem documento ligado: não pede de novo
+    expect(html).not.toContain("Documento do orçamento de Loja A");
   });
 });

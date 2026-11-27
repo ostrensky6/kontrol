@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { dispatchEntityNotificationEmails, dispatchPendingNotificationEmails } from "./email";
+import { dispatchEntityNotificationEmails, dispatchPendingNotificationEmails, motivoParaNaoEnviar } from "./email";
+import { provedorEmail } from "./provedor";
 
 type Chamada = { tabela: string; valores: Record<string, unknown>; filtros: Record<string, unknown> };
 
@@ -17,7 +18,8 @@ function supabaseFalso(
       corpo: "Pedido interno #3",
       entidade_tipo: "pedido_interno",
       entidade_id: 3,
-      criado_em: "2026-09-26T10:00:00Z",
+      // aviso recente: os mais antigos que 3 dias não viram e-mail
+      criado_em: new Date().toISOString(),
       email_tentativas: 0,
     },
   ];
@@ -159,5 +161,28 @@ describe("dispatchPendingNotificationEmails", () => {
     const resultado = await dispatchEntityNotificationEmails(cliente, "pedido_interno", 3);
     expect(resultado).toMatchObject({ enabled: false, sent: 0 });
     expect(enviados).toHaveLength(0);
+  });
+});
+
+describe("motivoParaNaoEnviar (ajuste 1 de 27/11/2026)", () => {
+  const agora = new Date("2026-11-27T15:00:00Z");
+  it("aviso recente sai por e-mail", () => {
+    expect(motivoParaNaoEnviar({ tipo: "aprovacao_pendente", criado_em: "2026-11-27T12:00:00Z" }, agora)).toBeNull();
+  });
+  it("aviso parado há mais de 3 dias fica só no app", () => {
+    expect(motivoParaNaoEnviar({ tipo: "aprovacao_pendente", criado_em: "2026-11-20T12:00:00Z" }, agora)).toMatch(/antigo/);
+  });
+  it("lotes vencendo vai por e-mail só às segundas", () => {
+    const segunda = new Date("2026-11-30T10:00:00Z");
+    expect(motivoParaNaoEnviar({ tipo: "vencimento", criado_em: "2026-11-30T07:15:00Z" }, segunda)).toBeNull();
+    expect(motivoParaNaoEnviar({ tipo: "vencimento", criado_em: "2026-11-27T07:15:00Z" }, agora)).toMatch(/segundas/);
+  });
+});
+
+describe("provedorEmail", () => {
+  it("prefere SMTP quando há usuário e senha", () => {
+    expect(provedorEmail({ SMTP_USER: "a@b", SMTP_PASS: "x", RESEND_API_KEY: "r" } as unknown as NodeJS.ProcessEnv)).toBe("smtp");
+    expect(provedorEmail({ RESEND_API_KEY: "r" } as unknown as NodeJS.ProcessEnv)).toBe("resend");
+    expect(provedorEmail({} as NodeJS.ProcessEnv)).toBeNull();
   });
 });

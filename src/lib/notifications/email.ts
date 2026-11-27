@@ -1,6 +1,8 @@
 import { caminhoNotificacao, rotuloTipoNotificacao } from "@/lib/notifications/links";
 import { noGlossario } from "@/lib/glossario";
 import { semLinhasAfetadas } from "@/lib/supabase/escrita";
+import nodemailer from "nodemailer";
+import { provedorEmail } from "./provedor";
 
 type Resultado<T> = PromiseLike<{ data: T | null; error: { message: string } | null }>;
 
@@ -107,6 +109,73 @@ export function chaveIdempotencia(row: Pick<NotificationEmailRow, "id">) {
   return `kontrol-notificacao-${row.id}`;
 }
 
+/**
+ * Ajuste 1 de 27/11/2026: o Resend está em modo de teste (sem domínio
+ * verificado) e recusava todo destinatário que não fosse o dono da conta.
+ * Com SMTP_USER e SMTP_PASS (senha de app do Gmail de compras), o envio sai
+ * por SMTP; sem eles, continua pelo Resend.
+ */
+
+let transporteSmtp: ReturnType<typeof nodemailer.createTransport> | null = null;
+
+function smtp() {
+  if (!transporteSmtp) {
+    const porta = Number(process.env.SMTP_PORT ?? 465);
+    transporteSmtp = nodemailer.createTransport({
+      host: process.env.SMTP_HOST ?? "smtp.gmail.com",
+      port: porta,
+      secure: porta === 465,
+      auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS },
+    });
+  }
+  return transporteSmtp;
+}
+
+async function sendWithSmtp(row: NotificationEmailRow, to: string[]) {
+  const remetente = process.env.SMTP_FROM ?? `Kontrol <${process.env.SMTP_USER}>`;
+  // cada destinatário recebe o próprio e-mail: ninguém vê o endereço dos outros
+  for (const destinatario of to) {
+    await smtp().sendMail({
+      from: remetente,
+      to: destinatario,
+      subject: `[Kontrol] ${noGlossario(row.titulo)}`,
+      html: emailHtml(row),
+      text: emailTexto(row),
+      messageId: `<${chaveIdempotencia(row)}-${destinatario.replace(/[^a-z0-9]/gi, "")}@kontrol-atgc.vercel.app>`,
+    });
+  }
+}
+
+function emailTexto(row: NotificationEmailRow) {
+  return [noGlossario(row.titulo), row.corpo ? noGlossario(row.corpo) : null, `Abrir no Kontrol: ${notificationUrl(row)}`]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+async function enviarEmail(row: NotificationEmailRow, to: string[]) {
+  if (provedorEmail() === "smtp") return sendWithSmtp(row, to);
+  return sendWithResend(row, to);
+}
+
+/** Aviso mais antigo que isso não vira e-mail (evita mandar de uma vez o que ficou parado). */
+const IDADE_MAXIMA_EMAIL_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * "Lotes vencendo" se repete igual todo dia no app; por e-mail, sai só às
+ * segundas (horário de Brasília), como resumo da semana.
+ */
+export function motivoParaNaoEnviar(row: Pick<NotificationEmailRow, "tipo" | "criado_em">, agora = new Date()): string | null {
+  const criado = new Date(row.criado_em);
+  if (Number.isFinite(criado.getTime()) && agora.getTime() - criado.getTime() > IDADE_MAXIMA_EMAIL_MS) {
+    return "Aviso antigo: fica só no app.";
+  }
+  if (row.tipo === "vencimento") {
+    const diaEmBrasilia = new Date(criado.getTime() - 3 * 60 * 60 * 1000).getUTCDay();
+    if (diaEmBrasilia !== 1) return "Lotes vencendo: por e-mail só às segundas.";
+  }
+  return null;
+}
+
 async function sendWithResend(row: NotificationEmailRow, to: string[]) {
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -146,8 +215,8 @@ async function destinatarios(supabase: SupabaseLike, row: NotificationEmailRow, 
 export async function dispatchPendingNotificationEmails(
   supabase: SupabaseLike,
 ): Promise<EmailDispatchResult> {
-  if (!process.env.RESEND_API_KEY) {
-    return { enabled: false, sent: 0, failed: 0, skippedReason: "RESEND_API_KEY ausente" };
+  if (!provedorEmail()) {
+    return { enabled: false, sent: 0, failed: 0, skippedReason: "envio de e-mail não configurado (SMTP_USER/SMTP_PASS ou RESEND_API_KEY)" };
   }
 
   const { data, error } = await supabase
@@ -194,8 +263,8 @@ export async function dispatchEntityNotificationEmails(
   entidadeTipo: string,
   entidadeId: number,
 ): Promise<EmailDispatchResult> {
-  if (!process.env.RESEND_API_KEY) {
-    return { enabled: false, sent: 0, failed: 0, skippedReason: "RESEND_API_KEY ausente" };
+  if (!provedorEmail()) {
+    return { enabled: false, sent: 0, failed: 0, skippedReason: "envio de e-mail não configurado (SMTP_USER/SMTP_PASS ou RESEND_API_KEY)" };
   }
   const consulta = supabase as unknown as ConsultaAvisosDoRegistro;
   const { data, error } = await consulta
@@ -219,6 +288,17 @@ async function enviarAvisos(supabase: SupabaseLike, linhas: NotificationEmailRow
   let skipped = 0;
   for (const row of linhas) {
     const tentativas = Number(row.email_tentativas ?? 0);
+    const naoEnviar = motivoParaNaoEnviar(row);
+    if (naoEnviar) {
+      // escrita-sem-conferencia: tira o aviso da fila de e-mail; ele continua no app
+      await supabase
+        .from("notificacoes")
+        .update({ email_tentativas: MAX_TENTATIVAS, email_erro: naoEnviar })
+        .eq("id", row.id)
+        .is("email_enviado_em", null);
+      skipped += 1;
+      continue;
+    }
     // Reserva a tentativa antes de enviar: só passa se ninguém mexeu no aviso
     // desde a leitura. Dois envios ao mesmo tempo não mandam o mesmo e-mail.
     const { data: reservado, error: erroReserva } = await supabase
@@ -237,7 +317,7 @@ async function enviarAvisos(supabase: SupabaseLike, linhas: NotificationEmailRow
     try {
       const to = await destinatarios(supabase, row, fallback);
       if (to.length === 0) throw new Error("Nenhum destinatário com e-mail para este aviso.");
-      await sendWithResend(row, to);
+      await enviarEmail(row, to);
       enviado = true;
       const { data: marcada, error: updateError } = await supabase
         .from("notificacoes")

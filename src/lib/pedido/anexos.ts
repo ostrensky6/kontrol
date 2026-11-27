@@ -62,9 +62,15 @@ export const MIME_TYPES_ANEXO: readonly string[] = [
   "image/webp",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  // relatório de 27/11/2026, bug 1: a nota fiscal eletrônica vem em XML
+  "application/xml",
+  "text/xml",
 ];
 
-export const ACEITA_ANEXO = "application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx";
+export const ACEITA_ANEXO = "application/pdf,image/jpeg,image/png,image/webp,.docx,.xlsx,.xml,application/xml,text/xml";
+
+/** Documentos que contam como fiscais para concluir a compra (o servidor confere os mesmos). */
+export const TIPOS_DOCUMENTO_FISCAL: readonly string[] = ["nota_fiscal", "boleto", "comprovante"];
 
 function megabytes(bytes: number) {
   return (bytes / (1024 * 1024)).toLocaleString("pt-BR", { maximumFractionDigits: 1 });
@@ -73,7 +79,7 @@ function megabytes(bytes: number) {
 /** Confere os arquivos de um envio: formato e soma dos tamanhos. */
 export function motivoArquivosRecusados(arquivos: readonly { name: string; size: number; type: string }[]): string | null {
   const formatoErrado = arquivos.find((arquivo) => arquivo.type && !MIME_TYPES_ANEXO.includes(arquivo.type));
-  if (formatoErrado) return `“${formatoErrado.name}” não é PDF, imagem, DOCX ou XLSX.`;
+  if (formatoErrado) return `“${formatoErrado.name}” não é PDF, imagem, DOCX, XLSX ou XML.`;
   const total = arquivos.reduce((soma, arquivo) => soma + arquivo.size, 0);
   if (total > LIMITE_ENVIO_ANEXOS_BYTES) {
     return arquivos.length > 1

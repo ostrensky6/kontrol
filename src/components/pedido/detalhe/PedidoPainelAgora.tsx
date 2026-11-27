@@ -10,6 +10,8 @@ import { QuemAprova } from "@/components/pedido/QuemAprova";
 import { cn } from "@/lib/utils";
 import { registrarAnaliseAdministrativa } from "@/lib/actions/pedidos-internos";
 import { PedidoInternoAcoes } from "@/components/pedido/PedidoInternoAcoes";
+import { PedidoNotaFiscal } from "@/components/pedido/detalhe/PedidoNotaFiscal";
+import { TIPOS_DOCUMENTO_FISCAL } from "@/lib/pedido/anexos";
 import { HelpTip } from "@/components/common/HelpTip";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
 import { SubmitButton } from "@/components/common/SubmitButton";
@@ -131,8 +133,12 @@ export function PedidoPainelAgora({
       </div>
       {vez.texto && <p className="mt-2 max-w-2xl text-sm text-foreground">{vez.texto}</p>}
       <div className="mt-3">
+        {pedido.status === "aguardando_pagamento_nf" && podeGerir && (
+          <PedidoNotaFiscal pedidoId={pedidoId} anexos={anexoRowsBase} />
+        )}
         {statusMeta && !editavel && (
           <PedidoInternoAcoes
+            semDocumentoFiscal={!anexoRowsBase.some((anexo) => TIPOS_DOCUMENTO_FISCAL.includes(anexo.tipo))}
             pedidoId={pedidoId}
             status={pedido.status}
             podeGerir={podeGerir}
