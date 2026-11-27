@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil } from "lucide-react";
 
 import {
   Dialog,
@@ -13,10 +13,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { HelpTip } from "@/components/common/HelpTip";
-import { atualizarPedidoInterno, excluirPedidoInterno } from "@/lib/actions/pedidos-internos";
+import { atualizarPedidoInterno } from "@/lib/actions/pedidos-internos";
 import { NATUREZAS_PEDIDO, OBJETIVOS_PEDIDO } from "@/lib/pedido/natureza";
 import { FormComMensagem } from "./FormComMensagem";
+import { ApagarPedido } from "./ApagarPedido";
 
 type Opcao = {
   id: number;
@@ -175,45 +175,9 @@ export function PedidoInternoCabecalhoAcoes({
         </DialogContent>
       </Dialog>
 
-      {/* Excluir */}
-      {podeExcluir && status === "rascunho" && (
-        <Dialog>
-          <DialogTrigger asChild>
-            <button className="inline-flex items-center gap-1 rounded-md border border-danger-strong/30 px-3 py-1.5 text-xs font-medium text-danger-strong hover:bg-danger-soft">
-              <Trash2 className="h-3.5 w-3.5" />
-              Excluir
-            </button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <div className="flex items-center gap-1">
-                <DialogTitle>Excluir rascunho {numero}?</DialogTitle>
-                <HelpTip title="Excluir ou cancelar?">
-                  <p>
-                    Excluir só vale para <b>rascunhos</b> que ainda não entraram no fluxo. Pedidos em
-                    andamento devem ser <b>cancelados</b>, com motivo, para manter o histórico.
-                  </p>
-                </HelpTip>
-              </div>
-              <DialogDescription>
-                O pedido <b>{titulo}</b> será apagado e não poderá ser recuperado.
-              </DialogDescription>
-            </DialogHeader>
-            <DialogFooter>
-              <DialogClose asChild>
-                <button type="button" className="rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted">
-                  Cancelar
-                </button>
-              </DialogClose>
-              <FormComMensagem action={excluirPedidoInterno} className="flex flex-col items-end gap-1">
-                <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                <button type="submit" className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90">
-                  Excluir rascunho
-                </button>
-              </FormComMensagem>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+      {/* Apagar: qualquer etapa (Antonio, 27/11/2026); o banco só recusa material já recebido (0186) */}
+      {podeExcluir && (
+        <ApagarPedido pedidoId={pedidoId} numero={numero} titulo={titulo} status={status} className="px-3 py-1.5" />
       )}
     </div>
   );

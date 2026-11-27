@@ -37,7 +37,8 @@ function cabecalho(node: unknown): ReactElement | undefined {
   return Children.toArray(node.props.children).map(cabecalho).find(Boolean);
 }
 
-describe("exclusão no detalhe do pedido", () => {
+/** 0186 (Antonio, 27/11/2026): apagar vale em qualquer etapa; o banco recusa só quando já chegou material. */
+describe("apagar no detalhe do pedido", () => {
   beforeEach(() => {
     contexto.pode.mockReset();
     contexto.pode.mockResolvedValue(true);
@@ -45,10 +46,11 @@ describe("exclusão no detalhe do pedido", () => {
   });
   it.each([
     [true, "rascunho", null, true],
-    [true, "rascunho", 20, false],
-    [true, "rascunho", undefined, false],
-    [true, "em_validacao", null, false],
+    [true, "rascunho", 20, true],
+    [true, "em_validacao", null, true],
+    [true, "compra_fechada", 20, true],
     [false, "rascunho", null, false],
+    [false, "em_validacao", null, false],
   ] as const)("permissão=%s status=%s compra=%s", async (permitido, status, compraId, esperado) => {
     contexto.pedido.status = status;
     contexto.pedido.pedido_compra_id = compraId;
@@ -57,6 +59,6 @@ describe("exclusão no detalhe do pedido", () => {
     const acoes = cabecalho(page);
     expect(acoes).toBeDefined();
     const html = renderToStaticMarkup(acoes!);
-    expect(html.includes("Excluir")).toBe(esperado);
+    expect(html.includes("Apagar")).toBe(esperado);
   });
 });

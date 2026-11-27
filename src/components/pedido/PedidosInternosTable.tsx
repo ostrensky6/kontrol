@@ -1,23 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
 import type { ColumnDef } from "@tanstack/react-table";
 
 import { DataTable } from "@/components/common/DataTable";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { HelpTip } from "@/components/common/HelpTip";
-import { excluirPedidoInterno } from "@/lib/actions/pedidos-internos";
-import { FormComMensagem } from "./FormComMensagem";
+import { ApagarPedido } from "./ApagarPedido";
 import { StatusBadge } from "@/components/app/StatusBadge";
 import { Etiqueta } from "@/components/common/Etiqueta";
 import { PedidoItensQuickView, type PedidoItemView } from "./PedidoItensQuickView";
@@ -53,57 +40,13 @@ export type PedidoInternoRow = {
   pendencias: string;
 };
 
+/** Apagar vale em qualquer etapa (Antonio, 27/11/2026); o banco só recusa material já recebido (0186). */
 function podeExcluirPedido(row: PedidoInternoRow, podeExcluir: boolean) {
-  return podeExcluir && row.status === "rascunho" && row.pedidoCompraId === null;
+  return podeExcluir && typeof row.status === "string" && row.status.length > 0;
 }
 
 function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
-  return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <button
-          aria-label={`Excluir ${row.numero}`}
-          className="inline-flex items-center gap-1 rounded-md border border-danger-strong/30 px-2 py-1 text-xs font-medium text-danger-strong hover:bg-danger-soft"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          Excluir
-        </button>
-      </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <div className="flex items-center gap-1">
-            <DialogTitle>Excluir rascunho {row.numero}?</DialogTitle>
-            <HelpTip title="Excluir ou cancelar?">
-              <p>
-                Excluir só vale para <b>rascunhos</b> que ainda não entraram no fluxo. Pedidos em
-                andamento devem ser <b>cancelados</b>, com motivo, para manter o histórico.
-              </p>
-            </HelpTip>
-          </div>
-          <DialogDescription>O rascunho será apagado e não poderá ser recuperado.</DialogDescription>
-        </DialogHeader>
-        <DialogFooter>
-          <DialogClose asChild>
-            <button
-              type="button"
-              className="rounded-md border border-input px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
-            >
-              Cancelar
-            </button>
-          </DialogClose>
-          <FormComMensagem action={excluirPedidoInterno} className="flex flex-col items-end gap-1">
-            <input type="hidden" name="pedido_interno_id" value={row.id} />
-            <button
-              type="submit"
-              className="rounded-md bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90"
-            >
-              Excluir rascunho
-            </button>
-          </FormComMensagem>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
+  return <ApagarPedido pedidoId={row.id} numero={row.numero} titulo={row.titulo} status={row.status} />;
 }
 
 const URGENTE = new Set(["Alta", "Crítica"]);

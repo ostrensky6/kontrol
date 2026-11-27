@@ -20,6 +20,7 @@ vi.mock("@/lib/actions/pedidos-internos", () => ({
   marcarAguardandoPagamentoNf: vi.fn(),
   marcarOrcamentosRecebidos: vi.fn(),
   registrarExcecaoPagamento: vi.fn(),
+  reprovarPedidoInterno: vi.fn(),
   registrarLevantamentoOrcamentos: vi.fn(),
   validarInformacoes: vi.fn(),
 }));
@@ -80,5 +81,30 @@ describe("PedidoInternoAcoes: item novo sem cadastro trava a formalização", ()
   it("sem item novo, a formalização segue como antes", () => {
     expect(render({ status: "validado" })).toMatch(/<button>Formalizar em compras<\/button>/);
     expect(render({ status: "validado", motivoCicloTravado: "O ciclo abre em 01/12." })).toContain("O ciclo abre em 01/12.");
+  });
+});
+
+/** Antonio, 27/11/2026: devolver (amarelo) deixa corrigir; reprovar (vermelho) encerra e avisa o solicitante. */
+describe("PedidoInternoAcoes: reprovar ao lado de devolver (0186)", () => {
+  it("quem valida o pedido vê Aprovar, Devolver e Reprovar, cada um com o motivo", () => {
+    const html = render({ status: "em_validacao" });
+    expect(html).toContain("<button>Aprovar pedido</button>");
+    expect(html).toContain("<button>Devolver ao solicitante</button>");
+    expect(html).toContain("<button>Reprovar</button>");
+    expect(html).toContain('placeholder="Motivo da reprovação"');
+  });
+
+  it("quem não pode validar não vê Reprovar", () => {
+    const html = render({ status: "em_validacao", motivoSemValidacao: "Só o coordenador do projeto aprova." });
+    expect(html).not.toContain("<button>Reprovar</button>");
+  });
+
+  it("o administrativo reprova antes de autorizar a compra", () => {
+    expect(render({ status: "analise_administrativa" })).toContain("<button>Reprovar</button>");
+    expect(render({ status: "analise_administrativa", podeGerir: false })).not.toContain("<button>Reprovar</button>");
+  });
+
+  it("depois de autorizada a compra não há mais Reprovar (fica Cancelar)", () => {
+    expect(render({ status: "aprovado_compra" })).not.toContain("<button>Reprovar</button>");
   });
 });
