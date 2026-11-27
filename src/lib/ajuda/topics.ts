@@ -415,12 +415,24 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         ],
       },
       {
+        titulo: "Ordem das aprovações (desde 27/11/2026)",
+        itens: [
+          "Quem pede monta o pedido com os itens, a justificativa, o laboratório ou o campo e pelo menos 3 orçamentos de fornecedores diferentes, cada um com o documento. No 'Novo pedido' há três linhas de orçamento e 'Adicionar outro orçamento' para mais.",
+          "No envio, o orçamento de menor valor fica escolhido. Quem aprova pode trocar, com justificativa.",
+          "1º) A coordenação do laboratório (Genética, LQA, LHM, LAPOA) ou do campo aprova. 2º) O financeiro (função Administrativo) escolhe a fonte de pagamento (Ineo, Funpar, ATGC, CNPq ou outra cadastrada) e aprova. 3º) O coordenador do projeto (sem projeto, a Supervisão) dá a última aprovação, e a compra fica liberada.",
+          "Em cada uma das três vezes: Aprovar (verde) passa para a próxima; Devolver (amarelo) volta para quem pediu corrigir, sem recomeçar; Reprovar (vermelho) encerra o pedido e avisa quem pediu.",
+          "Devolvido e corrigido sem mudar itens, valor, justificativa e projeto, o pedido volta direto para quem devolveu. Se algo mudou, passa de novo pelas três aprovações.",
+          "Fontes de pagamento ficam em Cadastros > Fontes de pagamento. Ineo sai no modelo Solicitação de Compras; Funpar, no Termo de Referência.",
+          "Pedidos que já estavam no meio do caminho em 27/11 terminam na ordem antiga, descrita abaixo.",
+        ],
+      },
+      {
         titulo: "Regras e exceções em resumo",
         itens: [
           "Ciclo de compras: o que a coordenação aprova até o dia 10 entra no ciclo do mês. Dia 10 no sábado ou no domingo vale até a segunda. Depois do prazo, o pedido fica para o ciclo seguinte e só segue no dia 1. Feriado ainda não entra na conta.",
           "Urgência Alta ou Crítica fura o ciclo, com justificativa por escrito. Quem define a urgência é o administrativo (permissão 'Definir urgência do pedido'), não quem pede.",
-          "Quem aprova: o coordenador do projeto. Sem projeto, a Supervisão. Na ausência, o Administrador, com registro. Material de consumo de laboratório passa também pela coordenação do laboratório.",
-          "Todo pedido precisa de 3 orçamentos de fornecedores diferentes. Não há dispensa por tipo de despesa.",
+          "Quem aprova: laboratório ou campo, depois o financeiro, depois o coordenador do projeto (sem projeto, a Supervisão). Na ausência, o Administrador ou quem tem 'Conduzir a compra inteira', com registro.",
+          "Todo pedido precisa de 3 orçamentos de fornecedores diferentes, enviados por quem pede, junto com o pedido. Não há dispensa por tipo de despesa.",
           "Pedido devolvido e reenviado: a aprovação continua valendo só se itens, valor, justificativa e projeto não mudaram.",
           "Pagamento: produto depois da entrega, serviço depois da prestação, diária antes da viagem. Outra exceção só com acordo registrado no pedido.",
           "Produto controlado (clorofórmio, acetona) só pela FUNPAR, em projeto com recurso na fundação.",
@@ -447,7 +459,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
         itens: [
           "Clique em 'Novo pedido' e preencha título, projeto, tipo de material ou despesa, objetivo e justificativa. Fonte e rubrica são definidas pelo administrativo; o formulário não pede.",
           "Os itens entram no próprio formulário: preencha um item e use 'Adicionar item'; ele vai para a lista, onde dá para editar ou remover. Para enviar, o pedido precisa de ao menos um item com especificação, quantidade e unidade.",
-          "Item que o laboratório nunca comprou: se não estiver em 'Insumo existente', escreva em 'Especificação'. Ele entra como 'Item novo'; quem pede não precisa cadastrar nada. Quem conduz a compra cadastra o insumo pelo próprio pedido, antes de formalizar.",
+          "Item que o laboratório nunca comprou: se não estiver em 'Insumo existente', escreva em 'Especificação'. Ele entra como 'Item novo'; quem pede não precisa cadastrar nada. Quem conduz a compra cadastra o insumo pelo próprio pedido, antes da aprovação financeira (nos pedidos da ordem antiga, antes de formalizar).",
           "A cotação prévia e o termo de referência são de quem pede e entram no próprio 'Novo pedido', com os mesmos campos de 'Registrar documento': tipo, título, arquivo, link ou referência externa e observação (onde vai, por exemplo, o valor estimado). Tudo é opcional; dá para registrar só o link, sem arquivo, e 'Adicionar outro documento' abre mais um. Arquivo: PDF, imagem, DOCX, XLSX ou XML, até 3,5 MB somando todos. Enquanto o pedido está em rascunho ou devolvido para ajuste, dá para registrá-los também em 'Documentos'; da Aprovação em diante, esses dois tipos não entram mais.",
           "'Enviar para aprovação' grava o pedido com os itens e os documentos e já o envia a quem aprova, sem passar por rascunho. 'Guardar rascunho' guarda para terminar depois, no próprio pedido.",
           "Fechar o formulário com algo preenchido pede confirmação antes de descartar. Se o pedido for gravado e o envio não sair (projeto sem coordenador, por exemplo), ele fica como rascunho e abre com o aviso do que falta.",
@@ -769,7 +781,7 @@ export const AJUDA_TOPICOS: AjudaTopico[] = [
       {
         titulo: "Passo a passo",
         itens: [
-          "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais; equipamentos e previsão abrem em Estoque → Equipamentos), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos e fornecedores) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
+          "A barra de Cadastros tem 4 grupos: Materiais (insumos, tipos técnicos, equipamentos, previsão de equipamentos e locais; equipamentos e previsão abrem em Estoque → Equipamentos), Pessoas e áreas (técnicos, laboratórios e áreas, responsáveis por etapa), Comercial (clientes, projetos, fornecedores e fontes de pagamento) e Custos (overhead). O grupo abre o primeiro cadastro; as abas logo abaixo levam aos outros.",
           "Os mesmos grupos aparecem em 'Todos os cadastros', na primeira tela de Cadastros, e a busca (Ctrl+K) abre qualquer cadastro pelo nome.",
           "Crie ou edite o registro com os campos solicitados.",
           "Revise periodicamente para corrigir duplicidades e dados desatualizados.",

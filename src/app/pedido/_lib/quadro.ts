@@ -1,5 +1,11 @@
 import type { DecisaoNoQuadro, LinhaQuadro } from "@/components/pedido/QuadroAprovacoes";
-import { aguardaLaboratorio, lerAprovadores, usuarioDecide, type AprovadoresPedido } from "@/lib/pedido/aprovadores";
+import {
+  aguardaLaboratorio,
+  idsDaVezFluxoNovo,
+  lerAprovadores,
+  usuarioDecide,
+  type AprovadoresPedido,
+} from "@/lib/pedido/aprovadores";
 import type { AreaPedido } from "@/lib/pedido/areas";
 import { STATUS_PEDIDO_ENCERRADO } from "@/lib/pedido/etapas";
 import {
@@ -9,7 +15,7 @@ import {
   termoDeReferencia,
   type RegistroAprovacao,
 } from "@/lib/pedido/quadro-aprovacoes";
-import { pedidoInternoNumero } from "@/lib/pedido/status";
+import { emAprovacaoFluxoNovo, pedidoDoFluxoNovo, pedidoInternoNumero } from "@/lib/pedido/status";
 import { formatDate, formatDateTime } from "@/lib/formatters";
 
 export type PedidoParaQuadro = {
@@ -21,6 +27,9 @@ export type PedidoParaQuadro = {
   area_id?: number | null;
   aprovacao_area_em?: string | null;
   aprovacao_area_por?: string | null;
+  fluxo?: number | null;
+  aprovacao_financeiro_em?: string | null;
+  aprovacao_financeiro_por?: string | null;
   criado_em: string;
   projetoNome: string;
   pedidos_internos_itens?: Array<{ especificacao?: string | null }> | null;
@@ -73,7 +82,9 @@ export async function montarLinhasQuadro({
   };
   const areaPorId = new Map(areas.map((a) => [a.id, a]));
 
-  const esperando = pedidos.filter((p) => p.status === "em_validacao" || aguardaLaboratorio(p));
+  const esperando = pedidos.filter(
+    (p) => p.status === "em_validacao" || aguardaLaboratorio(p) || (pedidoDoFluxoNovo(p) && emAprovacaoFluxoNovo(p.status)),
+  );
   const aprovadores = new Map<number, AprovadoresPedido | null>(
     await Promise.all(
       esperando.map(async (p) => [p.id, await lerAprovadores(supabase as never, p.id)] as const),
@@ -86,7 +97,14 @@ export async function montarLinhasQuadro({
     const area = p.area_id != null ? areaPorId.get(Number(p.area_id)) : undefined;
 
     let decisao: DecisaoNoQuadro | null = null;
-    if (p.status === "em_validacao" && usuarioDecide(ap?.coordenador?.ids, usuarioId, substituto)) {
+    const fluxoNovo = pedidoDoFluxoNovo(p);
+    if (fluxoNovo) {
+      // 0188: ordem nova — a vez de cada coordenação vem da regra do banco
+      if (emAprovacaoFluxoNovo(p.status) && usuarioDecide(idsDaVezFluxoNovo(ap, p.status), usuarioId, substituto)) {
+        const chave = p.status === "aguardando_area" ? "laboratorio" : p.status === "aguardando_financeiro" ? "financeiro" : "projeto";
+        decisao = { chave, fluxoNovo: true };
+      }
+    } else if (p.status === "em_validacao" && usuarioDecide(ap?.coordenador?.ids, usuarioId, substituto)) {
       decisao = { chave: "projeto" };
     } else if (aguardaLaboratorio(p) && usuarioDecide(ap?.laboratorio?.ids, usuarioId, substituto)) {
       decisao = { chave: "laboratorio" };
@@ -99,7 +117,7 @@ export async function montarLinhasQuadro({
     const responsavel: Record<(typeof COLUNAS_QUADRO)[number]["chave"], string | null> = {
       projeto: ap?.coordenador?.nome ?? null,
       laboratorio: ap?.laboratorio?.nome ?? area?.coordenador_nome ?? null,
-      financeiro: "Administrativo",
+      financeiro: fluxoNovo ? ap?.financeiro?.nome ?? "Administrativo" : "Administrativo",
     };
 
     const linha: LinhaQuadro = {

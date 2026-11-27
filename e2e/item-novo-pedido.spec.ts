@@ -1,11 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { completarParaOrdemNova } from "./ajudas/novo-pedido";
 
 /**
  * Item novo: algo que o laboratório nunca comprou (pergunta do Giorgi, trazida
  * pela Rafaela em 19/11/2026). Decisão de Antonio no mesmo dia: quem pede só
  * descreve o item no "Novo pedido"; quem conduz a compra cadastra o insumo
- * pelo próprio pedido, antes de formalizar. O banco real prova o caminho em
- * supabase/tests/item_novo_do_pedido.sql.
+ * pelo próprio pedido. Na ordem nova (0188, 27/11/2026), antes da aprovação
+ * financeira. O banco real prova o caminho em supabase/tests/item_novo_do_pedido.sql
+ * e supabase/tests/nova_ordem_aprovacoes_0188.sql.
  */
 
 async function comoCategoria(page: Page, papel: string) {
@@ -44,7 +46,7 @@ test("no Novo pedido, item fora da lista entra escrito à mão, marcado como ite
   await expect(campos.getByTestId("item-novo-aviso")).toHaveCount(0);
 
   await campos.getByLabel("Especificação", { exact: true }).fill("Tampão nunca comprado E2E");
-  await expect(campos.getByTestId("item-novo-aviso")).toHaveText("Item novo: quem conduz a compra cadastra o insumo antes de formalizar.");
+  await expect(campos.getByTestId("item-novo-aviso")).toHaveText("Item novo: quem conduz a compra cadastra o insumo antes da aprovação financeira.");
 
   // serviço não tem insumo: não é item novo
   await campos.getByLabel("Tipo", { exact: true }).selectOption("servico");
@@ -66,7 +68,7 @@ test("no Novo pedido, item fora da lista entra escrito à mão, marcado como ite
   await expect(lista.getByTestId("item-novo")).toHaveCount(1);
 });
 
-test("quem conduz a compra cadastra o item novo pelo pedido e a formalização deixa de travar", async ({ page }) => {
+test("quem conduz a compra cadastra o item novo pelo pedido e a aprovação financeira deixa de travar", async ({ page }) => {
   const titulo = `Pedido com item novo ${Date.now()}`;
   const insumo = `Tampão nunca comprado ${Date.now()}`;
   const form = await abrirNovoPedido(page);
@@ -78,24 +80,25 @@ test("quem conduz a compra cadastra o item novo pelo pedido e a formalização d
   await campos.getByLabel("Volume").fill("500 mL");
   await campos.getByLabel("Preço estimado (un.)").fill("180");
   await form.getByRole("button", { name: "Adicionar item" }).click();
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   // na Aprovação, o item aparece como item novo
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   await expect(page.getByRole("heading", { name: titulo })).toBeVisible();
   const linha = page.getByRole("row", { name: new RegExp(insumo) });
-  await expect(linha.getByTestId("item-novo")).toHaveText("Item novo: falta cadastrar o insumo antes de formalizar.");
+  await expect(linha.getByTestId("item-novo")).toContainText("antes da aprovação financeira.");
 
-  // aprovar o pedido não depende do cadastro; formalizar depende
-  await page.getByRole("button", { name: "Aprovar pedido" }).click();
-  const formalizar = page.getByRole("button", { name: "Formalizar em compras" });
-  await expect(formalizar).toBeDisabled();
-  await expect(page.getByText("Há 1 item novo, ainda sem cadastro. Use “Cadastrar insumo” na lista de itens antes de formalizar.")).toBeVisible();
+  // 0188: a aprovação do laboratório ou campo não depende do cadastro; a financeira depende
+  await page.getByRole("button", { name: "Aprovar pelo laboratório ou campo" }).click();
+  const aprovarFonte = page.getByRole("button", { name: "Aprovar com esta fonte" });
+  await expect(aprovarFonte).toBeDisabled();
+  await expect(page.getByText("Há 1 item novo, ainda sem cadastro. Use “Cadastrar insumo” na lista de itens antes de aprovar.")).toBeVisible();
 
   // quem aprova pedidos mas não edita insumos (função Administrativo) vê a quem pedir
   await comoCategoria(page, "administrativo");
   await page.reload();
-  await expect(page.getByRole("button", { name: "Formalizar em compras" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Aprovar com esta fonte" })).toBeDisabled();
   await expect(page.getByText(/Há 1 item novo, ainda sem cadastro\. Cadastrar o insumo pede a permissão “Editar insumos”/)).toBeVisible();
   await expect(page.getByRole("button", { name: /Cadastrar insumo/ })).toHaveCount(0);
 
@@ -114,13 +117,14 @@ test("quem conduz a compra cadastra o item novo pelo pedido e a formalização d
   await dialogo.getByLabel("Marca / fabricante").fill("Marca E2E");
   await dialogo.getByRole("button", { name: "Cadastrar e ligar ao item" }).click();
 
-  // o item fica ligado ao insumo e a formalização deixa de reclamar do cadastro
+  // o item fica ligado ao insumo e a aprovação financeira deixa de reclamar do cadastro
   await expect(dialogo).toBeHidden();
   const ligado = page.getByRole("row", { name: new RegExp(insumo) });
   await expect(ligado.getByText(`vinculado: ${insumo}`)).toBeVisible();
   await expect(ligado.getByTestId("item-novo")).toHaveCount(0);
   await expect(page.getByText(/Há 1 item novo, ainda sem cadastro/)).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Cadastrar insumo/ })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Aprovar com esta fonte" })).toBeEnabled();
 
   // o insumo novo já está no cadastro, para o próximo pedido escolher na lista
   const novo = await abrirNovoPedido(page);
@@ -139,6 +143,7 @@ test("item parecido com um insumo do cadastro é ligado a ele, sem cadastro repe
   await campos.getByLabel("Qtd").fill("1");
   await campos.getByLabel("Unidade").fill("kit");
   await form.getByRole("button", { name: "Adicionar item" }).click();
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
 

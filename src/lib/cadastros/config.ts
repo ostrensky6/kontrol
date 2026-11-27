@@ -102,6 +102,8 @@ export type CadastroConfig = {
   tabela: string;
   titulo: string;
   singular: string;
+  /** rótulo do botão de criar, quando "Novo {singular}" não concorda (ex.: "Nova fonte de pagamento") */
+  novo?: string;
   /** uma linha curta para o cartão de Cadastros; a explicação completa fica em `subtitulo` (ajuda) */
   resumo: string;
   subtitulo: string;
@@ -208,7 +210,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     singular: "laboratório ou área",
     resumo: "Quem coordena cada laboratório ou área.",
     subtitulo:
-      "Quem coordena cada laboratório ou área. A coordenação **aprova o material de consumo de laboratório** depois do coordenador do projeto; sem coordenação indicada, o pedido não segue.",
+      "Quem coordena cada laboratório ou o campo. Na ordem das aprovações de 27/11/2026, a coordenação **aprova primeiro todo pedido** do laboratório ou do campo; depois vêm o financeiro e o coordenador do projeto. Sem coordenação indicada, o pedido não segue.",
     rotulo: "nome",
     colunas: [
       { key: "nome", label: "Laboratório ou área" },
@@ -225,7 +227,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         tipo: "select",
         opcoesDe: "perfis",
         grupo: "Quem aprova",
-        ajuda: "Recebe o aviso e aprova os pedidos de material de consumo de laboratório deste laboratório. Pessoa que não está na lista: use “Cadastrar nova pessoa”, logo abaixo do campo.",
+        ajuda: "Recebe o aviso e dá a primeira aprovação dos pedidos deste laboratório ou do campo. Pessoa que não está na lista: use “Cadastrar nova pessoa”, logo abaixo do campo.",
       },
       {
         name: "substituto_id",
@@ -768,6 +770,42 @@ export const CADASTROS: Record<string, CadastroConfig> = {
     ],
   },
 
+  // 0188: fontes de pagamento em lista (Antonio, 27/11/2026); o financeiro escolhe uma ao aprovar
+  fontes_pagamento: {
+    slug: "fontes_pagamento",
+    tabela: "fontes_recurso",
+    titulo: "Fontes de pagamento",
+    singular: "fonte de pagamento",
+    novo: "Nova fonte de pagamento",
+    resumo: "Ineo, Funpar, ATGC, CNPq e outras.",
+    subtitulo:
+      "De onde sai o dinheiro de cada compra. O **financeiro escolhe a fonte ao aprovar** o pedido. A fonte diz também o modelo do documento: Ineo (projeto Piraupiá) sai na **Solicitação de Compras**; Funpar (projetos Petrobras) no **Termo de Referência**. Fonte que não se usa mais: desmarque “Ativa” em vez de excluir.",
+    rotulo: "nome",
+    colunas: [
+      { key: "nome", label: "Fonte" },
+      { key: "descricao", label: "Descrição", largura: "lg" },
+      { key: "modelo_documento_nome", label: "Documento" },
+      { key: "ativo", label: "Ativa", tipo: "checkbox" },
+    ],
+    campos: [
+      { name: "nome", label: "Nome da fonte", tipo: "text", obrigatorio: true, grupo: "Identificação", placeholder: "Ex.: Ineo" },
+      { name: "ativo", label: "Ativa", tipo: "checkbox", padraoLigado: true },
+      { name: "descricao", label: "Descrição", tipo: "text", colSpan: 2, placeholder: "Instituição ou projeto que paga" },
+      {
+        name: "modelo_documento",
+        label: "Modelo do documento",
+        tipo: "select",
+        grupo: "Documento da compra",
+        opcoes: [
+          { value: "solicitacao_compras", label: "Solicitação de Compras (Ineo)" },
+          { value: "termo_referencia", label: "Termo de Referência (Funpar)" },
+        ],
+        ajuda: "O documento que o Kontrol gera no fim da aprovação. Sem modelo, por enquanto não há documento (ATGC e CNPq).",
+      },
+      { name: "ordem", label: "Ordem na lista", tipo: "number", min: 0, step: "1", valorPadrao: 100 },
+    ],
+  },
+
   fornecedores: {
     slug: "fornecedores",
     tabela: "fornecedores",
@@ -908,6 +946,7 @@ export const ORDEM_CADASTROS = [
   "equipamentos",
   "previsao_equipamentos",
   "fornecedores",
+  "fontes_pagamento",
   "tecnicos",
   "locais",
   "overhead",

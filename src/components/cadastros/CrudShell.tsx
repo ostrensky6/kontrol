@@ -95,6 +95,7 @@ function uniqueOptions(opcoes: { value: string; label: string }[]) {
 export function CrudShell({
   slug,
   singular,
+  rotuloNovo,
   rotulo,
   colunas,
   campos,
@@ -112,6 +113,8 @@ export function CrudShell({
 }: {
   slug: string;
   singular: string;
+  /** quando "Novo {singular}" não concorda (ex.: "Nova fonte de pagamento") */
+  rotuloNovo?: string;
   rotulo: string;
   colunas: Coluna[];
   campos: Campo[];
@@ -458,7 +461,7 @@ export function CrudShell({
           ) : apenasEditar ? null : (
             <Button onClick={novo}>
               <Plus />
-              Novo {singular}
+              {rotuloNovo ?? `Novo ${singular}`}
             </Button>
           )}
         </div>
@@ -562,7 +565,7 @@ export function CrudShell({
                 >
                   {temFiltro
                     ? "Nenhum registro encontrado para a busca/filtro."
-                    : `Nenhum registro. Clique em “Novo ${singular}”.`}
+                    : `Nenhum registro. Clique em “${rotuloNovo ?? `Novo ${singular}`}”.`}
                 </TableCell>
               </TableRow>
             )}
@@ -620,6 +623,7 @@ export function CrudShell({
           open={aberto}
           slug={slug}
           singular={singular}
+          rotuloNovo={rotuloNovo}
           campos={campos}
           registro={editando}
           onOpenChange={setAberto}

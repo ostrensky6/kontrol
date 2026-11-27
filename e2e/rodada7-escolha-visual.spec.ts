@@ -13,8 +13,8 @@ test("Novo pedido: tipo, objetivo e uso em cartões e botões", async ({ page })
   await expect(dialogo.getByRole("combobox", { name: "Tipo de material ou despesa" })).toHaveCount(0);
   await tipo.getByText("Material de consumo de laboratório", { exact: true }).click();
   await expect(tipo.getByRole("radio", { name: "Material de consumo de laboratório" })).toBeChecked();
-  // escolher laboratório continua exigindo a área
-  await expect(dialogo.getByRole("combobox", { name: "Laboratório ou área" })).toHaveAttribute("required", "");
+  // 0188: o laboratório ou campo é a primeira aprovação, sempre à vista (o envio exige; o rascunho, não)
+  await expect(dialogo.getByRole("combobox", { name: "Laboratório ou campo" })).toBeVisible();
   const uso = dialogo.getByRole("radiogroup", { name: "Onde será usado" });
   await expect(uso.getByRole("radio", { name: "Laboratório" })).toBeChecked();
   await uso.getByText("Campo", { exact: true }).click();

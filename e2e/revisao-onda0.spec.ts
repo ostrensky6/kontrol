@@ -16,7 +16,7 @@ test("novo pedido fala em aprovar, como o resto do fluxo (rodada anterior)", asy
   await page.goto("/pedido?novo=1");
   const formulario = page.getByRole("dialog", { name: "Novo pedido" });
   await formulario.getByRole("button", { name: "Ajuda: Quem aprova o pedido" }).click();
-  await expect(page.getByRole("dialog", { name: "Quem aprova o pedido" })).toContainText("O coordenador do projeto aprova o pedido.");
+  await expect(page.getByRole("dialog", { name: "Quem aprova o pedido" })).toContainText("O coordenador do projeto dá a última aprovação");
   await page.keyboard.press("Escape");
   await expect(formulario.getByRole("option", { name: "Sem projeto (a Supervisão aprova)" })).toBeAttached();
   await expect(formulario).not.toContainText(/\bvalida\b/);

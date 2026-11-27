@@ -200,6 +200,9 @@ jobs:
       - name: Validar os campos da planilha de compras no insumo (0187)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/insumo_campos_planilha_0187.sql
 
+      - name: Validar a nova ordem das aprovações e os orçamentos junto com o pedido (0188)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/nova_ordem_aprovacoes_0188.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

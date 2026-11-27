@@ -13,7 +13,7 @@ import { PENDENCIAS_DE_PEDIDOS, pendenciasDe } from "@/components/dashboard/agua
 import { carregarPendencias } from "@/lib/pendencias/carregar";
 import type { PedidoItemView } from "@/components/pedido/PedidoItensQuickView";
 import { NovoPedidoDialog } from "@/components/pedido/NovoPedidoDialog";
-import { pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
+import { pedidoDoFluxoNovo, pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
 import { lerAreasPedido } from "@/lib/pedido/areas";
 import { formatCurrency as brl, formatDate } from "@/lib/formatters";
 import { statusInfo } from "@/components/app/status";
@@ -68,6 +68,10 @@ type PedidoInternoListRow = {
   area_id?: number | null;
   aprovacao_area_em?: string | null;
   aprovacao_area_por?: string | null;
+  /** 0188: 2 = ordem nova das aprovações */
+  fluxo?: number | null;
+  aprovacao_financeiro_em?: string | null;
+  aprovacao_financeiro_por?: string | null;
   pedido_compra_id: number | null;
   criado_em: string;
   coordenador_projeto_nome?: string | null;
@@ -92,7 +96,7 @@ const LABEL_MODALIDADE: Record<string, string> = {
 
 // quadro de aprovações (27/11/2026): laboratório, aprovações gravadas e o termo de referência
 const COLUNAS_PEDIDO =
-  "id, titulo, status, natureza, area_id, aprovacao_area_em, aprovacao_area_por, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo, url, storage_path), pedidos_internos_aprovacoes(etapa, decisao, responsavel, comentario, status_origem, criado_em)";
+  "id, titulo, status, fluxo, natureza, area_id, aprovacao_area_em, aprovacao_area_por, aprovacao_financeiro_em, aprovacao_financeiro_por, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo, url, storage_path), pedidos_internos_aprovacoes(etapa, decisao, responsavel, comentario, status_origem, criado_em)";
 // banco ainda sem as colunas novas: a lista abre com o que existia antes
 const COLUNAS_PEDIDO_ANTIGAS =
   "id, titulo, status, solicitante, data_necessidade, urgencia, pedido_compra_id, criado_em, projetos(nome, coordenador), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)";
@@ -193,7 +197,8 @@ export default async function PedidoPage({
     const docsCotacao = (pedido.pedidos_internos_anexos ?? []).some((doc) => ["orcamento_previo", "proposta", "print", "email"].includes(doc.tipo));
     const recebidos = (pedido.pedidos_internos_itens ?? []).filter((item) => item.recebido_em).length;
     // 0176: pedido do ciclo seguinte espera o ciclo abrir
-    const cicloTravadoAte = pedido.status === "validado"
+    // 0188: na ordem nova, a trava fica em "Aprovado para compra"
+    const cicloTravadoAte = pedido.status === (pedidoDoFluxoNovo(pedido) ? "aprovado_para_compra" : "validado")
       ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
     // mesmo texto da página do pedido; o nome do coordenador só vale com projeto
@@ -244,6 +249,10 @@ export default async function PedidoPage({
         podeAprovar: podeExcluir,
       })
     : [];
+  // 0188: o financeiro aprova no quadro escolhendo a fonte de pagamento
+  const { data: fontesQuadro } = linhasQuadro.some((l) => l.decisao?.fluxoNovo && l.decisao.chave === "financeiro")
+    ? await leitura.de("fontes de pagamento", supabase.from("fontes_recurso").select("nome").eq("ativo", true).order("ordem").order("nome"))
+    : { data: [] };
 
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
@@ -312,7 +321,10 @@ export default async function PedidoPage({
 
         <div className="mt-4">
           {verQuadro ? (
-            <QuadroAprovacoes linhas={linhasQuadro} />
+            <QuadroAprovacoes
+              linhas={linhasQuadro}
+              fontes={((fontesQuadro ?? []) as { nome: string }[]).map((f) => f.nome).filter(Boolean)}
+            />
           ) : (
             <PedidosPorEtapa
               key={filtroEtapa}

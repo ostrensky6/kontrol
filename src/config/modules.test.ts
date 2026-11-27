@@ -245,7 +245,7 @@ describe("revisão de 11/11: barra lateral e lugares", () => {
     // o grupo é só um atalho da barra: a busca mostra os 12 cadastros pelo nome, sem repetir
     const naBusca = getCommandGroups(admin).find((g) => g.title === "Cadastros")!.links;
     expect(naBusca.map((l) => l.href).filter((href) => href.startsWith("/cadastros/grupo/"))).toEqual([]);
-    expect(naBusca.filter((l) => l.href.startsWith("/cadastros/"))).toHaveLength(12);
+    expect(naBusca.filter((l) => l.href.startsWith("/cadastros/"))).toHaveLength(13);
     expect(naBusca.map((l) => l.label)).toContain("Responsáveis por etapa");
     // a página do grupo existe (redireciona para o primeiro cadastro)
     expect(existsSync(path.join(APP_DIR, "cadastros", "grupo", "[grupo]", "page.tsx"))).toBe(true);

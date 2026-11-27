@@ -37,6 +37,7 @@ import { avisoControlados, itensControlados } from "@/lib/pedido/controlados";
 import { motivoItensSemCadastro } from "@/lib/pedido/item-novo";
 import { STATUS_DE_AJUSTE, lerSituacaoReenvio, textoReenvio } from "@/lib/pedido/reenvio";
 import { listarEventos } from "@/lib/actions/eventos";
+import { vezFluxoNovo } from "@/lib/pedido/vez-fluxo-novo";
 import {
   pedidoInternoNumero,
   pedidoInternoSituacao,
@@ -191,6 +192,17 @@ export default async function PedidoInternoDetalhe({
   const substituto = ehAdmin || podeConduzir;
   const comoSubstituto = ehAdmin ? "como Administrador" : "porque conduz a compra inteira";
   const podeValidar = usuarioDecide(aprovadores?.coordenador?.ids, usuario?.id, substituto);
+  // 0188: ordem nova — laboratório ou campo, financeiro, coordenador do projeto
+  const ordemNova = vezFluxoNovo({
+    aprovadores,
+    pedido,
+    usuarioId: usuario?.id,
+    substituto,
+    comoSubstituto,
+    podeGerir,
+    rotuloStatus: statusMeta.label,
+  });
+  const { fluxoNovo, podeDecidir: podeDecidirVez, motivoSemDecisao: motivoSemDecisaoVez } = ordemNova;
   const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, substituto);
   // 0136 (D2), mesma regra do banco: quem pediu não dá a aprovação final do próprio pedido
   const motivoProprio = motivoProprioPedido({
@@ -207,12 +219,22 @@ export default async function PedidoInternoDetalhe({
     ? await lerPendenciaPagamento(supabase, pedidoId)
     : null;
   // D2 (0171): três orçamentos de fornecedores diferentes e um escolhido
-  const comOrcamentos = ETAPAS_COM_ORCAMENTOS.includes(pedido.status);
+  // 0188: na ordem nova eles vão junto com o pedido e aparecem desde o rascunho
+  const comOrcamentos = fluxoNovo ? pedido.status !== "cancelado" : ETAPAS_COM_ORCAMENTOS.includes(pedido.status);
   const orcamentos = comOrcamentos ? await lerOrcamentos(supabase, pedidoId) : null;
+  // 0188: o financeiro escolhe a fonte de pagamento numa lista (Cadastros > Fontes de pagamento)
+  const { data: fontesRows } =
+    pedido.status === "aguardando_financeiro"
+      ? await leitura.de("fontes de pagamento", supabase.from("fontes_recurso").select("nome, descricao").eq("ativo", true).order("ordem").order("nome"))
+      : { data: [] };
+  const fontes = ((fontesRows ?? []) as { nome: string; descricao: string | null }[]).filter((f) => f.nome);
   const resumoOrcamentos = orcamentos ? resumirOrcamentos(orcamentos) : null;
   // D5 (0175): o que acontece ao reenviar depois do ajuste
   const avisoReenvio = STATUS_DE_AJUSTE.includes(String(pedido.status))
-    ? textoReenvio(await lerSituacaoReenvio(supabase, pedidoId))
+    ? textoReenvio(await lerSituacaoReenvio(supabase, pedidoId), {
+        fluxoNovo,
+        devolvidoNaEtapa: pedido.devolvido_na_etapa,
+      })
     : null;
   const projetoRow = pedido.projetos as {
     nome: string | null;
@@ -242,7 +264,7 @@ export default async function PedidoInternoDetalhe({
   const podeConfirmar =
     (podeRegistrarRecebimento || podeGerir) && podeConfirmarEntrega(pedido, linhas);
   // Antes da compra, aponta outra marca do mesmo tipo técnico que já tem saldo (item 8).
-  const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras"].includes(String(pedido.status));
+  const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras", "aguardando_area", "aguardando_financeiro", "aguardando_projeto"].includes(String(pedido.status));
   const { equivalentes } = antesDaCompra
     ? await lerEquivalentesComSaldo(supabase, linhas.map((l) => l.insumo_id).filter((id): id is number => id != null))
     : { equivalentes: new Map<number, never[]>() };
@@ -279,12 +301,12 @@ export default async function PedidoInternoDetalhe({
   // Itens mudam em rascunho/ajuste e, antes da formalização, na validação (quem
   // aprova). Depois de formalizado, o pedido volta para ajuste antes de mudar a
   // lista (a compra formal acompanha). Mesma regra do servidor.
-  const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado"].includes(pedido.status));
+  const podeEditarItens = editavel || (podeGerir && ["em_validacao", "validado", "aguardando_area", "aguardando_financeiro"].includes(pedido.status));
   // Item novo (nunca comprado): quem mexe nos itens e tem "Editar insumos" cadastra pelo pedido.
   const podeCadastrarInsumo = podeEditarItens && podeEditarInsumos;
   // o banco recusa formalizar com material ou equipamento sem insumo: a tela diz antes
   const motivoItemNovo =
-    pedido.status === "validado" ? motivoItensSemCadastro(linhas, { podeCadastrar: podeCadastrarInsumo }) : null;
+    pedido.status === (fluxoNovo ? "aguardando_financeiro" : "validado") ? motivoItensSemCadastro(linhas, { podeCadastrar: podeCadastrarInsumo, fluxoNovo }) : null;
 
   // Recebimento é uma marca paralela: o pedido está recebido quando tem itens e
   // todos foram recebidos individualmente.
@@ -295,10 +317,17 @@ export default async function PedidoInternoDetalhe({
       : new Map<number, never>();
   const etapa = etapaDoPedido(pedido);
   const encerrado = etapa === "concluido" || etapa === "cancelado";
+  const orcamentosComDocumento = new Set(
+    (orcamentos ?? []).filter((o) => o.anexo_id).map((o) => o.fornecedor_nome.trim().toLocaleLowerCase("pt-BR")),
+  ).size;
   const pendencias = [
+    // 0188: na ordem nova o laboratório ou o campo é a primeira aprovação
+    ...(fluxoNovo
+      ? [{ label: "Laboratório ou campo escolhido, com coordenação", ok: Boolean(pedido.area_id) && !aprovadores?.falta_laboratorio }]
+      : []),
     // 0169: sem projeto vale (a Supervisão valida); sem quem valide, não segue
     { label: "Quem aprova indicado", ok: !aprovadores?.falta_coordenador },
-    ...(pedido.natureza === "material_consumo_lab"
+    ...(!fluxoNovo && pedido.natureza === "material_consumo_lab"
       ? [{ label: "Laboratório com coordenação", ok: !aprovadores?.falta_laboratorio }]
       : []),
     { label: "Justificativa preenchida", ok: Boolean(pedido.justificativa) },
@@ -313,6 +342,10 @@ export default async function PedidoInternoDetalhe({
       label: "Itens com especificação, quantidade e unidade",
       ok: linhas.length > 0 && linhas.every((item) => item.especificacao && Number(item.quantidade) > 0 && item.unidade),
     },
+    // 0188: os 3 orçamentos vão junto, cada um com o documento
+    ...(fluxoNovo
+      ? [{ label: "3 orçamentos de fornecedores diferentes, cada um com o documento", ok: (resumoOrcamentos?.faltam ?? 3) === 0 && orcamentosComDocumento >= 3 }]
+      : []),
   ];
   const rascunhoCompleto = pendencias.every((item) => item.ok);
   // "Novo pedido" grava e envia de uma vez; se uma parte não saiu, o pedido fica como rascunho e diz por quê
@@ -323,6 +356,8 @@ export default async function PedidoInternoDetalhe({
         ? "O pedido foi guardado como rascunho, mas os itens não foram gravados. Inclua os itens abaixo e envie para aprovação."
         : aviso === "documentos"
           ? "O pedido foi guardado como rascunho, mas um documento não foi gravado. Registre-o em “Documentos”, abaixo, e envie para aprovação."
+          : aviso === "orcamentos"
+            ? "O pedido foi guardado como rascunho, mas um orçamento não foi gravado. Registre-o em “Orçamentos”, acima, e envie para aprovação."
           : aviso === "envio"
             ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
             : null;
@@ -334,17 +369,19 @@ export default async function PedidoInternoDetalhe({
   const datasCiclo = datasDoCiclo(aprovacaoRows, pedido.aprovacao_area_em);
   // 0176: pedido do ciclo seguinte só segue para compras quando o ciclo abrir
   const hojeBrasilia = dataEmBrasilia(new Date());
+  // 0188: na ordem nova a trava do ciclo fica na saída de "Aprovado para compra"
+  const statusDoCiclo = fluxoNovo ? "aprovado_para_compra" : "validado";
   const cicloTravadoAte =
-    pedido.status === "validado"
+    pedido.status === statusDoCiclo
       ? cicloLiberaEm(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
   // 0184: quem conduz a compra inteira não para no ciclo; o botão fica liberado
   const motivoCiclo =
-    pedido.status === "validado" && !podeConduzir
+    pedido.status === statusDoCiclo && !podeConduzir
       ? motivoCicloTravado(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
   const avisoCicloConduz =
-    pedido.status === "validado" && podeConduzir
+    pedido.status === statusDoCiclo && podeConduzir
       ? avisoCicloParaQuemConduz(pedido.ciclo_pagamento, pedido.urgencia, pedido.urgencia_justificativa, hojeBrasilia)
       : null;
   const proxima = proximoPasso(pedido, {
@@ -354,6 +391,7 @@ export default async function PedidoInternoDetalhe({
       ? `${aprovadores.laboratorio.nome} (${aprovadores.laboratorio.area})`
       : null,
     cicloAbreEm: podeConduzir ? null : cicloTravadoAte,
+    financeiro: aprovadores?.financeiro?.nome,
   });
   // De quem é a vez. "Sua vez" só quando o banco aponta o usuário como quem
   // decide (coordenador ou laboratório); nas outras etapas vale a permissão.
@@ -370,6 +408,8 @@ export default async function PedidoInternoDetalhe({
             ? "Tudo conferido. Envie para aprovação no fim da lista de itens."
             : `Falta para enviar: ${pendencias.filter((item) => !item.ok).map((item) => item.label.toLowerCase()).join("; ")}.`,
         }
+      : ordemNova.vez
+        ? ordemNova.vez
       : esperaLaboratorio
         ? podeDecidirLaboratorio
           ? {
@@ -456,6 +496,10 @@ export default async function PedidoInternoDetalhe({
             esperaLaboratorio={esperaLaboratorio}
             podeDecidirLaboratorio={podeDecidirLaboratorio}
             motivoCiclo={motivoCiclo}
+            fluxoNovo={fluxoNovo}
+            podeDecidirVez={podeDecidirVez}
+            motivoSemDecisaoVez={motivoSemDecisaoVez}
+            fontes={fontes}
             motivoItensSemCadastro={motivoItemNovo}
             pendenciaPagamento={pendenciaPagamento}
             podeConfirmar={podeConfirmar}
@@ -533,6 +577,7 @@ export default async function PedidoInternoDetalhe({
             editavel={editavel}
             pedidoId={pedidoId}
             status={pedido.status}
+            fonte={pedido.fonte_recurso}
           />
 
           <PedidoComunicacoes comunicacaoRows={comunicacaoRows} pedidoId={pedidoId} />

@@ -72,6 +72,10 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
       "app/compras/[id]/imprimir/page.tsx",
       "components/orcamento/documento/DocumentoProposta.tsx",
       "components/layout/InstitutionalPage.tsx",
+      // 0188: documentos para quem paga (Ineo e Funpar), no desenho dos formulários
+      "components/pedido/documentos/partes.tsx",
+      "components/pedido/documentos/SolicitacaoComprasIneo.tsx",
+      "components/pedido/documentos/TermoReferenciaFunpar.tsx",
     ];
     const comMaiusculas = telas
       .filter((arquivo) => !comDesenhoProprio.includes(relativo(arquivo)))
@@ -129,6 +133,9 @@ describe("padrão visual (revisão de 11/11, seção 10)", () => {
       "app/compras/[id]/imprimir/page.tsx",
       "app/orcamento/[id]/page.tsx",
       "components/orcamento/documento/DocumentoProposta.tsx",
+      "components/pedido/documentos/SolicitacaoComprasIneo.tsx",
+      "components/pedido/documentos/TermoReferenciaFunpar.tsx",
+      "components/pedido/documentos/partes.tsx",
     ]);
   });
 

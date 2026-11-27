@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { completarParaOrdemNova } from "./ajudas/novo-pedido";
 
 /**
  * Insumo nunca recebido (decisão de Antonio em 19/11/2026, a partir da pergunta
@@ -27,6 +28,7 @@ async function cadastrarItemNovoPeloPedido(page: Page, insumo: string) {
   await campos.getByLabel("Unidade").fill("frasco");
   await campos.getByLabel("Volume").fill("500 mL");
   await form.getByRole("button", { name: "Adicionar item" }).click();
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
 

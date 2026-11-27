@@ -1,5 +1,5 @@
 /**
- * Os 12 cadastros em 4 grupos (revisão de 11/11, 8.8): a barra de Cadastros
+ * Os 13 cadastros em 4 grupos (revisão de 11/11, 8.8): a barra de Cadastros
  * mostra os grupos; dentro de um grupo, as abas levam a cada cadastro. A mesma
  * divisão vale para os cartões de "Todos os cadastros".
  */
@@ -19,8 +19,8 @@ export const GRUPOS_CADASTROS = [
   {
     id: "comercial",
     label: "Comercial",
-    desc: "clientes, projetos e fornecedores",
-    slugs: ["clientes", "projetos", "fornecedores"],
+    desc: "clientes, projetos, fornecedores e fontes de pagamento",
+    slugs: ["clientes", "projetos", "fornecedores", "fontes_pagamento"],
   },
   {
     id: "custos",

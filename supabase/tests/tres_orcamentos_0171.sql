@@ -6,6 +6,8 @@
 --     com justificativa; a escolha só pela RPC e vai para a compra ligada.
 -- Tudo e revertido no ROLLBACK final.
 begin;
+-- 0188: este teste cobre a ordem antiga de aprovações (pedidos que já estavam no meio quando a nova entrou)
+alter table public.pedidos_internos alter column fluxo set default 1;
 set local lock_timeout = '5s';
 set local statement_timeout = '60s';
 

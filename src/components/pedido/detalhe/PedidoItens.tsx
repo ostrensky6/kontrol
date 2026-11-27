@@ -18,6 +18,7 @@ import {
   type PedidoDetalhe,
 } from "@/lib/pedido/detalhe";
 import { ehItemNovo, insumosParecidos, STATUS_CADASTRA_ITEM_NOVO } from "@/lib/pedido/item-novo";
+import { pedidoDoFluxoNovo } from "@/lib/pedido/status";
 import type { Equivalente } from "@/lib/estoque/equivalentes";
 import type { ItemCompraRecebivel } from "@/components/compras/ScannerRecebimentoCompra";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -86,6 +87,8 @@ export function PedidoItens({
 }: Props) {
   // item novo (nunca comprado) só é assunto enquanto os itens ainda mudam
   const etapaDeItemNovo = STATUS_CADASTRA_ITEM_NOVO.includes(String(pedido.status));
+  // 0188: na ordem nova, o cadastro vem antes da aprovação financeira
+  const marcoItemNovo = pedidoDoFluxoNovo(pedido) ? "antes da aprovação financeira" : "antes de formalizar";
   return (
     <section className="mt-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -129,8 +132,8 @@ export function PedidoItens({
                     <p className="text-xs text-warning-strong" data-testid="item-novo">
                       <span className="font-medium">Item novo:</span>{" "}
                       {editavel
-                        ? "ainda sem cadastro. Quem conduz a compra cadastra o insumo antes de formalizar."
-                        : "falta cadastrar o insumo antes de formalizar."}
+                        ? `ainda sem cadastro. Quem conduz a compra cadastra o insumo ${marcoItemNovo}.`
+                        : `falta cadastrar o insumo ${marcoItemNovo}.`}
                     </p>
                   ) : null}
                   {item.insumos?.codigo_fabricante ? (

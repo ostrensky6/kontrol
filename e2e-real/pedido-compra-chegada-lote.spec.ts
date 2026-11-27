@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
+import { preencherTresOrcamentos } from "../e2e/ajudas/novo-pedido";
 
 /**
  * Roteiro inteiro de Suprimentos contra o Postgres de verdade (auditoria de
@@ -70,6 +71,9 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     .select("id")
     .single();
   expect(erroProjeto).toBeNull();
+  // 0188: a primeira aprovação é do laboratório ou campo (as cinco coordenações vêm da migration)
+  const { data: area, error: erroArea } = await cliente.from("coordenacoes_area").select("id").eq("nome", "Genética").single();
+  expect(erroArea).toBeNull();
 
   // ---- 1. o pedido nasce na tela já com o item e segue direto para aprovação, sem rascunho
   // (relatório de ajustes de Compras de 17/11/2026, ajuste 4)
@@ -80,6 +84,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await novo.getByRole("combobox", { name: "Projeto", exact: true }).selectOption(String(projeto!.id));
   await novo.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
   await novo.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
+  await novo.getByLabel("Laboratório ou campo").selectOption(String((area as { id: number }).id));
   // quem pede não define a urgência nem sugere a fonte do recurso (ajustes 2 e 3)
   await expect(novo.getByLabel("Urgência")).toHaveCount(0);
   await expect(novo.getByLabel(/Fonte sugerida/)).toHaveCount(0);
@@ -101,13 +106,24 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   });
   await cotacaoDoPedido.getByLabel("Link ou referência externa (opcional)").fill("https://exemplo.invalid/cotacao-previa-roteiro");
   await cotacaoDoPedido.getByLabel("Observação").fill("Valor estimado: R$ 400,00");
+  // 0188: os 3 orçamentos vão junto com o pedido, cada um com o documento do fornecedor
+  const cotacoes = [
+    { fornecedor: `Fornecedor A ${sufixo}`, valor: "400,00" },
+    { fornecedor: `Fornecedor B ${sufixo}`, valor: "450,00" },
+    { fornecedor: `Fornecedor C ${sufixo}`, valor: "500,00" },
+  ];
+  await preencherTresOrcamentos(
+    novo,
+    [cotacoes[0].valor, cotacoes[1].valor, cotacoes[2].valor],
+    [cotacoes[0].fornecedor, cotacoes[1].fornecedor, cotacoes[2].fornecedor],
+  );
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
   expect(pedidoId).toBeGreaterThan(0);
 
   // o banco gravou o pedido, o item e a etapa de uma vez; a urgência nasce Normal e a fonte, vazia
-  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("em_validacao");
+  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("aguardando_area");
   const { data: itensGravados } = await cliente.from("pedidos_internos_itens").select("insumo_id, quantidade").eq("pedido_interno_id", pedidoId);
   expect((itensGravados ?? []).map((item) => [(item as { insumo_id: number | null }).insumo_id, Number((item as { quantidade: number }).quantidade)])).toEqual([[insumo!.id, 5]]);
   const { data: nascido } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, fonte_recurso").eq("id", pedidoId).single();
@@ -117,7 +133,8 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   const { data: cotacaoPrevia } = await cliente
     .from("pedidos_internos_anexos")
     .select("tipo, etapa, titulo, url, observacao, arquivo_nome, storage_bucket, storage_path")
-    .eq("pedido_interno_id", pedidoId);
+    .eq("pedido_interno_id", pedidoId)
+    .eq("tipo", "orcamento_previo");
   expect(cotacaoPrevia).toEqual([
     expect.objectContaining({
       tipo: "orcamento_previo",
@@ -130,6 +147,22 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     }),
   ]);
   expect(String((cotacaoPrevia?.[0] as { storage_path?: string } | undefined)?.storage_path)).toMatch(new RegExp(`^${pedidoId}/`));
+  // os 3 orçamentos foram gravados com o documento de cada um; no envio, o de menor valor ficou escolhido
+  const { data: orcamentosGravados } = await cliente
+    .from("pedidos_internos_cotacoes")
+    .select("fornecedor_nome, valor_total, escolhida, anexo_id")
+    .eq("pedido_interno_id", pedidoId)
+    .order("valor_total");
+  expect(
+    (orcamentosGravados ?? []).map((linha) => {
+      const o = linha as { fornecedor_nome: string; valor_total: number; escolhida: boolean; anexo_id: number | null };
+      return [o.fornecedor_nome, Number(o.valor_total), o.escolhida, o.anexo_id != null];
+    }),
+  ).toEqual([
+    [cotacoes[0].fornecedor, 400, true, true],
+    [cotacoes[1].fornecedor, 450, false, true],
+    [cotacoes[2].fornecedor, 500, false, true],
+  ]);
 
   // ---- 2. a urgência é de quem tem a permissão "Definir urgência do pedido" (0183). Ela fura o ciclo do
   // dia 10 (0172/0176): com isso o roteiro não depende do dia em que roda
@@ -147,61 +180,21 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.reload();
   await expect(page.getByText("Urgente: Roteiro automático: precisa seguir no mesmo dia.")).toBeVisible();
 
-  // ---- 3. coordenação do projeto e formalização (aqui nasce a compra)
-  await avancar(page, cliente, pedidoId, "Aprovar pedido", "validado");
-  await avancar(page, cliente, pedidoId, "Formalizar em compras", "formalizado");
+  // ---- 3. 0188: laboratório ou campo, financeiro (com a fonte da lista) e, por último, o coordenador
+  //         do projeto. A última aprovação cria a compra formal e a aprova junto (0170)
+  await expect(page.getByTestId("orcamentos-pedido")).toContainText(`escolhido: ${cotacoes[0].fornecedor}`);
+  await avancar(page, cliente, pedidoId, "Aprovar pelo laboratório ou campo", "aguardando_financeiro");
+  await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption("Funpar");
+  await page.getByLabel("Rubrica (opcional)").fill("Material de consumo");
+  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_projeto");
+  const { data: comFonte } = await cliente.from("pedidos_internos").select("fonte_recurso, rubrica").eq("id", pedidoId).single();
+  expect(comFonte).toEqual({ fonte_recurso: "Funpar", rubrica: "Material de consumo" });
+  await avancar(page, cliente, pedidoId, "Aprovar pedido", "aprovado_para_compra");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();
   const compraId = Number((formalizado as { pedido_compra_id: number | null } | null)?.pedido_compra_id);
-  expect(compraId, "a formalização cria a compra formal").toBeGreaterThan(0);
+  expect(compraId, "a última aprovação cria a compra formal").toBeGreaterThan(0);
 
-  // ---- 4. análise administrativa
-  await page.locator("#registrarAnaliseAdministrativa-fonte_recurso").fill("Recurso do projeto");
-  await page.locator("#registrarAnaliseAdministrativa-rubrica").fill("Material de consumo");
-  await page.locator("#registrarAnaliseAdministrativa-conformidade_admin").fill("Conferido para o roteiro automático.");
-  await avancar(page, cliente, pedidoId, "Registrar análise administrativa", "analise_administrativa");
-  await avancar(page, cliente, pedidoId, "Autorizar compra", "aprovado_compra");
-
-  // ---- 5. três orçamentos de fornecedores diferentes, com a cotação anexada
-  await avancar(page, cliente, pedidoId, "Registrar cotações", "orcamentos");
-  // o formulário de documento fica recolhido até alguém abrir
-  await page.locator("summary", { hasText: "Registrar documento" }).click();
-  const documento = page.locator("form:has(#adicionarAnexoPedidoInterno-titulo)");
-  await documento.locator("#adicionarAnexoPedidoInterno-titulo").fill("Cotações do roteiro");
-  await documento.locator("#adicionarAnexoPedidoInterno-url").fill("https://exemplo.invalid/cotacoes-roteiro");
-  await documento.getByRole("button", { name: "Registrar documento", exact: true }).click();
-  await expect
-    .poll(async () => {
-      const { data } = await cliente.from("pedidos_internos_anexos").select("id").eq("pedido_interno_id", pedidoId);
-      return (data ?? []).length;
-    })
-    .toBe(2); // a cotação prévia da solicitação e as cotações do roteiro
-  await page.reload();
-
-  const quadro = page.getByTestId("orcamentos-pedido");
-  const cotacoes = [
-    { fornecedor: `Fornecedor A ${sufixo}`, valor: "400" },
-    { fornecedor: `Fornecedor B ${sufixo}`, valor: "450" },
-    { fornecedor: `Fornecedor C ${sufixo}`, valor: "500" },
-  ];
-  for (const [indice, cotacao] of cotacoes.entries()) {
-    await quadro.getByLabel("Ou nome do fornecedor").fill(cotacao.fornecedor);
-    await quadro.getByLabel("Valor total (R$)").fill(cotacao.valor);
-    await quadro.getByRole("button", { name: "Registrar orçamento", exact: true }).click();
-    await expect(quadro.getByRole("listitem").filter({ hasText: cotacao.fornecedor })).toBeVisible();
-    await expect(quadro.getByRole("listitem")).toHaveCount(indice + 1);
-  }
-  await page.reload();
-  await avancar(page, cliente, pedidoId, "Marcar cotações recebidas", "orcamentos_recebidos");
-
-  // o de menor valor não pede justificativa
-  const menor = page.getByTestId("orcamentos-pedido").getByRole("listitem").filter({ hasText: cotacoes[0].fornecedor });
-  await menor.getByRole("button", { name: "Escolher", exact: true }).click();
-  await expect(page.getByTestId("orcamentos-pedido")).toContainText(`escolhido: ${cotacoes[0].fornecedor}`);
-  await page.reload();
-  await avancar(page, cliente, pedidoId, "Enviar para aprovação final", "aguardando_aprovacao_final");
-  await avancar(page, cliente, pedidoId, "Aprovar compra final", "aprovado_para_compra");
-
-  // ---- 6. compra única na tela (0170 e 0182): a compra é aprovada junto com o pedido e é
+  // ---- 4. compra única na tela (0170 e 0182): a compra é aprovada junto com o pedido e é
   //         conduzida no quadro "Compra" do pedido, sem ninguém abrir a tela da compra
   const lerCompra = async () => {
     const { data } = await cliente
@@ -297,7 +290,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     `/pedido/${pedidoId}#compra`,
   );
 
-  // ---- 7. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
+  // ---- 5. chegada única (item 10): o pedido oferece "Registrar chegada" na linha do item,
   //         e Chegadas registra pela compra sem ninguém trocar de tela
   await page.goto(`/pedido/${pedidoId}`);
   await semLeituraFalha(page);
@@ -353,7 +346,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.goto(`/projetos/${projeto!.id}`);
   await semLeituraFalha(page);
 
-  // ---- 8. o que chegou aparece no estoque e na ficha do lote
+  // ---- 6. o que chegou aparece no estoque e na ficha do lote
   await page.goto(`/estoque/lotes/${lote.id}`);
   await expect(page.getByText(codigoLote).first()).toBeVisible();
   await expect(page.getByText(insumoNome).first()).toBeVisible();

@@ -13,7 +13,8 @@ test.describe("rodada 11: definição (computador)", () => {
   test("lista de Pedidos: status em ponto e nome, sem coluna de ações vazia e contagem por extenso", async ({ page }) => {
     await page.goto("/pedido");
     const tabela = page.locator("main table").first();
-    const status = tabela.getByText("Aguardando coordenador", { exact: true }).first();
+    // os pedidos dos outros roteiros entram na ordem nova (0188): vale qualquer "Aguardando ..." da lista
+    const status = tabela.getByText(/^Aguardando (coordenador|laboratório ou campo|financeiro)/).first();
     await expect(status).toBeVisible();
     // é texto com um ponto colorido ao lado, não um bloco com fundo
     expect(await estilo(status, "background-color")).toBe("rgba(0, 0, 0, 0)");

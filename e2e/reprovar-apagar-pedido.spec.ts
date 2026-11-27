@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { completarParaOrdemNova } from "./ajudas/novo-pedido";
 
 /**
  * Antonio, 27/11/2026: "Reprovar encerra o pedido" (vermelho, avisa o
@@ -22,6 +23,7 @@ async function novoPedidoEnviado(page: Page, titulo: string) {
   await campos.getByLabel("Especificação", { exact: true }).fill("Frasco âmbar 1 L");
   await campos.getByLabel("Qtd").fill("4");
   await campos.getByLabel("Unidade").fill("un");
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   await expect(page.getByRole("heading", { name: titulo })).toBeVisible();
@@ -46,7 +48,8 @@ test("reprovar no quadro encerra o pedido, com a bolinha vermelha e o motivo", a
   // sai do que espera decisão; em "Todos" aparece reprovado, com o motivo na bolinha
   await page.getByRole("button", { name: /^Todos/ }).click();
   await busca.fill(titulo);
-  await linha.getByRole("button", { name: /Coordenação do projeto do pedido Nº \d+: Reprovado/ }).click();
+  // 0188: o pedido novo começa pelo laboratório ou campo, e é ali que fica a reprovação
+  await linha.getByRole("button", { name: /Coordenação do laboratório ou campo do pedido Nº \d+: Reprovado/ }).click();
   await expect(page.getByRole("dialog")).toContainText("Já há frascos sobrando no almoxarifado.");
   await page.keyboard.press("Escape");
 

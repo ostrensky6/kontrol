@@ -1132,6 +1132,36 @@ export type Database = {
         }
         Relationships: []
       }
+      fontes_recurso: {
+        Row: {
+          id: number
+          nome: string
+          descricao: string | null
+          modelo_documento: string | null
+          ativo: boolean
+          ordem: number
+          criado_em: string
+        }
+        Insert: {
+          id?: never
+          nome: string
+          descricao?: string | null
+          modelo_documento?: string | null
+          ativo?: boolean
+          ordem?: number
+          criado_em?: string
+        }
+        Update: {
+          id?: never
+          nome?: string
+          descricao?: string | null
+          modelo_documento?: string | null
+          ativo?: boolean
+          ordem?: number
+          criado_em?: string
+        }
+        Relationships: []
+      }
       fornecedores: {
         Row: {
           ativo: boolean
@@ -3133,6 +3163,10 @@ export type Database = {
           objetivo: string | null
           area_id: number | null
           aprovacao_area_por: string | null
+          fluxo: number
+          aprovacao_financeiro_em: string | null
+          aprovacao_financeiro_por: string | null
+          devolvido_na_etapa: string | null
           aprovacao_area_em: string | null
           analisado_em: string | null
           aprovacao_final_em: string | null
@@ -3197,6 +3231,10 @@ export type Database = {
           objetivo?: string | null
           area_id?: number | null
           aprovacao_area_por?: string | null
+          fluxo?: number
+          aprovacao_financeiro_em?: string | null
+          aprovacao_financeiro_por?: string | null
+          devolvido_na_etapa?: string | null
           aprovacao_area_em?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
@@ -3261,6 +3299,10 @@ export type Database = {
           objetivo?: string | null
           area_id?: number | null
           aprovacao_area_por?: string | null
+          fluxo?: number
+          aprovacao_financeiro_em?: string | null
+          aprovacao_financeiro_por?: string | null
+          devolvido_na_etapa?: string | null
           aprovacao_area_em?: string | null
           analisado_em?: string | null
           aprovacao_final_em?: string | null
@@ -5195,6 +5237,14 @@ export type Database = {
       }
       current_papel: { Args: never; Returns: string }
       dar_baixa_plano: { Args: { p_planejamento_id: number }; Returns: Json }
+      decidir_aprovacao_pedido: {
+        Args: { p_dados?: Json; p_decisao: string; p_observacao?: string | null; p_pedido_id: number }
+        Returns: Json
+      }
+      enviar_pedido_interno: {
+        Args: { p_observacao?: string | null; p_pedido_id: number }
+        Returns: Json
+      }
       decidir_coordenacao_laboratorio: {
         Args: { p_decisao: string; p_observacao?: string | null; p_pedido_id: number }
         Returns: Json

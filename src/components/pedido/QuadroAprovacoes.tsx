@@ -13,6 +13,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import type { FormState } from "@/lib/actions/cadastros";
 import {
   aprovarAnaliseAdministrativa,
+  decidirAprovacaoPedido,
   decidirCoordenacaoLaboratorio,
   devolverParaCompras,
   devolverParaSolicitante,
@@ -38,6 +39,8 @@ export type DecisaoNoQuadro = {
   chave: ChaveAprovacao;
   /** o financeiro só autoriza depois de registrar fonte e rubrica no pedido */
   noPedido?: string;
+  /** 0188: ordem nova (decidir_aprovacao_pedido; o financeiro escolhe a fonte ali) */
+  fluxoNovo?: boolean;
 };
 
 export type LinhaQuadro = {
@@ -165,6 +168,15 @@ const ACOES: Record<
   financeiro: { aprovar: aprovarAnaliseAdministrativa, devolver: devolverParaCompras, devolverPara: "a Compras" },
 };
 
+/** 0188: na ordem nova as três coordenações decidem pela mesma ação; a devolução vai a quem pediu. */
+const ACAO_FLUXO_NOVO = {
+  aprovar: decidirAprovacaoPedido,
+  devolver: decidirAprovacaoPedido,
+  devolverPara: "ao solicitante",
+  extraAprovar: { decisao: "aprovado" },
+  extraDevolver: { decisao: "devolvido" },
+};
+
 function useAcao(action: Action) {
   const router = useRouter();
   const [state, formAction] = useActionState<FormState, FormData>(action, { ok: false });
@@ -237,9 +249,10 @@ function DecisaoComMotivo({
 }
 
 /** Aprovar, devolver ou reprovar ali mesmo, para quem é a vez de decidir. */
-function Decidir({ linha }: { linha: LinhaQuadro }) {
+function Decidir({ linha, fontes }: { linha: LinhaQuadro; fontes: string[] }) {
   const decisao = linha.decisao!;
-  const acoes = ACOES[decisao.chave];
+  const acoes = decisao.fluxoNovo ? ACAO_FLUXO_NOVO : ACOES[decisao.chave];
+  const pedeFonte = Boolean(decisao.fluxoNovo && decisao.chave === "financeiro");
   const [estadoAprovar, aprovar] = useAcao(acoes.aprovar);
   const [estadoDevolver, devolver] = useAcao(acoes.devolver);
   const [estadoReprovar, reprovar] = useAcao(reprovarPedidoInterno);
@@ -261,6 +274,23 @@ function Decidir({ linha }: { linha: LinhaQuadro }) {
           {Object.entries(acoes.extraAprovar ?? {}).map(([k, v]) => (
             <input key={k} type="hidden" name={k} value={v} />
           ))}
+          {/* 0188: o financeiro aprova escolhendo a fonte de pagamento */}
+          {pedeFonte && (
+            <select
+              name="fonte_recurso"
+              required
+              defaultValue=""
+              aria-label={`Fonte de pagamento do pedido ${linha.numero}`}
+              className="mb-1.5 h-8 w-full rounded-md border border-input bg-card px-2 text-sm"
+            >
+              <option value="">Fonte de pagamento…</option>
+              {fontes.map((nome) => (
+                <option key={nome} value={nome}>
+                  {nome}
+                </option>
+              ))}
+            </select>
+          )}
           <SubmitButton
             size="sm"
             pendingLabel="Aprovando…"
@@ -303,7 +333,7 @@ function Decidir({ linha }: { linha: LinhaQuadro }) {
   );
 }
 
-function colunas(temDecisao: boolean): ColumnDef<LinhaQuadro, unknown>[] {
+function colunas(temDecisao: boolean, fontes: string[]): ColumnDef<LinhaQuadro, unknown>[] {
   const cols: ColumnDef<LinhaQuadro, unknown>[] = [
     {
       id: "pedido",
@@ -379,7 +409,7 @@ function colunas(temDecisao: boolean): ColumnDef<LinhaQuadro, unknown>[] {
       id: "decidir",
       header: "Sua decisão",
       enableSorting: false,
-      cell: ({ row }) => (row.original.decisao ? <Decidir linha={row.original} /> : null),
+      cell: ({ row }) => (row.original.decisao ? <Decidir linha={row.original} fontes={fontes} /> : null),
     });
   }
   return cols;
@@ -391,7 +421,7 @@ type Filtro = "andamento" | "minha_vez" | "todos";
  * Quadro de aprovações: o que foi pedido, por quem, e onde já foi aprovado.
  * Para quem coordena, a coluna "Sua decisão" aprova ou devolve ali mesmo.
  */
-export function QuadroAprovacoes({ linhas }: { linhas: LinhaQuadro[] }) {
+export function QuadroAprovacoes({ linhas, fontes = [] }: { linhas: LinhaQuadro[]; fontes?: string[] }) {
   const minhaVez = linhas.filter((l) => l.decisao).length;
   const [filtro, setFiltro] = useState<Filtro>(minhaVez > 0 ? "minha_vez" : "andamento");
   const visiveis = useMemo(
@@ -427,7 +457,7 @@ export function QuadroAprovacoes({ linhas }: { linhas: LinhaQuadro[] }) {
       </div>
       <DataTable
         data={visiveis}
-        columns={colunas(temDecisao)}
+        columns={colunas(temDecisao, fontes)}
         searchPlaceholder="Buscar pedido, item, projeto ou solicitante..."
         emptyText={
           filtro === "minha_vez"
@@ -464,7 +494,7 @@ export function QuadroAprovacoes({ linhas }: { linhas: LinhaQuadro[] }) {
                 Termo de referência
               </a>
             )}
-            {l.decisao && <Decidir linha={l} />}
+            {l.decisao && <Decidir linha={l} fontes={fontes} />}
           </div>
         )}
       />

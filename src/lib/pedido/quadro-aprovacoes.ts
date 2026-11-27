@@ -27,6 +27,10 @@ export type RegistroAprovacao = {
 
 export type PedidoDoQuadro = {
   status: string;
+  /** 0188: 2 = ordem nova (laboratório ou campo → financeiro → projeto) */
+  fluxo?: number | null;
+  aprovacao_financeiro_em?: string | null;
+  aprovacao_financeiro_por?: string | null;
   natureza?: string | null;
   aprovacao_area_em?: string | null;
   aprovacao_area_por?: string | null;
@@ -45,18 +49,27 @@ export type ColunaAprovacao = {
 };
 
 export const COLUNAS_QUADRO: ReadonlyArray<{ chave: ChaveAprovacao; titulo: string; tituloCurto: string }> = [
-  { chave: "laboratorio", titulo: "Coordenação do laboratório", tituloCurto: "Laboratório" },
+  { chave: "laboratorio", titulo: "Coordenação do laboratório ou campo", tituloCurto: "Laboratório ou campo" },
   { chave: "financeiro", titulo: "Coordenação financeira", tituloCurto: "Financeiro" },
   { chave: "projeto", titulo: "Coordenação do projeto", tituloCurto: "Projeto" },
 ];
 
 /** Nome de cada etapa como o banco grava em pedidos_internos_aprovacoes.etapa. */
 const ETAPAS_DA_COLUNA: Record<ChaveAprovacao, readonly string[]> = {
-  laboratorio: ["Aprovação da coordenação do laboratório"],
+  // a segunda de cada lista é o nome da ordem nova (0188, kontrol_private.etapa_fluxo2)
+  laboratorio: ["Aprovação da coordenação do laboratório", "Aprovação do laboratório ou campo"],
   // a aprovação é a "Liberação para cotação"; a devolução fica na análise
-  financeiro: ["Liberação para cotação", "Análise de fonte de recurso, rubrica e conformidade"],
-  projeto: ["Validação das especificações técnicas"],
+  financeiro: ["Liberação para cotação", "Análise de fonte de recurso, rubrica e conformidade", "Aprovação financeira"],
+  projeto: ["Validação das especificações técnicas", "Aprovação do coordenador do projeto"],
 };
+
+/** 0188: ordem nova, uma coluna por status de espera. */
+const VEZ_FLUXO_NOVO: Record<ChaveAprovacao, string> = {
+  laboratorio: "aguardando_area",
+  financeiro: "aguardando_financeiro",
+  projeto: "aguardando_projeto",
+};
+const ORDEM_FLUXO_NOVO: readonly ChaveAprovacao[] = ["laboratorio", "financeiro", "projeto"];
 
 const DECISOES = new Set(["aprovado", "devolvido", "reprovado"]);
 /** Status de onde sai um envio ou reenvio: uma devolução anterior a ele já foi respondida. */
@@ -121,6 +134,7 @@ export function colunasAprovacao(
   const ultimoEnvio = maisRecente(lista.filter((r) => ORIGENS_DE_ENVIO.has(String(r.status_origem ?? ""))));
   const status = pedido.status;
   const cancelado = status === "cancelado";
+  if (Number(pedido.fluxo ?? 1) === 2) return colunasFluxoNovo(pedido, lista, ultimoEnvio);
 
   function decisao(chave: ChaveAprovacao) {
     const ultima = maisRecente(
@@ -173,6 +187,67 @@ export function colunasAprovacao(
   })();
 
   return { laboratorio, financeiro, projeto };
+}
+
+/**
+ * 0188: ordem nova. O status diz de quem é a vez; o que vem antes dela foi
+ * aprovado (com quem e quando, se o registro existir) e o que vem depois
+ * ainda não chegou, mesmo que um envio anterior tenha passado por lá.
+ */
+function colunasFluxoNovo(
+  pedido: PedidoDoQuadro,
+  lista: RegistroAprovacao[],
+  ultimoEnvio: RegistroAprovacao | null,
+): Record<ChaveAprovacao, ColunaAprovacao> {
+  const status = pedido.status;
+  const vez = ORDEM_FLUXO_NOVO.findIndex((c) => VEZ_FLUXO_NOVO[c] === status);
+  const antesDoEnvio = status === "rascunho";
+  const parado = status === "ajuste_solicitante" || status === "cancelado";
+  const depoisDeTodas = vez < 0 && !antesDoEnvio && !parado;
+
+  function registro(chave: ChaveAprovacao, decisoes: readonly string[]) {
+    return maisRecente(lista.filter((r) => ETAPAS_DA_COLUNA[chave].includes(r.etapa) && decisoes.includes(r.decisao)));
+  }
+
+  // devolvido ou reprovado: a coluna que parou o pedido (depois do último envio)
+  const parouEm = parado
+    ? ORDEM_FLUXO_NOVO.map((chave) => ({ chave, r: registro(chave, ["devolvido", "reprovado"]) }))
+        .filter((x) => x.r && (!ultimoEnvio || x.r.criado_em > ultimoEnvio.criado_em))
+        .sort((a, b) => (a.r!.criado_em > b.r!.criado_em ? -1 : 1))[0] ?? null
+    : null;
+  const indiceParada = parouEm ? ORDEM_FLUXO_NOVO.indexOf(parouEm.chave) : -1;
+
+  function pelaDecisao(chave: ChaveAprovacao, r: RegistroAprovacao): ColunaAprovacao {
+    const situacao: SituacaoAprovacao =
+      r.decisao === "aprovado" ? "aprovado" : r.decisao === "reprovado" ? "reprovado" : "devolvido";
+    return coluna(chave, situacao, {
+      quem: r.responsavel ?? null,
+      quando: r.criado_em,
+      motivo: r.comentario?.trim() ? r.comentario.trim() : null,
+    });
+  }
+
+  const marcas: Record<ChaveAprovacao, { em?: string | null; por?: string | null }> = {
+    laboratorio: { em: pedido.aprovacao_area_em, por: pedido.aprovacao_area_por },
+    financeiro: { em: pedido.aprovacao_financeiro_em, por: pedido.aprovacao_financeiro_por },
+    projeto: {},
+  };
+
+  const resultado = {} as Record<ChaveAprovacao, ColunaAprovacao>;
+  ORDEM_FLUXO_NOVO.forEach((chave, indice) => {
+    const aprovou = () => {
+      const r = registro(chave, ["aprovado"]);
+      return r
+        ? pelaDecisao(chave, r)
+        : coluna(chave, "aprovado", { quem: marcas[chave].por ?? null, quando: marcas[chave].em ?? null });
+    };
+    if (indice === vez) resultado[chave] = coluna(chave, "aguardando");
+    else if ((vez >= 0 && indice < vez) || depoisDeTodas) resultado[chave] = aprovou();
+    else if (parouEm && indice < indiceParada) resultado[chave] = aprovou();
+    else if (parouEm && indice === indiceParada) resultado[chave] = pelaDecisao(chave, parouEm.r!);
+    else resultado[chave] = coluna(chave, status === "cancelado" ? "nao_se_aplica" : "futura");
+  });
+  return resultado;
 }
 
 /** Termo de referência do pedido (o mais recente com arquivo), para a coluna "Termo". */

@@ -14,6 +14,8 @@ import {
   type Orcamento,
   resumirOrcamentos,
 } from "@/lib/pedido/orcamentos";
+import { pedidoComSolicitante } from "@/lib/pedido/anexos";
+import { emAprovacaoFluxoNovo } from "@/lib/pedido/status";
 
 const campo = "h-9 w-full rounded-md border border-input bg-card px-2 text-sm";
 
@@ -29,14 +31,21 @@ export function PedidoOrcamentos({
   podeGerir,
   fornecedores,
   anexos,
+  fluxoNovo = false,
+  podeEscolherNaAprovacao = false,
 }: {
   pedidoId: number;
   status: string;
   /** null quando a leitura falhou: o quadro avisa em vez de mostrar "zero" */
   orcamentos: Orcamento[] | null;
+  /** registra, anexa e remove (ordem nova: quem pede, no rascunho e no ajuste) */
   podeGerir: boolean;
   fornecedores: { id: number; nome: string }[];
   anexos: { id: number; titulo: string }[];
+  /** 0188: os orçamentos vão junto com o pedido */
+  fluxoNovo?: boolean;
+  /** 0188: quem decide a aprovação da vez pode trocar o escolhido */
+  podeEscolherNaAprovacao?: boolean;
 }) {
   if (orcamentos == null) {
     return (
@@ -47,8 +56,13 @@ export function PedidoOrcamentos({
     );
   }
   const resumo = resumirOrcamentos(orcamentos);
-  const aberto = ETAPAS_DE_COTACAO.includes(status);
-  const podeEscolher = podeGerir && status === "orcamentos_recebidos" && resumo.faltam === 0;
+  // 0188: na ordem nova, os orçamentos entram no rascunho e no ajuste, por quem pede
+  const aberto = fluxoNovo ? pedidoComSolicitante(status) : ETAPAS_DE_COTACAO.includes(status);
+  const podeEscolher = fluxoNovo
+    ? podeEscolherNaAprovacao && emAprovacaoFluxoNovo(status) && resumo.faltam === 0
+    : podeGerir && status === "orcamentos_recebidos" && resumo.faltam === 0;
+  // pedido de Antonio (27/11): orçamentos em ordem de preço
+  const ordenados = [...orcamentos].sort((a, b) => a.valor_total - b.valor_total || a.id - b.id);
   const anexoTitulo = new Map(anexos.map((a) => [a.id, a.titulo]));
   const situacao =
     resumo.faltam > 0
@@ -67,13 +81,14 @@ export function PedidoOrcamentos({
         </p>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Toda compra tem {ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes. Escolher um que não seja o de menor valor pede
-        justificativa.
+        {fluxoNovo
+          ? `O pedido vai com ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes, cada um com o documento. No envio, o de menor valor fica escolhido; quem aprova pode trocar, com justificativa.`
+          : `Toda compra tem ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes. Escolher um que não seja o de menor valor pede justificativa.`}
       </p>
 
-      {orcamentos.length > 0 && (
+      {ordenados.length > 0 && (
         <ul className="mt-3 grid gap-2">
-          {orcamentos.map((o) => {
+          {ordenados.map((o) => {
             const menor = resumo.menorValor != null && o.valor_total === resumo.menorValor;
             return (
               <li
@@ -124,9 +139,9 @@ export function PedidoOrcamentos({
                     </SubmitButton>
                   </FormComMensagem>
                 )}
-                {podeGerir && aberto && !o.escolhida && (
+                {((podeEscolher && !o.escolhida) || (podeGerir && aberto && (!o.escolhida || fluxoNovo))) && (
                   <div className="mt-2 flex flex-wrap items-start gap-2">
-                    {podeEscolher && (
+                    {podeEscolher && !o.escolhida && (
                       <FormComMensagem action={escolherOrcamento} className="flex flex-wrap items-start gap-2">
                         <input type="hidden" name="pedido_interno_id" value={pedidoId} />
                         <input type="hidden" name="orcamento_id" value={o.id} />
@@ -145,13 +160,15 @@ export function PedidoOrcamentos({
                         </SubmitButton>
                       </FormComMensagem>
                     )}
-                    <FormComMensagem action={removerOrcamento}>
-                      <input type="hidden" name="pedido_interno_id" value={pedidoId} />
-                      <input type="hidden" name="orcamento_id" value={o.id} />
-                      <SubmitButton size="sm" variant="outline" pendingLabel="Removendo…">
-                        Remover
-                      </SubmitButton>
-                    </FormComMensagem>
+                    {podeGerir && aberto && (!o.escolhida || fluxoNovo) && (
+                      <FormComMensagem action={removerOrcamento}>
+                        <input type="hidden" name="pedido_interno_id" value={pedidoId} />
+                        <input type="hidden" name="orcamento_id" value={o.id} />
+                        <SubmitButton size="sm" variant="outline" pendingLabel="Removendo…">
+                          Remover
+                        </SubmitButton>
+                      </FormComMensagem>
+                    )}
                   </div>
                 )}
               </li>

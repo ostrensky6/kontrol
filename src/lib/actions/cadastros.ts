@@ -200,6 +200,17 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
         ctx.addIssue({ code: "custom", path: ["substituto_id"], message: "O substituto precisa ser outra pessoa" });
       }
     }),
+  // 0188: fontes de pagamento (o financeiro escolhe uma ao aprovar o pedido)
+  fontes_pagamento: z.object({
+    nome: z.string().trim().min(1, "Obrigatório").max(80, "Até 80 caracteres"),
+    descricao: optStr,
+    modelo_documento: z.preprocess(
+      (v) => (v === "" || v == null ? null : v),
+      z.enum(["solicitacao_compras", "termo_referencia"]).nullable(),
+    ),
+    ordem: z.preprocess((v) => (v === "" || v == null ? 100 : Number(v)), z.number().int("Número inteiro").min(0)),
+    ativo: boolForm,
+  }),
   // 0169: laboratórios e áreas com a coordenação que aprova
   coordenacoes: z
     .object({
@@ -370,6 +381,7 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
 };
 
 const TABELAS: Record<string, string> = {
+  fontes_pagamento: "fontes_recurso",
   coordenacoes: "coordenacoes_area",
   responsaveis: "responsaveis_compras",
   previsao_equipamentos: "previsao_equipamentos",

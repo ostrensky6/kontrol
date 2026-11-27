@@ -1,4 +1,5 @@
-import { FileText } from "lucide-react";
+import Link from "next/link";
+import { FileText, Printer } from "lucide-react";
 
 import { VazioCompacto } from "@/components/app/EmptyState";
 import { Etiqueta } from "@/components/common/Etiqueta";
@@ -24,6 +25,8 @@ type Props = {
   pedidoId: number;
   /** status do pedido: cotação prévia e termo de referência só enquanto ele está com quem pede */
   status: string | null;
+  /** fonte de pagamento escolhida pelo financeiro: dá o documento para quem paga (Ineo, Funpar) */
+  fonte?: string | null;
 };
 
 /** Documentos do pedido: lista e inclusão. */
@@ -33,6 +36,7 @@ export function PedidoDocumentos({
   editavel,
   pedidoId,
   status,
+  fonte = null,
 }: Props) {
   const tipos = tiposDeDocumentoNoStatus(status);
   const comSolicitante = pedidoComSolicitante(status);
@@ -50,6 +54,16 @@ export function PedidoDocumentos({
         </Etiqueta>
       </div>
     
+      {fonte && (
+        <Link
+          href={`/pedido/${pedidoId}/documento`}
+          className="mt-3 flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm font-medium text-primary hover:bg-primary/10"
+        >
+          <Printer className="size-4 shrink-0" aria-hidden="true" />
+          Documento para a fonte de pagamento ({fonte}): abrir para imprimir
+        </Link>
+      )}
+
       <div className="mt-3 space-y-2">
         {anexoRows.map((anexo) => (
           <div key={anexo.id} className="rounded-lg border border-border p-3 text-sm">

@@ -69,6 +69,7 @@ export function CadastroDrawer({
   open,
   slug,
   singular,
+  rotuloNovo,
   campos,
   registro,
   onOpenChange,
@@ -83,6 +84,7 @@ export function CadastroDrawer({
   open: boolean;
   slug: string;
   singular: string;
+  rotuloNovo?: string;
   campos: Campo[];
   registro: Registro | null;
   onOpenChange: (open: boolean) => void;
@@ -127,7 +129,7 @@ export function CadastroDrawer({
       <DrawerContent>
         <DrawerHeader>
           <DrawerTitle>
-            {registro ? `Editar ${singular}` : `Novo ${singular}`}
+            {registro ? `Editar ${singular}` : rotuloNovo ?? `Novo ${singular}`}
           </DrawerTitle>
           <DrawerDescription className="sr-only">
             Preencha os campos obrigatórios e salve para atualizar o cadastro.

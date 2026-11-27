@@ -30,6 +30,9 @@ export const STATUS_CADASTRA_ITEM_NOVO: readonly string[] = [
   "ajuste_compras",
   "em_validacao",
   "validado",
+  // 0188: na ordem nova, o financeiro confere que todo material tem cadastro antes de aprovar
+  "aguardando_area",
+  "aguardando_financeiro",
 ];
 
 export const MSG_SEM_EDITAR_INSUMOS =
@@ -41,13 +44,14 @@ export const MSG_SEM_EDITAR_INSUMOS =
  */
 export function motivoItensSemCadastro(
   itens: readonly ItemDoPedido[],
-  { podeCadastrar }: { podeCadastrar: boolean },
+  { podeCadastrar, fluxoNovo = false }: { podeCadastrar: boolean; fluxoNovo?: boolean },
 ): string | null {
   const novos = contarItensNovos(itens);
   if (novos === 0) return null;
   const quantos = novos === 1 ? "Há 1 item novo, ainda sem cadastro" : `Há ${novos} itens novos, ainda sem cadastro`;
+  // 0188: na ordem nova, o financeiro só aprova com todo material ligado ao insumo
   return podeCadastrar
-    ? `${quantos}. Use “Cadastrar insumo” na lista de itens antes de formalizar.`
+    ? `${quantos}. Use “Cadastrar insumo” na lista de itens antes de ${fluxoNovo ? "aprovar" : "formalizar"}.`
     : `${quantos}. ${MSG_SEM_EDITAR_INSUMOS}`;
 }
 

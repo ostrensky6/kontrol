@@ -9,6 +9,23 @@ export const PEDIDO_INTERNO_STATUS = {
     etapa: "Aprovação pelo coordenador do projeto",
     className: "bg-warning-soft text-warning-strong",
   },
+  // 0188: nova ordem das aprovações (pedidos novos). Os três status abaixo
+  // substituem em_validacao, validado e a análise administrativa.
+  aguardando_area: {
+    label: "Aguardando laboratório ou campo",
+    etapa: "Aprovação do laboratório ou campo",
+    className: "bg-warning-soft text-warning-strong",
+  },
+  aguardando_financeiro: {
+    label: "Aguardando financeiro",
+    etapa: "Aprovação financeira e fonte de pagamento",
+    className: "bg-warning-soft text-warning-strong",
+  },
+  aguardando_projeto: {
+    label: "Aguardando coordenador do projeto",
+    etapa: "Aprovação do coordenador do projeto",
+    className: "bg-warning-soft text-warning-strong",
+  },
   ajuste_solicitante: {
     label: "Devolvido ao solicitante",
     etapa: "Verificação com solicitante",
@@ -152,6 +169,27 @@ export const PEDIDO_INTERNO_AGUARDANDO_CHEGADA: PedidoInternoStatus[] = [
 /** Pode-se marcar/desmarcar "Compra recebida" a partir da aprovação da compra. */
 export function podeMarcarRecebida(status: string) {
   return PEDIDO_INTERNO_AGUARDANDO_CHEGADA.includes(status as PedidoInternoStatus);
+}
+
+/** 0188: ordem nova dos pedidos (fluxo 2). */
+export const PEDIDO_INTERNO_FLUXO_NOVO: PedidoInternoStatus[] = [
+  "rascunho",
+  "aguardando_area",
+  "aguardando_financeiro",
+  "aguardando_projeto",
+  "aprovado_para_compra",
+];
+
+/** Status de aprovação da ordem nova (0188), na ordem em que acontecem. */
+export const STATUS_APROVACAO_FLUXO_NOVO = ["aguardando_area", "aguardando_financeiro", "aguardando_projeto"] as const;
+
+export function emAprovacaoFluxoNovo(status: string | null | undefined): boolean {
+  return (STATUS_APROVACAO_FLUXO_NOVO as readonly string[]).includes(status ?? "");
+}
+
+/** Pedido da ordem nova (0188). Linha sem a coluna (mock antigo, testes) é da ordem antiga. */
+export function pedidoDoFluxoNovo(pedido: { fluxo?: number | null } | null | undefined): boolean {
+  return Number(pedido?.fluxo ?? 1) === 2;
 }
 
 export const PEDIDO_INTERNO_FLUXO: PedidoInternoStatus[] = [
