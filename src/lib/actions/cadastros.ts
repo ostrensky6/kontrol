@@ -105,6 +105,12 @@ const optStr = z.preprocess(
   z.string().nullable(),
 );
 const optDate = optStr;
+/** texto opcional com o mesmo limite do banco (0187: textos da planilha de compras) */
+const optTexto = (max: number) =>
+  z.preprocess(
+    (v) => (v === "" || v == null ? null : String(v).trim()),
+    z.string().max(max, `Até ${max.toLocaleString("pt-BR")} caracteres`).nullable(),
+  );
 
 function dateFromInput(value: unknown): Date | null {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
@@ -302,6 +308,13 @@ const SCHEMAS: Record<string, z.ZodType<Record<string, unknown>>> = {
         z.boolean().optional(),
       ),
       laboratorio_id: optNum({ min: 0 }),
+      // 0187: textos da planilha de solicitação de compras
+      descricao_detalhada: optTexto(4000),
+      fornecedores_sugeridos: optTexto(2000),
+      observacoes_internas: optTexto(2000),
+      justificativa_tr: optTexto(4000),
+      especificacoes_tr: optTexto(4000),
+      criterio_aceitabilidade: optTexto(4000),
     })
     .transform((d) => ({
       ...d,
@@ -657,12 +670,26 @@ function payloadEdicao(
   return payload;
 }
 
+const TEXTOS_PLANILHA_INSUMO = [
+  "descricao_detalhada",
+  "fornecedores_sugeridos",
+  "observacoes_internas",
+  "justificativa_tr",
+  "especificacoes_tr",
+  "criterio_aceitabilidade",
+] as const;
+
 /** Campos do insumo fora da lista fechada da RPC de criação (gravados logo depois). */
 function camposExtrasInsumo(dados: Record<string, unknown>): Record<string, unknown> | null {
   const extras: Record<string, unknown> = {};
   if (typeof dados.sinonimos === "string" && dados.sinonimos.trim()) extras.sinonimos = dados.sinonimos.trim().slice(0, 1000);
   if (dados.controlado === true) extras.controlado = true;
   if (typeof dados.laboratorio_id === "number" && dados.laboratorio_id > 0) extras.laboratorio_id = dados.laboratorio_id;
+  // 0187: textos da planilha de compras
+  for (const campo of TEXTOS_PLANILHA_INSUMO) {
+    const valor = dados[campo];
+    if (typeof valor === "string" && valor.trim()) extras[campo] = valor.trim();
+  }
   return Object.keys(extras).length > 0 ? extras : null;
 }
 
@@ -817,7 +844,7 @@ export async function salvarRegistro(
     revalidarDependentes(slug);
     return {
       ok: true,
-      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}${erroSinonimos ? " Sinônimos, controlado ou laboratório não foram gravados; edite o insumo para incluí-los." : ""}`,
+      message: `Criado.${avisoSemCusto(slug, payload)}${erroCodigos ? ` Os códigos de barras não foram gravados (${erroCodigos}); edite o insumo para incluí-los.` : ""}${erroSinonimos ? " Sinônimos, controlado, laboratório ou os textos da planilha não foram gravados; edite o insumo para incluí-los." : ""}`,
       createdId,
     };
   }

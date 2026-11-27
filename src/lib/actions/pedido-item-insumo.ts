@@ -28,6 +28,23 @@ function revalidar(pedidoId: number) {
   for (const caminho of DEPENDENTES) revalidatePath(caminho);
 }
 
+/** Descrição e fornecedores escritos no item, nos campos do insumo (0187). */
+function textosDoItemParaInsumo(item: {
+  caracteristicas?: string | null;
+  fornecedor_sugerido?: string | null;
+  outros_fornecedores?: string | null;
+}): Record<string, string> | null {
+  const textos: Record<string, string> = {};
+  const descricao = item.caracteristicas?.trim();
+  if (descricao) textos.descricao_detalhada = descricao.slice(0, 4000);
+  const fornecedores = [item.fornecedor_sugerido, item.outros_fornecedores]
+    .map((valor) => valor?.trim())
+    .filter(Boolean)
+    .join("; ");
+  if (fornecedores) textos.fornecedores_sugeridos = fornecedores.slice(0, 2000);
+  return Object.keys(textos).length > 0 ? textos : null;
+}
+
 /** Liga o item ao insumo só se ele ainda estiver sem insumo; devolve o motivo quando não liga. */
 async function ligarItem(supabase: Supabase, itemId: number, pedidoId: number, insumoId: number): Promise<string | null> {
   const { data, error } = await supabase
@@ -63,7 +80,7 @@ export async function cadastrarInsumoDoItemPedido(_prev: FormState, formData: Fo
     supabase.from("pedidos_internos").select("status").eq("id", pedidoId).maybeSingle(),
     supabase
       .from("pedidos_internos_itens")
-      .select("id, tipo, insumo_id")
+      .select("id, tipo, insumo_id, caracteristicas, fornecedor_sugerido, outros_fornecedores")
       .eq("id", itemId)
       .eq("pedido_interno_id", pedidoId)
       .maybeSingle(),
@@ -132,6 +149,15 @@ export async function cadastrarInsumoDoItemPedido(_prev: FormState, formData: Fo
   const insumoId = Number((criado as { insumo_id?: number } | null)?.insumo_id);
   if (!Number.isSafeInteger(insumoId) || insumoId <= 0) {
     return { ok: false, message: "Não foi possível confirmar o insumo criado. Confira em Cadastros > Insumos antes de tentar de novo." };
+  }
+
+  // 0187: o que quem pediu escreveu no item segue para o cadastro (descrição e
+  // fornecedores da planilha de compras). Fora da lista fechada da RPC: grava
+  // logo depois; se falhar, o insumo já existe e se completa em Cadastros.
+  const textos = textosDoItemParaInsumo(item);
+  if (textos) {
+    const { error: erroTextos } = await supabase.from("insumos").update(textos).eq("id", insumoId).select("id");
+    if (erroTextos) console.warn(`Kontrol: textos do item ${itemId} não foram para o insumo ${insumoId}:`, erroTextos.message);
   }
 
   const motivo = await ligarItem(supabase, itemId, pedidoId, insumoId);

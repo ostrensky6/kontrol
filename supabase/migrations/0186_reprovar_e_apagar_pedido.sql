@@ -184,6 +184,7 @@ declare
   v_p record;
   v_arquivos jsonb;
   v_motivo text := nullif(btrim(coalesce(p_motivo, '')), '');
+  v_solicitante uuid;
 begin
   perform kontrol_private.exigir_permissao('pedido.aprovar');
   begin
@@ -195,7 +196,7 @@ begin
     raise exception 'Entre no Kontrol para apagar o pedido.' using errcode = '42501';
   end if;
 
-  select pi.id, pi.status, pi.titulo, pi.pedido_compra_id, pi.recebido_em
+  select pi.id, pi.status, pi.titulo, pi.pedido_compra_id, pi.recebido_em, pi.solicitante
     into v_p
     from public.pedidos_internos pi
    where pi.id = p_pedido_id
@@ -236,14 +237,33 @@ begin
           format('Pedido apagado: %s.%s', coalesce(v_p.titulo, 'sem título'),
                  coalesce(' Motivo: ' || v_motivo, '')));
 
+  -- a previsão de equipamento ligada volta a "prevista", como no Cancelar
+  -- (0174); sem isto o vínculo iria a vazio e a previsão ficaria "pedido".
+  update public.previsao_equipamentos
+     set situacao = 'previsto'
+   where pedido_interno_id = p_pedido_id and situacao in ('pedido', 'comprado');
+
   -- itens, documentos, orçamentos, aprovações e mensagens saem em cascata
   delete from public.pedidos_internos where id = p_pedido_id;
   if v_p.pedido_compra_id is not null then
     delete from public.pedidos_compra where id = v_p.pedido_compra_id;
   end if;
-  -- avisos que apontavam para o pedido levariam a uma página que não existe mais
+  -- avisos que apontavam para o pedido ou para a compra levariam a uma página que não existe mais
   delete from public.notificacoes
-   where entidade_tipo = 'pedido_interno' and entidade_id = p_pedido_id;
+   where (entidade_tipo = 'pedido_interno' and entidade_id = p_pedido_id)
+      or (v_p.pedido_compra_id is not null and entidade_tipo = 'pedido_compra' and entidade_id = v_p.pedido_compra_id);
+
+  -- quem pediu fica sabendo (menos quando foi ele mesmo que apagou); o aviso
+  -- não aponta para o pedido, que não existe mais
+  v_solicitante := kontrol_private.usuario_por_email(v_p.solicitante);
+  if v_solicitante is not null and v_solicitante is distinct from auth.uid() then
+    insert into public.notificacoes (tipo, titulo, corpo, usuario_destino, dedupe_key)
+    values ('sistema', 'Seu pedido interno foi apagado',
+            format('Pedido interno #%s (%s) foi apagado por %s.%s', p_pedido_id, coalesce(v_p.titulo, 'sem título'),
+                   coalesce(v_email, 'quem conduz as compras'), coalesce(' Motivo: ' || v_motivo, '')),
+            v_solicitante, format('apagado:pedidos_internos:%s', p_pedido_id))
+    on conflict do nothing;
+  end if;
 
   return jsonb_build_object('pedido_id', p_pedido_id, 'pedido_compra_id', v_p.pedido_compra_id,
                             'status_origem', v_p.status, 'arquivos', v_arquivos);

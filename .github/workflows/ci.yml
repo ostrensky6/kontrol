@@ -197,6 +197,9 @@ jobs:
       - name: Validar que reprovar encerra o pedido e que apagar vale em qualquer etapa (0186)
         run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/reprovar_apagar_pedido_0186.sql
 
+      - name: Validar os campos da planilha de compras no insumo (0187)
+        run: docker exec -i -e PGCLIENTENCODING=UTF8 supabase_db_Estoque psql -U postgres -d postgres -v ON_ERROR_STOP=1 < supabase/tests/insumo_campos_planilha_0187.sql
+
   e2e-real:
     # E2E contra banco REAL: Supabase local (Docker) com todas as migrations,
     # Auth, PostgREST e RLS. Nunca toca produção: as chaves são as do Supabase

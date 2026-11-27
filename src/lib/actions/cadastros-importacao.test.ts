@@ -304,6 +304,53 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(avisos).toContain('Linha 3: sem Unidade da embalagem nem de consumo; considerado "unidade"');
   });
 
+  it("aceita os títulos da planilha de solicitação de compras e grava os textos dela (0187)", async () => {
+    const { importarCadastrosWorkbook } = await import("./cadastros");
+
+    const result = await importarCadastrosWorkbook(
+      { ok: false },
+      await planilha({
+        Insumos: [
+          [
+            "Natureza/Rubrica",
+            "Itens",
+            "Descrição detalhada do produto",
+            "Marcas/código (Preferencia) para pedir no orçamento",
+            "Sugestão de Fornecedores/contato para pedir orçamento",
+            "OBSERVAÇÕES INTERNAS! ",
+            "Justificativa - Termo de Referencia",
+            "Critério de Aceitabilidade",
+            "Unidade da embalagem",
+          ],
+          [
+            "Consumíveis",
+            "Caixa de luva M Latex Free",
+            "Luvas nitrilo tamanho M, sem pó.",
+            "Unigloves",
+            "SIL LIFE (vendas@example.invalid)",
+            "LUVAS SEM TALCO",
+            "Proteção individual em laboratório.",
+            "1) Prazo de entrega de até 15 dias.",
+            "caixa",
+          ],
+        ],
+      }),
+    );
+
+    expect(result.resumo?.[0]).toMatchObject({ inseridos: 1, ignorados: 0 });
+    const dados = rpc.mock.calls.map((chamada) => chamada[1].p_dados_insumo);
+    expect(dados[0]).toMatchObject({ especificacao: "Caixa de luva M Latex Free", nome_item: "Consumíveis", fabricante: "Unigloves" });
+    // os textos novos não estão na lista fechada da RPC de criação: gravam logo depois
+    expect(dados[0]).not.toHaveProperty("descricao_detalhada");
+    expect(updates.find((u) => u.table === "insumos")?.payload).toMatchObject({
+      descricao_detalhada: "Luvas nitrilo tamanho M, sem pó.",
+      fornecedores_sugeridos: "SIL LIFE (vendas@example.invalid)",
+      observacoes_internas: "LUVAS SEM TALCO",
+      justificativa_tr: "Proteção individual em laboratório.",
+      criterio_aceitabilidade: "1) Prazo de entrega de até 15 dias.",
+    });
+  });
+
   it("categoria de compra fora da lista não recusa a linha: aviso com os valores aceitos", async () => {
     const { importarCadastrosWorkbook } = await import("./cadastros");
 
@@ -326,7 +373,7 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(dados[2]).toMatchObject({ categoria_compra: "critico" });
     const avisos = result.resumo?.[0].avisos.join("\n") ?? "";
     expect(avisos).toContain(
-      'Linha 2, Categoria de compra: valor inválido "Plástico" (aceitos: "Crítico", "Operacional", "Eventual"; é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Categoria curta); ficou em branco',
+      'Linha 2, Categoria de compra: valor inválido "Plástico" (aceitos: "Crítico", "Operacional", "Eventual"; é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Natureza/Rubrica); ficou em branco',
     );
   });
 
@@ -344,7 +391,7 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     const instrucoes = workbook.getWorksheet("Instruções")!.getColumn(1).values.join("\n");
     expect(instrucoes).toContain("nenhum registro é excluído");
     expect(instrucoes).toContain("só vale para itens novos");
-    expect(instrucoes).toContain("Insumos: Item específico / SKU, Valor da embalagem (R$), Quantidade na embalagem, Unidade da embalagem, Fator de conversão");
+    expect(instrucoes).toContain("Insumos: Item, Valor da embalagem (R$), Quantidade na embalagem, Unidade da embalagem, Fator de conversão");
 
     const aba = workbook.getWorksheet("Insumos")!;
     const cabecalho = (aba.getRow(1).values as unknown[]).slice(1);
@@ -378,7 +425,7 @@ describe("importação XLSX de cadastros (só adicionar e atualizar)", () => {
     expect(semAba.ok).toBe(false);
     expect(semAba.message).toContain("Nenhuma aba de cadastro encontrada");
     expect(semAba.message).toContain('"Planilha1"');
-    expect(semAba.message).toContain("Item específico / SKU");
+    expect(semAba.message).toContain("as colunas obrigatórias são: Item, Valor da embalagem");
   });
 
   it("importa a planilha do usuário com outro nome de aba, título antes do cabeçalho e aba no singular", async () => {

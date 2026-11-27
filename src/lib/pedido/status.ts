@@ -99,13 +99,30 @@ export const PEDIDO_INTERNO_AGUARDANDO_LABORATORIO = {
   className: "bg-warning-soft text-warning-strong",
 } as const;
 
-export function pedidoInternoSituacao(pedido: {
-  status: string | null | undefined;
-  natureza?: string | null;
-  aprovacao_area_em?: string | null;
-}) {
+/**
+ * 0186: reprovar encerra o pedido. No banco ele fica "cancelado" (o mesmo fim
+ * do Cancelar, com a compra ligada cancelada junto); a tela diz "Reprovado"
+ * quando a decisão gravada foi a reprovação.
+ */
+export const PEDIDO_INTERNO_REPROVADO = {
+  label: "Reprovado",
+  etapa: "Encerrado na aprovação",
+  className: "bg-danger-soft text-danger-strong",
+} as const;
+
+export function pedidoInternoSituacao(
+  pedido: {
+    status: string | null | undefined;
+    natureza?: string | null;
+    aprovacao_area_em?: string | null;
+  },
+  aprovacoes?: readonly { decisao?: string | null }[] | null,
+) {
   if (pedido.status === "validado" && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em) {
     return PEDIDO_INTERNO_AGUARDANDO_LABORATORIO;
+  }
+  if (pedido.status === "cancelado" && (aprovacoes ?? []).some((a) => a.decisao === "reprovado")) {
+    return PEDIDO_INTERNO_REPROVADO;
   }
   return pedidoInternoStatus(pedido.status);
 }

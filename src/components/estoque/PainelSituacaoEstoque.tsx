@@ -181,7 +181,7 @@ export function PainelSituacaoEstoque({
           </Select>
         </label>
         <label className="grid min-w-48 flex-1 gap-1 text-xs font-medium text-muted-foreground sm:flex-none">
-          Categoria curta
+          Natureza/Rubrica
           <Select value={filtros.categoriaCurta} onChange={(e) => mudar("categoriaCurta", e.target.value)}>
             <option value="">Todas</option>
             {opcoesCurta.map((valor) => (

@@ -251,6 +251,14 @@ select public.formalizar_pedido_interno(pg_temp.id('p6'));
 select set_config('tra.c6', (select pedido_compra_id from public.pedidos_internos where id = pg_temp.id('p6'))::text, true);
 select pg_temp.etapa(pg_temp.id('p6'), 'analise_administrativa', 'registrado',
   '{"fonte_recurso": "FUNPAR", "rubrica": "Material de consumo", "conformidade_admin": "Conforme"}');
+reset role;
+-- o que depende do pedido (como owner): uma previsão de equipamento ligada e um aviso da compra
+insert into public.previsao_equipamentos (nome, situacao, pedido_interno_id)
+values ('TS-RA centrífuga prevista', 'pedido', pg_temp.id('p6'));
+insert into public.notificacoes (tipo, titulo, corpo, entidade_tipo, entidade_id, permissao_destino, dedupe_key)
+values ('sistema', 'TS-RA compra', 'aviso da compra', 'pedido_compra', pg_temp.id('c6'), 'compras.ver', 'ts-ra-compra-c6');
+select pg_temp.como('adm');
+set local role authenticated;
 select public.excluir_pedido_interno(pg_temp.id('p6'), null);
 -- o já reprovado (cancelado) também sai
 select public.excluir_pedido_interno(pg_temp.id('p1'), null);
@@ -273,6 +281,19 @@ begin
                   where entidade = 'pedido_interno' and entidade_id = pg_temp.id('p5')
                     and para_status = 'excluido' and observacao like 'Pedido apagado: TS-RA apagado em validação.%Motivo: Pedido de teste') then
     raise exception 'reprovar_apagar_0186: apagar deveria deixar o registro em eventos_status';
+  end if;
+  -- a cadeia do que dependia do pedido
+  if (select situacao from public.previsao_equipamentos where nome = 'TS-RA centrífuga prevista') <> 'previsto' then
+    raise exception 'reprovar_apagar_0186: a previsão de equipamento do pedido apagado deveria voltar a prevista';
+  end if;
+  if exists (select 1 from public.notificacoes where entidade_tipo = 'pedido_compra' and entidade_id = pg_temp.id('c6')) then
+    raise exception 'reprovar_apagar_0186: os avisos da compra apagada deveriam sair junto';
+  end if;
+  if not exists (select 1 from public.notificacoes
+                  where usuario_destino = pg_temp.uid('solic') and titulo = 'Seu pedido interno foi apagado'
+                    and corpo like '%TS-RA apagado em validação%Motivo: Pedido de teste'
+                    and entidade_tipo is null) then
+    raise exception 'reprovar_apagar_0186: quem pediu deveria ser avisado de que o pedido foi apagado';
   end if;
 end $$;
 

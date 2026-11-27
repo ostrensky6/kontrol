@@ -68,6 +68,22 @@ beforeEach(() => {
 
 /** Decisão de Antonio em 19/11/2026: Compras cadastra o item novo pelo pedido, antes de formalizar. */
 describe("item novo do pedido: cadastrar o insumo e ligar ao item", () => {
+  it("leva ao cadastro a descrição e os fornecedores que quem pediu escreveu no item (0187)", async () => {
+    Object.assign(item(), {
+      caracteristicas: "Livre de DNase e RNase, pH 8,0",
+      fornecedor_sugerido: "Sigma",
+      outros_fornecedores: "Merck; Ludwig",
+    });
+
+    const resultado = await cadastrar(formulario());
+
+    expect(resultado.ok).toBe(true);
+    expect(loja().insumos.at(-1)).toMatchObject({
+      descricao_detalhada: "Livre de DNase e RNase, pH 8,0",
+      fornecedores_sugeridos: "Sigma; Merck; Ludwig",
+    });
+  });
+
   it("cadastra o insumo sem lote, com os dados conferidos, e liga o item a ele", async () => {
     const antes = loja().insumos.length;
     const lotesAntes = loja().lotes_estoque.length;

@@ -19,7 +19,7 @@ import { novaLeitura, semRegistro } from "@/lib/supabase/leitura";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EtapaProgresso } from "@/components/pedido/EtapaProgresso";
 import { etapaDoPedido } from "@/lib/pedido/etapas";
-import { pedidoInternoNumero, pedidoInternoStatus } from "@/lib/pedido/status";
+import { pedidoInternoNumero, pedidoInternoSituacao } from "@/lib/pedido/status";
 import { quantos } from "@/lib/plural";
 
 export const dynamic = "force-dynamic";
@@ -166,7 +166,7 @@ export default async function ProjetoHubPage({
     // pedidos do projeto (o que se pediu, antes de virar compra com fornecedor)
     leitura.de("pedidos", supabase
       .from("pedidos_internos")
-      .select("id, titulo, status, natureza, aprovacao_area_em, data_necessidade, criado_em, pedidos_internos_itens(quantidade, orcamento_previo)")
+      .select("id, titulo, status, natureza, aprovacao_area_em, data_necessidade, criado_em, pedidos_internos_itens(quantidade, orcamento_previo), pedidos_internos_aprovacoes(decisao)")
       .eq("projeto_id", id)
       .order("criado_em", { ascending: false })),
   ]);
@@ -267,7 +267,8 @@ export default async function ProjetoHubPage({
     numero: pedidoInternoNumero(p.id),
     titulo: p.titulo,
     etapa: etapaDoPedido(p),
-    situacao: pedidoInternoStatus(p.status).label,
+    // a mesma situação da lista de pedidos: espera do laboratório e "Reprovado" (0186)
+    situacao: pedidoInternoSituacao(p, p.pedidos_internos_aprovacoes).label,
     necessidade: p.data_necessidade,
     previo: (p.pedidos_internos_itens ?? []).reduce(
       (a, it) => a + Number(it.quantidade ?? 0) * Number(it.orcamento_previo ?? 0),

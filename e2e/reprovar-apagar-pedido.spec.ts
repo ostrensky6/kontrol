@@ -30,7 +30,7 @@ async function novoPedidoEnviado(page: Page, titulo: string) {
 
 test("reprovar no quadro encerra o pedido, com a bolinha vermelha e o motivo", async ({ page }) => {
   const titulo = `Frascos para reprovar ${Date.now()}`;
-  await novoPedidoEnviado(page, titulo);
+  const endereco = await novoPedidoEnviado(page, titulo);
 
   await page.goto("/pedido?ver=aprovacoes");
   const busca = page.getByRole("searchbox", { name: "Buscar pedido, item, projeto ou solicitante" });
@@ -48,6 +48,15 @@ test("reprovar no quadro encerra o pedido, com a bolinha vermelha e o motivo", a
   await busca.fill(titulo);
   await linha.getByRole("button", { name: /Coordenação do projeto do pedido Nº \d+: Reprovado/ }).click();
   await expect(page.getByRole("dialog")).toContainText("Já há frascos sobrando no almoxarifado.");
+  await page.keyboard.press("Escape");
+
+  // a mesma situação na lista e no pedido: "Reprovado", não só "Cancelado"
+  await page.goto("/pedido?etapa=cancelado");
+  await page.getByRole("searchbox", { name: "Buscar pedido, projeto ou solicitante" }).fill(titulo);
+  await expect(page.getByRole("row", { name: new RegExp(titulo) })).toContainText("Reprovado");
+  await page.goto(endereco);
+  await expect(page.getByText("Reprovado", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("Reprovado: Já há frascos sobrando no almoxarifado.").first()).toBeVisible();
 });
 
 test("apagar vale para pedido em andamento e volta para a lista", async ({ page }) => {

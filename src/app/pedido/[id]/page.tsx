@@ -183,7 +183,8 @@ export default async function PedidoInternoDetalhe({
 
   const pedidoStatus = pedido.status as PedidoInternoStatus;
   // 0169: validado de material de laboratório ainda espera o laboratório
-  const statusMeta = pedidoInternoSituacao(pedido);
+  // 0186: cancelado por reprovação aparece como "Reprovado"
+  const statusMeta = pedidoInternoSituacao(pedido, (aprovacoes ?? []) as { decisao?: string | null }[]);
   const esperaLaboratorio = aguardaLaboratorio(pedido);
   const ehAdmin = usuario?.papel === "admin";
   // 0184: quem tem "Conduzir a compra inteira" substitui como o Administrador

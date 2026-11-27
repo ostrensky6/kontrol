@@ -420,7 +420,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       "Catálogo de reagentes e consumíveis, com embalagem, fornecedor, reposição e armazenamento. O **custo unitário** é o valor da embalagem dividido pela quantidade.",
     rotulo: "especificacao",
     colunas: [
-      { key: "especificacao", label: "Item específico / SKU", largura: "lg" },
+      { key: "especificacao", label: "Item", largura: "lg" },
       { key: "fabricante", label: "Marca / fabricante", largura: "sm" },
       { key: "codigo_fabricante", label: "Código do fabricante", largura: "sm" },
       { key: "unidade", label: "Unidade", largura: "xs" },
@@ -432,7 +432,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       { key: "ativo", label: "Ativo", tipo: "checkbox", largura: "xs" },
     ],
     colunasXlsx: [
-      { key: "especificacao", label: "Item específico / SKU" },
+      { key: "especificacao", label: "Item" },
       { key: "fabricante", label: "Marca / fabricante" },
       { key: "codigo_fabricante", label: "Código do fabricante" },
       { key: "unidade", label: "Unidade da embalagem" },
@@ -452,9 +452,17 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         ajuda: "Nome padronizado que **agrupa itens equivalentes** (outra marca ou embalagem) nos cálculos e relatórios.",
         exportar: false,
       },
-      { name: "nome_item", label: "Categoria curta", tipo: "text", placeholder: "Ladder, Beads, Kit Illumina…" },
-      { name: "especificacao", label: "Item específico / SKU", tipo: "text", obrigatorio: true, colSpan: 2, rotulosAntigos: ["Especificação", "Insumo", "Item", "Produto", "Reagente", "Descrição", "Descrição do item"], ajuda: "Nome exato do item comprado (marca e apresentação). É ele que aparece na compra, no estoque e nos **lotes**." },
-      { name: "fabricante", label: "Marca / fabricante", tipo: "text", placeholder: "Qiagen, Illumina, KASVI…" },
+      // nomes da planilha de solicitação de compras (Antonio, 27/11/2026: "pode trocar o nome")
+      {
+        name: "nome_item",
+        label: "Natureza/Rubrica",
+        tipo: "text",
+        placeholder: "Consumíveis, Reagente molecular, EPI…",
+        rotulosAntigos: ["Categoria curta"],
+        ajuda: "Tipo do material, como na planilha de compras (Consumíveis, Reagente molecular, Reagente de uso geral…).",
+      },
+      { name: "especificacao", label: "Item", tipo: "text", obrigatorio: true, colSpan: 2, rotulosAntigos: ["Item específico / SKU", "Itens", "Especificação", "Insumo", "Produto", "Reagente", "Descrição", "Descrição do item"], ajuda: "Nome do insumo, exato (marca e apresentação). É ele que aparece no pedido, na compra, no estoque e nos **lotes**." },
+      { name: "fabricante", label: "Marca / fabricante", tipo: "text", placeholder: "Qiagen, Illumina, KASVI…", rotulosAntigos: ["Marcas/código (Preferencia) para pedir no orçamento", "Marcas/código"], ajuda: "Marca de preferência para pedir no orçamento." },
       { name: "codigo_fabricante", label: "Código do fabricante", tipo: "text", placeholder: "Catálogo / part number" },
       {
         name: "sinonimos",
@@ -517,6 +525,15 @@ export const CADASTROS: Record<string, CadastroConfig> = {
       },
 
       { name: "fornecedor_id", label: "Fornecedor principal", tipo: "select", opcoesDe: "fornecedores", grupo: "Compra e fornecedor" },
+      {
+        name: "fornecedores_sugeridos",
+        label: "Sugestão de fornecedores/contato",
+        tipo: "textarea",
+        colSpan: 2,
+        placeholder: "Empresa (e-mail ou telefone); outra empresa…",
+        rotulosAntigos: ["Sugestão de Fornecedores/contato para pedir orçamento"],
+        ajuda: "A quem pedir orçamento, com o contato. Pode ser fornecedor ainda não cadastrado.",
+      },
       { name: "fornecedor_alt_id", label: "Fornecedor alternativo", tipo: "select", opcoesDe: "fornecedores", oculto: true },
       {
         name: "categoria_compra",
@@ -528,7 +545,7 @@ export const CADASTROS: Record<string, CadastroConfig> = {
           { value: "eventual", label: "Eventual" },
         ],
         ajuda: "**Crítico** ganha destaque nas sugestões de compra. Ao aceitar um lote crítico, é preciso informar responsável e critério de aceite.",
-        dicaImportacao: "é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Categoria curta",
+        dicaImportacao: "é a prioridade da compra; o tipo do material (Plástico, EPI, Reagente…) vai em Natureza/Rubrica",
       },
       {
         name: "controlado",
@@ -551,6 +568,49 @@ export const CADASTROS: Record<string, CadastroConfig> = {
         min: 0,
         step: "1",
         ajuda: "Prazo aceito no contrato. A previsão de reposição usa o **Prazo de entrega do fornecedor**.",
+      },
+
+      {
+        name: "descricao_detalhada",
+        label: "Descrição detalhada do produto",
+        tipo: "textarea",
+        colSpan: 2,
+        grupo: "Solicitação de compras e termo de referência",
+        rotulosAntigos: ["Descrição detalhada"],
+        ajuda: "Vai na **Solicitação de Compras** (Ineo) e no **termo de referência** (Funpar), na especificação do material.",
+      },
+      {
+        name: "justificativa_tr",
+        label: "Justificativa (termo de referência)",
+        tipo: "textarea",
+        colSpan: 2,
+        rotulosAntigos: ["Justificativa - Termo de Referencia", "Justificativa"],
+        ajuda: "Para que o material serve. Vai na justificativa da Solicitação de Compras e na seção 2 do termo de referência.",
+      },
+      {
+        name: "especificacoes_tr",
+        label: "Quantitativo, especificações técnicas e valores referenciais de mercado",
+        tipo: "textarea",
+        colSpan: 2,
+        rotulosAntigos: ["QUANTITATIVO / ESPECIFICAÇÕES TÉCNICAS / VALORES REFERENCIAIS DE MERCADO", "Quantitativo / especificações técnicas"],
+        ajuda: "Texto da seção 3 do termo de referência. A quantidade e os valores de cada pedido vêm do próprio pedido e dos orçamentos.",
+      },
+      {
+        name: "criterio_aceitabilidade",
+        label: "Critério de aceitabilidade",
+        tipo: "textarea",
+        colSpan: 2,
+        placeholder: "1) Prazo de entrega de até 15 dias…",
+        rotulosAntigos: ["Critérios de aceitabilidade"],
+        ajuda: "O que precisa ser conferido para aceitar o material (seção 7 do termo de referência).",
+      },
+      {
+        name: "observacoes_internas",
+        label: "Observações internas",
+        tipo: "textarea",
+        colSpan: 2,
+        rotulosAntigos: ["OBSERVAÇÕES INTERNAS!"],
+        ajuda: "Só para a equipe: não vai para o fornecedor nem para a instituição.",
       },
 
       { name: "ponto_reposicao", label: "Mínimo", tipo: "number", min: 0, rotulosAntigos: ["Ponto de reposição", "Repos."], ajuda: "Mínimo que você quer manter. Se o **disponível** mais o que já está a caminho ficar abaixo dele (ou abaixo das saídas previstas no prazo da compra), o insumo aparece como Repor e entra nas sugestões de compra.", exemplo: "Mínimo 5, disponível 2 e nada a caminho: o sistema sugere pedir 3.", grupo: "Estoque e reposição" },

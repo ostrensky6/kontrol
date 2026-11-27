@@ -106,7 +106,7 @@ export function PedidoItemCadastrarInsumo({
           <input type="hidden" name="item_id" value={item.id} />
           <input type="hidden" name="pedido_interno_id" value={pedidoId} />
           <div className="sm:col-span-2">
-            <label htmlFor={id("especificacao")} className={rotuloCls}>Item específico / SKU</label>
+            <label htmlFor={id("especificacao")} className={rotuloCls}>Item</label>
             <input id={id("especificacao")} name="insumo_especificacao" required maxLength={300} defaultValue={sugestao.especificacao} className={campoCls} />
           </div>
           <div>

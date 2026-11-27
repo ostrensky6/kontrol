@@ -96,7 +96,7 @@ export function BotoesPlanilhaCadastros({ podeImportar = true }: { podeImportar?
         </p>
         <p>
           Também aceita a sua própria planilha: a aba pode ter outro nome (ex.: &quot;Planilha1&quot;) se a linha de
-          títulos usar os nomes de coluna do modelo, como &quot;Item específico / SKU&quot; ou &quot;Insumo&quot;.
+          títulos usar os nomes de coluna do modelo, como &quot;Item&quot; ou &quot;Insumo&quot;.
           Arquivos .xls antigos precisam ser salvos como .xlsx no Excel.
         </p>
         {!podeImportar ? <p>Seu perfil só consulta: importar exige permissão para editar cadastros.</p> : null}

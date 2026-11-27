@@ -31,6 +31,7 @@ export function ApagarPedido({
   titulo,
   status,
   voltar = "/pedido",
+  compacto = false,
   className,
 }: {
   pedidoId: number;
@@ -39,6 +40,8 @@ export function ApagarPedido({
   status: string;
   /** lista para onde a pessoa volta depois de apagar */
   voltar?: string;
+  /** só a lixeira (na lista, para a tabela caber sem rolar para o lado) */
+  compacto?: boolean;
   className?: string;
 }) {
   return (
@@ -47,13 +50,14 @@ export function ApagarPedido({
         <button
           type="button"
           aria-label={`Apagar ${numero}`}
+          title={compacto ? `Apagar ${numero}` : undefined}
           className={cn(
             "toque inline-flex items-center gap-1 rounded-md border border-danger-strong/30 px-2 py-1 text-xs font-medium text-danger-strong hover:bg-danger-soft",
             className,
           )}
         >
-          <Trash2 className="h-3.5 w-3.5" />
-          Apagar
+          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+          {!compacto && "Apagar"}
         </button>
       </DialogTrigger>
       <DialogContent>

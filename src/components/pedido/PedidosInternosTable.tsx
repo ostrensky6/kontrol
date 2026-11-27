@@ -46,7 +46,7 @@ function podeExcluirPedido(row: PedidoInternoRow, podeExcluir: boolean) {
 }
 
 function ExcluirPedido({ row }: { row: PedidoInternoRow }) {
-  return <ApagarPedido pedidoId={row.id} numero={row.numero} titulo={row.titulo} status={row.status} />;
+  return <ApagarPedido pedidoId={row.id} numero={row.numero} titulo={row.titulo} status={row.status} compacto />;
 }
 
 const URGENTE = new Set(["Alta", "Crítica"]);
@@ -87,7 +87,8 @@ function buildColumns(podeExcluir: boolean, temExcluivel: boolean): ColumnDef<Pe
       // ordena pela posição no fluxo, não pelo nome do status
       sortingFn: (a, b) => posicaoEtapa(a.original.etapa) - posicaoEtapa(b.original.etapa),
       cell: ({ row }) => (
-        <div className="min-w-40 space-y-1">
+        // min-w-36: com a coluna da lixeira (apagar em qualquer etapa) a lista ainda cabe em 1280 px
+        <div className="min-w-36 space-y-1">
           <EtapaProgresso etapa={row.original.etapa} />
           {/* ponto colorido e nome: status longo quebra a linha sem virar um bloco pesado */}
           <StatusBadge status={row.original.status} label={row.original.statusLabel} variante="ponto" />
@@ -147,12 +148,13 @@ function buildColumns(podeExcluir: boolean, temExcluivel: boolean): ColumnDef<Pe
     { accessorKey: "modalidade", header: "Modalidade" },
   ];
   // a coluna só existe quando alguma linha tem o que fazer nela (um rascunho
-  // que dá para excluir): sem isso ficava uma coluna "Ações" vazia
+  // que dá para apagar): sem isso ficava uma coluna "Ações" vazia
   if (podeExcluir && temExcluivel) {
     cols.push({
       id: "acoes",
-      header: "Ações",
-      meta: { align: "right" },
+      // só a lixeira na coluna: o título fica para o leitor de tela, e a tabela cabe no notebook
+      header: () => <span className="sr-only">Ações</span>,
+      meta: { align: "right", className: "px-2" },
       enableSorting: false,
       cell: ({ row }) => (podeExcluirPedido(row.original, podeExcluir) ? <ExcluirPedido row={row.original} /> : null),
     });
