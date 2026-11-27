@@ -20,6 +20,9 @@ test("quadro mostra as três aprovações e a decisão de quem coordena", async 
 
   // o Administrador do mock decide como substituto: o quadro abre no que espera por ele
   await expect(page.getByRole("button", { name: /Esperando sua decisão/ })).toHaveAttribute("aria-pressed", "true");
+  // a lista tem páginas: a busca acha o pedido, quantos forem os pedidos que os outros roteiros criaram
+  const busca = page.getByRole("searchbox", { name: "Buscar pedido, item, projeto ou solicitante" });
+  await busca.fill("Primers para aprovar E2E");
   const linha502 = tabela.getByRole("row", { name: /Primers para aprovar E2E/ });
   await expect(linha502.getByRole("button", { name: /Coordenação do projeto do pedido Nº 0502: Aguardando/ })).toBeVisible();
   await expect(linha502.getByRole("button", { name: "Aprovar o pedido Nº 0502 (Coordenação do projeto)" })).toBeVisible();
@@ -29,6 +32,7 @@ test("quadro mostra as três aprovações e a decisão de quem coordena", async 
 
   // em andamento: o 0501 já passou pelo coordenador do projeto
   await page.getByRole("button", { name: /Em andamento/ }).click();
+  await busca.fill("Reagente do ciclo seguinte E2E");
   const linha501 = tabela.getByRole("row", { name: /Reagente do ciclo seguinte E2E/ });
   await linha501.getByRole("button", { name: /Coordenação do projeto do pedido Nº 0501: Aprovado/ }).click();
   const detalhe = page.getByRole("dialog");
