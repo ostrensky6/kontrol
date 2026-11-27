@@ -335,6 +335,11 @@ const baseStore = (): Store => {
       pedido_compra_id: null,
       criado_em: "2026-11-12T13:00:00.000Z",
       atualizado_em: "2026-11-12T14:00:00.000Z",
+      // quadro de aprovações (27/11/2026): a tabela embutida vem escrita na linha
+      pedidos_internos_aprovacoes: [
+        { etapa: "Lista de materiais", decisao: "registrado", responsavel: "e2e@example.com", comentario: null, status_origem: "rascunho", criado_em: "2026-11-12T13:10:00.000Z" },
+        { etapa: "Validação das especificações técnicas", decisao: "aprovado", responsavel: "admin@example.com", comentario: "Informações de modelo, volume e quantidade confirmadas.", status_origem: "em_validacao", criado_em: "2026-11-12T14:00:00.000Z" },
+      ],
     },
     // 1.7.2: pedido enviado, esperando a aprovação do coordenador do projeto
     {
@@ -1156,6 +1161,14 @@ function compararValores(a: unknown, b: unknown) {
 }
 
 function withRelations(table: string, row: Row): Row {
+  if (table === "pedidos_internos") {
+    // quadro de aprovações (27/11/2026): as decisões gravadas pela RPC do mock
+    // entram junto com as que a semente já traz escritas na linha
+    const gravadas = (store.pedidos_internos_aprovacoes ?? []).filter((item) => valoresIguais(item.pedido_interno_id, row.id));
+    if (!gravadas.length) return row;
+    const semente = Array.isArray(row.pedidos_internos_aprovacoes) ? (row.pedidos_internos_aprovacoes as Row[]) : [];
+    return { ...row, pedidos_internos_aprovacoes: [...semente, ...gravadas] };
+  }
   if (table === "orcamentos") {
     return {
       ...row,

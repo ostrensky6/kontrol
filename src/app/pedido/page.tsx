@@ -21,6 +21,12 @@ import { HelpTip } from "@/components/common/HelpTip";
 import { AvisoLeitura } from "@/components/common/AvisoLeitura";
 import { novaLeitura } from "@/lib/supabase/leitura";
 import { lerAbertosERecentes } from "@/lib/supabase/lista-recente";
+import Link from "next/link";
+import { QuadroAprovacoes } from "@/components/pedido/QuadroAprovacoes";
+import { montarLinhasQuadro } from "./_lib/quadro";
+import { usuarioAtual } from "@/lib/auth/roles";
+import type { RegistroAprovacao } from "@/lib/pedido/quadro-aprovacoes";
+import { cn } from "@/lib/utils";
 
 const URGENCIA_LABEL: Record<string, string> = {
   baixa: "Baixa",
@@ -59,7 +65,9 @@ type PedidoInternoListRow = {
   tipo_demanda?: string | null;
   modalidade_compra?: string | null;
   natureza?: string | null;
+  area_id?: number | null;
   aprovacao_area_em?: string | null;
+  aprovacao_area_por?: string | null;
   pedido_compra_id: number | null;
   criado_em: string;
   coordenador_projeto_nome?: string | null;
@@ -67,7 +75,8 @@ type PedidoInternoListRow = {
   projetos: ProjetoDoPedido | ProjetoDoPedido[] | null;
   pedidos_compra?: { id: number; status: string } | Array<{ id: number; status: string }> | null;
   pedidos_internos_itens: Array<PedidoItemView & { recebido_em?: string | null }>;
-  pedidos_internos_anexos: Array<{ id: number; tipo: string }>;
+  pedidos_internos_anexos: Array<{ id: number; tipo: string; url?: string | null; storage_path?: string | null }>;
+  pedidos_internos_aprovacoes?: RegistroAprovacao[] | null;
 };
 
 function asOne<T>(value: T | T[] | null | undefined) {
@@ -81,8 +90,9 @@ const LABEL_MODALIDADE: Record<string, string> = {
   outra: "Outra",
 };
 
+// quadro de aprovações (27/11/2026): laboratório, aprovações gravadas e o termo de referência
 const COLUNAS_PEDIDO =
-  "id, titulo, status, natureza, aprovacao_area_em, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)";
+  "id, titulo, status, natureza, area_id, aprovacao_area_em, aprovacao_area_por, solicitante, data_necessidade, urgencia, urgencia_justificativa, ciclo_pagamento, tipo_demanda, modalidade_compra, pedido_compra_id, criado_em, coordenador_projeto_nome, coordenador_projeto_email, projetos(nome, coordenador_id, coordenador, coordenador_nome, coordenador_email), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo, url, storage_path), pedidos_internos_aprovacoes(etapa, decisao, responsavel, comentario, status_origem, criado_em)";
 // banco ainda sem as colunas novas: a lista abre com o que existia antes
 const COLUNAS_PEDIDO_ANTIGAS =
   "id, titulo, status, solicitante, data_necessidade, urgencia, pedido_compra_id, criado_em, projetos(nome, coordenador), pedidos_compra(id, status), pedidos_internos_itens(id, tipo, especificacao, modelo, volume, quantidade, unidade, orcamento_previo, fornecedor_sugerido, recebido_em), pedidos_internos_anexos(id, tipo)";
@@ -127,15 +137,17 @@ function pendenciasPedido(row: PedidoInternoListRow) {
 export default async function PedidoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[]; encerrados?: string | string[] }>;
+  searchParams: Promise<{ etapa?: string | string[]; novo?: string | string[]; encerrados?: string | string[]; ver?: string | string[] }>;
 }) {
   const leitura = novaLeitura("/pedido");
   const query = await searchParams;
   const filtroEtapa = filtroEtapaValido(Array.isArray(query.etapa) ? query.etapa[0] : query.etapa);
   const abrirNovo = query.novo === "1";
   const todosEncerrados = (Array.isArray(query.encerrados) ? query.encerrados[0] : query.encerrados) === "todos";
+  // quadro de aprovações (pedido de 27/11/2026): um pedido por linha e as três aprovações lado a lado
+  const verQuadro = (Array.isArray(query.ver) ? query.ver[0] : query.ver) === "aprovacoes";
   const supabase = await createClientUntyped();
-  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp, podeConduzir] = await Promise.all([
+  const [pedidosFull, projetosFull, podeExcluir, areas, aguardando, usuariosResp, podeConduzir, usuario] = await Promise.all([
     lerPedidos(supabase, COLUNAS_PEDIDO, todosEncerrados),
     supabase.from("projetos").select("id, nome, coordenador, coordenador_nome, coordenador_email").order("nome"),
     pode("pedido.aprovar"),
@@ -146,6 +158,7 @@ export default async function PedidoPage({
     leitura.de("pessoas", supabase.from("perfis").select("id, nome, email, suspenso")),
     // 0184: quem conduz a compra inteira (e o Administrador) não para no ciclo
     pode("compras.conduzir"),
+    verQuadro ? usuarioAtual() : Promise.resolve(null),
   ]);
   const usuarios = (usuariosResp.data ?? []) as UsuarioCoordenador[];
   const pendencias = pendenciasDe(aguardando, PENDENCIAS_DE_PEDIDOS);
@@ -220,6 +233,18 @@ export default async function PedidoPage({
     };
   });
 
+  const linhasQuadro = verQuadro
+    ? await montarLinhasQuadro({
+        supabase,
+        pedidos: pedidos.map((pedido) => ({ ...pedido, projetoNome: asOne(pedido.projetos)?.nome ?? "—" })),
+        pessoas: usuarios,
+        areas,
+        usuarioId: usuario?.id ?? null,
+        substituto: usuario?.papel === "admin" || podeConduzir,
+        podeAprovar: podeExcluir,
+      })
+    : [];
+
   return (
     <div className="min-h-dvh bg-transparent font-sans text-foreground">
       <main className="app-page-container">
@@ -241,6 +266,12 @@ export default async function PedidoPage({
                   Clique numa etapa para ver só os pedidos dela. A coluna <b>Próximo passo</b> diz o que
                   falta e com quem está.
                 </p>
+                <p>
+                  <b>Quadro de aprovações</b> mostra um pedido por linha, com os itens, o termo de referência e as
+                  três aprovações: laboratório, financeiro e projeto. Verde é aprovado, amarelo é devolvido para
+                  corrigir, vermelho é reprovado. Clique na bolinha para ver quem decidiu e o motivo. Quem coordena
+                  aprova ou devolve ali mesmo.
+                </p>
               </HelpTip>
             </div>
             <p className="mt-1 text-sm text-muted-foreground">O que foi pedido e em que etapa cada pedido está.</p>
@@ -258,15 +289,40 @@ export default async function PedidoPage({
           />
         </div>
 
-        <div className="mt-5">
-          <PedidosPorEtapa
-            key={filtroEtapa}
-            rows={rows}
-            podeExcluir={podeExcluir}
-            filtroInicial={filtroEtapa}
-            encerrados={pedidosLidos.encerrados}
-            todosEncerrados={todosEncerrados}
-          />
+        <nav aria-label="Como ver os pedidos" className="mt-5 flex gap-1 border-b border-border">
+          {[
+            { href: "/pedido", rotulo: "Por etapa", ativo: !verQuadro },
+            { href: "/pedido?ver=aprovacoes", rotulo: "Quadro de aprovações", ativo: verQuadro },
+          ].map((aba) => (
+            <Link
+              key={aba.href}
+              href={aba.href}
+              aria-current={aba.ativo ? "page" : undefined}
+              className={cn(
+                "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+                aba.ativo
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground hover:border-border hover:text-foreground",
+              )}
+            >
+              {aba.rotulo}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="mt-4">
+          {verQuadro ? (
+            <QuadroAprovacoes linhas={linhasQuadro} />
+          ) : (
+            <PedidosPorEtapa
+              key={filtroEtapa}
+              rows={rows}
+              podeExcluir={podeExcluir}
+              filtroInicial={filtroEtapa}
+              encerrados={pedidosLidos.encerrados}
+              todosEncerrados={todosEncerrados}
+            />
+          )}
         </div>
       </main>
     </div>
