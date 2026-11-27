@@ -75,7 +75,7 @@ export function CampoArquivosAnexo({
         <p id={ajudaId} role="alert" className="mt-1 text-xs font-medium text-danger-strong">{erro}</p>
       ) : (
         <p id={ajudaId} className="mt-1 text-xs text-muted-foreground">
-          PDF, imagem, DOCX ou XLSX, até {LIMITE_ENVIO_ANEXOS_ROTULO}
+          PDF, imagem, DOCX, XLSX ou XML, até {LIMITE_ENVIO_ANEXOS_ROTULO}
           {multiple || somaNoFormulario ? " somando todos os arquivos" : ""}.
         </p>
       )}

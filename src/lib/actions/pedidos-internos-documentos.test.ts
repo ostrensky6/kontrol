@@ -167,3 +167,51 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     expect(await adicionarAnexoPedidoInterno({ ok: false }, dados)).toEqual({ ok: true, message: "Documento registrado." });
   });
 });
+
+/** Relatório de bugs de 27/11/2026, bugs 1 e 3. */
+describe("nota fiscal e documento de cada orçamento", () => {
+  it("a nota fiscal entra em PDF e XML no mesmo envio, um documento por arquivo", async () => {
+    statusDoPedido = "aguardando_pagamento_nf";
+    const { registrarNotaFiscal } = await import("./pedidos-internos");
+    const dados = new FormData();
+    dados.set("pedido_interno_id", "77");
+    dados.set("tipo", "nota_fiscal");
+    dados.set("numero", "4521");
+    dados.append("arquivo", pdf("nf-4521.pdf"));
+    dados.append("arquivo", new File(["<nfe/>"], "nf-4521.xml", { type: "" }));
+
+    expect(await registrarNotaFiscal({ ok: false }, dados)).toEqual({ ok: true, message: "2 arquivos registrados." });
+    expect(inseridos.pedidos_internos_anexos).toEqual([
+      expect.objectContaining({ tipo: "nota_fiscal", titulo: "NF 4521 (PDF)", etapa: "aguardando_pagamento_nf", mime_type: "application/pdf" }),
+      expect.objectContaining({ tipo: "nota_fiscal", titulo: "NF 4521 (XML)", mime_type: "application/xml" }),
+    ]);
+  });
+
+  it("sem arquivo, a nota fiscal não entra", async () => {
+    const { registrarNotaFiscal } = await import("./pedidos-internos");
+    const dados = new FormData();
+    dados.set("pedido_interno_id", "77");
+    const resultado = await registrarNotaFiscal({ ok: false }, dados);
+    expect(resultado.ok).toBe(false);
+    expect(inseridos.pedidos_internos_anexos).toBeUndefined();
+  });
+
+  it("o orçamento registrado com arquivo grava o documento e liga ao orçamento", async () => {
+    statusDoPedido = "orcamentos";
+    const { registrarOrcamento } = await import("./pedidos-internos");
+    const dados = new FormData();
+    dados.set("pedido_interno_id", "77");
+    dados.set("fornecedor_nome", "Forlab");
+    dados.set("valor_total", "6505.60");
+    dados.set("arquivo", pdf("orcamento-65780.pdf"));
+
+    expect(await registrarOrcamento({ ok: false }, dados)).toEqual({
+      ok: true,
+      message: "Orçamento de Forlab registrado, com o documento.",
+    });
+    expect(inseridos.pedidos_internos_anexos).toEqual([
+      expect.objectContaining({ tipo: "proposta", titulo: "Orçamento: Forlab", etapa: "orcamentos" }),
+    ]);
+    expect(inseridos.pedidos_internos_cotacoes).toEqual([expect.objectContaining({ fornecedor_nome: "Forlab", anexo_id: 1 })]);
+  });
+});

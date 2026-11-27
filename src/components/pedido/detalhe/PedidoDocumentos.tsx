@@ -59,15 +59,12 @@ export function PedidoDocumentos({
                 <p className="mt-1 text-xs text-muted-foreground">
                   {ANEXO_TIPO_LABEL[anexo.tipo] ?? anexo.tipo} · {rotuloEtapa(anexo.etapa) ?? "sem etapa"} · {formatDateTime(anexo.criado_em)}
                 </p>
-                {anexo.downloadUrl ? (
+                {/* o link assinado nasce no clique (bug 2 de 27/11/2026) */}
+                {anexo.downloadUrl && (
                   <a href={anexo.downloadUrl} target="_blank" rel="noreferrer" className="mt-1 mr-3 inline-block text-xs text-primary hover:underline">
                     Abrir arquivo
                   </a>
-                ) : anexo.storage_path ? (
-                  <span className="mt-1 mr-3 inline-block cursor-not-allowed text-xs text-muted-foreground/80" aria-disabled="true">
-                    Arquivo indisponível no momento
-                  </span>
-                ) : null}
+                )}
                 {/* documento com arquivo e link mostra os dois; referência que não é endereço fica como texto */}
                 {anexo.url &&
                   (ehEnderecoWeb(anexo.url) ? (

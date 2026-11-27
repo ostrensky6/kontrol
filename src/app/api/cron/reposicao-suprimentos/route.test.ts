@@ -93,7 +93,7 @@ describe("Reposicao suprimentos cron route handler", () => {
       job: "reposicao-suprimentos",
       email: {
         enabled: false,
-        skippedReason: "RESEND_API_KEY ausente",
+        skippedReason: "envio de e-mail não configurado (SMTP_USER/SMTP_PASS ou RESEND_API_KEY)",
       },
       result: {
         pedidos_criados: 1,

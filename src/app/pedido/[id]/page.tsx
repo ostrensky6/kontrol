@@ -12,6 +12,7 @@ import {
   usuarioDecide,
 } from "@/lib/pedido/aprovadores";
 import { lerAreasPedido } from "@/lib/pedido/areas";
+import { TIPOS_DOCUMENTO_FISCAL } from "@/lib/pedido/anexos";
 import {
   ETAPAS_ANTES_DO_PAGAMENTO,
   lerPendenciaPagamento,
@@ -263,13 +264,11 @@ export default async function PedidoInternoDetalhe({
   const fornecedoresPedido = montarFornecedoresPedido(((fornecedores ?? []) as unknown as FornecedorRaw[]) ?? [], insumoRows, historicoRows);
   const aprovacaoRows = ((aprovacoes ?? []) as unknown as PedidoInternoAprovacao[]) ?? [];
   const anexoRowsBase = ((anexos ?? []) as unknown as PedidoInternoAnexo[]) ?? [];
-  const anexoRows = await Promise.all(anexoRowsBase.map(async (anexo) => {
-    if (!anexo.storage_bucket || !anexo.storage_path) return anexo;
-    const { data } = await supabase.storage
-      .from(anexo.storage_bucket)
-      .createSignedUrl(anexo.storage_path, 60 * 60);
-    return { ...anexo, downloadUrl: data?.signedUrl ?? null };
-  }));
+  // bug 2 de 27/11/2026: o link assinado é gerado no clique (rota anexo/[anexoId]),
+  // não ao montar a página; o de uma hora vencia com a página aberta.
+  const anexoRows = anexoRowsBase.map((anexo) =>
+    anexo.storage_bucket && anexo.storage_path ? { ...anexo, downloadUrl: `/pedido/${pedidoId}/anexo/${anexo.id}` } : anexo,
+  );
   const comunicacaoRows = ((comunicacoes ?? []) as unknown as PedidoInternoComunicacao[]) ?? [];
   const total = linhas.reduce(
     (acc, item) => acc + Number(item.quantidade ?? 0) * Number(item.orcamento_previo ?? 0),
@@ -327,7 +326,7 @@ export default async function PedidoInternoDetalhe({
             ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
             : null;
   const temDocumentoCotacao = anexoRows.some((anexo) => ["orcamento_previo", "proposta", "print", "email"].includes(anexo.tipo));
-  const temDocumentoFiscal = anexoRows.some((anexo) => ["nota_fiscal", "boleto", "comprovante"].includes(anexo.tipo));
+  const temDocumentoFiscal = anexoRows.some((anexo) => TIPOS_DOCUMENTO_FISCAL.includes(anexo.tipo));
   const itensFisicos = linhas.filter((item) => ["material", "equipamento"].includes(item.tipo));
   const itensRecebidos = itensFisicos.filter((item) => item.recebido_em).length;
   // as duas datas do ciclo: solicitação e a aprovação da coordenação que o define

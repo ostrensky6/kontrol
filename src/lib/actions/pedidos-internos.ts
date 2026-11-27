@@ -19,7 +19,12 @@ import { CAMPOS_ITEM_NOVO_PEDIDO, faltaNosItens, lerItensNovoPedido } from "@/li
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
-import { lerDocumentosNovoPedido, motivoArquivosRecusados, motivoTipoForaDaEtapa } from "@/lib/pedido/anexos";
+import {
+  TIPOS_DOCUMENTO_FISCAL,
+  lerDocumentosNovoPedido,
+  motivoArquivosRecusados,
+  motivoTipoForaDaEtapa,
+} from "@/lib/pedido/anexos";
 
 const SEM_PERMISSAO: FormState = {
   ok: false,
@@ -1025,7 +1030,7 @@ export async function concluirCompra(_prev: FormState, formData: FormData): Prom
     .from("pedidos_internos_anexos")
     .select("id")
     .eq("pedido_interno_id", pedidoId)
-    .in("tipo", ["nota_fiscal", "boleto", "comprovante"])
+    .in("tipo", [...TIPOS_DOCUMENTO_FISCAL])
     .limit(1);
   if (!anexos || anexos.length === 0) {
     return { ok: false, message: "Anexe nota fiscal, boleto ou comprovante antes de concluir." };
@@ -1133,19 +1138,26 @@ function arquivosDoCampo(formData: FormData, campo: string): File[] {
  * pedidos_internos_anexos. Devolve a mensagem de erro, ou null quando gravou.
  * Se a linha não entra, o arquivo enviado é apagado.
  */
-async function gravarAnexoPedido(
+type AnexoParaGravar = {
+  pedidoId: number;
+  etapa: string | null;
+  tipo: string;
+  titulo: string;
+  arquivo: File | null;
+  url: string | null;
+  observacao: string | null;
+  usuario: string | null;
+};
+
+async function gravarAnexoPedido(supabase: ClienteSupabase, anexo: AnexoParaGravar): Promise<string | null> {
+  return (await gravarAnexoPedidoComId(supabase, anexo)).erro;
+}
+
+/** Igual a gravarAnexoPedido, devolvendo também o id do documento gravado (para ligar ao orçamento). */
+async function gravarAnexoPedidoComId(
   supabase: ClienteSupabase,
-  anexo: {
-    pedidoId: number;
-    etapa: string | null;
-    tipo: string;
-    titulo: string;
-    arquivo: File | null;
-    url: string | null;
-    observacao: string | null;
-    usuario: string | null;
-  },
-): Promise<string | null> {
+  anexo: AnexoParaGravar,
+): Promise<{ erro: string | null; id: number | null }> {
   const { pedidoId, arquivo } = anexo;
   let storagePath: string | null = null;
   let hashSha256: string | null = null;
@@ -1156,14 +1168,14 @@ async function gravarAnexoPedido(
   if (arquivo) {
     const bytes = Buffer.from(await arquivo.arrayBuffer());
     arquivoNome = nomeArquivoSeguro(arquivo.name);
-    mimeType = arquivo.type || "application/octet-stream";
+    mimeType = arquivo.type || mimePelaExtensao(arquivo.name);
     tamanhoBytes = arquivo.size;
     hashSha256 = createHash("sha256").update(bytes).digest("hex");
     storagePath = `${pedidoId}/${randomUUID()}-${arquivoNome}`;
     const { error: uploadError } = await supabase.storage
       .from(BUCKET_ANEXOS_PEDIDOS)
       .upload(storagePath, bytes, { contentType: mimeType, upsert: false });
-    if (uploadError) return mensagemDoBanco(uploadError, "Falha no envio do arquivo. Tente de novo.");
+    if (uploadError) return { erro: mensagemDoBanco(uploadError, "Falha no envio do arquivo. Tente de novo."), id: null };
   }
 
   const linha = {
@@ -1175,23 +1187,44 @@ async function gravarAnexoPedido(
     observacao: anexo.observacao,
     usuario: anexo.usuario,
   };
-  let { error } = await supabase.from("pedidos_internos_anexos").insert({
-    ...linha,
-    arquivo_nome: arquivoNome,
-    storage_bucket: storagePath ? BUCKET_ANEXOS_PEDIDOS : null,
-    storage_path: storagePath,
-    mime_type: mimeType,
-    tamanho_bytes: tamanhoBytes,
-    hash_sha256: hashSha256,
-  });
+  const gravado = await supabase
+    .from("pedidos_internos_anexos")
+    .insert({
+      ...linha,
+      arquivo_nome: arquivoNome,
+      storage_bucket: storagePath ? BUCKET_ANEXOS_PEDIDOS : null,
+      storage_path: storagePath,
+      mime_type: mimeType,
+      tamanho_bytes: tamanhoBytes,
+      hash_sha256: hashSha256,
+    })
+    .select("id")
+    .single();
+  let error = gravado.error;
+  let id = idGravado(gravado.data);
   if (error && storagePath) {
     await supabase.storage.from(BUCKET_ANEXOS_PEDIDOS).remove([storagePath]);
   }
   if (erroSchemaCache(error)) {
-    const retry = await supabase.from("pedidos_internos_anexos").insert(linha);
+    const retry = await supabase.from("pedidos_internos_anexos").insert(linha).select("id").single();
     error = retry.error;
+    id = idGravado(retry.data);
   }
-  return error ? mensagemDoBanco(error) : null;
+  return error ? { erro: mensagemDoBanco(error), id: null } : { erro: null, id };
+}
+
+function idGravado(data: unknown): number | null {
+  const linha = Array.isArray(data) ? data[0] : data;
+  const id = (linha as { id?: unknown } | null)?.id;
+  return typeof id === "number" ? id : null;
+}
+
+/** Navegador sem tipo para o arquivo (comum no XML da nota fiscal): vale a extensão. */
+function mimePelaExtensao(nome: string): string {
+  const extensao = nome.toLowerCase().split(".").pop() ?? "";
+  if (extensao === "xml") return "application/xml";
+  if (extensao === "pdf") return "application/pdf";
+  return "application/octet-stream";
 }
 
 export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -1227,6 +1260,62 @@ export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: Fo
   if (erro) return { ok: false, message: erro };
   revalidatePath(`/pedido/${pedidoId}`);
   return { ok: true, message: "Documento registrado." };
+}
+
+/**
+ * Bug 1 de 27/11/2026: a etapa Pagamento pedia a nota fiscal e não tinha onde
+ * anexá-la. Aceita PDF e XML juntos (um documento por arquivo), como nota
+ * fiscal, boleto ou comprovante; com um deles, "Concluir compra" libera.
+ */
+export async function registrarNotaFiscal(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  if (!pedidoId) return { ok: false, message: "Pedido não informado." };
+  if (!((await pode("pedido.criar")) || (await pode("pedido.aprovar")))) {
+    return { ok: false, message: "Seu perfil não tem permissão para registrar documentos." };
+  }
+  const arquivos = arquivosDoCampo(formData, "arquivo");
+  if (arquivos.length === 0) return { ok: false, message: "Escolha o arquivo da nota fiscal (PDF ou XML)." };
+  const recusado = motivoArquivosRecusados(arquivos);
+  if (recusado) return { ok: false, message: recusado };
+  const tipoInformado = texto(formData, "tipo") ?? "nota_fiscal";
+  const tipo = TIPOS_DOCUMENTO_FISCAL.includes(tipoInformado) ? tipoInformado : "nota_fiscal";
+  const numeroNota = texto(formData, "numero");
+  const rotulo = tipo === "boleto" ? "Boleto" : tipo === "comprovante" ? "Comprovante" : "NF";
+
+  const u = await usuarioAtual();
+  const supabase = await createClientUntyped();
+  const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
+  const status = (pedido as { status?: string } | null)?.status ?? null;
+  let gravados = 0;
+  for (const arquivo of arquivos) {
+    const extensao = arquivo.name.toLowerCase().split(".").pop()?.toUpperCase() ?? "";
+    const titulo = numeroNota
+      ? `${rotulo} ${numeroNota}${arquivos.length > 1 && extensao ? ` (${extensao})` : ""}`
+      : arquivo.name;
+    const erro = await gravarAnexoPedido(supabase, {
+      pedidoId,
+      etapa: status,
+      tipo,
+      titulo: titulo.slice(0, 200),
+      arquivo,
+      url: null,
+      observacao: texto(formData, "observacao"),
+      usuario: u?.email ?? null,
+    });
+    if (erro) {
+      revalidatePath(`/pedido/${pedidoId}`);
+      return {
+        ok: false,
+        message: gravados > 0 ? `${gravados} arquivo(s) entraram; “${arquivo.name}” não: ${erro}` : erro,
+      };
+    }
+    gravados += 1;
+  }
+  revalidatePath(`/pedido/${pedidoId}`);
+  return {
+    ok: true,
+    message: gravados > 1 ? `${gravados} arquivos registrados.` : "Documento registrado.",
+  };
 }
 
 export async function removerAnexoPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
@@ -1329,6 +1418,17 @@ export async function registrarOrcamento(_prev: FormState, formData: FormData): 
   if (prazo != null && (prazo < 0 || !Number.isInteger(prazo))) {
     return { ok: false, message: "Prazo de entrega em dias inteiros (0 ou mais)." };
   }
+  // bug 3 de 27/11/2026: cada orçamento recebe o próprio arquivo, no mesmo formulário
+  const arquivo = arquivosDoCampo(formData, "arquivo")[0] ?? null;
+  const recusado = arquivo ? motivoArquivosRecusados([arquivo]) : null;
+  if (recusado) return { ok: false, message: recusado };
+  let anexoId = numero(formData, "anexo_id");
+  let anexoNovo: number | null = null;
+  if (arquivo) {
+    const gravado = await gravarDocumentoDoOrcamento(supabase, pedidoId, fornecedorNome, arquivo);
+    if (gravado.erro) return { ok: false, message: gravado.erro };
+    anexoId = anexoNovo = gravado.id;
+  }
   const { error } = await supabase.from("pedidos_internos_cotacoes").insert({
     pedido_interno_id: pedidoId,
     fornecedor_id: fornecedorId,
@@ -1337,16 +1437,109 @@ export async function registrarOrcamento(_prev: FormState, formData: FormData): 
     prazo_entrega_dias: prazo,
     validade: texto(formData, "validade"),
     condicoes: texto(formData, "condicoes"),
-    anexo_id: numero(formData, "anexo_id"),
+    anexo_id: anexoId,
   });
   if (error) {
-    if ((error as { code?: string }).code === "23505") {
-      return { ok: false, message: "Já há um orçamento deste fornecedor no pedido. Os 3 orçamentos são de fornecedores diferentes." };
-    }
+    if (anexoNovo) await descartarAnexo(supabase, pedidoId, anexoNovo);
+    if ((error as { code?: string }).code === "23505") return { ok: false, message: MSG_FORNECEDOR_REPETIDO };
     return { ok: false, message: mensagemDoBanco(error) };
   }
   revalidatePath(`/pedido/${pedidoId}`);
-  return { ok: true, message: `Orçamento de ${fornecedorNome} registrado.` };
+  return {
+    ok: true,
+    message: arquivo
+      ? `Orçamento de ${fornecedorNome} registrado, com o documento.`
+      : `Orçamento de ${fornecedorNome} registrado.`,
+  };
+}
+
+const MSG_FORNECEDOR_REPETIDO =
+  "Já há um orçamento deste fornecedor no pedido. Os 3 orçamentos são de fornecedores diferentes.";
+
+/** O arquivo do orçamento entra em Documentos como "Cotação do fornecedor". */
+async function gravarDocumentoDoOrcamento(
+  supabase: ClienteSupabase,
+  pedidoId: number,
+  fornecedorNome: string,
+  arquivo: File,
+): Promise<{ erro: string | null; id: number | null }> {
+  const u = await usuarioAtual();
+  const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
+  const gravado = await gravarAnexoPedidoComId(supabase, {
+    pedidoId,
+    etapa: (pedido as { status?: string } | null)?.status ?? null,
+    tipo: "proposta",
+    titulo: `Orçamento: ${fornecedorNome}`.slice(0, 200),
+    arquivo,
+    url: null,
+    observacao: null,
+    usuario: u?.email ?? null,
+  });
+  if (!gravado.erro && !gravado.id) {
+    return { erro: "O documento foi enviado, mas não deu para ligá-lo ao orçamento. Ligue-o pela lista do orçamento.", id: null };
+  }
+  return gravado;
+}
+
+/** Desfaz um documento recém-gravado quando o orçamento não entrou. */
+async function descartarAnexo(supabase: ClienteSupabase, pedidoId: number, anexoId: number) {
+  const { data } = await supabase
+    .from("pedidos_internos_anexos")
+    .select("storage_bucket, storage_path")
+    .eq("id", anexoId)
+    .eq("pedido_interno_id", pedidoId)
+    .maybeSingle();
+  const linha = data as { storage_bucket?: string | null; storage_path?: string | null } | null;
+  if (linha?.storage_bucket && linha.storage_path) await supabase.storage.from(linha.storage_bucket).remove([linha.storage_path]);
+  // escrita-sem-conferencia: limpeza por melhor esforço; o erro original já volta para a tela
+  await supabase.from("pedidos_internos_anexos").delete().eq("id", anexoId).eq("pedido_interno_id", pedidoId);
+}
+
+/**
+ * Bug 3 de 27/11/2026: liga um documento a um orçamento já registrado, com
+ * arquivo novo ou um documento que já está em Documentos.
+ */
+export async function anexarDocumentoOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
+  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  const pedidoId = Number(formData.get("pedido_interno_id"));
+  const orcamentoId = Number(formData.get("orcamento_id"));
+  if (!pedidoId || !orcamentoId) return { ok: false, message: "Orçamento não informado." };
+  const arquivo = arquivosDoCampo(formData, "arquivo")[0] ?? null;
+  let anexoId = numero(formData, "anexo_id");
+  if (!arquivo && !anexoId) return { ok: false, message: "Escolha o arquivo do orçamento." };
+  const recusado = arquivo ? motivoArquivosRecusados([arquivo]) : null;
+  if (recusado) return { ok: false, message: recusado };
+  const supabase = await createClientUntyped();
+  const { data: orcamento } = await supabase
+    .from("pedidos_internos_cotacoes")
+    .select("fornecedor_nome")
+    .eq("id", orcamentoId)
+    .eq("pedido_interno_id", pedidoId)
+    .maybeSingle();
+  const fornecedorNome = (orcamento as { fornecedor_nome?: string } | null)?.fornecedor_nome;
+  if (!fornecedorNome) return { ok: false, message: "O orçamento não está mais neste pedido. A tela foi atualizada." };
+  let anexoNovo: number | null = null;
+  if (arquivo) {
+    const gravado = await gravarDocumentoDoOrcamento(supabase, pedidoId, fornecedorNome, arquivo);
+    if (gravado.erro) return { ok: false, message: gravado.erro };
+    anexoId = anexoNovo = gravado.id;
+  }
+  const { data: ligados, error } = await supabase
+    .from("pedidos_internos_cotacoes")
+    .update({ anexo_id: anexoId })
+    .eq("id", orcamentoId)
+    .eq("pedido_interno_id", pedidoId)
+    .select("id");
+  if (error || semLinhasAfetadas(ligados)) {
+    if (anexoNovo) await descartarAnexo(supabase, pedidoId, anexoNovo);
+    revalidatePath(`/pedido/${pedidoId}`);
+    return {
+      ok: false,
+      message: error ? mensagemDoBanco(error) : "Nada foi ligado: o orçamento já não está neste pedido. A tela foi atualizada.",
+    };
+  }
+  revalidatePath(`/pedido/${pedidoId}`);
+  return { ok: true, message: `Documento ligado ao orçamento de ${fornecedorNome}.` };
 }
 
 /** Remove um orçamento lançado por engano (fica na auditoria). O escolhido não sai. */

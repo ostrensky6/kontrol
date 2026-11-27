@@ -117,6 +117,7 @@ export function PedidoInternoAcoes({
   controlado = false,
   motivoCicloTravado = null,
   motivoItensSemCadastro = null,
+  semDocumentoFiscal = false,
 }: {
   pedidoId: number;
   status: string;
@@ -149,6 +150,8 @@ export function PedidoInternoAcoes({
   motivoCicloTravado?: string | null;
   /** item novo (nunca comprado) ainda sem insumo: o banco recusa a formalização */
   motivoItensSemCadastro?: string | null;
+  /** bug 1 de 27/11/2026: "Concluir compra" espera a nota fiscal (ou boleto/comprovante) */
+  semDocumentoFiscal?: boolean;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -335,7 +338,13 @@ export function PedidoInternoAcoes({
 
       {status === "aguardando_pagamento_nf" && podeGerir && (
         <>
-          <Botao pedidoId={pedidoId} action={concluirCompra} label="Concluir compra" />
+          <Botao
+            pedidoId={pedidoId}
+            action={concluirCompra}
+            label="Concluir compra"
+            disabled={semDocumentoFiscal}
+            disabledReason={semDocumentoFiscal ? "Anexe a nota fiscal (ou o boleto ou comprovante) acima para concluir." : undefined}
+          />
         </>
       )}
 

@@ -1,5 +1,11 @@
-import { escolherOrcamento, registrarOrcamento, removerOrcamento } from "@/lib/actions/pedidos-internos";
+import {
+  anexarDocumentoOrcamento,
+  escolherOrcamento,
+  registrarOrcamento,
+  removerOrcamento,
+} from "@/lib/actions/pedidos-internos";
 import { FormComMensagem } from "@/components/pedido/FormComMensagem";
+import { CampoArquivosAnexo } from "@/components/pedido/CampoArquivosAnexo";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { formatCurrency as brl, formatDate, formatDateTime } from "@/lib/formatters";
 import {
@@ -99,6 +105,25 @@ export function PedidoOrcamentos({
                     {o.justificativa_escolha ? `. Justificativa: ${o.justificativa_escolha}` : "."}
                   </p>
                 )}
+                {podeGerir && aberto && !o.anexo_id && (
+                  <FormComMensagem
+                    action={anexarDocumentoOrcamento}
+                    encType="multipart/form-data"
+                    className="mt-2 flex flex-wrap items-end gap-2"
+                  >
+                    <input type="hidden" name="pedido_interno_id" value={pedidoId} />
+                    <input type="hidden" name="orcamento_id" value={o.id} />
+                    <CampoArquivosAnexo
+                      id={`orcamento-${o.id}-arquivo`}
+                      name="arquivo"
+                      label={`Documento do orçamento de ${o.fornecedor_nome}`}
+                      className="min-w-0 flex-1"
+                    />
+                    <SubmitButton size="sm" variant="outline" pendingLabel="Enviando…" className="mb-6">
+                      Anexar documento
+                    </SubmitButton>
+                  </FormComMensagem>
+                )}
                 {podeGerir && aberto && !o.escolhida && (
                   <div className="mt-2 flex flex-wrap items-start gap-2">
                     {podeEscolher && (
@@ -136,7 +161,11 @@ export function PedidoOrcamentos({
       )}
 
       {podeGerir && aberto && (
-        <FormComMensagem action={registrarOrcamento} className="mt-3 grid gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-2">
+        <FormComMensagem
+          action={registrarOrcamento}
+          encType="multipart/form-data"
+          className="mt-3 grid gap-2 rounded-md border border-dashed border-border p-3 sm:grid-cols-2"
+        >
           <input type="hidden" name="pedido_interno_id" value={pedidoId} />
           <p className="text-xs font-semibold sm:col-span-2">Registrar orçamento</p>
           <label className="grid gap-1 text-xs">
@@ -166,17 +195,26 @@ export function PedidoOrcamentos({
             Válido até
             <input name="validade" type="date" className={campo} />
           </label>
-          <label className="grid gap-1 text-xs">
-            Documento (anexo do pedido)
-            <select name="anexo_id" className={campo} defaultValue="">
-              <option value="">— anexe na seção Documentos e escolha aqui —</option>
-              {anexos.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.titulo}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* bug 3 de 27/11/2026: cada orçamento envia o próprio arquivo aqui mesmo */}
+          <CampoArquivosAnexo
+            id={`registrarOrcamento-${pedidoId}-arquivo`}
+            name="arquivo"
+            label="Documento do orçamento (PDF do fornecedor)"
+            className="sm:col-span-2"
+          />
+          {anexos.length > 0 && (
+            <label className="grid gap-1 text-xs sm:col-span-2">
+              Ou um documento que já está em Documentos
+              <select name="anexo_id" className={campo} defaultValue="">
+                <option value="">— nenhum —</option>
+                {anexos.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    {a.titulo}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="grid gap-1 text-xs sm:col-span-2">
             Condições (frete, pagamento, garantia)
             <input name="condicoes" maxLength={1000} className={campo} />

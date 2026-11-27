@@ -50,7 +50,7 @@ describe("arquivos de um envio", () => {
 
   it("recusa formato fora da lista", () => {
     expect(motivoArquivosRecusados([{ name: "planilha.xls", size: 1000, type: "application/vnd.ms-excel" }])).toBe(
-      "“planilha.xls” não é PDF, imagem, DOCX ou XLSX.",
+      "“planilha.xls” não é PDF, imagem, DOCX, XLSX ou XML.",
     );
   });
 
