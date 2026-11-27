@@ -20,12 +20,22 @@ export type AprovadorLaboratorio = {
   ids: string[];
 };
 
+export type AprovadorFinanceiro = {
+  nome: string | null;
+  ids: string[];
+};
+
 export type AprovadoresPedido = {
+  /** 0188: 2 = ordem nova (laboratório ou campo → financeiro → coordenador do projeto) */
+  fluxo: 1 | 2;
   coordenador: AprovadorCoordenador | null;
   falta_coordenador: string | null;
   laboratorio_exigido: boolean;
   laboratorio: AprovadorLaboratorio | null;
   falta_laboratorio: string | null;
+  financeiro: AprovadorFinanceiro | null;
+  /** aviso, não trava: sem função Administrativo, o Administrador aprova */
+  falta_financeiro: string | null;
 };
 
 type Rpc = {
@@ -46,7 +56,9 @@ export function normalizarAprovadores(bruto: unknown): AprovadoresPedido | null 
   const r = bruto as Record<string, unknown>;
   const c = r.coordenador as Record<string, unknown> | null | undefined;
   const l = r.laboratorio as Record<string, unknown> | null | undefined;
+  const f = r.financeiro as Record<string, unknown> | null | undefined;
   return {
+    fluxo: Number(r.fluxo) === 2 ? 2 : 1,
     coordenador: c
       ? {
           motivo: c.motivo === "supervisao" ? "supervisao" : "coordenador_projeto",
@@ -68,6 +80,8 @@ export function normalizarAprovadores(bruto: unknown): AprovadoresPedido | null 
         }
       : null,
     falta_laboratorio: texto(r.falta_laboratorio),
+    financeiro: f ? { nome: texto(f.nome), ids: ids(f.ids) } : null,
+    falta_financeiro: texto(r.falta_financeiro),
   };
 }
 
@@ -80,11 +94,13 @@ export async function lerAprovadores(supabase: Rpc, pedidoId: number): Promise<A
 /** Primeira trava do envio, em texto claro; null quando o pedido pode seguir. */
 export function travaDoEnvio(aprovadores: AprovadoresPedido | null): string | null {
   if (!aprovadores) return null;
+  // 0188: na ordem nova o laboratório ou campo é a primeira aprovação
+  if (aprovadores.fluxo === 2) return aprovadores.falta_laboratorio ?? aprovadores.falta_coordenador ?? null;
   return aprovadores.falta_coordenador ?? aprovadores.falta_laboratorio ?? null;
 }
 
 export type EtapaAprovacao = {
-  chave: "coordenador" | "laboratorio";
+  chave: "coordenador" | "laboratorio" | "financeiro";
   titulo: string;
   quem: string;
   situacao: "feita" | "aguardando" | "futura" | "travada";
@@ -95,12 +111,85 @@ export type EtapaAprovacao = {
 
 const ANTES_DA_VALIDACAO = ["rascunho", "ajuste_solicitante", "ajuste_compras"];
 
+type PedidoEtapas = {
+  status: string;
+  aprovacao_area_em?: string | null;
+  aprovacao_area_por?: string | null;
+  aprovacao_financeiro_em?: string | null;
+  aprovacao_financeiro_por?: string | null;
+  natureza?: string | null;
+};
+
+const ORDEM_FLUXO_NOVO = ["aguardando_area", "aguardando_financeiro", "aguardando_projeto"] as const;
+
+/**
+ * 0188: as três aprovações da ordem nova, na ordem em que acontecem —
+ * laboratório ou campo, financeiro, coordenador do projeto.
+ */
+function etapasFluxoNovo(aprovadores: AprovadoresPedido, pedido: PedidoEtapas): EtapaAprovacao[] {
+  const antes = ANTES_DA_VALIDACAO.includes(pedido.status);
+  const posicao = (ORDEM_FLUXO_NOVO as readonly string[]).indexOf(pedido.status);
+  const depoisDeTodas = !antes && posicao < 0;
+  const situacaoDe = (indice: number, trava: string | null, feita: boolean) => {
+    if (trava && antes) return { situacao: "travada" as const, rotulo: "Trava o envio" };
+    if (feita || depoisDeTodas || (posicao >= 0 && indice < posicao)) return { situacao: "feita" as const, rotulo: "Feita" };
+    if (indice === posicao) return { situacao: "aguardando" as const, rotulo: "Aguardando" };
+    return { situacao: "futura" as const, rotulo: indice === 0 ? "Depois do envio" : "Depois da anterior" };
+  };
+
+  const l = aprovadores.laboratorio;
+  const area = situacaoDe(0, aprovadores.falta_laboratorio, false);
+  const f = aprovadores.financeiro;
+  const fin = situacaoDe(1, null, false);
+  const c = aprovadores.coordenador;
+  const proj = situacaoDe(2, aprovadores.falta_coordenador, false);
+  return [
+    {
+      chave: "laboratorio",
+      titulo: l ? `Laboratório ou campo (${l.area})` : "Laboratório ou campo",
+      quem: l?.nome ?? "Sem coordenação indicada",
+      situacao: area.situacao,
+      rotuloSituacao: area.rotulo,
+      detalhe: area.situacao === "travada"
+        ? aprovadores.falta_laboratorio
+        : area.situacao === "feita" && pedido.aprovacao_area_por
+          ? `Aprovado por ${pedido.aprovacao_area_por}.`
+          : l?.substituto_nome
+            ? `Substituto: ${l.substituto_nome}.`
+            : null,
+    },
+    {
+      chave: "financeiro",
+      titulo: "Financeiro (fonte de pagamento)",
+      quem: f?.nome ?? "Administrador",
+      situacao: fin.situacao,
+      rotuloSituacao: fin.rotulo,
+      detalhe: fin.situacao === "feita" && pedido.aprovacao_financeiro_por
+        ? `Aprovado por ${pedido.aprovacao_financeiro_por}.`
+        : aprovadores.falta_financeiro,
+    },
+    {
+      chave: "coordenador",
+      titulo: c?.motivo === "supervisao" ? "Supervisão (pedido sem projeto)" : "Coordenador do projeto",
+      quem: c?.nome ?? "Sem coordenador indicado",
+      situacao: proj.situacao,
+      rotuloSituacao: proj.rotulo,
+      detalhe: proj.situacao === "travada"
+        ? aprovadores.falta_coordenador
+        : c
+          ? `${c.rotulo}. Na ausência, o Administrador aprova como substituto.`
+          : null,
+    },
+  ];
+}
+
 /** Linhas do quadro "Quem aprova", na ordem do fluxo. */
 export function etapasAprovacao(
   aprovadores: AprovadoresPedido | null,
-  pedido: { status: string; aprovacao_area_em?: string | null; aprovacao_area_por?: string | null; natureza?: string | null },
+  pedido: PedidoEtapas,
 ): EtapaAprovacao[] {
   if (!aprovadores || pedido.status === "cancelado") return [];
+  if (aprovadores.fluxo === 2) return etapasFluxoNovo(aprovadores, pedido);
   const etapas: EtapaAprovacao[] = [];
   const antes = ANTES_DA_VALIDACAO.includes(pedido.status);
 
@@ -191,6 +280,19 @@ export function motivoProprioPedido({
   const eu = (emailUsuario ?? "").trim().toLowerCase();
   if (!quemPediu || !eu || quemPediu !== eu) return null;
   return "Quem pediu não dá a aprovação final do próprio pedido. Ela fica com outra pessoa que tenha “Aprovar pedidos” ou com quem coordena o projeto.";
+}
+
+/**
+ * 0188: quem decide a aprovação em que o pedido da ordem nova está, pela mesma
+ * regra do banco (kontrol_private.pode_decidir_fluxo2). Quem conduz a compra
+ * inteira (Administrador ou "Conduzir a compra inteira") decide qualquer uma.
+ */
+export function idsDaVezFluxoNovo(aprovadores: AprovadoresPedido | null, status: string | null | undefined): string[] {
+  if (!aprovadores) return [];
+  if (status === "aguardando_area") return aprovadores.laboratorio?.ids ?? [];
+  if (status === "aguardando_financeiro") return aprovadores.financeiro?.ids ?? [];
+  if (status === "aguardando_projeto") return aprovadores.coordenador?.ids ?? [];
+  return [];
 }
 
 /** O usuário está entre os competentes (ou é o Administrador, como substituto)? */

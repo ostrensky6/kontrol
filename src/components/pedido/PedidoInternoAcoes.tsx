@@ -8,6 +8,7 @@ import {
   cancelarPedidoInterno,
   concluirCompra,
   confirmarEntregaPedidoInterno,
+  decidirAprovacaoPedido,
   decidirCoordenacaoLaboratorio,
   devolverParaCompras,
   devolverParaSolicitante,
@@ -26,6 +27,7 @@ import {
 import type { FormState } from "@/lib/actions/cadastros";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
+import { emAprovacaoFluxoNovo } from "@/lib/pedido/status";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 
@@ -122,6 +124,11 @@ export function PedidoInternoAcoes({
   motivoCicloTravado = null,
   motivoItensSemCadastro = null,
   semDocumentoFiscal = false,
+  podeDecidirVez = false,
+  motivoSemDecisaoVez = null,
+  fontes = [],
+  fonteAtual = null,
+  rubricaAtual = null,
 }: {
   pedidoId: number;
   status: string;
@@ -156,6 +163,14 @@ export function PedidoInternoAcoes({
   motivoItensSemCadastro?: string | null;
   /** bug 1 de 27/11/2026: "Concluir compra" espera a nota fiscal (ou boleto/comprovante) */
   semDocumentoFiscal?: boolean;
+  /** 0188 (ordem nova): o usuário decide a aprovação em que o pedido está */
+  podeDecidirVez?: boolean;
+  /** 0188: tem "Aprovar pedidos", mas a vez é de outra pessoa (o texto diz de quem) */
+  motivoSemDecisaoVez?: string | null;
+  /** 0188: fontes de pagamento cadastradas (o financeiro escolhe uma ao aprovar) */
+  fontes?: { nome: string; descricao?: string | null }[];
+  fonteAtual?: string | null;
+  rubricaAtual?: string | null;
 }) {
   if (status === "cancelado" || status === "compra_concluida") {
     return null;
@@ -174,6 +189,79 @@ export function PedidoInternoAcoes({
             "Complete tipo de material, objetivo, justificativa e ao menos um item antes de enviar."
           }
         />
+      )}
+
+      {/* 0188: ordem nova — laboratório ou campo, financeiro, coordenador do projeto */}
+      {emAprovacaoFluxoNovo(status) && podeDecidirVez && (
+        <>
+          {status === "aguardando_financeiro" ? (
+            <Botao
+              pedidoId={pedidoId}
+              action={decidirAprovacaoPedido}
+              label="Aprovar com esta fonte"
+              // o item novo vem antes: é o que a pessoa já pode resolver (Cadastrar insumo)
+              disabled={Boolean(motivoItensSemCadastro) || Boolean(motivoProprioPedido)}
+              disabledReason={motivoItensSemCadastro ?? motivoProprioPedido ?? undefined}
+            >
+              <input type="hidden" name="decisao" value="aprovado" />
+              <div className="grid w-72 gap-2">
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Fonte de pagamento
+                  <select
+                    name="fonte_recurso"
+                    required
+                    defaultValue={fontes.some((f) => f.nome === fonteAtual) ? fonteAtual ?? "" : ""}
+                    className="h-9 rounded-md border border-input bg-card px-2 text-sm text-foreground"
+                  >
+                    <option value="">Escolha a fonte…</option>
+                    {fontes.map((f) => (
+                      <option key={f.nome} value={f.nome}>
+                        {f.nome}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+                  Rubrica (opcional)
+                  <input
+                    name="rubrica"
+                    defaultValue={rubricaAtual ?? undefined}
+                    className="h-9 rounded-md border border-input bg-card px-2 text-sm text-foreground"
+                  />
+                </label>
+              </div>
+            </Botao>
+          ) : (
+            <Botao
+              pedidoId={pedidoId}
+              action={decidirAprovacaoPedido}
+              label={status === "aguardando_area" ? "Aprovar pelo laboratório ou campo" : "Aprovar pedido"}
+              disabled={Boolean(motivoProprioPedido)}
+              disabledReason={motivoProprioPedido ?? undefined}
+            >
+              <input type="hidden" name="decisao" value="aprovado" />
+            </Botao>
+          )}
+          <Botao
+            pedidoId={pedidoId}
+            action={decidirAprovacaoPedido}
+            label="Devolver ao solicitante"
+            variant="aviso"
+            comentarioPlaceholder="O que corrigir (obrigatório)"
+          >
+            <input type="hidden" name="decisao" value="devolvido" />
+          </Botao>
+          <Botao
+            pedidoId={pedidoId}
+            action={reprovarPedidoInterno}
+            label="Reprovar"
+            variant="danger"
+            comentarioPlaceholder="Motivo da reprovação"
+          />
+        </>
+      )}
+      {emAprovacaoFluxoNovo(status) && !podeDecidirVez && motivoSemDecisaoVez && (
+        <p className="max-w-80 text-xs text-muted-foreground">{motivoSemDecisaoVez}</p>
       )}
 
       {status === "em_validacao" && podeGerir && (
@@ -310,10 +398,20 @@ export function PedidoInternoAcoes({
             pedidoId={pedidoId}
             action={fecharComFornecedor}
             label="Fechar com fornecedor"
-            disabled={controlado}
-            disabledReason={controlado ? "Produto controlado: não pode ser compra direta. Encaminhe à FUNPAR." : undefined}
+            // 0188: na ordem nova o ciclo do dia 10 trava aqui (antes, na formalização)
+            disabled={controlado || Boolean(motivoCicloTravado)}
+            disabledReason={
+              controlado ? "Produto controlado: não pode ser compra direta. Encaminhe à FUNPAR." : (motivoCicloTravado ?? undefined)
+            }
           />
-          <Botao pedidoId={pedidoId} action={encaminharInstituicao} label="Encaminhar à instituição" variant="outline">
+          <Botao
+            pedidoId={pedidoId}
+            action={encaminharInstituicao}
+            label="Encaminhar à instituição"
+            variant="outline"
+            disabled={Boolean(motivoCicloTravado)}
+            disabledReason={motivoCicloTravado ?? undefined}
+          >
             <div className="grid w-72 gap-2">
               <select name="modalidade_compra" defaultValue="fundacao" className="h-9 rounded-md border border-input bg-card px-2 text-sm">
                 <option value="fundacao">Fundação</option>

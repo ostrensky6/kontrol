@@ -1,4 +1,5 @@
 import { rotuloCiclo, rotuloData } from "@/lib/pedido/ciclo";
+import { emAprovacaoFluxoNovo } from "@/lib/pedido/status";
 
 /**
  * Próximo passo do pedido, dito do mesmo jeito na lista e na página do pedido:
@@ -30,6 +31,22 @@ const PASSOS: Record<string, ProximoPasso> = {
     acao: "Corrigir e reenviar",
     responsavel: "Solicitante, com Compras",
     depois: "o pedido volta para a análise administrativa.",
+  },
+  // 0188: ordem nova (laboratório ou campo → financeiro → coordenador do projeto)
+  aguardando_area: {
+    acao: "Aprovar pelo laboratório ou campo",
+    responsavel: "Coordenação do laboratório ou do campo",
+    depois: "o financeiro escolhe a fonte de pagamento e aprova.",
+  },
+  aguardando_financeiro: {
+    acao: "Escolher a fonte de pagamento e aprovar",
+    responsavel: "Financeiro (função Administrativo)",
+    depois: "o coordenador do projeto dá a última aprovação.",
+  },
+  aguardando_projeto: {
+    acao: "Aprovar pedido",
+    responsavel: "Coordenador do projeto (sem projeto: Supervisão)",
+    depois: "a compra fica liberada para Compras fechar.",
   },
   em_validacao: {
     acao: "Aprovar pedido",
@@ -108,14 +125,27 @@ export type ContextoProximoPasso = {
   laboratorio?: string | null;
   /** 0176: data em que o ciclo abre, quando o pedido espera o ciclo seguinte */
   cicloAbreEm?: string | null;
+  /** 0188: quem aprova pelo financeiro (nomes da função Administrativo) */
+  financeiro?: string | null;
 };
 
 export function proximoPasso(
-  pedido: { status: string | null | undefined; natureza?: string | null; aprovacao_area_em?: string | null },
+  pedido: {
+    status: string | null | undefined;
+    natureza?: string | null;
+    aprovacao_area_em?: string | null;
+    fluxo?: number | null;
+  },
   contexto: ContextoProximoPasso = {},
 ): ProximoPasso {
   const status = pedido.status ?? "rascunho";
   const materialDeLaboratorio = pedido.natureza === "material_consumo_lab";
+
+  // 0188: a ordem nova diz o nome de quem aprova em cada vez
+  if (Number(pedido.fluxo ?? 1) === 2 || emAprovacaoFluxoNovo(status)) {
+    const doFluxoNovo = proximoPassoFluxoNovo(status, contexto);
+    if (doFluxoNovo) return doFluxoNovo;
+  }
 
   // 0169: material de consumo de laboratório ainda passa pela coordenação do laboratório
   if (status === "validado" && materialDeLaboratorio && !pedido.aprovacao_area_em) {
@@ -151,4 +181,45 @@ export function proximoPasso(
     };
   }
   return PASSOS[status] ?? { acao: "Revisar pedido", responsavel: "Operação", depois: null };
+}
+
+function proximoPassoFluxoNovo(status: string, contexto: ContextoProximoPasso): ProximoPasso | null {
+  if (status === "rascunho") {
+    return {
+      acao: "Enviar para aprovação",
+      responsavel: "Solicitante",
+      depois: "o laboratório ou campo aprova ou devolve; depois o financeiro e o coordenador do projeto.",
+    };
+  }
+  if (status === "ajuste_solicitante") return PASSOS.ajuste_solicitante;
+  // 0176/0188: aprovado depois do dia 10, segue para compras quando o ciclo abrir
+  if (status === "aprovado_para_compra" && contexto.cicloAbreEm) {
+    return {
+      acao: `Aguardar o ciclo de ${rotuloCiclo(contexto.cicloAbreEm)}`,
+      responsavel: `Compras, a partir de ${rotuloData(contexto.cicloAbreEm)}`,
+      depois: "quando o ciclo abrir, Compras fecha a compra (direta ou pela instituição).",
+    };
+  }
+  if (status === "aguardando_area") {
+    return { ...PASSOS.aguardando_area, responsavel: contexto.laboratorio?.trim() || PASSOS.aguardando_area.responsavel };
+  }
+  if (status === "aguardando_financeiro") {
+    const nomes = contexto.financeiro?.trim();
+    return { ...PASSOS.aguardando_financeiro, responsavel: nomes ? `${nomes} (financeiro)` : PASSOS.aguardando_financeiro.responsavel };
+  }
+  if (status === "aguardando_projeto") {
+    const nome = contexto.coordenador?.trim();
+    return {
+      ...PASSOS.aguardando_projeto,
+      responsavel:
+        nome && nome !== "—"
+          ? `${nome} (${contexto.coordenadorRotulo?.trim() || "coordenador do projeto"})`
+          : contexto.semCoordenador
+            ? "Projeto sem coordenador (o Administrador aprova)"
+            : contexto.semProjeto
+              ? "Supervisão"
+              : PASSOS.aguardando_projeto.responsavel,
+    };
+  }
+  return null;
 }

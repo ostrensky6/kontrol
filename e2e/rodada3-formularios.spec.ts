@@ -10,6 +10,8 @@ test("Novo pedido marca os campos obrigatórios e mantém os botões de enviar �
   const dialogo = page.getByRole("dialog");
   await expect(dialogo.getByText(/são obrigatórios/)).toBeVisible();
   await expect(dialogo.locator("label", { hasText: "Título do pedido" }).first()).toContainText("*");
+  // 0188: o laboratório ou campo é a primeira aprovação
+  await expect(dialogo.locator("label", { hasText: "Laboratório ou campo" }).first()).toContainText("*");
   for (const rotulo of ["Tipo de material ou despesa", "Objetivo"]) {
     await expect(dialogo.locator("[data-escolha-cartoes]", { hasText: rotulo }).first()).toContainText("*");
   }

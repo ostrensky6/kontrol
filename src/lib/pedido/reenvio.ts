@@ -57,9 +57,26 @@ function juntar(partes: string[]) {
   return `${partes.slice(0, -1).join(", ")} e ${partes[partes.length - 1]}`;
 }
 
+const VOLTA_FLUXO_NOVO: Record<string, string> = {
+  aguardando_area: "o laboratório ou campo",
+  aguardando_financeiro: "o financeiro",
+  aguardando_projeto: "o coordenador do projeto",
+};
+
 /** O que acontece ao reenviar, por escrito. */
-export function textoReenvio(s: SituacaoReenvio | null): string | null {
+export function textoReenvio(
+  s: SituacaoReenvio | null,
+  /** 0188: ordem nova; volta para quem devolveu quando nada mudou */
+  ordem: { fluxoNovo?: boolean; devolvidoNaEtapa?: string | null } = {},
+): string | null {
   if (!s) return null;
+  if (ordem.fluxoNovo) {
+    if (s.motivo === "sem_validacao") return "Ao reenviar, o pedido vai para a aprovação do laboratório ou campo.";
+    const volta = VOLTA_FLUXO_NOVO[ordem.devolvidoNaEtapa ?? ""] ?? "o laboratório ou campo";
+    if (s.mantem) {
+      return `Itens, valor, justificativa e projeto estão iguais aos do envio: ao reenviar, as aprovações já dadas continuam valendo e o pedido volta direto para ${volta}.`;
+    }
+  }
   if (s.motivo === "sem_validacao") {
     return "Ao reenviar, o pedido vai para a aprovação do coordenador.";
   }
@@ -80,5 +97,7 @@ export function textoReenvio(s: SituacaoReenvio | null): string | null {
     return campo;
   });
   const verbo = partes.length > 1 || s.mudou[0] === "itens" ? "Mudaram" : "Mudou";
-  return `${verbo} ${juntar(partes)}: ao reenviar, o pedido passa de novo pelo coordenador.`;
+  return ordem.fluxoNovo
+    ? `${verbo} ${juntar(partes)}: ao reenviar, o pedido passa de novo pelas três aprovações, a começar pelo laboratório ou campo.`
+    : `${verbo} ${juntar(partes)}: ao reenviar, o pedido passa de novo pelo coordenador.`;
 }

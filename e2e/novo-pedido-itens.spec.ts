@@ -1,11 +1,13 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { completarParaOrdemNova, escolherLaboratorioOuCampo, preencherTresOrcamentos } from "./ajudas/novo-pedido";
 
 /**
  * Relatório de ajustes de Compras (17/11/2026), ajuste 4: o "Novo pedido" já
  * tem o espaço dos itens e "Enviar para aprovação" grava o pedido e o envia,
  * sem passar pelo rascunho. Fechar com algo preenchido pede confirmação; se o
  * envio não sair, o pedido fica como rascunho, com o aviso. O roteiro contra o
- * banco real (e2e-real) prova a gravação e a etapa.
+ * banco real (e2e-real) prova a gravação e a etapa. Desde 27/11/2026 (0188),
+ * o pedido escolhe o laboratório ou o campo e vai com 3 orçamentos.
  */
 
 async function abrirNovoPedido(page: Page): Promise<Locator> {
@@ -39,6 +41,7 @@ test("Novo pedido com itens segue direto para aprovação, sem rascunho", async 
   const form = await abrirNovoPedido(page);
   await expect(form.getByTestId("novo-pedido-itens")).toContainText("Nenhum item ainda.");
   await identificar(form, titulo, "Projeto com coordenação E2E · Coordenação E2E");
+  await escolherLaboratorioOuCampo(form);
 
   // sem item, o envio não sai e nada do que foi digitado se perde
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
@@ -71,12 +74,17 @@ test("Novo pedido com itens segue direto para aprovação, sem rascunho", async 
   await lista.getByRole("button", { name: "Remover Ponteira 200 uL" }).click();
   await expect(lista.getByRole("row", { name: /Ponteira 200 uL/ })).toHaveCount(0);
 
+  // 0188: sem os 3 orçamentos, o envio não sai e o que foi digitado fica
+  await form.getByRole("button", { name: "Enviar para aprovação" }).click();
+  await expect(form.getByText("O pedido vai com 3 orçamentos de fornecedores diferentes. Faltam 3.")).toBeVisible();
+  await expect(lista.getByRole("row", { name: /Luva nitrílica M/ })).toContainText("3 cx");
+  await preencherTresOrcamentos(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   // cai no pedido já enviado: sem aviso, sem rascunho, com o item gravado
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   await expect(page.getByRole("heading", { name: titulo })).toBeVisible();
-  await expect(page.getByText("Aguardando coordenador").first()).toBeVisible();
+  await expect(page.getByText("Aguardando laboratório ou campo").first()).toBeVisible();
   await expect(page.getByTestId("aviso-novo-pedido")).toHaveCount(0);
   await expect(page.getByText("Luva nitrílica M").first()).toBeVisible();
   await expect(page.getByText("Ponteira 200 uL")).toHaveCount(0);
@@ -94,10 +102,11 @@ test("item preenchido sem apertar Adicionar item também segue com o pedido", as
   const form = await abrirNovoPedido(page);
   await identificar(form, titulo, "Projeto com coordenação E2E · Coordenação E2E");
   await preencherItem(form, { especificacao: "Kit de extração de DNA", quantidade: "1", unidade: "kit" });
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
-  await expect(page.getByText("Aguardando coordenador").first()).toBeVisible();
+  await expect(page.getByText("Aguardando laboratório ou campo").first()).toBeVisible();
   await expect(page.getByText("Kit de extração de DNA").first()).toBeVisible();
 });
 
@@ -113,6 +122,7 @@ test("envio que não sai guarda o pedido como rascunho e avisa o que falta", asy
   await identificar(form, titulo, "Projeto E2E");
   await preencherItem(form, { especificacao: "Etanol absoluto", quantidade: "4", unidade: "L" });
   await form.getByRole("button", { name: "Adicionar item" }).click();
+  await completarParaOrdemNova(form);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   await expect(page).toHaveURL(/\/pedido\/\d+\?aviso=envio$/);

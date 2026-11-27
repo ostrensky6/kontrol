@@ -333,7 +333,7 @@ export function PedidoItemCamposAssistidos({
         />
         {itemNovo ? (
           <p id={ids.itemNovo} data-testid="item-novo-aviso" className="mt-1 text-xs text-info-strong">
-            Item novo: quem conduz a compra cadastra o insumo antes de formalizar.
+            Item novo: quem conduz a compra cadastra o insumo antes da aprovação financeira.
           </p>
         ) : null}
       </div>

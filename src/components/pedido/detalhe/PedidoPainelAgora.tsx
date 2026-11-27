@@ -56,6 +56,11 @@ type Props = {
   fornecedores: FornecedorRaw[] | null;
   anexoRowsBase: PedidoInternoAnexo[];
   aguardandoChegada: boolean;
+  /** 0188: ordem nova das aprovações */
+  fluxoNovo?: boolean;
+  podeDecidirVez?: boolean;
+  motivoSemDecisaoVez?: string | null;
+  fontes?: { nome: string; descricao?: string | null }[];
 };
 
 /** Quadro "O que falta agora": de quem é a vez, a próxima ação e as decisões da etapa. */
@@ -87,6 +92,10 @@ export function PedidoPainelAgora({
   fornecedores,
   anexoRowsBase,
   aguardandoChegada,
+  fluxoNovo = false,
+  podeDecidirVez = false,
+  motivoSemDecisaoVez = null,
+  fontes = [],
 }: Props) {
   return (
     <div
@@ -159,6 +168,12 @@ export function PedidoPainelAgora({
             motivoSemAprovacaoFinal={resumoOrcamentos ? motivoSemAprovacaoFinal(resumoOrcamentos) : null}
             motivoProprioPedido={motivoProprioPedido}
             controlado={controlados.length > 0}
+            podeDecidirVez={podeDecidirVez}
+            motivoSemDecisaoVez={motivoSemDecisaoVez}
+            fontes={fontes}
+            // D9 (0174): produto controlado só pela Funpar
+            fonteAtual={pedido.fonte_recurso ?? (controlados.length > 0 ? "Funpar" : null)}
+            rubricaAtual={pedido.rubrica ?? null}
           />
         )}
         {pendenciaPagamento && (
@@ -190,7 +205,7 @@ export function PedidoPainelAgora({
             Conferir e enviar, no fim da lista de itens
           </a>
         )}
-        {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && (
+        {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && !podeDecidirVez && (
           <p className="text-sm text-muted-foreground">
             Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos”.
           </p>
@@ -221,7 +236,10 @@ export function PedidoPainelAgora({
           pedidoId={pedidoId}
           status={pedido.status}
           orcamentos={orcamentos}
-          podeGerir={podeGerir}
+          // 0188: na ordem nova quem pede registra os orçamentos (o banco confere)
+          podeGerir={fluxoNovo ? editavel : podeGerir}
+          fluxoNovo={fluxoNovo}
+          podeEscolherNaAprovacao={fluxoNovo && podeGerir}
           fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
             .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
             .map((f) => ({ id: f.id, nome: f.nome }))}

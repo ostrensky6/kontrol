@@ -150,12 +150,17 @@ export function datasDoCiclo(
   aprovacoes: readonly { status_origem: string | null; status_destino: string | null; criado_em: string }[],
   aprovacaoLaboratorioEm?: string | null,
 ): { solicitadoEm: string | null; aprovadoEm: string | null } {
+  // 0188: na ordem nova, o envio vai para "aguardando_area" e a última aprovação (projeto) define o ciclo
   const envios = aprovacoes
-    .filter((a) => a.status_destino === "em_validacao")
+    .filter((a) => a.status_destino === "em_validacao" || a.status_destino === "aguardando_area")
     .map((a) => a.criado_em)
     .sort();
   const validacoes = aprovacoes
-    .filter((a) => a.status_origem === "em_validacao" && a.status_destino === "validado")
+    .filter(
+      (a) =>
+        (a.status_origem === "em_validacao" && a.status_destino === "validado") ||
+        (a.status_origem === "aguardando_projeto" && a.status_destino === "aprovado_para_compra"),
+    )
     .map((a) => a.criado_em)
     .sort();
   const validadoEm = validacoes.at(-1) ?? null;

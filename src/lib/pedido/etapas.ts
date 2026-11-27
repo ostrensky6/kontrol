@@ -10,7 +10,7 @@
 
 export const ETAPAS_PEDIDO = [
   { id: "solicitacao", rotulo: "Solicitação", descricao: "o solicitante monta e envia" },
-  { id: "aprovacao", rotulo: "Aprovação", descricao: "coordenador do projeto e do laboratório" },
+  { id: "aprovacao", rotulo: "Aprovação", descricao: "laboratório ou campo, financeiro e coordenador do projeto" },
   { id: "administrativo", rotulo: "Administrativo", descricao: "fonte de recurso e autorização" },
   { id: "cotacao", rotulo: "Cotação", descricao: "três orçamentos e aprovação final" },
   // "Fechamento de compra" desde 17/11/2026 (antes, "Compra e entrega"): relatório de ajustes de Compras, ajuste 1
@@ -30,6 +30,10 @@ const ETAPA_DO_STATUS: Record<string, EtapaPedidoId> = {
   rascunho: "solicitacao",
   ajuste_solicitante: "solicitacao",
   em_validacao: "aprovacao",
+  // 0188: as três aprovações da ordem nova ficam na etapa Aprovação
+  aguardando_area: "aprovacao",
+  aguardando_financeiro: "aprovacao",
+  aguardando_projeto: "aprovacao",
   // "validado" é aprovação concluída; só volta para Aprovação enquanto espera o laboratório (abaixo)
   validado: "administrativo",
   formalizado: "administrativo",

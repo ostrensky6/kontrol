@@ -90,7 +90,7 @@ export async function cadastrarInsumoDoItemPedido(_prev: FormState, formData: Fo
   if (!STATUS_CADASTRA_ITEM_NOVO.includes(status)) {
     return { ok: false, message: "Nesta etapa os itens não mudam. Devolva o pedido para ajuste antes de alterar a lista." };
   }
-  if (["em_validacao", "validado"].includes(status) && !(await pode("pedido.aprovar"))) {
+  if (["em_validacao", "validado", "aguardando_area", "aguardando_financeiro"].includes(status) && !(await pode("pedido.aprovar"))) {
     return { ok: false, message: "Nesta etapa, só quem tem a permissão “Aprovar pedidos” mexe nos itens." };
   }
   if (item.tipo === "servico") return { ok: false, message: "Serviço não tem insumo no cadastro." };

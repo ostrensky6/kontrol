@@ -14,7 +14,7 @@ test("quadro mostra as três aprovações e a decisão de quem coordena", async 
   await expect(page).toHaveURL(/\/pedido\?ver=aprovacoes$/);
 
   const tabela = page.getByRole("table");
-  for (const coluna of ["Pedido", "Solicitante e data", "Termo", "Laboratório", "Financeiro", "Projeto", "Sua decisão"]) {
+  for (const coluna of ["Pedido", "Solicitante e data", "Termo", "Laboratório ou campo", "Financeiro", "Projeto", "Sua decisão"]) {
     await expect(tabela.getByRole("columnheader", { name: coluna })).toBeVisible();
   }
 

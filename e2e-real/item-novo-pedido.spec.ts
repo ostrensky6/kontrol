@@ -1,11 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
+import { preencherTresOrcamentos } from "../e2e/ajudas/novo-pedido";
 
 /**
  * Item novo contra o Postgres de verdade: algo que o laboratório nunca comprou
  * (pergunta do Giorgi, trazida pela Rafaela em 19/11/2026; decisão de Antonio
  * no mesmo dia). Quem pede escreve o item à mão; quem conduz a compra cadastra
- * o insumo pelo próprio pedido, o item fica ligado e a formalização passa.
+ * o insumo pelo próprio pedido, o item fica ligado e a aprovação financeira
+ * passa (ordem nova das aprovações, 0188).
  *
  * Aqui valem a função de cadastro, o gatilho que conta o item em embalagens e
  * o RLS de verdade; o banco é consultado só para saber o que foi gravado.
@@ -37,7 +39,7 @@ async function itemDoPedido(cliente: Cliente, pedidoId: number) {
   return data as ItemGravado | null;
 }
 
-test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo pedido e formaliza", async ({ page }) => {
+test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo pedido e a aprovação segue", async ({ page }) => {
   test.setTimeout(240_000);
   page.setDefaultTimeout(30_000);
   const sufixo = Date.now();
@@ -54,6 +56,9 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
     .select("id")
     .single();
   expect(erroProjeto).toBeNull();
+  // 0188: a primeira aprovação é do laboratório ou campo (as cinco coordenações vêm da migration)
+  const { data: area, error: erroArea } = await cliente.from("coordenacoes_area").select("id").eq("nome", "Campo").single();
+  expect(erroArea).toBeNull();
 
   // ---- 1. quem pede escreve o item à mão: não há insumo para escolher
   await page.goto("/pedido");
@@ -63,6 +68,7 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await novo.getByRole("combobox", { name: "Projeto", exact: true }).selectOption(String(projeto!.id));
   await novo.getByRole("radiogroup", { name: "Tipo de material ou despesa" }).getByText("Material de consumo geral (campo, coleta)", { exact: true }).click();
   await novo.getByRole("radiogroup", { name: "Objetivo" }).getByText("Projeto", { exact: true }).click();
+  await novo.getByLabel("Laboratório ou campo").selectOption(String((area as { id: number }).id));
   await novo.getByLabel("Justificativa técnica").fill("Protocolo novo: o laboratório nunca comprou este tampão.");
   const camposItem = novo.getByTestId("novo-pedido-item-campos");
   await expect(camposItem).toBeVisible();
@@ -74,11 +80,12 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await camposItem.locator('[name="orcamento_previo"]').fill("180");
   await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
   await expect(novo.getByTestId("novo-pedido-itens").getByTestId("item-novo")).toHaveText("Item novo");
+  await preencherTresOrcamentos(novo, ["360,00", "390,00", "420,00"], [`Loja A item novo ${sufixo}`, `Loja B item novo ${sufixo}`, `Loja C item novo ${sufixo}`]);
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
   expect(pedidoId).toBeGreaterThan(0);
-  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("em_validacao");
+  await expect.poll(() => statusDoPedido(cliente, pedidoId), { timeout: 30_000 }).toBe("aguardando_area");
   expect((await itemDoPedido(cliente, pedidoId))?.insumo_id, "o item novo nasce sem insumo").toBeNull();
 
   // a urgência fura o ciclo do dia 10: o roteiro não depende do dia em que roda
@@ -95,10 +102,10 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
     .toBe("alta");
   await page.reload();
 
-  // ---- 2. o pedido é aprovado com o item novo; a formalização espera o cadastro
-  await avancar(page, cliente, pedidoId, "Aprovar pedido", "validado");
-  await expect(page.getByRole("button", { name: "Formalizar em compras", exact: true })).toBeDisabled();
-  await expect(page.getByText("Há 1 item novo, ainda sem cadastro. Use “Cadastrar insumo” na lista de itens antes de formalizar.")).toBeVisible();
+  // ---- 2. o laboratório ou campo aprova com o item novo; a aprovação financeira espera o cadastro
+  await avancar(page, cliente, pedidoId, "Aprovar pelo laboratório ou campo", "aguardando_financeiro");
+  await expect(page.getByRole("button", { name: "Aprovar com esta fonte", exact: true })).toBeDisabled();
+  await expect(page.getByText("Há 1 item novo, ainda sem cadastro. Use “Cadastrar insumo” na lista de itens antes de aprovar.")).toBeVisible();
 
   // ---- 3. quem conduz a compra cadastra o insumo pelo pedido
   await page.getByRole("button", { name: /Cadastrar insumo/ }).click();
@@ -148,15 +155,18 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await expect(page.getByRole("status").filter({ hasText: /^0 de \d+$/ })).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(insumoNome) })).toHaveCount(0);
 
-  // ---- 4. com o item ligado, a tela libera a formalização e a compra leva o insumo
+  // ---- 4. com o item ligado, o financeiro aprova com a fonte, o coordenador do projeto dá a
+  //         última aprovação e a compra formal leva o insumo
   await page.goto(`/pedido/${pedidoId}`);
   await expect(page.getByText("Parte desta tela não carregou")).toHaveCount(0);
   await expect(page.getByText(`vinculado: ${insumoNome}`)).toBeVisible();
   await expect(page.getByText(/Há 1 item novo, ainda sem cadastro/)).toHaveCount(0);
-  await avancar(page, cliente, pedidoId, "Formalizar em compras", "formalizado");
+  await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption("Ineo");
+  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_projeto");
+  await avancar(page, cliente, pedidoId, "Aprovar pedido", "aprovado_para_compra");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();
   const compraId = Number((formalizado as { pedido_compra_id: number | null } | null)?.pedido_compra_id);
-  expect(compraId, "a formalização cria a compra formal").toBeGreaterThan(0);
+  expect(compraId, "a última aprovação cria a compra formal").toBeGreaterThan(0);
   const { data: itensDaCompra } = await cliente.from("pedidos_compra_itens").select("insumo_id, quantidade, quantidade_em").eq("pedido_id", compraId);
   expect(
     (itensDaCompra ?? []).map((linha) => {

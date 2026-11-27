@@ -46,6 +46,7 @@ import {
 } from "@/lib/pedido/itens-novo-pedido";
 import { FormComMensagem } from "./FormComMensagem";
 import { NovoPedidoDocumentos } from "./NovoPedidoDocumentos";
+import { NovoPedidoOrcamentos } from "./NovoPedidoOrcamentos";
 import { NovoPedidoItensLista, type ItemDaLista } from "./NovoPedidoItensLista";
 import { PedidoItemCamposAssistidos, type PedidoItemDefaults } from "./PedidoItemCamposAssistidos";
 
@@ -221,7 +222,6 @@ function NovoPedidoFormulario({
   const [acaoClicada, setAcaoClicada] = useState<"enviar" | "rascunho">("enviar");
   const camposItem = useRef<HTMLDivElement>(null);
   const proximaChave = useRef(1);
-  const exigeLaboratorio = natureza === "material_consumo_lab";
 
   function lerCamposDoItem() {
     const valores = {} as Record<CampoItemNovoPedido, string>;
@@ -316,8 +316,8 @@ function NovoPedidoFormulario({
             <div className="flex items-center gap-0.5">
               <label htmlFor="novo-pedido-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
               <HelpTip title="Quem aprova o pedido">
-                O coordenador do projeto aprova o pedido. Sem coordenador cadastrado, o envio trava. Sem projeto, a Supervisão
-                aprova.
+                O coordenador do projeto dá a última aprovação, depois do laboratório ou campo e do financeiro. Sem coordenador
+                cadastrado, o envio trava. Sem projeto, a Supervisão aprova.
               </HelpTip>
             </div>
             <select
@@ -368,23 +368,16 @@ function NovoPedidoFormulario({
           <div className="md:col-span-6">
             <div className="flex items-center gap-0.5">
               <label htmlFor="novo-pedido-area" className="block text-xs font-medium text-muted-foreground">
-                Laboratório ou área{exigeLaboratorio ? <MarcaObrigatorio /> : null}
+                Laboratório ou campo
+                <MarcaObrigatorio />
               </label>
-              {exigeLaboratorio && (
-                <HelpTip title="Coordenação do laboratório">
-                  Material de consumo de laboratório passa também pela coordenação do laboratório, depois do coordenador do
-                  projeto.
-                </HelpTip>
-              )}
+              <HelpTip title="Primeira aprovação">
+                Todo pedido é aprovado primeiro pela coordenação do laboratório (Genética, LQA, LHM, LAPOA) ou do campo; depois
+                pelo financeiro e, por último, pelo coordenador do projeto.
+              </HelpTip>
             </div>
-            <select
-              id="novo-pedido-area"
-              name="area_id"
-              required={exigeLaboratorio}
-              defaultValue=""
-              className={inputCls}
-            >
-              <option value="">{exigeLaboratorio ? "Escolha…" : "—"}</option>
+            <select id="novo-pedido-area" name="area_id" defaultValue="" className={inputCls}>
+              <option value="">Escolha…</option>
               {areas.map((area) => (
                 <option key={area.id} value={area.id}>
                   {area.nome}
@@ -473,7 +466,9 @@ function NovoPedidoFormulario({
           )}
         </section>
 
-        <NovoPedidoDocumentos />
+        <NovoPedidoOrcamentos fornecedores={catalogo?.fornecedores ?? []} passo={4} />
+
+        <NovoPedidoDocumentos passo={5} />
 
         {/* rodapé preso embaixo: os botões de enviar ficam à vista no pedido comprido */}
         <DialogFooter className="sticky -bottom-5 z-10 -mx-5 border-t border-border bg-card px-5 py-3 sm:items-center">

@@ -340,6 +340,18 @@ export async function CadastroPagina({
     }));
   }
 
+  // 0188: fontes de pagamento, com o nome do modelo de documento
+  if (slug === "fontes_pagamento") {
+    const MODELOS: Record<string, string> = {
+      solicitacao_compras: "Solicitação de Compras",
+      termo_referencia: "Termo de Referência",
+    };
+    linhas = linhas.map((r) => ({
+      ...r,
+      modelo_documento_nome: r.modelo_documento ? MODELOS[String(r.modelo_documento)] ?? String(r.modelo_documento) : "Sem modelo",
+    }));
+  }
+
   // laboratórios e áreas: nome de quem coordena e de quem substitui
   if (slug === "coordenacoes") {
     const usuarios = opcoesPorFonte["perfis"] ?? [];
@@ -430,6 +442,7 @@ export async function CadastroPagina({
           <CrudShell
             slug={cfg.slug}
             singular={cfg.singular}
+            rotuloNovo={cfg.novo}
             rotulo={cfg.rotulo}
             colunas={cfg.colunas}
             campos={campos}

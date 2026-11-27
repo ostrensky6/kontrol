@@ -20,7 +20,7 @@ const rotuloCls = "block text-xs text-muted-foreground/80";
  * "Registrar documento" (tipo, título, arquivo, link e observação), um
  * conjunto por documento. Conjunto em branco não é gravado.
  */
-export function NovoPedidoDocumentos() {
+export function NovoPedidoDocumentos({ passo = 4 }: { passo?: number }) {
   const [indices, setIndices] = useState<number[]>([0]);
   const [proximo, setProximo] = useState(1);
 
@@ -32,7 +32,7 @@ export function NovoPedidoDocumentos() {
   return (
     <section className="grid gap-3 rounded-lg border border-border p-4" aria-labelledby="novo-pedido-documentos-titulo">
       <div className="flex items-center gap-1.5">
-        <h3 id="novo-pedido-documentos-titulo" className="flex items-center gap-2 text-sm font-semibold"><NumeroPasso n={4} />Cotação prévia e termo de referência</h3>
+        <h3 id="novo-pedido-documentos-titulo" className="flex items-center gap-2 text-sm font-semibold"><NumeroPasso n={passo} />Cotação prévia e termo de referência</h3>
         <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">Opcional</span>
         <HelpTip title="Quando registrar">
           Registre aqui, com o pedido: da Aprovação em diante, esses dois documentos não entram mais.

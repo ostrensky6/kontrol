@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { completarParaOrdemNova } from "./ajudas/novo-pedido";
 
 /**
  * Relatório de ajustes de 19/11/2026, ajuste 2: a cotação prévia e o termo de
@@ -60,20 +61,23 @@ test("cotação prévia e termo de referência entram no Novo pedido, com os cam
   await expect(form.getByTestId("novo-pedido-documento")).toHaveCount(2);
   // o que já estava preenchido continua
   await expect(primeiro.getByLabel("Título")).toHaveValue("Cotação do tampão no site");
+  // 0188: laboratório ou campo e os 3 orçamentos vão junto
+  await completarParaOrdemNova(form);
 
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   // o pedido seguiu para a Aprovação com os dois documentos, gravados na Solicitação
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   await expect(page.getByRole("heading", { name: titulo })).toBeVisible();
-  await expect(page.getByText("Aguardando coordenador").first()).toBeVisible();
+  await expect(page.getByText("Aguardando laboratório ou campo").first()).toBeVisible();
   await expect(page.getByText("Cotação do tampão no site")).toBeVisible();
   await expect(page.getByText("Valor estimado: R$ 180,00 o frasco")).toBeVisible();
   await expect(page.getByRole("link", { name: "Abrir referência" })).toHaveAttribute("href", "https://loja.exemplo/tampao-te");
   await expect(page.getByText("termo-de-referencia.pdf").first()).toBeVisible();
   await expect(page.getByText(/Cotação prévia · Rascunho/)).toHaveCount(1);
   await expect(page.getByText(/Termo de referência · Rascunho/)).toHaveCount(1);
-  await expect(page.getByText("2 anexos")).toBeVisible();
+  // os 2 documentos e o documento de cada um dos 3 orçamentos
+  await expect(page.getByText("5 anexos")).toBeVisible();
 
   // na Aprovação, "Registrar documento" não oferece mais os dois tipos
   await page.getByText("Registrar documento", { exact: true }).first().click();

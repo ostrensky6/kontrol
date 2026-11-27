@@ -85,7 +85,11 @@ export async function gerarResumoSemanal(
   const dados: DadosResumo = {
     alertas: Object.fromEntries(Object.entries(porTipo).map(([k, v]) => [k, v.size])),
     pedidosEmValidacao: await contar(
-      supabase.from("pedidos_internos").select("id", { count: "exact", head: true }).eq("status", "em_validacao"),
+      // 0188: na ordem nova, as três aprovações também contam como "em validação"
+      supabase
+        .from("pedidos_internos")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["em_validacao", "aguardando_area", "aguardando_financeiro", "aguardando_projeto"]),
     ),
     equipamentosVencidos: await contar(
       supabase.from("v_equipamento_avisos").select("equipamento_unidade_id", { count: "exact", head: true })

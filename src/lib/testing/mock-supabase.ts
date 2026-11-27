@@ -812,6 +812,13 @@ const baseStore = (): Store => {
     { id: 1, nome: "Genética", ativo: true, coordenador_id: "00000000-0000-4000-8000-0000000000c1", substituto_id: null, observacoes: null },
     { id: 2, nome: "LQA", ativo: true, coordenador_id: null, substituto_id: null, observacoes: "Coordenação a definir." },
   ],
+  // 0188: fontes de pagamento (o financeiro escolhe uma ao aprovar)
+  fontes_recurso: [
+    { id: 1, nome: "Ineo", descricao: "Instituto Ineo (projeto Piraupiá). Documento: Solicitação de Compras.", modelo_documento: "solicitacao_compras", ativo: true, ordem: 10, criado_em: "2026-11-27T12:00:00Z" },
+    { id: 2, nome: "Funpar", descricao: "Fundação da UFPR (projetos Petrobras). Documento: Termo de Referência.", modelo_documento: "termo_referencia", ativo: true, ordem: 20, criado_em: "2026-11-27T12:00:00Z" },
+    { id: 3, nome: "ATGC", descricao: "Recurso próprio da ATGC.", modelo_documento: null, ativo: true, ordem: 30, criado_em: "2026-11-27T12:00:00Z" },
+    { id: 4, nome: "CNPq", descricao: "Recurso do CNPq.", modelo_documento: null, ativo: true, ordem: 40, criado_em: "2026-11-27T12:00:00Z" },
+  ],
   // 0174: previsão de equipamentos (aba EQ)
   previsao_equipamentos: [
     { id: 1, nome: "Termociclador em tempo real", laboratorio_id: 1, prioridade: 1, quantidade: 1, valor_estimado: 180000, justificativa: "qPCR da Genética", patrimonio_de: "ATGC", situacao: "previsto", pedido_interno_id: null, observacoes: null, criado_em: "2026-11-09T12:00:00Z", atualizado_em: "2026-11-09T12:00:00Z" },
@@ -1581,7 +1588,8 @@ class MockQuery {
       criado_em: row.criado_em ?? new Date().toISOString(),
       status: row.status ?? "rascunho",
       // 0025/0183: o pedido nasce Normal; a urgência vem depois, de quem tem a permissão
-      ...(this.table === "pedidos_internos" ? { urgencia: "normal", urgencia_justificativa: null } : {}),
+      // 0188: pedido novo segue a ordem nova (linha antiga sem a coluna = ordem antiga)
+      ...(this.table === "pedidos_internos" ? { urgencia: "normal", urgencia_justificativa: null, fluxo: 2 } : {}),
       // Espelha os defaults da tabela planejamento (0029/0111).
       ...(this.table === "planejamento"
         ? { status_operacional: "rascunho", reserva_desatualizada: false }
@@ -2630,7 +2638,130 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
       if (fn === "aprovadores_pedido_interno") {
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
         if (!pedido) return { data: null, error: null };
-        return { data: mockAprovadoresPedido(pedido), error: null };
+        return { data: Number(pedido.fluxo ?? 1) === 2 ? mockAprovadoresFluxo2(pedido) : mockAprovadoresPedido(pedido), error: null };
+      }
+      // 0188: envio do pedido da ordem nova (versão simples; as regras completas estão no teste SQL)
+      if (fn === "enviar_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const erro = (message: string) => ({ data: null, error: { message, code: "22023" } });
+        if (Number(pedido.fluxo ?? 1) !== 2) return erro('Este pedido segue a ordem antiga de aprovações: use "Enviar para validação".');
+        if (!["rascunho", "ajuste_solicitante"].includes(String(pedido.status))) {
+          return erro("Só pedido em rascunho ou devolvido para ajuste é enviado para aprovação.");
+        }
+        const itens = ((store.pedidos_internos_itens ?? []) as Row[]).filter((row) => Number(row.pedido_interno_id) === Number(pedido.id));
+        if (!itens.length) return erro("Inclua ao menos um item antes de enviar.");
+        if (!String(pedido.justificativa ?? "").trim()) return erro("Escreva a justificativa técnica antes de enviar.");
+        if (pedido.area_id == null) return erro("Escolha o laboratório ou o campo do pedido (Editar, no topo do pedido): é a primeira aprovação.");
+        const ap = mockAprovadoresFluxo2(pedido);
+        if (!mockTemPermissao("compras.conduzir", sessao)) {
+          const trava = ap.falta_laboratorio ?? ap.falta_coordenador;
+          if (trava) return erro(String(trava));
+        }
+        const cotacoes = ((store.pedidos_internos_cotacoes ?? []) as Row[]).filter((row) => Number(row.pedido_interno_id) === Number(pedido.id));
+        const nomes = new Set(cotacoes.map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()).filter(Boolean));
+        const comDocumento = new Set(cotacoes.filter((row) => row.anexo_id).map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()));
+        if (nomes.size < 3) {
+          return erro(`Toda compra precisa de 3 orçamentos de fornecedores diferentes, enviados junto com o pedido. Este pedido tem ${nomes.size}. Registre os orçamentos (com o documento de cada um) e envie de novo.`);
+        }
+        if (comDocumento.size < 3) {
+          return erro(`Anexe o documento de cada orçamento (PDF, foto ou planilha do fornecedor). Há ${comDocumento.size} com documento; são precisos 3.`);
+        }
+        if (!cotacoes.some((row) => row.escolhida)) {
+          const menor = [...cotacoes].sort((a, b) => Number(a.valor_total) - Number(b.valor_total) || Number(a.id) - Number(b.id))[0];
+          Object.assign(menor, { escolhida: true, escolhida_por: "menor valor, no envio", escolhida_em: new Date().toISOString(), justificativa_escolha: null });
+        }
+        const origem = String(pedido.status);
+        const volta = origem === "ajuste_solicitante" && pedido.devolvido_na_etapa && pedido.devolvido_na_etapa !== "aguardando_area"
+          ? String(pedido.devolvido_na_etapa)
+          : null;
+        const destino = volta ?? "aguardando_area";
+        if (!volta) Object.assign(pedido, { aprovacao_area_em: null, aprovacao_area_por: null, aprovacao_financeiro_em: null, aprovacao_financeiro_por: null });
+        const agora = new Date().toISOString();
+        Object.assign(pedido, { status: destino, devolvido_na_etapa: null, enviado_validacao_em: agora, atualizado_em: agora });
+        store.pedidos_internos_aprovacoes = [...(store.pedidos_internos_aprovacoes ?? []), {
+          id: nextId("pedidos_internos_aprovacoes"), pedido_interno_id: pedido.id,
+          etapa: origem === "rascunho" ? "Envio para aprovação" : "Reenvio depois do ajuste", decisao: "registrado",
+          responsavel: "admin@example.com", papel: "admin", comentario: null, status_origem: origem, status_destino: destino, criado_em: agora,
+        }];
+        store.eventos_status = [...(store.eventos_status ?? []), {
+          id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: origem,
+          para_status: destino, usuario: "admin@example.com", criado_em: agora, observacao: null,
+        }];
+        return { data: { status_origem: origem, status_destino: destino, aprovacoes_mantidas: Boolean(volta), mudou: [] }, error: null };
+      }
+      // 0188: aprovar ou devolver na vez do laboratório ou campo, do financeiro ou do projeto
+      if (fn === "decidir_aprovacao_pedido") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const erro = (message: string, code = "22023") => ({ data: null, error: { message, code } });
+        const etapas: Record<string, string> = {
+          aguardando_area: "Aprovação do laboratório ou campo",
+          aguardando_financeiro: "Aprovação financeira",
+          aguardando_projeto: "Aprovação do coordenador do projeto",
+        };
+        const origem = String(pedido.status);
+        const etapa = etapas[origem];
+        if (Number(pedido.fluxo ?? 1) !== 2 || !etapa) {
+          return erro("Este pedido não está esperando uma das três aprovações (laboratório ou campo, financeiro, projeto). A tela foi atualizada.");
+        }
+        const obs = String(args.p_observacao ?? "").trim() || null;
+        const agora = new Date().toISOString();
+        const registrar = (decisao: string, destino: string, comentario: string | null) => {
+          store.pedidos_internos_aprovacoes = [...(store.pedidos_internos_aprovacoes ?? []), {
+            id: nextId("pedidos_internos_aprovacoes"), pedido_interno_id: pedido.id, etapa, decisao,
+            responsavel: "admin@example.com", papel: "admin", comentario, status_origem: origem, status_destino: destino, criado_em: agora,
+          }];
+          store.eventos_status = [...(store.eventos_status ?? []), {
+            id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: origem,
+            para_status: destino, usuario: "admin@example.com", criado_em: agora, observacao: comentario,
+          }];
+        };
+        if (args.p_decisao === "devolvido") {
+          if (!obs) return erro("Escreva o que precisa ser corrigido: quem pediu recebe este texto.");
+          Object.assign(pedido, { status: "ajuste_solicitante", devolvido_na_etapa: origem, atualizado_em: agora });
+          registrar("devolvido", "ajuste_solicitante", obs);
+          return { data: { pedido_id: pedido.id, decisao: "devolvido", etapa, status_origem: origem, status_destino: "ajuste_solicitante" }, error: null };
+        }
+        let destino = "";
+        let fonte: string | null = null;
+        if (origem === "aguardando_area") {
+          destino = "aguardando_financeiro";
+          Object.assign(pedido, { aprovacao_area_em: agora, aprovacao_area_por: "admin@example.com" });
+        } else if (origem === "aguardando_financeiro") {
+          const dados = (args.p_dados ?? {}) as Row;
+          const pedida = String(dados.fonte_recurso ?? "").trim().toLowerCase();
+          const achada = ((store.fontes_recurso ?? []) as Row[]).find((row) => row.ativo !== false && String(row.nome).toLowerCase() === pedida);
+          if (!pedida) return erro("Escolha a fonte de pagamento (Ineo, Funpar, ATGC, CNPq ou outra cadastrada).");
+          if (!achada) return erro("Fonte de pagamento fora da lista. Cadastre-a em Cadastros > Fontes de pagamento.");
+          fonte = String(achada.nome);
+          destino = "aguardando_projeto";
+          Object.assign(pedido, {
+            fonte_recurso: fonte, rubrica: String(dados.rubrica ?? "").trim() || pedido.rubrica || null,
+            analisado_em: agora, aprovacao_financeiro_em: agora, aprovacao_financeiro_por: "admin@example.com",
+          });
+        } else {
+          destino = "aprovado_para_compra";
+          // a compra formal nasce aprovada, com o fornecedor do orçamento escolhido
+          const escolhida = ((store.pedidos_internos_cotacoes ?? []) as Row[]).find(
+            (row) => Number(row.pedido_interno_id) === Number(pedido.id) && row.escolhida,
+          );
+          if (!pedido.pedido_compra_id) {
+            const compraId = nextId("pedidos_compra");
+            store.pedidos_compra = [...(store.pedidos_compra ?? []), {
+              id: compraId, status: "aprovado", projeto_id: pedido.projeto_id ?? null, solicitante: pedido.solicitante ?? null,
+              aprovador: "admin@example.com", data_solicitacao: agora.slice(0, 10), data_aprovacao: agora.slice(0, 10),
+              data_prevista_entrega: null, criado_em: agora, fornecedor_id: escolhida?.fornecedor_id ?? null, compra_origem_id: null,
+              fornecedores: escolhida ? { nome: escolhida.fornecedor_nome } : null,
+              observacao: `Formalizado a partir do pedido interno #${pedido.id}: ${pedido.titulo}`,
+            }];
+            pedido.pedido_compra_id = compraId;
+          }
+          Object.assign(pedido, { validado_em: agora, aprovado_coordenador_em: agora, aprovador_coordenador: "admin@example.com", aprovacao_final_em: agora });
+        }
+        Object.assign(pedido, { status: destino, atualizado_em: agora });
+        registrar("aprovado", destino, [fonte ? `Fonte: ${fonte}.` : null, obs].filter(Boolean).join(" ") || null);
+        return { data: { pedido_id: pedido.id, decisao: "aprovado", etapa, status_origem: origem, status_destino: destino, pedido_compra_id: pedido.pedido_compra_id ?? null }, error: null };
       }
       if (fn === "decidir_coordenacao_laboratorio") {
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
@@ -2654,14 +2785,19 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         const motivo = String(args.p_motivo ?? "").trim();
         if (!motivo) return { data: null, error: { message: "Escreva o motivo da reprovação: o solicitante recebe este texto.", code: "22023" } };
         const aguardaLab = pedido.status === "validado" && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em;
-        const etapa =
+        const etapasFluxo2: Record<string, string> = {
+          aguardando_area: "Aprovação do laboratório ou campo",
+          aguardando_financeiro: "Aprovação financeira",
+          aguardando_projeto: "Aprovação do coordenador do projeto",
+        };
+        const etapa = etapasFluxo2[String(pedido.status)] ?? (
           pedido.status === "em_validacao"
             ? "Validação das especificações técnicas"
             : aguardaLab
               ? "Aprovação da coordenação do laboratório"
               : ["formalizado", "analise_administrativa"].includes(String(pedido.status))
                 ? "Análise de fonte de recurso, rubrica e conformidade"
-                : null;
+                : null);
         if (!etapa) return { data: null, error: { message: "Este pedido não está esperando aprovação. Para encerrar, use Cancelar.", code: "22023" } };
         const agora = new Date().toISOString();
         const origem = pedido.status;
@@ -2848,7 +2984,8 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         const cotacao = cotacoes.find((row) => Number(row.id) === Number(args.p_cotacao_id));
         if (!cotacao) return { data: null, error: { message: "Orçamento não encontrado.", code: "P0002" } };
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(cotacao.pedido_interno_id));
-        if (!pedido || pedido.status !== "orcamentos_recebidos") {
+        const naAprovacaoNova = Number(pedido?.fluxo ?? 1) === 2 && ["aguardando_area", "aguardando_financeiro", "aguardando_projeto"].includes(String(pedido?.status));
+        if (!pedido || (pedido.status !== "orcamentos_recebidos" && !naAprovacaoNova)) {
           return { data: null, error: { message: 'O orçamento é escolhido com o pedido em "Cotações recebidas".', code: "22023" } };
         }
         const doPedido = cotacoes.filter((row) => Number(row.pedido_interno_id) === Number(pedido.id));
@@ -3519,6 +3656,48 @@ function mockAprovadoresPedido(pedido: Row) {
     laboratorio_exigido: exigido,
     laboratorio,
     falta_laboratorio: faltaLaboratorio,
+  };
+}
+
+/** 0188: quem aprova na ordem nova (mesma forma do JSON do banco, kontrol_private.aprovadores_fluxo2). */
+function mockAprovadoresFluxo2(pedido: Row) {
+  const base = mockAprovadoresPedido({ ...pedido, natureza: null });
+  const perfis = (store.perfis ?? []) as Row[];
+  const nomeDe = (id: unknown) => {
+    const p = perfis.find((row) => row.id === id && !row.suspenso);
+    return p ? String(p.nome ?? p.email) : null;
+  };
+  let laboratorio: Row | null = null;
+  let faltaLaboratorio: string | null = null;
+  const area = (store.coordenacoes_area ?? []).find((row) => Number(row.id) === Number(pedido.area_id));
+  if (pedido.area_id == null) {
+    faltaLaboratorio = "Escolha o laboratório ou o campo do pedido (Editar, no topo do pedido): é a primeira aprovação.";
+  } else if (!area || area.ativo === false) {
+    faltaLaboratorio = "O laboratório ou campo escolhido não está ativo. Escolha outro (Editar, no topo do pedido).";
+  } else if (!nomeDe(area.coordenador_id) && !nomeDe(area.substituto_id)) {
+    faltaLaboratorio = `${area.nome} não tem coordenação cadastrada. O pedido não segue: peça ao Administrador para indicar o coordenador em Cadastros > Laboratórios e áreas.`;
+  } else {
+    laboratorio = {
+      area_id: area.id,
+      area: area.nome,
+      nome: nomeDe(area.coordenador_id) ?? nomeDe(area.substituto_id),
+      substituto_nome: nomeDe(area.coordenador_id) ? nomeDe(area.substituto_id) : null,
+      ids: [area.coordenador_id, area.substituto_id].filter((id) => nomeDe(id)),
+    };
+  }
+  const financeiros = perfis.filter((row) => row.papel === "administrativo" && !row.suspenso);
+  return {
+    ...base,
+    fluxo: 2,
+    laboratorio_exigido: true,
+    laboratorio,
+    falta_laboratorio: faltaLaboratorio,
+    financeiro: financeiros.length
+      ? { nome: financeiros.map((row) => String(row.nome ?? row.email)).join(", "), ids: financeiros.map((row) => row.id) }
+      : null,
+    falta_financeiro: financeiros.length
+      ? null
+      : 'Não há usuário ativo com a função Administrativo: a aprovação financeira fica com o Administrador ou com quem tem "Conduzir a compra inteira".',
   };
 }
 
