@@ -27,8 +27,10 @@ test("quadro mostra as três aprovações e a decisão de quem coordena", async 
   await expect(linha502.getByRole("button", { name: /Coordenação do projeto do pedido Nº 0502: Aguardando/ })).toBeVisible();
   await expect(linha502.getByRole("button", { name: "Aprovar o pedido Nº 0502 (Coordenação do projeto)" })).toBeVisible();
   await linha502.getByRole("button", { name: "Devolver o pedido Nº 0502 ao solicitante" }).click();
-  await expect(page.getByLabel("O que o solicitante precisa corrigir no pedido Nº 0502?")).toBeVisible();
+  await expect(page.getByLabel("O que precisa ser corrigido no pedido Nº 0502?")).toBeVisible();
   await page.keyboard.press("Escape");
+  // reprovar (vermelho) encerra; o roteiro reprovar-apagar-pedido reprova um pedido próprio
+  await expect(linha502.getByRole("button", { name: "Reprovar o pedido Nº 0502" })).toBeVisible();
 
   // em andamento: o 0501 já passou pelo coordenador do projeto
   await page.getByRole("button", { name: /Em andamento/ }).click();

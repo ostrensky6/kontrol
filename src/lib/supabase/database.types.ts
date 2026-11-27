@@ -1339,6 +1339,12 @@ export type Database = {
       }
       insumos: {
         Row: {
+          descricao_detalhada: string | null
+          fornecedores_sugeridos: string | null
+          observacoes_internas: string | null
+          justificativa_tr: string | null
+          especificacoes_tr: string | null
+          criterio_aceitabilidade: string | null
           sinonimos: string | null
           ativo: boolean
           categoria_compra: string | null
@@ -1373,6 +1379,12 @@ export type Database = {
           validade_dias: number | null
         }
         Insert: {
+          descricao_detalhada?: string | null
+          fornecedores_sugeridos?: string | null
+          observacoes_internas?: string | null
+          justificativa_tr?: string | null
+          especificacoes_tr?: string | null
+          criterio_aceitabilidade?: string | null
           sinonimos?: string | null
           ativo?: boolean
           categoria_compra?: string | null
@@ -1407,6 +1419,12 @@ export type Database = {
           validade_dias?: number | null
         }
         Update: {
+          descricao_detalhada?: string | null
+          fornecedores_sugeridos?: string | null
+          observacoes_internas?: string | null
+          justificativa_tr?: string | null
+          especificacoes_tr?: string | null
+          criterio_aceitabilidade?: string | null
           sinonimos?: string | null
           ativo?: boolean
           categoria_compra?: string | null

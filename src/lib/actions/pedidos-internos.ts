@@ -555,38 +555,97 @@ export async function definirUrgenciaPedido(_prev: FormState, formData: FormData
   return { ok: true, message: alterado ? "Urgência definida." : "A urgência já estava assim." };
 }
 
+/** Banco ainda sem a função (antes da migration): a tela explica em vez de mostrar o erro técnico. */
+function funcaoAusente(error: { code?: string; message?: string } | null) {
+  return Boolean(error && (error.code === "PGRST202" || (error.message ?? "").includes("Could not find the function")));
+}
+
+/**
+ * Apagar pedido (Antonio, 27/11/2026: "um botão de apagar ao longo de todo o
+ * processo"). Desde a 0186 vale em qualquer etapa, com a compra ligada; a
+ * única trava é material que já chegou ao estoque. Antes da 0186, só rascunho
+ * sem compra, como era.
+ */
 export async function excluirPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
   if (!(await pode("pedido.aprovar"))) {
-    return { ok: false, message: "Seu perfil não tem permissão para excluir pedidos." };
+    return { ok: false, message: "Seu perfil não tem permissão para apagar pedidos." };
   }
   const pedidoId = numero(formData, "pedido_interno_id");
   if (!pedidoId) return { ok: false, message: "Pedido não informado." };
+  const voltar = texto(formData, "voltar");
+  const destino = voltar && /^\/pedido(\?[\w=&-]*)?$/.test(voltar) ? voltar : "/pedido";
 
-  const supabase = await createClient();
-  const { data: pedido } = await supabase
-    .from("pedidos_internos")
-    .select("status, pedido_compra_id")
-    .eq("id", pedidoId)
-    .single();
-  if (!pedido || pedido.status !== "rascunho" || pedido.pedido_compra_id) {
-    return {
-      ok: false,
-      message: "Só é possível excluir rascunhos sem compra. Para pedidos em andamento, use Cancelar.",
-    };
-  }
-  const { data: excluidos, error } = await supabase
-    .from("pedidos_internos")
-    .delete()
-    .eq("id", pedidoId)
-    .eq("status", "rascunho")
-    .is("pedido_compra_id", null)
-    .select("id");
-  if (error) return { ok: false, message: mensagemDoBanco(error, "Não foi possível excluir.") };
-  if (!excluidos?.length) {
-    return { ok: false, message: "Pedido não excluído. Atualize a lista e confira a situação, a compra e sua permissão." };
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase.rpc("excluir_pedido_interno", {
+    p_pedido_id: pedidoId,
+    p_motivo: texto(formData, "motivo") ?? null,
+  });
+  if (error && !funcaoAusente(error)) return { ok: false, message: mensagemDoBanco(error, "Não foi possível apagar.") };
+
+  if (error) {
+    // banco antes da 0186: só rascunho sem compra
+    const { data: pedido } = await supabase
+      .from("pedidos_internos")
+      .select("status, pedido_compra_id")
+      .eq("id", pedidoId)
+      .single();
+    const atual = pedido as { status: string; pedido_compra_id: number | null } | null;
+    if (!atual || atual.status !== "rascunho" || atual.pedido_compra_id) {
+      return { ok: false, message: "Por enquanto só é possível apagar rascunhos sem compra. Para pedidos em andamento, use Cancelar." };
+    }
+    const { data: excluidos, error: erroExclusao } = await supabase
+      .from("pedidos_internos")
+      .delete()
+      .eq("id", pedidoId)
+      .eq("status", "rascunho")
+      .is("pedido_compra_id", null)
+      .select("id");
+    if (erroExclusao) return { ok: false, message: mensagemDoBanco(erroExclusao, "Não foi possível apagar.") };
+    if (!(excluidos as unknown[] | null)?.length) {
+      return { ok: false, message: "Pedido não apagado. Atualize a lista e confira a situação, a compra e sua permissão." };
+    }
+  } else {
+    // arquivos dos documentos: o banco já apagou as linhas; o Storage sai depois, sem travar a tela
+    const arquivos = ((data as { arquivos?: Array<{ bucket?: string; path?: string }> } | null)?.arquivos ?? []).filter(
+      (a): a is { bucket: string; path: string } => Boolean(a.bucket && a.path),
+    );
+    const porBucket = new Map<string, string[]>();
+    for (const a of arquivos) porBucket.set(a.bucket, [...(porBucket.get(a.bucket) ?? []), a.path]);
+    for (const [bucket, caminhos] of porBucket) {
+      const { error: erroStorage } = await supabase.storage.from(bucket).remove(caminhos);
+      if (erroStorage) console.warn(`Kontrol: arquivos do pedido ${pedidoId} ficaram no Storage (${bucket}):`, erroStorage.message);
+    }
   }
   revalidatePath("/pedido");
-  redirect("/pedido");
+  revalidatePath("/compras");
+  redirect(destino);
+}
+
+/**
+ * Reprovar encerra o pedido (Antonio, 27/11/2026). Vale na vez de quem decide
+ * (laboratório, administrativo ou coordenador do projeto); a regra mora no
+ * banco (0186). Devolver para corrigir continua sendo outro botão.
+ */
+export async function reprovarPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = numero(formData, "pedido_interno_id");
+  if (!pedidoId) return { ok: false, message: "Pedido não informado." };
+  const motivo = texto(formData, "observacao");
+  if (!motivo) return { ok: false, message: "Escreva o motivo da reprovação: o solicitante vê esse texto." };
+  const supabase = await createClientUntyped();
+  const { error } = await supabase.rpc("reprovar_pedido_interno", { p_pedido_id: pedidoId, p_motivo: motivo });
+  if (error) {
+    return {
+      ok: false,
+      message: funcaoAusente(error)
+        ? "Reprovar ainda não está ligado no banco. Use Devolver ao solicitante por enquanto."
+        : mensagemDoBanco(error),
+    };
+  }
+  enviarAvisosDoPedidoAgora(pedidoId);
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  revalidatePath("/compras");
+  return { ok: true, message: "Pedido reprovado e encerrado. O solicitante foi avisado." };
 }
 
 export async function adicionarItemPedidoInterno(_prev: FormState, formData: FormData): Promise<FormState> {

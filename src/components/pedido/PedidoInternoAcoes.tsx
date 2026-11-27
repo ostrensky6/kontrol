@@ -19,6 +19,7 @@ import {
   marcarAguardandoPagamentoNf,
   marcarOrcamentosRecebidos,
   registrarExcecaoPagamento,
+  reprovarPedidoInterno,
   registrarLevantamentoOrcamentos,
   validarInformacoes,
 } from "@/lib/actions/pedidos-internos";
@@ -42,7 +43,8 @@ function Botao({
   pedidoId: number;
   action: Action;
   label: string;
-  variant?: "primary" | "outline" | "danger";
+  /** aviso (amarelo) = devolver para corrigir; danger (vermelho) = reprovar ou cancelar */
+  variant?: "primary" | "outline" | "aviso" | "danger";
   observacao?: string;
   comentarioPlaceholder?: string;
   disabled?: boolean;
@@ -58,7 +60,9 @@ function Botao({
   const cls =
     variant === "danger"
       ? "h-9 rounded-md border border-danger-strong/30 bg-card px-3 text-sm font-medium text-danger-strong shadow-none hover:bg-danger-soft hover:text-danger-strong disabled:opacity-50"
-      : variant === "outline"
+      : variant === "aviso"
+        ? "h-9 rounded-md border border-amber-500/60 bg-card px-3 text-sm font-medium text-warning-strong shadow-none hover:bg-warning-soft hover:text-warning-strong disabled:opacity-50"
+        : variant === "outline"
         ? "h-9 rounded-md border border-input bg-card px-3 text-sm font-medium text-foreground shadow-none hover:bg-muted hover:text-foreground disabled:opacity-50"
         : "h-9 rounded-md bg-brand-600 px-4 text-sm font-semibold text-white hover:bg-brand-500 disabled:opacity-50";
 
@@ -185,9 +189,19 @@ export function PedidoInternoAcoes({
             pedidoId={pedidoId}
             action={devolverParaSolicitante}
             label="Devolver ao solicitante"
-            variant="outline"
+            variant="aviso"
             comentarioPlaceholder="Motivo obrigatório"
           />
+          {/* 0186: reprovar encerra o pedido; devolver deixa corrigir */}
+          {!motivoSemValidacao && (
+            <Botao
+              pedidoId={pedidoId}
+              action={reprovarPedidoInterno}
+              label="Reprovar"
+              variant="danger"
+              comentarioPlaceholder="Motivo da reprovação"
+            />
+          )}
         </>
       )}
 
@@ -200,11 +214,18 @@ export function PedidoInternoAcoes({
             pedidoId={pedidoId}
             action={decidirCoordenacaoLaboratorio}
             label="Devolver ao solicitante"
-            variant="outline"
+            variant="aviso"
             comentarioPlaceholder="Motivo obrigatório"
           >
             <input type="hidden" name="decisao" value="devolvido" />
           </Botao>
+          <Botao
+            pedidoId={pedidoId}
+            action={reprovarPedidoInterno}
+            label="Reprovar"
+            variant="danger"
+            comentarioPlaceholder="Motivo da reprovação"
+          />
         </>
       )}
 
@@ -230,10 +251,21 @@ export function PedidoInternoAcoes({
             pedidoId={pedidoId}
             action={devolverParaCompras}
             label="Devolver para ajuste"
-            variant="outline"
+            variant="aviso"
             comentarioPlaceholder="Motivo obrigatório"
           />
         </>
+      )}
+
+      {/* 0186: o administrativo também reprova (encerra) antes de autorizar */}
+      {["formalizado", "analise_administrativa"].includes(status) && podeGerir && (
+        <Botao
+          pedidoId={pedidoId}
+          action={reprovarPedidoInterno}
+          label="Reprovar"
+          variant="danger"
+          comentarioPlaceholder="Motivo da reprovação"
+        />
       )}
 
       {status === "aprovado_compra" && podeGerir && (

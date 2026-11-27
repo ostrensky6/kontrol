@@ -180,7 +180,7 @@ export default async function PedidoPage({
       (acc, item) => acc + Number(item.quantidade ?? 0) * Number(item.orcamento_previo ?? 0),
       0,
     );
-    const status = pedidoInternoSituacao(pedido);
+    const status = pedidoInternoSituacao(pedido, pedido.pedidos_internos_aprovacoes);
     const projetoRow = asOne(pedido.projetos);
     const compraRow = asOne(pedido.pedidos_compra);
     const projeto = projetoRow?.nome ?? "—";

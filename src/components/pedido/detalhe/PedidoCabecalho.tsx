@@ -125,7 +125,8 @@ export function PedidoCabecalho({
           justificativa={pedido.justificativa}
           projetos={projetos ?? []}
           status={pedido.status}
-          podeExcluir={podeGerir && pedido.pedido_compra_id === null}
+          // apagar vale em qualquer etapa (0186); o banco recusa material já recebido
+          podeExcluir={podeGerir}
         />
       </div>
     </div>

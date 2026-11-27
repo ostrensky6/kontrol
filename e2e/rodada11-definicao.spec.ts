@@ -18,8 +18,8 @@ test.describe("rodada 11: definição (computador)", () => {
     // é texto com um ponto colorido ao lado, não um bloco com fundo
     expect(await estilo(status, "background-color")).toBe("rgba(0, 0, 0, 0)");
     expect(await estilo(status.locator(".."), "background-color")).toBe("rgba(0, 0, 0, 0)");
-    // a coluna de ações só existe quando algum pedido da lista é rascunho que dá para excluir
-    const excluiveis = await tabela.getByRole("button", { name: /^Excluir/ }).count();
+    // a coluna de ações só existe quando algum pedido da lista dá para apagar (0186: qualquer etapa)
+    const excluiveis = await tabela.getByRole("button", { name: /^Apagar/ }).count();
     await expect(tabela.getByRole("columnheader", { name: "Ações" })).toHaveCount(excluiveis > 0 ? 1 : 0);
     await expect(page.getByRole("status").filter({ hasText: /^\d+ registros$/ })).toBeVisible();
     await expect(page.getByText("registro(s)")).toHaveCount(0);

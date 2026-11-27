@@ -327,7 +327,7 @@ export type CabecalhoEncontrado = {
   linha: number;
   /** colunas de dados reconhecidas (sem ID técnico) */
   reconhecidas: string[];
-  /** o cabeçalho tem a coluna que identifica o registro (ex.: Item específico / SKU) */
+  /** o cabeçalho tem a coluna que identifica o registro (ex.: Item) */
   temRotulo: boolean;
 };
 

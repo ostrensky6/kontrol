@@ -2647,6 +2647,53 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         }
         return { data: { pedido_id: pedido.id, decisao: args.p_decisao }, error: null };
       }
+      // 0186: reprovar encerra o pedido (versão simples; as regras completas estão no teste SQL)
+      if (fn === "reprovar_pedido_interno") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const motivo = String(args.p_motivo ?? "").trim();
+        if (!motivo) return { data: null, error: { message: "Escreva o motivo da reprovação: o solicitante recebe este texto.", code: "22023" } };
+        const aguardaLab = pedido.status === "validado" && pedido.natureza === "material_consumo_lab" && !pedido.aprovacao_area_em;
+        const etapa =
+          pedido.status === "em_validacao"
+            ? "Validação das especificações técnicas"
+            : aguardaLab
+              ? "Aprovação da coordenação do laboratório"
+              : ["formalizado", "analise_administrativa"].includes(String(pedido.status))
+                ? "Análise de fonte de recurso, rubrica e conformidade"
+                : null;
+        if (!etapa) return { data: null, error: { message: "Este pedido não está esperando aprovação. Para encerrar, use Cancelar.", code: "22023" } };
+        const agora = new Date().toISOString();
+        const origem = pedido.status;
+        Object.assign(pedido, { status: "cancelado", atualizado_em: agora });
+        store.pedidos_internos_aprovacoes = [...(store.pedidos_internos_aprovacoes ?? []), {
+          id: nextId("pedidos_internos_aprovacoes"), pedido_interno_id: pedido.id, etapa, decisao: "reprovado",
+          responsavel: "admin@example.com", comentario: motivo, status_origem: origem, status_destino: "cancelado", criado_em: agora,
+        }];
+        store.eventos_status = [...(store.eventos_status ?? []), {
+          id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: origem,
+          para_status: "cancelado", usuario: "admin@example.com", criado_em: agora, observacao: `Reprovado: ${motivo}`,
+        }];
+        return { data: { pedido_id: pedido.id, etapa, status_origem: origem }, error: null };
+      }
+      // 0186: apagar vale em qualquer etapa, menos quando já chegou material no estoque
+      if (fn === "excluir_pedido_interno") {
+        if (!mockTemPermissao("pedido.aprovar", sessao)) {
+          return { data: null, error: { message: "Sem permissão para esta ação (pedido.aprovar).", code: "42501" } };
+        }
+        const id = Number(args.p_pedido_id);
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === id);
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        const itens = ((store.pedidos_internos_itens ?? []) as Row[]).filter((item) => Number(item.pedido_interno_id) === id);
+        if (pedido.recebido_em || itens.some((item) => item.recebido_em)) {
+          return { data: null, error: { message: "Já chegou material deste pedido no estoque, e o histórico do estoque depende dele. Ele não pode ser apagado: use Cancelar.", code: "22023" } };
+        }
+        const doPedido = (row: Row) => Number(row.pedido_interno_id) !== id;
+        store.pedidos_internos = (store.pedidos_internos ?? []).filter((row) => Number(row.id) !== id);
+        store.pedidos_internos_itens = (store.pedidos_internos_itens ?? []).filter(doPedido);
+        store.pedidos_internos_aprovacoes = (store.pedidos_internos_aprovacoes ?? []).filter(doPedido);
+        return { data: { pedido_id: id, pedido_compra_id: pedido.pedido_compra_id ?? null, status_origem: pedido.status, arquivos: [] }, error: null };
+      }
       // 0183: a urgência é definida só por quem tem a permissão (mesmas regras do banco)
       if (fn === "definir_urgencia_pedido_interno") {
         if (!mockTemPermissao("pedido.urgencia", sessao)) {

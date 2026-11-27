@@ -103,7 +103,7 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   // ---- 3. quem conduz a compra cadastra o insumo pelo pedido
   await page.getByRole("button", { name: /Cadastrar insumo/ }).click();
   const cadastro = page.getByRole("dialog", { name: "Cadastrar item novo" });
-  await expect(cadastro.getByLabel("Item específico / SKU")).toHaveValue(insumoNome);
+  await expect(cadastro.getByLabel("Item", { exact: true })).toHaveValue(insumoNome);
   await expect(cadastro.getByLabel("Quantidade na embalagem")).toHaveValue("500");
   await expect(cadastro.getByLabel("Unidade da embalagem")).toHaveValue("mL");
   await cadastro.getByLabel("Marca / fabricante").fill("Marca E2E");

@@ -16,6 +16,7 @@ import {
   decidirCoordenacaoLaboratorio,
   devolverParaCompras,
   devolverParaSolicitante,
+  reprovarPedidoInterno,
   validarInformacoes,
 } from "@/lib/actions/pedidos-internos";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
@@ -148,15 +149,20 @@ function Bolinha({ coluna, titulo, numero }: { coluna: ColunaDoQuadro; titulo: s
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 
-const ACOES: Record<ChaveAprovacao, { aprovar: Action; devolver: Action; extraAprovar?: Record<string, string>; extraDevolver?: Record<string, string> }> = {
-  projeto: { aprovar: validarInformacoes, devolver: devolverParaSolicitante },
+const ACOES: Record<
+  ChaveAprovacao,
+  { aprovar: Action; devolver: Action; devolverPara: string; extraAprovar?: Record<string, string>; extraDevolver?: Record<string, string> }
+> = {
+  projeto: { aprovar: validarInformacoes, devolver: devolverParaSolicitante, devolverPara: "ao solicitante" },
   laboratorio: {
     aprovar: decidirCoordenacaoLaboratorio,
     devolver: decidirCoordenacaoLaboratorio,
+    devolverPara: "ao solicitante",
     extraAprovar: { decisao: "aprovado" },
     extraDevolver: { decisao: "devolvido" },
   },
-  financeiro: { aprovar: aprovarAnaliseAdministrativa, devolver: devolverParaCompras },
+  // no fluxo de hoje o financeiro decide depois de Compras formalizar: a correção volta a Compras
+  financeiro: { aprovar: aprovarAnaliseAdministrativa, devolver: devolverParaCompras, devolverPara: "a Compras" },
 };
 
 function useAcao(action: Action) {
@@ -168,13 +174,75 @@ function useAcao(action: Action) {
   return [state, formAction] as const;
 }
 
-/** Aprovar ou devolver ali mesmo, para quem é a vez de decidir. */
+/** Devolver (amarelo) e Reprovar (vermelho) pedem o motivo, que o solicitante vê ao clicar na bolinha. */
+function DecisaoComMotivo({
+  id,
+  rotulo,
+  ariaLabel,
+  pergunta,
+  dica,
+  confirmar,
+  pendente,
+  tom,
+  action,
+  estado,
+  extra,
+  pedidoId,
+}: {
+  id: string;
+  rotulo: string;
+  ariaLabel: string;
+  pergunta: string;
+  dica: string;
+  confirmar: string;
+  pendente: string;
+  tom: "amarelo" | "vermelho";
+  action: (fd: FormData) => void;
+  estado: FormState;
+  extra?: Record<string, string>;
+  pedidoId: number;
+}) {
+  const [aberto, setAberto] = useState(false);
+  const cores =
+    tom === "amarelo"
+      ? "border-amber-500/60 text-warning-strong hover:bg-warning-soft"
+      : "border-danger-strong/30 text-danger-strong hover:bg-danger-soft";
+  return (
+    <Popover open={aberto} onOpenChange={setAberto}>
+      <PopoverTrigger className={cn("h-8 rounded-md border bg-card px-3 text-sm font-medium", cores)} aria-label={ariaLabel}>
+        {rotulo}
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="end">
+        <form action={action} {...formularioSemPerda(estado)} className="space-y-2">
+          <input type="hidden" name="pedido_interno_id" value={pedidoId} />
+          {Object.entries(extra ?? {}).map(([k, v]) => (
+            <input key={k} type="hidden" name={k} value={v} />
+          ))}
+          <label htmlFor={id} className="block text-sm font-semibold text-foreground">
+            {pergunta}
+          </label>
+          <textarea id={id} name="observacao" required rows={3} placeholder={dica} className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm" />
+          <SubmitButton
+            size="sm"
+            pendingLabel={pendente}
+            variant={tom === "vermelho" ? "destructive" : "outline"}
+            className={tom === "amarelo" ? cn("h-8", cores) : "h-8"}
+          >
+            {confirmar}
+          </SubmitButton>
+        </form>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Aprovar, devolver ou reprovar ali mesmo, para quem é a vez de decidir. */
 function Decidir({ linha }: { linha: LinhaQuadro }) {
   const decisao = linha.decisao!;
   const acoes = ACOES[decisao.chave];
   const [estadoAprovar, aprovar] = useAcao(acoes.aprovar);
   const [estadoDevolver, devolver] = useAcao(acoes.devolver);
-  const [aberto, setAberto] = useState(false);
+  const [estadoReprovar, reprovar] = useAcao(reprovarPedidoInterno);
   const titulo = COLUNAS_QUADRO.find((c) => c.chave === decisao.chave)?.titulo ?? "Aprovação";
 
   if (decisao.noPedido) {
@@ -184,11 +252,10 @@ function Decidir({ linha }: { linha: LinhaQuadro }) {
       </Link>
     );
   }
-  const mensagem = estadoAprovar.message || estadoDevolver.message;
-  const ok = estadoAprovar.message ? estadoAprovar.ok : estadoDevolver.ok;
+  const ultimo = [estadoAprovar, estadoDevolver, estadoReprovar].find((e) => e.message);
   return (
     <div className="flex min-w-40 flex-col items-start gap-1">
-      <div className="flex items-center gap-1.5">
+      <div className="flex flex-wrap items-center gap-1.5">
         <form action={aprovar} {...formularioSemPerda(estadoAprovar)}>
           <input type="hidden" name="pedido_interno_id" value={linha.id} />
           {Object.entries(acoes.extraAprovar ?? {}).map(([k, v]) => (
@@ -203,38 +270,35 @@ function Decidir({ linha }: { linha: LinhaQuadro }) {
             Aprovar
           </SubmitButton>
         </form>
-        <Popover open={aberto} onOpenChange={setAberto}>
-          <PopoverTrigger
-            className="h-8 rounded-md border border-danger-strong/30 bg-card px-3 text-sm font-medium text-danger-strong hover:bg-danger-soft"
-            aria-label={`Devolver o pedido ${linha.numero} ao solicitante`}
-          >
-            Devolver
-          </PopoverTrigger>
-          <PopoverContent className="w-72 p-3" align="end">
-            <form action={devolver} {...formularioSemPerda(estadoDevolver)} className="space-y-2">
-              <input type="hidden" name="pedido_interno_id" value={linha.id} />
-              {Object.entries(acoes.extraDevolver ?? {}).map(([k, v]) => (
-                <input key={k} type="hidden" name={k} value={v} />
-              ))}
-              <label htmlFor={`devolver-${linha.id}`} className="block text-sm font-semibold text-foreground">
-                O que o solicitante precisa corrigir no pedido {linha.numero}?
-              </label>
-              <textarea
-                id={`devolver-${linha.id}`}
-                name="observacao"
-                required
-                rows={3}
-                placeholder="O solicitante vê este motivo ao clicar na bolinha amarela."
-                className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm"
-              />
-              <SubmitButton size="sm" pendingLabel="Devolvendo…" variant="outline" className="h-8 border-danger-strong/30 text-danger-strong hover:bg-danger-soft">
-                Devolver com este motivo
-              </SubmitButton>
-            </form>
-          </PopoverContent>
-        </Popover>
+        <DecisaoComMotivo
+          id={`devolver-${linha.id}`}
+          rotulo="Devolver"
+          ariaLabel={`Devolver o pedido ${linha.numero} ${acoes.devolverPara}`}
+          pergunta={`O que precisa ser corrigido no pedido ${linha.numero}?`}
+          dica="O pedido volta para correção, sem recomeçar. O motivo aparece na bolinha amarela."
+          confirmar="Devolver com este motivo"
+          pendente="Devolvendo…"
+          tom="amarelo"
+          action={devolver}
+          estado={estadoDevolver}
+          extra={acoes.extraDevolver}
+          pedidoId={linha.id}
+        />
+        <DecisaoComMotivo
+          id={`reprovar-${linha.id}`}
+          rotulo="Reprovar"
+          ariaLabel={`Reprovar o pedido ${linha.numero}`}
+          pergunta={`Por que o pedido ${linha.numero} foi reprovado?`}
+          dica="Reprovar encerra o pedido e avisa o solicitante com este motivo."
+          confirmar="Reprovar e encerrar"
+          pendente="Reprovando…"
+          tom="vermelho"
+          action={reprovar}
+          estado={estadoReprovar}
+          pedidoId={linha.id}
+        />
       </div>
-      {mensagem && <p className={cn("max-w-56 text-xs", ok ? "text-success-strong" : "text-danger-strong")}>{mensagem}</p>}
+      {ultimo && <p className={cn("max-w-56 text-xs", ultimo.ok ? "text-success-strong" : "text-danger-strong")}>{ultimo.message}</p>}
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { pedidoQueSeguraCompra } from "./status";
+import { pedidoInternoSituacao, pedidoQueSeguraCompra } from "./status";
 
 describe("pedidoQueSeguraCompra (D1, 0130)", () => {
   it("compra sem pedido interno segue a regra própria", () => {
@@ -31,5 +31,16 @@ describe("pedidoQueSeguraCompra (D1, 0130)", () => {
         { id: 1, status: "compra_concluida" },
       ]),
     ).toEqual({ id: 2, rotulo: "Aguardando aprovação final" });
+  });
+});
+
+describe("pedidoInternoSituacao: reprovado (0186)", () => {
+  it("cancelado com a decisão de reprovar aparece como Reprovado", () => {
+    expect(pedidoInternoSituacao({ status: "cancelado" }, [{ decisao: "aprovado" }, { decisao: "reprovado" }]).label).toBe("Reprovado");
+  });
+  it("cancelado sem reprovação continua Cancelado; reprovado só vale para pedido encerrado", () => {
+    expect(pedidoInternoSituacao({ status: "cancelado" }, [{ decisao: "devolvido" }]).label).toBe("Cancelado");
+    expect(pedidoInternoSituacao({ status: "cancelado" }).label).toBe("Cancelado");
+    expect(pedidoInternoSituacao({ status: "em_validacao" }, [{ decisao: "reprovado" }]).label).not.toBe("Reprovado");
   });
 });

@@ -106,7 +106,7 @@ test("quem conduz a compra cadastra o item novo pelo pedido e a formalização d
   const dialogo = page.getByRole("dialog", { name: "Cadastrar item novo" });
   await expect(dialogo).toBeVisible();
   // o cadastro vem sugerido pelo que quem pediu escreveu
-  await expect(dialogo.getByLabel("Item específico / SKU")).toHaveValue(insumo);
+  await expect(dialogo.getByLabel("Item", { exact: true })).toHaveValue(insumo);
   await expect(dialogo.getByLabel("Quantidade na embalagem")).toHaveValue("500");
   await expect(dialogo.getByLabel("Unidade da embalagem")).toHaveValue("mL");
   await expect(dialogo.getByLabel("Valor da embalagem (R$)")).toHaveValue("180");

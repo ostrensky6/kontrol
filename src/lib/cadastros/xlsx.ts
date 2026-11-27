@@ -188,7 +188,7 @@ export function instrucoesImportacao(cadastros: CadastroConfig[]): string[] {
     "• Números aceitam o formato brasileiro (1.234,56) e datas aceitam dd/mm/aaaa.",
     `• Insumos: a coluna "${QUANTIDADE_INSUMO_LABEL}" só vale para itens novos e cria o estoque inicial (número inteiro de embalagens). Para itens existentes ela é ignorada; entradas e baixas são feitas em Estoque.`,
     `• Insumos: na coluna "${CODIGOS_BARRAS_LABEL}" separe vários códigos por ponto e vírgula. A importação só acrescenta códigos; para tirar um código, edite o insumo no Kontrol. Código já vinculado a outro insumo é ignorado com aviso.`,
-    '• Insumos: "Categoria de compra" é a prioridade da compra e aceita só Crítico, Operacional ou Eventual. O tipo do material (Plástico, EPI, Reagente molecular…) vai em "Categoria curta". Valor fora da lista não trava a linha: ela entra e o campo fica em branco, com aviso.',
+    '• Insumos: "Categoria de compra" é a prioridade da compra e aceita só Crítico, Operacional ou Eventual. O tipo do material (Plástico, EPI, Reagente molecular…) vai em "Natureza/Rubrica". Valor fora da lista não trava a linha: ela entra e o campo fica em branco, com aviso.',
     '• Fornecedor que ainda não existe no Kontrol fica em branco, com aviso. Para já ligar, acrescente uma aba "Fornecedores" (coluna "Razão social / nome") na mesma planilha: ela é importada antes dos insumos.',
     '• Colunas terminadas em "ID" e colunas ocultas são técnicas: não as altere.',
     "",
