@@ -6,6 +6,8 @@
   \quit 3
 \endif
 begin;
+-- 0188: este teste cobre a ordem antiga de aprovações (pedidos que já estavam no meio quando a nova entrou)
+alter table public.pedidos_internos alter column fluxo set default 1;
 set local lock_timeout = '3s';
 set local statement_timeout = '60s';
 do $$
