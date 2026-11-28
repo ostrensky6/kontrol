@@ -10,9 +10,9 @@
 
 export const ETAPAS_PEDIDO = [
   { id: "solicitacao", rotulo: "Solicitação", descricao: "o solicitante monta e envia" },
-  { id: "aprovacao", rotulo: "Aprovação", descricao: "laboratório ou campo, financeiro e coordenador do projeto" },
+  { id: "aprovacao", rotulo: "Aprovação", descricao: "laboratório ou campo e financeiro" },
   { id: "administrativo", rotulo: "Administrativo", descricao: "fonte de recurso e autorização" },
-  { id: "cotacao", rotulo: "Cotação", descricao: "três orçamentos e aprovação final" },
+  { id: "cotacao", rotulo: "Cotação", descricao: "três orçamentos e aprovação do coordenador do projeto" },
   // "Fechamento de compra" desde 17/11/2026 (antes, "Compra e entrega"): relatório de ajustes de Compras, ajuste 1
   { id: "compra", rotulo: "Fechamento de compra", descricao: "da compra até o material chegar" },
   { id: "pagamento", rotulo: "Pagamento", descricao: "nota fiscal e comprovante" },
@@ -30,10 +30,13 @@ const ETAPA_DO_STATUS: Record<string, EtapaPedidoId> = {
   rascunho: "solicitacao",
   ajuste_solicitante: "solicitacao",
   em_validacao: "aprovacao",
-  // 0188: as três aprovações da ordem nova ficam na etapa Aprovação
+  // 0188: laboratório ou campo e financeiro ficam na etapa Aprovação.
+  // 0189: a cotação do solicitante e a aprovação do coordenador do projeto,
+  // que decide vendo os 3 orçamentos, ficam na etapa Cotação.
   aguardando_area: "aprovacao",
   aguardando_financeiro: "aprovacao",
-  aguardando_projeto: "aprovacao",
+  aguardando_cotacao: "cotacao",
+  aguardando_projeto: "cotacao",
   // "validado" é aprovação concluída; só volta para Aprovação enquanto espera o laboratório (abaixo)
   validado: "administrativo",
   formalizado: "administrativo",

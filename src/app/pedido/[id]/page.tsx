@@ -201,8 +201,9 @@ export default async function PedidoInternoDetalhe({
     comoSubstituto,
     podeGerir,
     rotuloStatus: statusMeta.label,
+    emailUsuario: usuario?.email,
   });
-  const { fluxoNovo, podeDecidir: podeDecidirVez, motivoSemDecisao: motivoSemDecisaoVez } = ordemNova;
+  const { fluxoNovo, podeDecidir: podeDecidirVez, podeCotar, motivoSemDecisao: motivoSemDecisaoVez } = ordemNova;
   const podeDecidirLaboratorio = esperaLaboratorio && usuarioDecide(aprovadores?.laboratorio?.ids, usuario?.id, substituto);
   // 0136 (D2), mesma regra do banco: quem pediu não dá a aprovação final do próprio pedido
   const motivoProprio = motivoProprioPedido({
@@ -219,7 +220,7 @@ export default async function PedidoInternoDetalhe({
     ? await lerPendenciaPagamento(supabase, pedidoId)
     : null;
   // D2 (0171): três orçamentos de fornecedores diferentes e um escolhido
-  // 0188: na ordem nova eles vão junto com o pedido e aparecem desde o rascunho
+  // 0189: na ordem nova eles entram na cotação, depois do financeiro
   const comOrcamentos = fluxoNovo ? pedido.status !== "cancelado" : ETAPAS_COM_ORCAMENTOS.includes(pedido.status);
   const orcamentos = comOrcamentos ? await lerOrcamentos(supabase, pedidoId) : null;
   // 0188: o financeiro escolhe a fonte de pagamento numa lista (Cadastros > Fontes de pagamento)
@@ -264,7 +265,7 @@ export default async function PedidoInternoDetalhe({
   const podeConfirmar =
     (podeRegistrarRecebimento || podeGerir) && podeConfirmarEntrega(pedido, linhas);
   // Antes da compra, aponta outra marca do mesmo tipo técnico que já tem saldo (item 8).
-  const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras", "aguardando_area", "aguardando_financeiro", "aguardando_projeto"].includes(String(pedido.status));
+  const antesDaCompra = ["rascunho", "em_validacao", "validado", "ajuste_solicitante", "ajuste_compras", "aguardando_area", "aguardando_financeiro", "aguardando_cotacao", "aguardando_projeto"].includes(String(pedido.status));
   const { equivalentes } = antesDaCompra
     ? await lerEquivalentesComSaldo(supabase, linhas.map((l) => l.insumo_id).filter((id): id is number => id != null))
     : { equivalentes: new Map<number, never[]>() };
@@ -317,9 +318,6 @@ export default async function PedidoInternoDetalhe({
       : new Map<number, never>();
   const etapa = etapaDoPedido(pedido);
   const encerrado = etapa === "concluido" || etapa === "cancelado";
-  const orcamentosComDocumento = new Set(
-    (orcamentos ?? []).filter((o) => o.anexo_id).map((o) => o.fornecedor_nome.trim().toLocaleLowerCase("pt-BR")),
-  ).size;
   const pendencias = [
     // 0188: na ordem nova o laboratório ou o campo é a primeira aprovação
     ...(fluxoNovo
@@ -342,10 +340,6 @@ export default async function PedidoInternoDetalhe({
       label: "Itens com especificação, quantidade e unidade",
       ok: linhas.length > 0 && linhas.every((item) => item.especificacao && Number(item.quantidade) > 0 && item.unidade),
     },
-    // 0188: os 3 orçamentos vão junto, cada um com o documento
-    ...(fluxoNovo
-      ? [{ label: "3 orçamentos de fornecedores diferentes, cada um com o documento", ok: (resumoOrcamentos?.faltam ?? 3) === 0 && orcamentosComDocumento >= 3 }]
-      : []),
   ];
   const rascunhoCompleto = pendencias.every((item) => item.ok);
   // "Novo pedido" grava e envia de uma vez; se uma parte não saiu, o pedido fica como rascunho e diz por quê
@@ -356,8 +350,6 @@ export default async function PedidoInternoDetalhe({
         ? "O pedido foi guardado como rascunho, mas os itens não foram gravados. Inclua os itens abaixo e envie para aprovação."
         : aviso === "documentos"
           ? "O pedido foi guardado como rascunho, mas um documento não foi gravado. Registre-o em “Documentos”, abaixo, e envie para aprovação."
-          : aviso === "orcamentos"
-            ? "O pedido foi guardado como rascunho, mas um orçamento não foi gravado. Registre-o em “Orçamentos”, acima, e envie para aprovação."
           : aviso === "envio"
             ? `O pedido foi guardado como rascunho, mas não seguiu para aprovação. ${travaEnvio ?? "Confira o que falta em “Conferir e enviar”, abaixo, e envie de novo."}`
             : null;
@@ -392,6 +384,7 @@ export default async function PedidoInternoDetalhe({
       : null,
     cicloAbreEm: podeConduzir ? null : cicloTravadoAte,
     financeiro: aprovadores?.financeiro?.nome,
+    solicitante: pedido.solicitante,
   });
   // De quem é a vez. "Sua vez" só quando o banco aponta o usuário como quem
   // decide (coordenador ou laboratório); nas outras etapas vale a permissão.
@@ -498,6 +491,7 @@ export default async function PedidoInternoDetalhe({
             motivoCiclo={motivoCiclo}
             fluxoNovo={fluxoNovo}
             podeDecidirVez={podeDecidirVez}
+            podeCotar={podeCotar}
             motivoSemDecisaoVez={motivoSemDecisaoVez}
             fontes={fontes}
             motivoItensSemCadastro={motivoItemNovo}

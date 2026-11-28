@@ -60,7 +60,8 @@ const ETAPAS_DA_COLUNA: Record<ChaveAprovacao, readonly string[]> = {
   laboratorio: ["Aprovação da coordenação do laboratório", "Aprovação do laboratório ou campo"],
   // a aprovação é a "Liberação para cotação"; a devolução fica na análise
   financeiro: ["Liberação para cotação", "Análise de fonte de recurso, rubrica e conformidade", "Aprovação financeira"],
-  projeto: ["Validação das especificações técnicas", "Aprovação do coordenador do projeto"],
+  // 0189: reprovado na cotação (só quem conduz a compra) para antes do projeto
+  projeto: ["Validação das especificações técnicas", "Aprovação do coordenador do projeto", "Cotação do solicitante"],
 };
 
 /** 0188: ordem nova, uma coluna por status de espera. */
@@ -200,7 +201,9 @@ function colunasFluxoNovo(
   ultimoEnvio: RegistroAprovacao | null,
 ): Record<ChaveAprovacao, ColunaAprovacao> {
   const status = pedido.status;
-  const vez = ORDEM_FLUXO_NOVO.findIndex((c) => VEZ_FLUXO_NOVO[c] === status);
+  // 0189: na cotação, laboratório e financeiro já aprovaram; o projeto vem depois dela
+  const naCotacao = status === "aguardando_cotacao";
+  const vez = naCotacao ? ORDEM_FLUXO_NOVO.indexOf("projeto") : ORDEM_FLUXO_NOVO.findIndex((c) => VEZ_FLUXO_NOVO[c] === status);
   const antesDoEnvio = status === "rascunho";
   const parado = status === "ajuste_solicitante" || status === "cancelado";
   const depoisDeTodas = vez < 0 && !antesDoEnvio && !parado;
@@ -241,7 +244,8 @@ function colunasFluxoNovo(
         ? pelaDecisao(chave, r)
         : coluna(chave, "aprovado", { quem: marcas[chave].por ?? null, quando: marcas[chave].em ?? null });
     };
-    if (indice === vez) resultado[chave] = coluna(chave, "aguardando");
+    if (indice === vez && naCotacao) resultado[chave] = coluna(chave, "futura", { rotulo: "Depois da cotação" });
+    else if (indice === vez) resultado[chave] = coluna(chave, "aguardando");
     else if ((vez >= 0 && indice < vez) || depoisDeTodas) resultado[chave] = aprovou();
     else if (parouEm && indice < indiceParada) resultado[chave] = aprovou();
     else if (parouEm && indice === indiceParada) resultado[chave] = pelaDecisao(chave, parouEm.r!);

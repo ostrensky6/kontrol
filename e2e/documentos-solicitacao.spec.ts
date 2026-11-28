@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { completarParaOrdemNova } from "./ajudas/novo-pedido";
 
 /**
- * Relatório de ajustes de 19/11/2026, ajuste 2: a cotação prévia e o termo de
+ * Relatório de ajustes de 19/11/2026, ajuste 2: o orçamento prévio e o termo de
  * referência são de quem pede. Entram no "Novo pedido", com o pedido e com os
  * mesmos campos de "Registrar documento" (tipo, título, arquivo, link e
  * observação: é ali que se põem o valor estimado e o link); da Aprovação em
@@ -33,17 +33,17 @@ async function preencher(form: Locator, titulo: string) {
 
 const pdf = (name: string, tamanho = 2048) => ({ name, mimeType: "application/pdf", buffer: Buffer.alloc(tamanho, 1) });
 
-test("cotação prévia e termo de referência entram no Novo pedido, com os campos de Registrar documento, e saem da Aprovação", async ({ page }) => {
-  const titulo = `Tampão com cotação prévia ${Date.now()}`;
+test("orçamento prévio e termo de referência entram no Novo pedido, com os campos de Registrar documento, e saem da Aprovação", async ({ page }) => {
+  const titulo = `Tampão com orçamento prévio ${Date.now()}`;
   const form = await abrirNovoPedido(page);
   await preencher(form, titulo);
-  await expect(form.getByRole("heading", { name: "Cotação prévia e termo de referência" })).toBeVisible();
+  await expect(form.getByRole("heading", { name: "Orçamento prévio e termo de referência" })).toBeVisible();
 
   // os mesmos campos de "Registrar documento": tipo, título, arquivo, link e observação
   const primeiro = form.getByRole("group", { name: "Documento 1" });
   await expect(primeiro.getByLabel("Tipo")).toHaveValue("orcamento_previo");
-  expect(await primeiro.getByLabel("Tipo").locator("option").allTextContents()).toEqual(["Cotação prévia", "Termo de referência"]);
-  // cotação prévia só com valor estimado e link, sem arquivo
+  expect(await primeiro.getByLabel("Tipo").locator("option").allTextContents()).toEqual(["Orçamento prévio", "Termo de referência"]);
+  // orçamento prévio só com valor estimado e link, sem arquivo
   await primeiro.getByLabel("Título").fill("Cotação do tampão no site");
   await primeiro.getByLabel("Link ou referência externa (opcional)").fill("https://loja.exemplo/tampao-te");
   await primeiro.getByLabel("Observação").fill("Valor estimado: R$ 180,00 o frasco");
@@ -61,7 +61,7 @@ test("cotação prévia e termo de referência entram no Novo pedido, com os cam
   await expect(form.getByTestId("novo-pedido-documento")).toHaveCount(2);
   // o que já estava preenchido continua
   await expect(primeiro.getByLabel("Título")).toHaveValue("Cotação do tampão no site");
-  // 0188: laboratório ou campo e os 3 orçamentos vão junto
+  // 0188: laboratório ou campo (0189: os 3 orçamentos ficam para a cotação)
   await completarParaOrdemNova(form);
 
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
@@ -74,23 +74,23 @@ test("cotação prévia e termo de referência entram no Novo pedido, com os cam
   await expect(page.getByText("Valor estimado: R$ 180,00 o frasco")).toBeVisible();
   await expect(page.getByRole("link", { name: "Abrir referência" })).toHaveAttribute("href", "https://loja.exemplo/tampao-te");
   await expect(page.getByText("termo-de-referencia.pdf").first()).toBeVisible();
-  await expect(page.getByText(/Cotação prévia · Rascunho/)).toHaveCount(1);
+  await expect(page.getByText(/Orçamento prévio · Rascunho/)).toHaveCount(1);
   await expect(page.getByText(/Termo de referência · Rascunho/)).toHaveCount(1);
-  // os 2 documentos e o documento de cada um dos 3 orçamentos
-  await expect(page.getByText("5 anexos")).toBeVisible();
+  // só os 2 documentos: os orçamentos dos fornecedores entram na cotação
+  await expect(page.getByText("2 anexos")).toBeVisible();
 
   // na Aprovação, "Registrar documento" não oferece mais os dois tipos
   await page.getByText("Registrar documento", { exact: true }).first().click();
   const tipo = page.locator("#adicionarAnexoPedidoInterno-tipo");
   await expect(tipo).toBeVisible();
   const opcoes = await tipo.locator("option").allTextContents();
-  expect(opcoes).not.toContain("Cotação prévia");
+  expect(opcoes).not.toContain("Orçamento prévio");
   expect(opcoes).not.toContain("Termo de referência");
   expect(opcoes).toContain("Cotação do fornecedor");
   await expect(page.getByTestId("documentos-da-solicitacao")).toContainText("entram com o pedido, por quem pede");
 });
 
-test("no rascunho, quem pede ainda escolhe cotação prévia em Registrar documento", async ({ page }) => {
+test("no rascunho, quem pede ainda escolhe orçamento prévio em Registrar documento", async ({ page }) => {
   const titulo = `Rascunho com termo ${Date.now()}`;
   const form = await abrirNovoPedido(page);
   await preencher(form, titulo);
@@ -98,7 +98,7 @@ test("no rascunho, quem pede ainda escolhe cotação prévia em Registrar docume
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   await page.getByText("Registrar documento", { exact: true }).first().click();
   const opcoes = await page.locator("#adicionarAnexoPedidoInterno-tipo option").allTextContents();
-  expect(opcoes).toContain("Cotação prévia");
+  expect(opcoes).toContain("Orçamento prévio");
   expect(opcoes).toContain("Termo de referência");
   await expect(page.getByTestId("documentos-da-solicitacao")).toHaveCount(0);
 });

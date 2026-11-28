@@ -208,6 +208,7 @@ export default async function PedidoPage({
       semProjeto: !projetoRow,
       // mesma regra da página do pedido (0184): para quem conduz, o próximo passo é formalizar
       cicloAbreEm: podeConduzir ? null : cicloTravadoAte,
+      solicitante: pedido.solicitante,
     });
     const compraFormal = compraRow?.id ? `#${compraRow.id} · ${statusInfo(compraRow.status).label}` : "—";
     return {
@@ -245,6 +246,7 @@ export default async function PedidoPage({
         pessoas: usuarios,
         areas,
         usuarioId: usuario?.id ?? null,
+        emailUsuario: usuario?.email ?? null,
         substituto: usuario?.papel === "admin" || podeConduzir,
         podeAprovar: podeExcluir,
       })

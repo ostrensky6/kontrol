@@ -56,7 +56,7 @@ beforeEach(() => {
 });
 
 /** Relatório de ajustes de 19/11/2026, ajuste 2. */
-describe("cotação prévia e termo de referência entram com o pedido", () => {
+describe("orçamento prévio e termo de referência entram com o pedido", () => {
   it("o Novo pedido grava cada documento com tipo, título, arquivo, link e observação", async () => {
     const { criarPedidoInterno } = await import("./pedidos-internos");
     const dados = new FormData();
@@ -64,7 +64,7 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     dados.set("acao", "rascunho");
     dados.set("itens_json", "[]");
     dados.set("documentos_indices", "0,1,2");
-    // cotação prévia só com link e valor estimado, sem arquivo
+    // orçamento prévio só com link e valor estimado, sem arquivo
     dados.set("documento_0_tipo", "orcamento_previo");
     dados.set("documento_0_titulo", "Cotação do kit");
     dados.set("documento_0_arquivo", new File([], ""));
@@ -126,7 +126,7 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     expect(redirect).toHaveBeenCalledWith("/pedido/77?aviso=documentos");
   });
 
-  it("na Aprovação, Registrar documento recusa cotação prévia e termo de referência", async () => {
+  it("na Aprovação, Registrar documento recusa orçamento prévio e termo de referência", async () => {
     statusDoPedido = "em_validacao";
     const { adicionarAnexoPedidoInterno } = await import("./pedidos-internos");
     for (const tipo of ["orcamento_previo", "termo_referencia"]) {
@@ -156,7 +156,7 @@ describe("cotação prévia e termo de referência entram com o pedido", () => {
     ]);
   });
 
-  it("devolvido para ajuste, quem pede ainda registra a cotação prévia", async () => {
+  it("devolvido para ajuste, quem pede ainda registra o orçamento prévio", async () => {
     statusDoPedido = "ajuste_solicitante";
     const { adicionarAnexoPedidoInterno } = await import("./pedidos-internos");
     const dados = new FormData();

@@ -1,7 +1,7 @@
 /**
  * Documentos do pedido: que tipo entra em que momento e quanto cabe num envio.
  *
- * Relatório de ajustes de 19/11/2026, ajuste 2: a cotação prévia e o termo de
+ * Relatório de ajustes de 19/11/2026, ajuste 2: o orçamento prévio e o termo de
  * referência são de quem pede. Entram com o pedido, no "Novo pedido", e
  * enquanto o pedido está com o solicitante (rascunho ou devolvido para ajuste).
  * Da Aprovação em diante, essas duas opções saem de "Registrar documento"; o
@@ -9,7 +9,7 @@
  */
 
 export const TIPOS_DOCUMENTO_PEDIDO = [
-  { valor: "orcamento_previo", rotulo: "Cotação prévia" },
+  { valor: "orcamento_previo", rotulo: "Orçamento prévio" },
   { valor: "proposta", rotulo: "Cotação do fornecedor" },
   { valor: "print", rotulo: "Print" },
   { valor: "email", rotulo: "E-mail" },
@@ -38,7 +38,7 @@ export function tiposDeDocumentoNoStatus(status: string | null | undefined) {
 }
 
 export const MSG_DOCUMENTO_DA_SOLICITACAO =
-  "Cotação prévia e termo de referência entram com o pedido, por quem pede: no “Novo pedido” ou enquanto o pedido está devolvido para ajuste.";
+  "Orçamento prévio e termo de referência entram com o pedido, por quem pede: no “Novo pedido” ou enquanto o pedido está devolvido para ajuste.";
 
 /** Motivo para recusar o tipo de documento nesse status, ou null quando pode. */
 export function motivoTipoForaDaEtapa(tipo: string | null | undefined, status: string | null | undefined): string | null {

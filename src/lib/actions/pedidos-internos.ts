@@ -18,7 +18,6 @@ import { lerPendenciaPagamento } from "@/lib/pedido/pagamento";
 import { ehUrgente, faltaJustificativaUrgencia } from "@/lib/pedido/ciclo";
 import { CAMPOS_ITEM_NOVO_PEDIDO, faltaNosItens, lerItensNovoPedido } from "@/lib/pedido/itens-novo-pedido";
 import { lerOrcamentos, motivoSemAprovacaoFinal, motivoSemCotacoesRecebidas, resumirOrcamentos } from "@/lib/pedido/orcamentos";
-import { faltaNosOrcamentosParaEnviar, lerOrcamentosNovoPedido } from "@/lib/pedido/orcamentos-novo-pedido";
 import type { FormState } from "./cadastros";
 import { dataIsoEmDias, hojeIso } from "@/lib/formatters";
 import {
@@ -269,43 +268,17 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   }
   const faltaItens = faltaNosItens(lidos.itens, enviar);
   if (faltaItens) return { ok: false, message: faltaItens };
-  // 0188: os orçamentos vão junto com o pedido (pelo menos 3, cada um com o documento)
-  const lidosOrcamentos = lerOrcamentosNovoPedido(formData);
-  if (lidosOrcamentos.erro) return { ok: false, message: lidosOrcamentos.erro };
-  // ajuste de 19/11/2026: cotação prévia e termo de referência entram com o pedido
-  // (tipo, título, arquivo, link e observação, como em "Registrar documento")
+  // ajuste de 19/11/2026: orçamento prévio e termo de referência entram com o pedido
+  // (tipo, título, arquivo, link e observação, como em "Registrar documento").
+  // 0189 (relatório da Rafaela, 28/11/2026): os 3 orçamentos de fornecedores
+  // não vão mais no pedido; entram na cotação, depois da aprovação financeira.
   const documentos = lerDocumentosNovoPedido(formData);
-  const arquivosRecusados = motivoArquivosRecusados([
-    ...documentos.flatMap((documento) => (documento.arquivo ? [documento.arquivo] : [])),
-    ...lidosOrcamentos.orcamentos.flatMap((orcamento) => (orcamento.arquivo ? [orcamento.arquivo] : [])),
-  ]);
+  const arquivosRecusados = motivoArquivosRecusados(
+    documentos.flatMap((documento) => (documento.arquivo ? [documento.arquivo] : [])),
+  );
   if (arquivosRecusados) return { ok: false, message: arquivosRecusados };
 
   const supabase = await createClientUntyped();
-  // nome de cada orçamento: o do cadastro, quando escolhido da lista
-  const idsFornecedores = [
-    ...new Set(lidosOrcamentos.orcamentos.flatMap((o) => (o.fornecedor_id && !o.fornecedor_nome ? [o.fornecedor_id] : []))),
-  ];
-  const nomeFornecedor = new Map<number, string>();
-  if (idsFornecedores.length) {
-    const { data: cadastrados } = await supabase.from("fornecedores").select("id, nome").in("id", idsFornecedores);
-    for (const f of (cadastrados ?? []) as { id: number; nome: string | null }[]) {
-      if (f.nome?.trim()) nomeFornecedor.set(Number(f.id), f.nome.trim());
-    }
-  }
-  const orcamentos = lidosOrcamentos.orcamentos.map((o) => ({
-    ...o,
-    nome: o.fornecedor_nome ?? (o.fornecedor_id ? nomeFornecedor.get(o.fornecedor_id) ?? null : null),
-  }));
-  if (orcamentos.some((o) => !o.nome)) {
-    return { ok: false, message: "Um fornecedor escolhido não está mais no cadastro. Escolha outro ou escreva o nome." };
-  }
-  if (enviar) {
-    const faltaOrcamentos = faltaNosOrcamentosParaEnviar(
-      orcamentos.map((o) => ({ nome: o.nome ?? "", comDocumento: Boolean(o.arquivo) })),
-    );
-    if (faltaOrcamentos) return { ok: false, message: faltaOrcamentos };
-  }
   let coordenador_projeto_nome: string | null = null;
   let coordenador_projeto_email: string | null = null;
 
@@ -352,7 +325,7 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
 
   // Daqui em diante o pedido existe: o que falhar vira aviso no próprio pedido,
   // nunca uma segunda tentativa que criaria outro pedido igual.
-  let aviso: "itens" | "documentos" | "orcamentos" | "envio" | null = null;
+  let aviso: "itens" | "documentos" | "envio" | null = null;
   if (lidos.itens.length > 0) {
     const { data: gravados, error: erroItens } = await supabase
       .from("pedidos_internos_itens")
@@ -369,30 +342,6 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
       usuario: u?.email ?? null,
     });
     if (erro && !aviso) aviso = "documentos";
-  }
-  // 0188: cada orçamento com o próprio documento ("Cotação do fornecedor")
-  for (const orcamento of orcamentos) {
-    let anexoId: number | null = null;
-    if (orcamento.arquivo) {
-      const gravado = await gravarDocumentoDoOrcamento(supabase, pedidoId, orcamento.nome!, orcamento.arquivo);
-      if (gravado.erro) {
-        if (!aviso) aviso = "orcamentos";
-        continue;
-      }
-      anexoId = gravado.id;
-    }
-    const { error: erroOrcamento } = await supabase.from("pedidos_internos_cotacoes").insert({
-      pedido_interno_id: pedidoId,
-      fornecedor_id: orcamento.fornecedor_id,
-      fornecedor_nome: orcamento.nome,
-      valor_total: orcamento.valor_total,
-      prazo_entrega_dias: orcamento.prazo_entrega_dias,
-      anexo_id: anexoId,
-    });
-    if (erroOrcamento) {
-      if (anexoId) await descartarAnexo(supabase, pedidoId, anexoId);
-      if (!aviso) aviso = "orcamentos";
-    }
   }
   // 0188: pedido da ordem nova é enviado pelo banco (enviar_pedido_interno)
   const fluxoNovo =
@@ -1017,9 +966,44 @@ export async function decidirAprovacaoPedido(_prev: FormState, formData: FormDat
     message:
       destino === "aguardando_financeiro"
         ? "Aprovado. Agora é a vez do financeiro."
-        : destino === "aguardando_projeto"
-          ? "Aprovado, com a fonte de pagamento. Agora é a vez do coordenador do projeto."
-          : "Aprovado. O pedido está liberado para a compra.",
+        : destino === "aguardando_cotacao"
+          ? "Aprovado, com a fonte de pagamento. Agora quem pediu faz a cotação, com os 3 orçamentos."
+          : destino === "aguardando_projeto"
+            ? "Aprovado. Agora é a vez do coordenador do projeto."
+            : "Aprovado. O pedido está liberado para a compra.",
+  };
+}
+
+/**
+ * 0189 (relatório da Rafaela, 28/11/2026): quem pediu envia a cotação (3
+ * orçamentos de fornecedores diferentes, com documento) ao coordenador do
+ * projeto. O banco confere quem envia e o que falta (enviar_cotacao_pedido).
+ */
+export async function enviarCotacao(_prev: FormState, formData: FormData): Promise<FormState> {
+  const pedidoId = numero(formData, "pedido_interno_id");
+  if (!pedidoId) return { ok: false, message: "Pedido não informado." };
+  const supabase = await createClientUntyped();
+  const { data, error } = await supabase.rpc("enviar_cotacao_pedido", {
+    p_pedido_id: pedidoId,
+    p_observacao: texto(formData, "observacao") ?? null,
+  });
+  if (error) {
+    return {
+      ok: false,
+      message: funcaoAusente(error)
+        ? "A etapa de cotação ainda não está ligada no banco. Atualize a página."
+        : mensagemDoBanco(error),
+    };
+  }
+  enviarAvisosDoPedidoAgora(pedidoId);
+  revalidatePath("/pedido");
+  revalidatePath(`/pedido/${pedidoId}`);
+  const escolhido = (data as { fornecedor?: string | null } | null)?.fornecedor;
+  return {
+    ok: true,
+    message: escolhido
+      ? `Cotação enviada, com ${escolhido} escolhido. Agora é a vez do coordenador do projeto.`
+      : "Cotação enviada. Agora é a vez do coordenador do projeto.",
   };
 }
 
@@ -1455,7 +1439,7 @@ export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: Fo
   const supabase = await createClientUntyped();
   const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
   const status = (pedido as { status?: string } | null)?.status ?? null;
-  // ajuste de 19/11/2026: cotação prévia e termo de referência são de quem pede
+  // ajuste de 19/11/2026: orçamento prévio e termo de referência são de quem pede
   const foraDaEtapa = motivoTipoForaDaEtapa(tipo, status);
   if (foraDaEtapa) return { ok: false, message: foraDaEtapa };
 
@@ -1614,9 +1598,9 @@ export async function cancelarPedidoInterno(_prev: FormState, formData: FormData
 
 /** D2 (0171): registra um orçamento no pedido (fornecedor, valor, prazo, documento). */
 /**
- * Orçamentos: quem conduz a compra (pedido.aprovar) e, na ordem nova (0188),
- * quem pede, no rascunho e no ajuste. O banco confere o caso (RLS e
- * proteger_cotacao): pedido da ordem antiga, só quem conduz.
+ * Orçamentos: quem conduz a compra (pedido.aprovar) e, na ordem nova, quem
+ * pede, na cotação depois do financeiro (0189) e no ajuste. O banco confere o
+ * caso (RLS e proteger_cotacao): pedido da ordem antiga, só quem conduz.
  */
 async function podeRegistrarOrcamentos() {
   return (await pode("pedido.aprovar")) || (await pode("pedido.criar"));
@@ -1785,7 +1769,8 @@ export async function removerOrcamento(_prev: FormState, formData: FormData): Pr
 
 /** Escolhe o orçamento vencedor; fora do menor valor, com justificativa. */
 export async function escolherOrcamento(_prev: FormState, formData: FormData): Promise<FormState> {
-  if (!(await pode("pedido.aprovar"))) return SEM_PERMISSAO;
+  // 0189: quem pediu escolhe na cotação; o banco confere o caso
+  if (!(await podeRegistrarOrcamentos())) return SEM_PERMISSAO;
   const pedidoId = Number(formData.get("pedido_interno_id"));
   const orcamentoId = Number(formData.get("orcamento_id"));
   const supabase = await createClientUntyped();

@@ -13,6 +13,7 @@ import {
   devolverParaCompras,
   devolverParaSolicitante,
   encaminharInstituicao,
+  enviarCotacao,
   enviarParaValidacao,
   enviarAprovacaoFinal,
   fecharComFornecedor,
@@ -27,7 +28,7 @@ import {
 import type { FormState } from "@/lib/actions/cadastros";
 import { SubmitButton } from "@/components/common/SubmitButton";
 import { formularioSemPerda } from "@/lib/formulario-sem-perda";
-import { emAprovacaoFluxoNovo } from "@/lib/pedido/status";
+import { emAprovacaoFluxoNovo, naCotacaoFluxoNovo } from "@/lib/pedido/status";
 
 type Action = (prev: FormState, fd: FormData) => Promise<FormState>;
 
@@ -125,6 +126,8 @@ export function PedidoInternoAcoes({
   motivoItensSemCadastro = null,
   semDocumentoFiscal = false,
   podeDecidirVez = false,
+  podeCotar = false,
+  motivoCotacao = null,
   motivoSemDecisaoVez = null,
   fontes = [],
   fonteAtual = null,
@@ -165,6 +168,10 @@ export function PedidoInternoAcoes({
   semDocumentoFiscal?: boolean;
   /** 0188 (ordem nova): o usuário decide a aprovação em que o pedido está */
   podeDecidirVez?: boolean;
+  /** 0189: quem pediu (ou o substituto) envia a cotação ao coordenador do projeto */
+  podeCotar?: boolean;
+  /** 0189: o que falta na cotação (3 orçamentos com documento); null quando completa */
+  motivoCotacao?: string | null;
   /** 0188: tem "Aprovar pedidos", mas a vez é de outra pessoa (o texto diz de quem) */
   motivoSemDecisaoVez?: string | null;
   /** 0188: fontes de pagamento cadastradas (o financeiro escolhe uma ao aprovar) */
@@ -236,8 +243,9 @@ export function PedidoInternoAcoes({
               pedidoId={pedidoId}
               action={decidirAprovacaoPedido}
               label={status === "aguardando_area" ? "Aprovar pelo laboratório ou campo" : "Aprovar pedido"}
-              disabled={Boolean(motivoProprioPedido)}
-              disabledReason={motivoProprioPedido ?? undefined}
+              // 0189: o coordenador do projeto aprova vendo a cotação completa
+              disabled={Boolean(motivoProprioPedido) || (status === "aguardando_projeto" && Boolean(motivoCotacao))}
+              disabledReason={motivoProprioPedido ?? (status === "aguardando_projeto" ? motivoCotacao ?? undefined : undefined)}
             >
               <input type="hidden" name="decisao" value="aprovado" />
             </Botao>
@@ -262,6 +270,17 @@ export function PedidoInternoAcoes({
       )}
       {emAprovacaoFluxoNovo(status) && !podeDecidirVez && motivoSemDecisaoVez && (
         <p className="max-w-80 text-xs text-muted-foreground">{motivoSemDecisaoVez}</p>
+      )}
+
+      {/* 0189: a cotação, entre o financeiro e o coordenador do projeto */}
+      {naCotacaoFluxoNovo(status) && podeCotar && (
+        <Botao
+          pedidoId={pedidoId}
+          action={enviarCotacao}
+          label="Enviar cotação ao coordenador do projeto"
+          disabled={Boolean(motivoCotacao)}
+          disabledReason={motivoCotacao ?? undefined}
+        />
       )}
 
       {status === "em_validacao" && podeGerir && (

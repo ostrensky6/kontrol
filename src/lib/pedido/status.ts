@@ -21,6 +21,13 @@ export const PEDIDO_INTERNO_STATUS = {
     etapa: "Aprovação financeira e fonte de pagamento",
     className: "bg-warning-soft text-warning-strong",
   },
+  // 0189 (relatório da Rafaela, 28/11/2026): depois do financeiro, quem pediu
+  // faz a cotação (3 orçamentos de fornecedores diferentes, com documento)
+  aguardando_cotacao: {
+    label: "Cotação com o solicitante",
+    etapa: "Cotação: 3 orçamentos de fornecedores diferentes",
+    className: "bg-info-soft text-info-strong",
+  },
   aguardando_projeto: {
     label: "Aguardando coordenador do projeto",
     etapa: "Aprovação do coordenador do projeto",
@@ -176,6 +183,7 @@ export const PEDIDO_INTERNO_FLUXO_NOVO: PedidoInternoStatus[] = [
   "rascunho",
   "aguardando_area",
   "aguardando_financeiro",
+  "aguardando_cotacao",
   "aguardando_projeto",
   "aprovado_para_compra",
 ];
@@ -185,6 +193,16 @@ export const STATUS_APROVACAO_FLUXO_NOVO = ["aguardando_area", "aguardando_finan
 
 export function emAprovacaoFluxoNovo(status: string | null | undefined): boolean {
   return (STATUS_APROVACAO_FLUXO_NOVO as readonly string[]).includes(status ?? "");
+}
+
+/**
+ * 0189: a cotação da ordem nova, entre o financeiro e o coordenador do
+ * projeto. Não é aprovação: quem pediu registra os 3 orçamentos e envia.
+ */
+export const STATUS_COTACAO_FLUXO_NOVO = "aguardando_cotacao";
+
+export function naCotacaoFluxoNovo(status: string | null | undefined): boolean {
+  return status === STATUS_COTACAO_FLUXO_NOVO;
 }
 
 /** Pedido da ordem nova (0188). Linha sem a coluna (mock antigo, testes) é da ordem antiga. */

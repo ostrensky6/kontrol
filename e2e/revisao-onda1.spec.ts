@@ -168,7 +168,7 @@ test("sino junta Aguardando você e Notificações e aparece em qualquer módulo
   const aguardando = painel.getByRole("region", { name: "Aguardando você" });
   await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
     "href",
-    "/pedido?etapa=aprovacao",
+    "/pedido?ver=aprovacoes",
   );
   // F8: pendência que a função do banco não cobria
   await expect(aguardando.getByRole("link", { name: /Códigos não reconhecidos: 1\. Ver a lista/ })).toHaveAttribute(

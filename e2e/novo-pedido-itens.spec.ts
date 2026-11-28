@@ -1,5 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { completarParaOrdemNova, escolherLaboratorioOuCampo, preencherTresOrcamentos } from "./ajudas/novo-pedido";
+import { completarParaOrdemNova, escolherLaboratorioOuCampo } from "./ajudas/novo-pedido";
 
 /**
  * Relatório de ajustes de Compras (17/11/2026), ajuste 4: o "Novo pedido" já
@@ -7,7 +7,8 @@ import { completarParaOrdemNova, escolherLaboratorioOuCampo, preencherTresOrcame
  * sem passar pelo rascunho. Fechar com algo preenchido pede confirmação; se o
  * envio não sair, o pedido fica como rascunho, com o aviso. O roteiro contra o
  * banco real (e2e-real) prova a gravação e a etapa. Desde 27/11/2026 (0188),
- * o pedido escolhe o laboratório ou o campo e vai com 3 orçamentos.
+ * o pedido escolhe o laboratório ou o campo; desde 28/11 (0189), os 3
+ * orçamentos ficam para a cotação, depois do financeiro.
  */
 
 async function abrirNovoPedido(page: Page): Promise<Locator> {
@@ -74,11 +75,8 @@ test("Novo pedido com itens segue direto para aprovação, sem rascunho", async 
   await lista.getByRole("button", { name: "Remover Ponteira 200 uL" }).click();
   await expect(lista.getByRole("row", { name: /Ponteira 200 uL/ })).toHaveCount(0);
 
-  // 0188: sem os 3 orçamentos, o envio não sai e o que foi digitado fica
-  await form.getByRole("button", { name: "Enviar para aprovação" }).click();
-  await expect(form.getByText("O pedido vai com 3 orçamentos de fornecedores diferentes. Faltam 3.")).toBeVisible();
-  await expect(lista.getByRole("row", { name: /Luva nitrílica M/ })).toContainText("3 cx");
-  await preencherTresOrcamentos(form);
+  // 0189: o "Novo pedido" não pede mais os 3 orçamentos (vêm na cotação, depois do financeiro)
+  await expect(form.getByText("Orçamento 1", { exact: true })).toHaveCount(0);
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
 
   // cai no pedido já enviado: sem aviso, sem rascunho, com o item gravado

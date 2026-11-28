@@ -95,7 +95,7 @@ export function PedidoCabecalho({
         <p className="mt-2 inline-flex max-w-3xl items-start gap-1.5 rounded-md bg-info-soft px-2.5 py-1.5 text-xs text-foreground empty:hidden" data-testid="ciclo-pagamento">
           {pedido.ciclo_pagamento
             ? `${datasCiclo.solicitadoEm ? `Solicitado em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.solicitadoEm)))} · ` : ""}${datasCiclo.aprovadoEm ? `Aprovado pela coordenação em ${rotuloData(dataEmBrasilia(new Date(datasCiclo.aprovadoEm)))} (esta data define o ciclo) · ` : ""}Ciclo de compras: ${rotuloCiclo(pedido.ciclo_pagamento)}${ehUrgente(pedido.urgencia) ? " (urgente)" : ""} · prazo ${rotuloPrazo(prazoDoCiclo(pedido.ciclo_pagamento))}.${cicloTravadoAte ? ` Segue para compras a partir de ${rotuloData(cicloTravadoAte)}.` : ""}`
-            : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado", "aguardando_area", "aguardando_financeiro", "aguardando_projeto"].includes(pedido.status)
+            : ["rascunho", "em_validacao", "ajuste_solicitante", "ajuste_compras", "validado", "aguardando_area", "aguardando_financeiro", "aguardando_cotacao", "aguardando_projeto"].includes(pedido.status)
               ? explicarCicloHoje(dataEmBrasilia(new Date()), ehUrgente(pedido.urgencia))
               : null}
         </p>

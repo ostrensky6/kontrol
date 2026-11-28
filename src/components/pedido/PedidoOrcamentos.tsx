@@ -14,8 +14,6 @@ import {
   type Orcamento,
   resumirOrcamentos,
 } from "@/lib/pedido/orcamentos";
-import { pedidoComSolicitante } from "@/lib/pedido/anexos";
-import { emAprovacaoFluxoNovo } from "@/lib/pedido/status";
 
 const campo = "h-9 w-full rounded-md border border-input bg-card px-2 text-sm";
 
@@ -38,13 +36,13 @@ export function PedidoOrcamentos({
   status: string;
   /** null quando a leitura falhou: o quadro avisa em vez de mostrar "zero" */
   orcamentos: Orcamento[] | null;
-  /** registra, anexa e remove (ordem nova: quem pede, no rascunho e no ajuste) */
+  /** registra, anexa e remove (ordem nova: quem pede, na cotação e no ajuste) */
   podeGerir: boolean;
   fornecedores: { id: number; nome: string }[];
   anexos: { id: number; titulo: string }[];
-  /** 0188: os orçamentos vão junto com o pedido */
+  /** 0189: na ordem nova, os orçamentos são a cotação, depois do financeiro */
   fluxoNovo?: boolean;
-  /** 0188: quem decide a aprovação da vez pode trocar o escolhido */
+  /** 0188: o coordenador do projeto (quem decide a vez) pode trocar o escolhido */
   podeEscolherNaAprovacao?: boolean;
 }) {
   if (orcamentos == null) {
@@ -56,10 +54,11 @@ export function PedidoOrcamentos({
     );
   }
   const resumo = resumirOrcamentos(orcamentos);
-  // 0188: na ordem nova, os orçamentos entram no rascunho e no ajuste, por quem pede
-  const aberto = fluxoNovo ? pedidoComSolicitante(status) : ETAPAS_DE_COTACAO.includes(status);
+  // 0189: na ordem nova, os orçamentos entram na cotação (depois do financeiro)
+  // e no ajuste, por quem pede; o coordenador do projeto pode trocar o escolhido
+  const aberto = fluxoNovo ? ["aguardando_cotacao", "ajuste_solicitante"].includes(status) : ETAPAS_DE_COTACAO.includes(status);
   const podeEscolher = fluxoNovo
-    ? podeEscolherNaAprovacao && emAprovacaoFluxoNovo(status) && resumo.faltam === 0
+    ? resumo.faltam === 0 && ((podeGerir && aberto) || (podeEscolherNaAprovacao && status === "aguardando_projeto"))
     : podeGerir && status === "orcamentos_recebidos" && resumo.faltam === 0;
   // pedido de Antonio (27/11): orçamentos em ordem de preço
   const ordenados = [...orcamentos].sort((a, b) => a.valor_total - b.valor_total || a.id - b.id);
@@ -74,7 +73,7 @@ export function PedidoOrcamentos({
   return (
     <section className="mt-4 rounded-lg border border-border bg-card p-3" data-testid="orcamentos-pedido">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold">Orçamentos</h3>
+        <h3 className="text-sm font-semibold">{fluxoNovo ? "Cotação: 3 orçamentos" : "Orçamentos"}</h3>
         <p className={`text-xs font-medium ${situacao.cls}`}>
           <span aria-hidden="true">{situacao.simbolo} </span>
           {situacao.texto}
@@ -82,7 +81,7 @@ export function PedidoOrcamentos({
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
         {fluxoNovo
-          ? `O pedido vai com ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes, cada um com o documento. No envio, o de menor valor fica escolhido; quem aprova pode trocar, com justificativa.`
+          ? `Depois da aprovação financeira, quem pediu registra ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes, cada um com o documento, e envia a cotação. Sem escolha, fica o de menor valor; o coordenador do projeto aprova por último e pode trocar, com justificativa.`
           : `Toda compra tem ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes. Escolher um que não seja o de menor valor pede justificativa.`}
       </p>
 

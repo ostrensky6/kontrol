@@ -1,12 +1,14 @@
 import { expect, test, type Page } from "@playwright/test";
-import { completarParaOrdemNova } from "./ajudas/novo-pedido";
+import { completarParaOrdemNova, registrarTresOrcamentos } from "./ajudas/novo-pedido";
 
 /**
- * Ordem nova das aprovações (Antonio, 27/11/2026; banco em 0188): o pedido vai
- * com 3 orçamentos e passa pelo laboratório ou campo, pelo financeiro (que
- * escolhe a fonte de pagamento) e, por último, pelo coordenador do projeto.
- * Devolver (amarelo) deixa corrigir sem perder as aprovações já dadas. As
- * regras completas (quem decide cada vez, o que trava) estão no teste SQL da 0188.
+ * Ordem nova das aprovações (Antonio, 27/11/2026; banco em 0188 e 0189): o
+ * pedido vai com o orçamento prévio e passa pelo laboratório ou campo e pelo
+ * financeiro (que escolhe a fonte de pagamento); depois quem pediu faz a
+ * cotação (3 orçamentos de fornecedores diferentes, com documento) e, por
+ * último, o coordenador do projeto aprova vendo os 3. Devolver (amarelo) deixa
+ * corrigir sem perder as aprovações já dadas. As regras completas (quem decide
+ * cada vez, o que trava) estão no teste SQL da 0188 e 0189.
  *
  * Cada roteiro cria o próprio pedido: os do seed seguem a ordem antiga.
  */
@@ -35,15 +37,30 @@ async function novoPedidoEnviado(page: Page, titulo: string) {
 
 const status = (page: Page, rotulo: string) => page.getByText(rotulo, { exact: true }).first();
 
-test("pedido novo passa pelo laboratório ou campo, pelo financeiro com a fonte e pelo coordenador do projeto", async ({ page }) => {
+/** Laboratório ou campo e financeiro (com a fonte): o pedido chega à cotação. */
+async function ateACotacao(page: Page, fonte = "Ineo") {
+  await page.getByRole("button", { name: "Aprovar pelo laboratório ou campo" }).click();
+  await expect(status(page, "Aguardando financeiro")).toBeVisible();
+  await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption(fonte);
+  await page.getByRole("button", { name: "Aprovar com esta fonte" }).click();
+  await expect(status(page, "Cotação com o solicitante")).toBeVisible();
+}
+
+/** Quem pediu registra os 3 orçamentos e envia a cotação ao coordenador do projeto. */
+async function fazerCotacao(page: Page) {
+  await registrarTresOrcamentos(page);
+  await page.getByRole("button", { name: "Enviar cotação ao coordenador do projeto" }).click();
+  await expect(status(page, "Aguardando coordenador do projeto")).toBeVisible();
+}
+
+test("pedido novo passa pelo laboratório ou campo, pelo financeiro com a fonte, pela cotação e pelo coordenador do projeto", async ({ page }) => {
   const titulo = `Kit para a ordem nova ${Date.now()}`;
   await novoPedidoEnviado(page, titulo);
 
-  // primeira vez: laboratório ou campo; o orçamento de menor valor já vem escolhido
+  // primeira vez: laboratório ou campo; os 3 orçamentos ainda não existem (vêm na cotação)
   await expect(status(page, "Aguardando laboratório ou campo")).toBeVisible();
   await expect(page.getByTestId("vez")).toHaveText("Sua vez");
-  const orcamentos = page.getByTestId("orcamentos-pedido");
-  await expect(orcamentos).toContainText("3 de 3, escolhido: Loja Alfa E2E");
+  await expect(page.getByTestId("orcamentos-pedido")).toHaveCount(0);
   await page.getByRole("button", { name: "Aprovar pelo laboratório ou campo" }).click();
 
   // segunda: o financeiro escolhe a fonte de pagamento da lista
@@ -53,8 +70,19 @@ test("pedido novo passa pelo laboratório ou campo, pelo financeiro com a fonte 
   await fonte.selectOption("Ineo");
   await page.getByRole("button", { name: "Aprovar com esta fonte" }).click();
 
-  // terceira e última: o coordenador do projeto; aprovado, o pedido vai para a compra
+  // terceira: quem pediu faz a cotação; sem os 3 orçamentos com documento, o envio fica travado
+  await expect(status(page, "Cotação com o solicitante")).toBeVisible();
+  await expect(page.getByTestId("vez")).toHaveText("Sua vez");
+  const enviar = page.getByRole("button", { name: "Enviar cotação ao coordenador do projeto" });
+  await expect(enviar).toBeDisabled();
+  await expect(page.getByText("A cotação precisa de 3 orçamentos de fornecedores diferentes. Faltam 3.").first()).toBeVisible();
+  await registrarTresOrcamentos(page);
+  await expect(enviar).toBeEnabled();
+  await enviar.click();
+
+  // quarta e última: o coordenador do projeto vê os 3 orçamentos (o de menor valor ficou escolhido)
   await expect(status(page, "Aguardando coordenador do projeto")).toBeVisible();
+  await expect(page.getByTestId("orcamentos-pedido")).toContainText("3 de 3, escolhido: Loja Alfa E2E");
   await page.getByRole("button", { name: "Aprovar pedido" }).click();
   await expect(status(page, "Aprovado para compra")).toBeVisible();
   await expect(page.getByRole("button", { name: "Aprovar pedido" })).toHaveCount(0);
@@ -91,7 +119,9 @@ test("quadro de aprovações decide a vez de cada coordenação, com a fonte no 
   await linha.getByRole("combobox", { name: /^Fonte de pagamento do pedido Nº \d+$/ }).selectOption("Funpar");
   await linha.getByRole("button", { name: /^Aprovar o pedido Nº \d+ \(Coordenação financeira\)$/ }).click();
   await expect(linha.getByRole("button", { name: /Coordenação financeira do pedido Nº \d+: Aprovado/ })).toBeVisible();
-  await expect(linha.getByRole("button", { name: /Coordenação do projeto do pedido Nº \d+: Aguardando/ })).toBeVisible();
+  // 0189: o coordenador do projeto vem depois da cotação, que quem pediu faz no pedido
+  await expect(linha.getByRole("button", { name: /Coordenação do projeto do pedido Nº \d+: Depois da cotação/ })).toBeVisible();
+  await expect(linha.getByRole("link", { name: "Fazer a cotação (3 orçamentos)" })).toHaveAttribute("href", /\/pedido\/\d+$/);
 });
 
 test("cadastro de fontes de pagamento: a fonte nova aparece para o financeiro escolher", async ({ page }) => {
@@ -118,10 +148,8 @@ test("cadastro de fontes de pagamento: a fonte nova aparece para o financeiro es
 test("documento para a fonte de pagamento: Termo de Referência da Funpar e Solicitação de Compras da Ineo", async ({ page }) => {
   const titulo = `Kit para o documento ${Date.now()}`;
   const endereco = await novoPedidoEnviado(page, titulo);
-  await page.getByRole("button", { name: "Aprovar pelo laboratório ou campo" }).click();
-  await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption("Funpar");
-  await page.getByRole("button", { name: "Aprovar com esta fonte" }).click();
-  await expect(status(page, "Aguardando coordenador do projeto")).toBeVisible();
+  await ateACotacao(page, "Funpar");
+  await fazerCotacao(page);
 
   // com a fonte escolhida, o pedido oferece o documento no modelo dela
   await page.getByRole("link", { name: "Documento para a fonte de pagamento (Funpar): abrir para imprimir" }).click();
