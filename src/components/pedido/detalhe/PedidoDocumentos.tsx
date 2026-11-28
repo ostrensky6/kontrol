@@ -23,7 +23,7 @@ type Props = {
   anexoRows: PedidoInternoAnexo[];
   editavel: boolean;
   pedidoId: number;
-  /** status do pedido: cotação prévia e termo de referência só enquanto ele está com quem pede */
+  /** status do pedido: orçamento prévio e termo de referência só enquanto ele está com quem pede */
   status: string | null;
   /** fonte de pagamento escolhida pelo financeiro: dá o documento para quem paga (Ineo, Funpar) */
   fonte?: string | null;
@@ -46,7 +46,7 @@ export function PedidoDocumentos({
         <div className="flex items-center gap-1">
           <h2 className="text-sm font-semibold">Documentos</h2>
           <HelpTip title="Documentos">
-            <p>A cotação prévia e o termo de referência são de quem pede e entram com o pedido. Depois vêm as cotações do fornecedor, ofícios, boletos, notas e comprovantes.</p>
+            <p>O orçamento prévio e o termo de referência são de quem pede e entram com o pedido. Depois vêm os orçamentos da cotação, ofícios, boletos, notas e comprovantes.</p>
           </HelpTip>
         </div>
         <Etiqueta tom={temDocumentoCotacao ? "marca" : "atencao"}>
@@ -131,7 +131,7 @@ export function PedidoDocumentos({
             </select>
             {!comSolicitante && (
               <p className="mt-1 text-xs text-muted-foreground" data-testid="documentos-da-solicitacao">
-                Cotação prévia e termo de referência entram com o pedido, por quem pede.
+                Orçamento prévio e termo de referência entram com o pedido, por quem pede.
               </p>
             )}
           </div>

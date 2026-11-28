@@ -272,7 +272,7 @@ export async function criarPedidoInterno(_prev: FormState, formData: FormData): 
   // 0188: os orçamentos vão junto com o pedido (pelo menos 3, cada um com o documento)
   const lidosOrcamentos = lerOrcamentosNovoPedido(formData);
   if (lidosOrcamentos.erro) return { ok: false, message: lidosOrcamentos.erro };
-  // ajuste de 19/11/2026: cotação prévia e termo de referência entram com o pedido
+  // ajuste de 19/11/2026: orçamento prévio e termo de referência entram com o pedido
   // (tipo, título, arquivo, link e observação, como em "Registrar documento")
   const documentos = lerDocumentosNovoPedido(formData);
   const arquivosRecusados = motivoArquivosRecusados([
@@ -1455,7 +1455,7 @@ export async function adicionarAnexoPedidoInterno(_prev: FormState, formData: Fo
   const supabase = await createClientUntyped();
   const { data: pedido } = await supabase.from("pedidos_internos").select("status").eq("id", pedidoId).single();
   const status = (pedido as { status?: string } | null)?.status ?? null;
-  // ajuste de 19/11/2026: cotação prévia e termo de referência são de quem pede
+  // ajuste de 19/11/2026: orçamento prévio e termo de referência são de quem pede
   const foraDaEtapa = motivoTipoForaDaEtapa(tipo, status);
   if (foraDaEtapa) return { ok: false, message: foraDaEtapa };
 

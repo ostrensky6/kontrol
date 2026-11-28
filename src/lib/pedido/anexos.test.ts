@@ -14,12 +14,12 @@ import {
 const pdf = (name: string, size: number) => ({ name, size, type: "application/pdf" });
 
 /** Relatório de ajustes de 19/11/2026, ajuste 2. */
-describe("cotação prévia e termo de referência são de quem pede", () => {
+describe("orçamento prévio e termo de referência são de quem pede", () => {
   it("enquanto o pedido está com o solicitante, os dois tipos aparecem em Registrar documento", () => {
     for (const status of ["rascunho", "ajuste_solicitante", "ajuste_compras"]) {
       expect(pedidoComSolicitante(status), status).toBe(true);
       const tipos = tiposDeDocumentoNoStatus(status).map((t) => t.rotulo);
-      expect(tipos, status).toContain("Cotação prévia");
+      expect(tipos, status).toContain("Orçamento prévio");
       expect(tipos, status).toContain("Termo de referência");
       expect(motivoTipoForaDaEtapa("orcamento_previo", status)).toBeNull();
     }
@@ -28,7 +28,7 @@ describe("cotação prévia e termo de referência são de quem pede", () => {
   it("da Aprovação em diante, os dois saem da lista e o servidor recusa", () => {
     for (const status of ["em_validacao", "validado", "analise_administrativa", "orcamentos", "compra_fechada", "aguardando_pagamento_nf"]) {
       const tipos = tiposDeDocumentoNoStatus(status).map((t) => t.rotulo);
-      expect(tipos, status).not.toContain("Cotação prévia");
+      expect(tipos, status).not.toContain("Orçamento prévio");
       expect(tipos, status).not.toContain("Termo de referência");
       // os outros documentos continuam
       expect(tipos, status).toEqual(
@@ -100,7 +100,7 @@ describe("documentos do Novo pedido: tipo, título, arquivo, link e observação
       }),
     );
     expect(lidos).toEqual([
-      { tipo: "orcamento_previo", titulo: "Cotação prévia", arquivo: null, url: "https://loja.exemplo/ponteira", observacao: null },
+      { tipo: "orcamento_previo", titulo: "Orçamento prévio", arquivo: null, url: "https://loja.exemplo/ponteira", observacao: null },
     ]);
   });
 

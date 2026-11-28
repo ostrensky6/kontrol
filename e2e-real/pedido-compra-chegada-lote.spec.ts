@@ -96,9 +96,9 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await camposItem.locator('[name="quantidade"]').fill("5");
   await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
   await expect(novo.getByTestId("novo-pedido-itens")).toContainText(insumoNome);
-  // a cotação prévia entra com o pedido, por quem pede (ajustes de 19/11/2026, ajuste 2)
+  // o orçamento prévio entra com o pedido, por quem pede (ajustes de 19/11/2026, ajuste 2)
   const cotacaoDoPedido = novo.getByRole("group", { name: "Documento 1" });
-  await cotacaoDoPedido.getByLabel("Título").fill("Cotação prévia do roteiro");
+  await cotacaoDoPedido.getByLabel("Título").fill("Orçamento prévio do roteiro");
   await cotacaoDoPedido.getByLabel("Arquivo").setInputFiles({
     name: "cotacao-previa-roteiro.pdf",
     mimeType: "application/pdf",
@@ -129,7 +129,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   const { data: nascido } = await cliente.from("pedidos_internos").select("urgencia, urgencia_justificativa, fonte_recurso").eq("id", pedidoId).single();
   expect(nascido).toEqual({ urgencia: "normal", urgencia_justificativa: null, fonte_recurso: null });
   await expect(page.getByRole("cell", { name: new RegExp(insumoNome) }).first()).toBeVisible();
-  // a cotação prévia foi gravada no Storage e registrada na Solicitação
+  // o orçamento prévio foi gravado no Storage e registrado na Solicitação
   const { data: cotacaoPrevia } = await cliente
     .from("pedidos_internos_anexos")
     .select("tipo, etapa, titulo, url, observacao, arquivo_nome, storage_bucket, storage_path")
@@ -139,7 +139,7 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     expect.objectContaining({
       tipo: "orcamento_previo",
       etapa: "rascunho",
-      titulo: "Cotação prévia do roteiro",
+      titulo: "Orçamento prévio do roteiro",
       url: "https://exemplo.invalid/cotacao-previa-roteiro",
       observacao: "Valor estimado: R$ 400,00",
       arquivo_nome: "cotacao-previa-roteiro.pdf",

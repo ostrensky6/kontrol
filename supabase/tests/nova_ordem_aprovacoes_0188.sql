@@ -1,16 +1,21 @@
 -- Executar apenas em banco descartavel, como owner de migrations, com psql -v ON_ERROR_STOP=1.
--- 0188: nova ordem das aprovações (decisão de Antonio em 27/11/2026).
---   * pedido novo nasce na ordem nova (fluxo 2); quem pede registra os 3
---     orçamentos no rascunho, cada um com o documento, e só então envia;
---   * o envio vai para o laboratório ou campo e escolhe o orçamento de menor valor;
+-- 0188 + 0189: nova ordem das aprovações (decisões de Antonio em 27/11/2026 e
+-- 28/11/2026).
+--   * pedido novo nasce na ordem nova (fluxo 2) e é enviado sem os orçamentos
+--     (no pedido vai só o orçamento prévio);
+--   * o envio vai para o laboratório ou campo; depois, o financeiro escolhe a
+--     fonte; então quem pediu faz a cotação (3 orçamentos de fornecedores
+--     diferentes, cada um com o documento) e a envia ao coordenador do projeto,
+--     que aprova por último; sem escolha, vale o orçamento de menor valor;
 --   * cada vez só é decidida por quem é competente (coordenação da área,
 --     financeiro = função Administrativo, coordenador do projeto) ou por quem
---     conduz a compra inteira;
+--     conduz a compra inteira; a cotação é de quem pediu;
 --   * devolver volta a quem pediu; corrigido sem mudar o que foi aprovado, volta
---     direto para quem devolveu; com item mudado, recomeça pelo laboratório;
---   * o financeiro escolhe a fonte da lista; a aprovação do projeto cria e
---     aprova a compra formal e define o ciclo;
---   * reprovar vale nas três vezes; os passos da ordem antiga são recusados;
+--     direto para quem devolveu (ao projeto, só com a cotação completa); com
+--     item mudado, recomeça pelo laboratório;
+--   * a aprovação do projeto cria e aprova a compra formal e define o ciclo;
+--   * reprovar vale nas três vezes (na cotação, só quem conduz a compra
+--     inteira); os passos da ordem antiga são recusados;
 --   * avisos e "Aguardando você" seguem as vezes novas.
 -- Tudo e revertido no ROLLBACK final.
 begin;
@@ -126,6 +131,7 @@ begin
   perform set_config('tno.fornecedor', v_fornecedor::text, true);
 end $$;
 
+
 -- ---- 0. Lista de fontes e pedido novo na ordem nova ---------------------------------------
 select pg_temp.conferir(
   (select count(*) from public.fontes_recurso where nome in ('Ineo', 'Funpar', 'ATGC', 'CNPq') and ativo) = 4,
@@ -147,27 +153,20 @@ reset role;
 select pg_temp.conferir((select fluxo from public.pedidos_internos where id = pg_temp.id('p1')) = 2,
   'pedido novo deveria nascer na ordem nova (fluxo 2)');
 
--- ---- 1. O envio exige os 3 orçamentos, cada um com documento ------------------------------
+-- ---- 1. O envio vai sem os orçamentos (0189) ------------------------------------------------
 select pg_temp.como('solic');
 set local role authenticated;
-select pg_temp.exigir_erro(format('select public.enviar_pedido_interno(%s)', pg_temp.id('p1')),
-  '22023', 'Este pedido tem 0');
+-- no rascunho, os orçamentos da cotação não entram: no pedido vai só o orçamento prévio
+select pg_temp.exigir_erro(format('select pg_temp.orcamento(%s, %L, 300)', pg_temp.id('p1'), 'Loja A'),
+  '22023', 'Os orçamentos entram na cotação');
 -- a ordem antiga não serve para pedido novo
 select pg_temp.exigir_erro(
   format($$select public.registrar_etapa_pedido_interno(%s, 'em_validacao', 'Envio', 'registrado')$$, pg_temp.id('p1')),
   '22023', 'segue a ordem nova');
-select pg_temp.orcamento(pg_temp.id('p1'), 'Loja A', 300);
-select pg_temp.orcamento(pg_temp.id('p1'), 'Loja B', 250);
-select set_config('tno.c3', pg_temp.orcamento(pg_temp.id('p1'), 'Loja C', 280, false)::text, true);
-select pg_temp.exigir_erro(format('select public.enviar_pedido_interno(%s)', pg_temp.id('p1')),
-  '22023', 'Há 2 com documento');
--- o solicitante troca o orçamento sem documento por um com documento
-delete from public.pedidos_internos_cotacoes where id = pg_temp.id('c3');
-select pg_temp.orcamento(pg_temp.id('p1'), 'Loja C', 280);
 select public.enviar_pedido_interno(pg_temp.id('p1'));
--- enviado, o orçamento não muda mais pela mão de quem pediu
+-- enviado, ainda não é a vez da cotação
 select pg_temp.exigir_erro(format('select pg_temp.orcamento(%s, %L, 200)', pg_temp.id('p1'), 'Loja D'),
-  '22023', 'Os orçamentos entram com o pedido');
+  '22023', 'Os orçamentos entram na cotação');
 reset role;
 
 do $$
@@ -179,9 +178,6 @@ begin
   perform pg_temp.conferir(v.validacao_registrada_em is not null and v.validacao_valor = 90,
     'o envio deveria guardar a foto do que foi enviado');
   perform pg_temp.conferir(v.enviado_validacao_em is not null, 'o envio deveria carimbar a data');
-  perform pg_temp.conferir(
-    (select fornecedor_nome from public.pedidos_internos_cotacoes where pedido_interno_id = v.id and escolhida) = 'Loja B',
-    'sem escolha, o envio deveria escolher o orçamento de menor valor (Loja B)');
   perform pg_temp.conferir(exists (
     select 1 from public.notificacoes n
      where n.entidade_tipo = 'pedido_interno' and n.entidade_id = v.id
@@ -252,7 +248,7 @@ select pg_temp.conferir((select status = 'aguardando_financeiro' and aprovacao_a
                            from public.pedidos_internos where id = pg_temp.id('p1')),
   'corrigido sem mudar itens, valor, justificativa e projeto, volta direto ao financeiro com a aprovação do laboratório');
 
--- ---- 4. Financeiro aprova com a fonte da lista ----------------------------------------------
+-- ---- 4. Financeiro aprova com a fonte da lista: o pedido vai para a cotação ----------------
 select pg_temp.como('fin');
 set local role authenticated;
 select pg_temp.exigir_erro(format($$select public.decidir_aprovacao_pedido(%s, 'aprovado')$$, pg_temp.id('p1')),
@@ -260,25 +256,86 @@ select pg_temp.exigir_erro(format($$select public.decidir_aprovacao_pedido(%s, '
 select pg_temp.exigir_erro(
   format($$select public.decidir_aprovacao_pedido(%s, 'aprovado', null, '{"fonte_recurso": "Banco X"}')$$, pg_temp.id('p1')),
   '22023', 'não está na lista');
--- quem aprova troca o orçamento, com justificativa
+select public.decidir_aprovacao_pedido(pg_temp.id('p1'), 'aprovado', null,
+  '{"fonte_recurso": "ineo", "rubrica": "Material de consumo"}');
+reset role;
+select pg_temp.conferir((select status = 'aguardando_cotacao' and fonte_recurso = 'Ineo' and rubrica = 'Material de consumo'
+                                and aprovacao_financeiro_por = 'ts-no-fin@example.invalid'
+                           from public.pedidos_internos where id = pg_temp.id('p1')),
+  'aprovado pelo financeiro com a fonte Ineo (nome da lista), vai para a cotação de quem pediu');
+select pg_temp.conferir(exists (
+  select 1 from public.notificacoes n
+   where n.entidade_tipo = 'pedido_interno' and n.entidade_id = pg_temp.id('p1')
+     and n.usuario_destino = pg_temp.uid('solic') and n.titulo like '%cotação%'),
+  'quem pediu deveria ser avisado de que é a vez da cotação');
+select pg_temp.como('solic');
+set local role authenticated;
+select pg_temp.conferir(exists (
+  select 1 from jsonb_array_elements(public.aguardando_voce()) e
+   where e ->> 'chave' = 'pedidos_cotacao' and (e ->> 'quantidade')::int >= 1),
+  'a cotação deveria aparecer em "Aguardando você" de quem pediu');
+reset role;
+
+-- ---- 5. A cotação é de quem pediu (0189) ----------------------------------------------------
+select pg_temp.como('coord');
+set local role authenticated;
+select pg_temp.exigir_erro(format($$select public.decidir_aprovacao_pedido(%s, 'aprovado')$$, pg_temp.id('p1')),
+  '22023', 'não está esperando uma das três aprovações');
+select pg_temp.exigir_erro(format('select public.reprovar_pedido_interno(%s, %L)', pg_temp.id('p1'), 'não'),
+  '42501', 'O pedido está na cotação');
+reset role;
+select pg_temp.como('lab2');
+set local role authenticated;
+select pg_temp.exigir_erro(format('select public.enviar_cotacao_pedido(%s)', pg_temp.id('p1')),
+  '42501', 'A cotação é de quem pediu');
+reset role;
+
+select pg_temp.como('solic');
+set local role authenticated;
+select pg_temp.exigir_erro(format('select public.enviar_cotacao_pedido(%s)', pg_temp.id('p1')),
+  '22023', 'Este pedido tem 0');
+select pg_temp.orcamento(pg_temp.id('p1'), 'Loja A', 300);
+select pg_temp.orcamento(pg_temp.id('p1'), 'Loja B', 250);
+select set_config('tno.c3', pg_temp.orcamento(pg_temp.id('p1'), 'Loja C', 280, false)::text, true);
+select pg_temp.exigir_erro(format('select public.enviar_cotacao_pedido(%s)', pg_temp.id('p1')),
+  '22023', 'Há 2 com documento');
+-- quem pediu troca o orçamento sem documento por um com documento
+delete from public.pedidos_internos_cotacoes where id = pg_temp.id('c3');
+select pg_temp.orcamento(pg_temp.id('p1'), 'Loja C', 280);
+-- escolher um que não é o mais barato pede justificativa
 select pg_temp.exigir_erro(
   format('select public.escolher_orcamento_pedido_interno(%s)',
          (select id from public.pedidos_internos_cotacoes where pedido_interno_id = pg_temp.id('p1') and fornecedor_nome = 'Loja C')),
   '22023', 'não é o orçamento mais barato');
-select public.decidir_aprovacao_pedido(pg_temp.id('p1'), 'aprovado', null,
-  '{"fonte_recurso": "ineo", "rubrica": "Material de consumo"}');
+select public.enviar_cotacao_pedido(pg_temp.id('p1'));
+-- enviada a cotação, os orçamentos não mudam mais pela mão de quem pediu
+select pg_temp.exigir_erro(format('select pg_temp.orcamento(%s, %L, 200)', pg_temp.id('p1'), 'Loja D'),
+  '22023', 'Os orçamentos entram na cotação');
 reset role;
-select pg_temp.conferir((select status = 'aguardando_projeto' and fonte_recurso = 'Ineo' and rubrica = 'Material de consumo'
-                                and aprovacao_financeiro_por = 'ts-no-fin@example.invalid'
-                           from public.pedidos_internos where id = pg_temp.id('p1')),
-  'aprovado pelo financeiro com a fonte Ineo (nome da lista), vai ao coordenador do projeto');
-select pg_temp.conferir(exists (
-  select 1 from public.notificacoes n
-   where n.entidade_tipo = 'pedido_interno' and n.entidade_id = pg_temp.id('p1')
-     and n.usuario_destino = pg_temp.uid('coord') and n.titulo like '%coordenador do projeto%'),
-  'o coordenador do projeto deveria ser avisado');
 
--- ---- 5. Coordenador do projeto aprova: compra criada e aprovada, ciclo definido -------------
+do $$
+declare
+  v record;
+begin
+  select * into v from public.pedidos_internos where id = pg_temp.id('p1');
+  perform pg_temp.conferir(v.status = 'aguardando_projeto', 'com a cotação enviada, o pedido vai ao coordenador do projeto: ' || v.status);
+  perform pg_temp.conferir(v.orcamentos_em is not null, 'o envio da cotação deveria carimbar a data');
+  perform pg_temp.conferir(
+    (select fornecedor_nome from public.pedidos_internos_cotacoes where pedido_interno_id = v.id and escolhida) = 'Loja B',
+    'sem escolha, o envio da cotação deveria escolher o orçamento de menor valor (Loja B)');
+  perform pg_temp.conferir(exists (
+    select 1 from public.pedidos_internos_aprovacoes
+     where pedido_interno_id = v.id and etapa = 'Cotação do solicitante'
+       and status_origem = 'aguardando_cotacao' and status_destino = 'aguardando_projeto'),
+    'o envio da cotação deveria ficar no histórico');
+  perform pg_temp.conferir(exists (
+    select 1 from public.notificacoes n
+     where n.entidade_tipo = 'pedido_interno' and n.entidade_id = v.id
+       and n.usuario_destino = pg_temp.uid('coord') and n.titulo like '%coordenador do projeto%'),
+    'o coordenador do projeto deveria ser avisado');
+end $$;
+
+-- ---- 6. Coordenador do projeto aprova: compra criada e aprovada, ciclo definido -------------
 select pg_temp.como('coord');
 set local role authenticated;
 select public.decidir_aprovacao_pedido(pg_temp.id('p1'), 'aprovado');
@@ -301,13 +358,10 @@ begin
     'a compra deveria levar o item rastreável');
 end $$;
 
--- ---- 6. Reprovar na vez do laboratório ------------------------------------------------------
+-- ---- 7. Reprovar na vez do laboratório ------------------------------------------------------
 select pg_temp.como('solic');
 set local role authenticated;
 select set_config('tno.p2', pg_temp.novo_pedido('TS-NO reprovado pelo laboratório')::text, true);
-select pg_temp.orcamento(pg_temp.id('p2'), 'Loja A', 300);
-select pg_temp.orcamento(pg_temp.id('p2'), 'Loja B', 250);
-select pg_temp.orcamento(pg_temp.id('p2'), 'Loja C', 280);
 select public.enviar_pedido_interno(pg_temp.id('p2'));
 reset role;
 select pg_temp.como('lab2');
@@ -326,23 +380,57 @@ select pg_temp.conferir(exists (
      and etapa = 'Aprovação do laboratório ou campo' and status_origem = 'aguardando_area'),
   'a reprovação deveria ficar gravada na vez do laboratório');
 
--- ---- 7. Devolvido pelo projeto com item mudado: recomeça pelo laboratório -------------------
+-- ---- 8. Devolvido pelo projeto: sem mudança volta ao projeto, com a cotação completa --------
+create function pg_temp.ate_o_projeto(p_pedido bigint) returns void language plpgsql as $$
+begin
+  perform pg_temp.como('solic');
+  set local role authenticated;
+  perform public.enviar_pedido_interno(p_pedido);
+  reset role;
+  perform pg_temp.como('labc');
+  set local role authenticated;
+  perform public.decidir_aprovacao_pedido(p_pedido, 'aprovado');
+  reset role;
+  perform pg_temp.como('fin');
+  set local role authenticated;
+  perform public.decidir_aprovacao_pedido(p_pedido, 'aprovado', null, '{"fonte_recurso": "ATGC"}');
+  reset role;
+  perform pg_temp.como('solic');
+  set local role authenticated;
+  perform pg_temp.orcamento(p_pedido, 'Loja A', 300);
+  perform pg_temp.orcamento(p_pedido, 'Loja B', 250);
+  perform pg_temp.orcamento(p_pedido, 'Loja C', 280);
+  perform public.enviar_cotacao_pedido(p_pedido);
+  reset role;
+end $$;
+
+select pg_temp.como('solic');
+set local role authenticated;
+select set_config('tno.p4', pg_temp.novo_pedido('TS-NO cotação refeita')::text, true);
+reset role;
+select pg_temp.ate_o_projeto(pg_temp.id('p4'));
+select pg_temp.como('coord');
+set local role authenticated;
+select public.decidir_aprovacao_pedido(pg_temp.id('p4'), 'devolvido', 'Troque a Loja A por um fornecedor com prazo menor');
+reset role;
+select pg_temp.como('solic');
+set local role authenticated;
+delete from public.pedidos_internos_cotacoes where pedido_interno_id = pg_temp.id('p4') and fornecedor_nome = 'Loja A';
+select pg_temp.exigir_erro(format('select public.enviar_pedido_interno(%s)', pg_temp.id('p4')),
+  '22023', 'Este pedido tem 2');
+select pg_temp.orcamento(pg_temp.id('p4'), 'Loja D', 260);
+select public.enviar_pedido_interno(pg_temp.id('p4'));
+reset role;
+select pg_temp.conferir((select status = 'aguardando_projeto' and aprovacao_area_em is not null and aprovacao_financeiro_em is not null
+                           from public.pedidos_internos where id = pg_temp.id('p4')),
+  'com a cotação refeita e nada mais mudado, volta direto ao coordenador do projeto com as aprovações anteriores');
+
+-- ---- 9. Devolvido pelo projeto com item mudado: recomeça pelo laboratório -------------------
 select pg_temp.como('solic');
 set local role authenticated;
 select set_config('tno.p3', pg_temp.novo_pedido('TS-NO item mudado')::text, true);
-select pg_temp.orcamento(pg_temp.id('p3'), 'Loja A', 300);
-select pg_temp.orcamento(pg_temp.id('p3'), 'Loja B', 250);
-select pg_temp.orcamento(pg_temp.id('p3'), 'Loja C', 280);
-select public.enviar_pedido_interno(pg_temp.id('p3'));
 reset role;
-select pg_temp.como('labc');
-set local role authenticated;
-select public.decidir_aprovacao_pedido(pg_temp.id('p3'), 'aprovado');
-reset role;
-select pg_temp.como('fin');
-set local role authenticated;
-select public.decidir_aprovacao_pedido(pg_temp.id('p3'), 'aprovado', null, '{"fonte_recurso": "ATGC"}');
-reset role;
+select pg_temp.ate_o_projeto(pg_temp.id('p3'));
 select pg_temp.como('coord');
 set local role authenticated;
 select public.decidir_aprovacao_pedido(pg_temp.id('p3'), 'devolvido', 'Peça 4 caixas, não 2');
@@ -357,7 +445,7 @@ select pg_temp.conferir((select status = 'aguardando_area' and aprovacao_area_em
                            from public.pedidos_internos where id = pg_temp.id('p3')),
   'com a quantidade mudada, as três aprovações recomeçam pelo laboratório e a foto é refeita');
 
--- ---- 8. Pedido da ordem antiga não entra nas vezes novas ------------------------------------
+-- ---- 10. Pedido da ordem antiga não entra nas vezes novas -----------------------------------
 do $$
 declare
   v_antigo bigint;

@@ -20,7 +20,7 @@ test("Novo pedido numera as partes na ordem de preencher", async ({ page }) => {
   await page.goto("/pedido");
   await page.getByRole("button", { name: "Novo pedido" }).first().click();
   const dialogo = page.getByRole("dialog", { name: "Novo pedido" });
-  for (const titulo of ["Identificação do pedido", "Justificativa", "Materiais, serviços e equipamentos", "Orçamentos", "Cotação prévia e termo de referência"]) {
+  for (const titulo of ["Identificação do pedido", "Justificativa", "Materiais, serviços e equipamentos", "Orçamentos", "Orçamento prévio e termo de referência"]) {
     await expect(dialogo.getByRole("heading", { name: titulo, exact: true })).toBeVisible();
   }
 });
