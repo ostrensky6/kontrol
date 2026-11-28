@@ -307,7 +307,13 @@ select pg_temp.exigir_erro(
   format('select public.escolher_orcamento_pedido_interno(%s)',
          (select id from public.pedidos_internos_cotacoes where pedido_interno_id = pg_temp.id('p1') and fornecedor_nome = 'Loja C')),
   '22023', 'não é o orçamento mais barato');
-select public.enviar_cotacao_pedido(pg_temp.id('p1'));
+do $$
+begin
+  -- a resposta diz o escolhido (o de menor valor, sem escolha antes)
+  if public.enviar_cotacao_pedido(pg_temp.id('p1')) ->> 'fornecedor' is distinct from 'Loja B' then
+    raise exception 'enviar_cotacao_pedido devia responder com o fornecedor escolhido (Loja B)';
+  end if;
+end $$;
 -- enviada a cotação, os orçamentos não mudam mais pela mão de quem pediu
 select pg_temp.exigir_erro(format('select pg_temp.orcamento(%s, %L, 200)', pg_temp.id('p1'), 'Loja D'),
   '22023', 'Os orçamentos entram na cotação');

@@ -39,6 +39,8 @@ export type DecisaoNoQuadro = {
   chave: ChaveAprovacao;
   /** o financeiro só autoriza depois de registrar fonte e rubrica no pedido */
   noPedido?: string;
+  /** texto do link para o pedido (padrão: "Registrar fonte e rubrica") */
+  rotuloNoPedido?: string;
   /** 0188: ordem nova (decidir_aprovacao_pedido; o financeiro escolhe a fonte ali) */
   fluxoNovo?: boolean;
 };
@@ -261,7 +263,7 @@ function Decidir({ linha, fontes }: { linha: LinhaQuadro; fontes: string[] }) {
   if (decisao.noPedido) {
     return (
       <Link href={decisao.noPedido} className="text-sm font-medium text-primary hover:underline">
-        Registrar fonte e rubrica
+        {decisao.rotuloNoPedido ?? "Registrar fonte e rubrica"}
       </Link>
     );
   }

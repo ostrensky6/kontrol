@@ -61,7 +61,7 @@ test("orçamento prévio e termo de referência entram no Novo pedido, com os ca
   await expect(form.getByTestId("novo-pedido-documento")).toHaveCount(2);
   // o que já estava preenchido continua
   await expect(primeiro.getByLabel("Título")).toHaveValue("Cotação do tampão no site");
-  // 0188: laboratório ou campo e os 3 orçamentos vão junto
+  // 0188: laboratório ou campo (0189: os 3 orçamentos ficam para a cotação)
   await completarParaOrdemNova(form);
 
   await form.getByRole("button", { name: "Enviar para aprovação" }).click();
@@ -76,8 +76,8 @@ test("orçamento prévio e termo de referência entram no Novo pedido, com os ca
   await expect(page.getByText("termo-de-referencia.pdf").first()).toBeVisible();
   await expect(page.getByText(/Orçamento prévio · Rascunho/)).toHaveCount(1);
   await expect(page.getByText(/Termo de referência · Rascunho/)).toHaveCount(1);
-  // os 2 documentos e o documento de cada um dos 3 orçamentos
-  await expect(page.getByText("5 anexos")).toBeVisible();
+  // só os 2 documentos: os orçamentos dos fornecedores entram na cotação
+  await expect(page.getByText("2 anexos")).toBeVisible();
 
   // na Aprovação, "Registrar documento" não oferece mais os dois tipos
   await page.getByText("Registrar documento", { exact: true }).first().click();

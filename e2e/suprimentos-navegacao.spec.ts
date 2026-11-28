@@ -153,7 +153,7 @@ test("coordenador acha o pedido para aprovar e o botão fica no topo da página"
   const aguardando = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
   await expect(aguardando.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
     "href",
-    "/pedido?etapa=aprovacao",
+    "/pedido?ver=aprovacoes",
   );
   await expect(aguardando.getByRole("link", { name: /Primers para aprovar E2E/ })).toHaveAttribute("href", "/pedido/502");
 
@@ -172,7 +172,7 @@ test("coordenador acha o pedido para aprovar e o botão fica no topo da página"
   const emPedidos = page.locator("section").filter({ has: page.getByRole("heading", { name: "Aguardando você" }) });
   await expect(emPedidos.getByRole("link", { name: /Pedidos para você aprovar: \d+\. Ver a lista/ })).toHaveAttribute(
     "href",
-    "/pedido?etapa=aprovacao",
+    "/pedido?ver=aprovacoes",
   );
   // o quadro de Pedidos só traz pendências de pedidos: lote em quarentena e manutenção ficam no Início
   await expect(emPedidos.locator('a[href^="/estoque"], a[href^="/equipamentos"], a[href^="/planejamento"]')).toHaveCount(0);

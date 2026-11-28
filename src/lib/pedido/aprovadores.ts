@@ -124,17 +124,21 @@ const ORDEM_FLUXO_NOVO = ["aguardando_area", "aguardando_financeiro", "aguardand
 
 /**
  * 0188: as três aprovações da ordem nova, na ordem em que acontecem —
- * laboratório ou campo, financeiro, coordenador do projeto.
+ * laboratório ou campo, financeiro, coordenador do projeto. 0189: entre o
+ * financeiro e o coordenador, a cotação de quem pediu (não é aprovação).
  */
 function etapasFluxoNovo(aprovadores: AprovadoresPedido, pedido: PedidoEtapas): EtapaAprovacao[] {
   const antes = ANTES_DA_VALIDACAO.includes(pedido.status);
-  const posicao = (ORDEM_FLUXO_NOVO as readonly string[]).indexOf(pedido.status);
+  // 0189: na cotação, laboratório e financeiro já aprovaram; o coordenador vem depois dela
+  const naCotacao = pedido.status === "aguardando_cotacao";
+  const posicao = naCotacao ? 2 : (ORDEM_FLUXO_NOVO as readonly string[]).indexOf(pedido.status);
   const depoisDeTodas = !antes && posicao < 0;
   const situacaoDe = (indice: number, trava: string | null, feita: boolean) => {
     if (trava && antes) return { situacao: "travada" as const, rotulo: "Trava o envio" };
     if (feita || depoisDeTodas || (posicao >= 0 && indice < posicao)) return { situacao: "feita" as const, rotulo: "Feita" };
-    if (indice === posicao) return { situacao: "aguardando" as const, rotulo: "Aguardando" };
-    return { situacao: "futura" as const, rotulo: indice === 0 ? "Depois do envio" : "Depois da anterior" };
+    if (indice === posicao && !naCotacao) return { situacao: "aguardando" as const, rotulo: "Aguardando" };
+    const rotulo = indice === 0 ? "Depois do envio" : indice === 2 ? "Depois da cotação" : "Depois da anterior";
+    return { situacao: "futura" as const, rotulo };
   };
 
   const l = aprovadores.laboratorio;
@@ -177,7 +181,7 @@ function etapasFluxoNovo(aprovadores: AprovadoresPedido, pedido: PedidoEtapas): 
       detalhe: proj.situacao === "travada"
         ? aprovadores.falta_coordenador
         : c
-          ? `${c.rotulo}. Na ausência, o Administrador aprova como substituto.`
+          ? `${c.rotulo}. Aprova por último, vendo os 3 orçamentos da cotação. Na ausência, o Administrador aprova como substituto.`
           : null,
     },
   ];

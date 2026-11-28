@@ -15,7 +15,7 @@ import {
   termoDeReferencia,
   type RegistroAprovacao,
 } from "@/lib/pedido/quadro-aprovacoes";
-import { emAprovacaoFluxoNovo, pedidoDoFluxoNovo, pedidoInternoNumero } from "@/lib/pedido/status";
+import { emAprovacaoFluxoNovo, naCotacaoFluxoNovo, pedidoDoFluxoNovo, pedidoInternoNumero } from "@/lib/pedido/status";
 import { formatDate, formatDateTime } from "@/lib/formatters";
 
 export type PedidoParaQuadro = {
@@ -59,6 +59,7 @@ export async function montarLinhasQuadro({
   pessoas,
   areas,
   usuarioId,
+  emailUsuario = null,
   substituto,
   podeAprovar,
 }: {
@@ -67,6 +68,8 @@ export async function montarLinhasQuadro({
   pessoas: Pessoa[];
   areas: AreaPedido[];
   usuarioId: string | null;
+  /** 0189: a cotação é de quem pediu (comparado pelo e-mail, como no banco) */
+  emailUsuario?: string | null;
   /** Administrador ou quem conduz a compra inteira (0184) */
   substituto: boolean;
   /** "Aprovar pedidos" (pedido.aprovar): a autorização do administrativo */
@@ -103,6 +106,12 @@ export async function montarLinhasQuadro({
       if (emAprovacaoFluxoNovo(p.status) && usuarioDecide(idsDaVezFluxoNovo(ap, p.status), usuarioId, substituto)) {
         const chave = p.status === "aguardando_area" ? "laboratorio" : p.status === "aguardando_financeiro" ? "financeiro" : "projeto";
         decisao = { chave, fluxoNovo: true };
+      } else if (naCotacaoFluxoNovo(p.status)) {
+        // 0189: a cotação não é decisão do quadro; quem pediu (ou o substituto) a faz no pedido
+        const quemPediu = (p.solicitante ?? "").trim().toLowerCase();
+        if (substituto || (quemPediu && quemPediu === (emailUsuario ?? "").trim().toLowerCase())) {
+          decisao = { chave: "projeto", noPedido: `/pedido/${p.id}`, rotuloNoPedido: "Fazer a cotação (3 orçamentos)" };
+        }
       }
     } else if (p.status === "em_validacao" && usuarioDecide(ap?.coordenador?.ids, usuarioId, substituto)) {
       decisao = { chave: "projeto" };

@@ -4,11 +4,11 @@ import { etapasAprovacao, idsDaVezFluxoNovo, normalizarAprovadores, travaDoEnvio
 import { datasDoCiclo } from "./ciclo";
 import { etapaDoPedido } from "./etapas";
 import { motivoItensSemCadastro } from "./item-novo";
-import { faltaNosOrcamentosParaEnviar, lerOrcamentosNovoPedido } from "./orcamentos-novo-pedido";
 import { proximoPasso } from "./proximo-passo";
 import { colunasAprovacao } from "./quadro-aprovacoes";
 import { textoReenvio } from "./reenvio";
-import { emAprovacaoFluxoNovo, pedidoDoFluxoNovo, pedidoInternoStatus } from "./status";
+import { motivoCotacaoIncompleta, type Orcamento } from "./orcamentos";
+import { emAprovacaoFluxoNovo, naCotacaoFluxoNovo, pedidoDoFluxoNovo, pedidoInternoStatus } from "./status";
 import { vezFluxoNovo } from "./vez-fluxo-novo";
 
 /** 0188: ordem nova das aprovações (Antonio e Rafaela, 27/11/2026). */
@@ -25,14 +25,21 @@ const bruto = {
 const aprovadores = normalizarAprovadores(bruto)!;
 
 describe("ordem nova das aprovações (0188)", () => {
-  it("status novos têm rótulo e caem na etapa Aprovação", () => {
+  it("status novos têm rótulo; laboratório e financeiro na Aprovação, cotação e projeto na Cotação (0189)", () => {
     expect(pedidoInternoStatus("aguardando_area").label).toBe("Aguardando laboratório ou campo");
     expect(pedidoInternoStatus("aguardando_financeiro").label).toBe("Aguardando financeiro");
+    expect(pedidoInternoStatus("aguardando_cotacao").label).toBe("Cotação com o solicitante");
     expect(pedidoInternoStatus("aguardando_projeto").label).toBe("Aguardando coordenador do projeto");
     for (const status of ["aguardando_area", "aguardando_financeiro", "aguardando_projeto"]) {
-      expect(etapaDoPedido({ status })).toBe("aprovacao");
       expect(emAprovacaoFluxoNovo(status)).toBe(true);
     }
+    expect(etapaDoPedido({ status: "aguardando_area" })).toBe("aprovacao");
+    expect(etapaDoPedido({ status: "aguardando_financeiro" })).toBe("aprovacao");
+    expect(etapaDoPedido({ status: "aguardando_cotacao" })).toBe("cotacao");
+    expect(etapaDoPedido({ status: "aguardando_projeto" })).toBe("cotacao");
+    // a cotação não é aprovação: quem pediu registra os orçamentos e envia
+    expect(emAprovacaoFluxoNovo("aguardando_cotacao")).toBe(false);
+    expect(naCotacaoFluxoNovo("aguardando_cotacao")).toBe(true);
     expect(emAprovacaoFluxoNovo("em_validacao")).toBe(false);
     expect(pedidoDoFluxoNovo({ fluxo: 2 })).toBe(true);
     expect(pedidoDoFluxoNovo({})).toBe(false);
@@ -44,6 +51,7 @@ describe("ordem nova das aprovações (0188)", () => {
     expect(idsDaVezFluxoNovo(aprovadores, "aguardando_area")).toEqual(["lab"]);
     expect(idsDaVezFluxoNovo(aprovadores, "aguardando_financeiro")).toEqual(["fin"]);
     expect(idsDaVezFluxoNovo(aprovadores, "aguardando_projeto")).toEqual(["coord"]);
+    expect(idsDaVezFluxoNovo(aprovadores, "aguardando_cotacao")).toEqual([]);
     expect(idsDaVezFluxoNovo(aprovadores, "aprovado_para_compra")).toEqual([]);
   });
 
@@ -61,7 +69,14 @@ describe("ordem nova das aprovações (0188)", () => {
     ]);
     expect(etapas[0].detalhe).toBe("Aprovado por gisela@x.");
     const rascunho = etapasAprovacao(aprovadores, { status: "rascunho" });
-    expect(rascunho.map((e) => e.rotuloSituacao)).toEqual(["Depois do envio", "Depois da anterior", "Depois da anterior"]);
+    expect(rascunho.map((e) => e.rotuloSituacao)).toEqual(["Depois do envio", "Depois da anterior", "Depois da cotação"]);
+    // 0189: na cotação, laboratório e financeiro feitos; o coordenador vem depois dela
+    const cotacao = etapasAprovacao(aprovadores, { status: "aguardando_cotacao" });
+    expect(cotacao.map((e) => [e.chave, e.situacao, e.rotuloSituacao])).toEqual([
+      ["laboratorio", "feita", "Feita"],
+      ["financeiro", "feita", "Feita"],
+      ["coordenador", "futura", "Depois da cotação"],
+    ]);
     const aprovado = etapasAprovacao(aprovadores, { status: "aprovado_para_compra" });
     expect(aprovado.every((e) => e.situacao === "feita")).toBe(true);
   });
@@ -90,6 +105,10 @@ describe("ordem nova das aprovações (0188)", () => {
     expect(reprovado.laboratorio.situacao).toBe("reprovado");
     expect(reprovado.financeiro.situacao).toBe("nao_se_aplica");
 
+    const naCotacao = colunasAprovacao({ status: "aguardando_cotacao", fluxo: 2 }, registros.slice(0, 2));
+    expect([naCotacao.laboratorio.situacao, naCotacao.financeiro.situacao, naCotacao.projeto.situacao]).toEqual(["aprovado", "aprovado", "futura"]);
+    expect(naCotacao.projeto.rotulo).toBe("Depois da cotação");
+
     const liberado = colunasAprovacao({ status: "compra_fechada", fluxo: 2 }, []);
     expect([liberado.laboratorio.situacao, liberado.financeiro.situacao, liberado.projeto.situacao]).toEqual(["aprovado", "aprovado", "aprovado"]);
   });
@@ -104,6 +123,11 @@ describe("ordem nova das aprovações (0188)", () => {
     expect(proximoPasso({ status: "aguardando_projeto", fluxo: 2 }, { coordenador: "Sandra", coordenadorRotulo: "Coordenador do projeto" }).responsavel).toBe(
       "Sandra (Coordenador do projeto)",
     );
+    expect(proximoPasso({ status: "aguardando_cotacao", fluxo: 2 }, { solicitante: "rafaela@x" })).toMatchObject({
+      acao: "Fazer a cotação: 3 orçamentos e enviar",
+      responsavel: "rafaela@x (quem pediu)",
+    });
+    expect(proximoPasso({ status: "aguardando_financeiro", fluxo: 2 }).depois).toContain("quem pediu faz a cotação");
     expect(proximoPasso({ status: "aprovado_para_compra", fluxo: 2 }, { cicloAbreEm: "2026-12-01" }).acao).toContain("Aguardar o ciclo");
   });
 
@@ -122,6 +146,33 @@ describe("ordem nova das aprovações (0188)", () => {
     expect(antigo.vez).toBeNull();
   });
 
+  it("0189: a cotação é de quem pediu; na ausência, o substituto; os outros esperam", () => {
+    const base = { aprovadores, comoSubstituto: "como Administrador", podeGerir: true, rotuloStatus: "Cotação com o solicitante" };
+    const pedido = { status: "aguardando_cotacao", fluxo: 2, solicitante: "Rafaela@X" };
+    const dono = vezFluxoNovo({ ...base, pedido, usuarioId: "raf", emailUsuario: "rafaela@x", substituto: false });
+    expect(dono.podeCotar).toBe(true);
+    expect(dono.podeDecidir).toBe(false);
+    expect(dono.vez?.texto).toContain("Faça a cotação");
+    const admin = vezFluxoNovo({ ...base, pedido, usuarioId: "adm", emailUsuario: "adm@x", substituto: true });
+    expect(admin.podeCotar).toBe(true);
+    expect(admin.vez?.texto).toContain("na ausência de quem pediu");
+    const coordenador = vezFluxoNovo({ ...base, pedido, usuarioId: "coord", emailUsuario: "coord@x", substituto: false });
+    expect(coordenador.podeCotar).toBe(false);
+    expect(coordenador.vez).toEqual({ tom: "espera", rotulo: "Cotação com o solicitante", texto: null });
+  });
+
+  it("0189: o que falta na cotação (3 fornecedores, 3 com documento)", () => {
+    const orc = (id: number, fornecedor_nome: string, anexo_id: number | null) =>
+      ({ id, fornecedor_nome, valor_total: 100 + id, anexo_id }) as unknown as Orcamento;
+    expect(motivoCotacaoIncompleta([orc(1, "A", 1), orc(2, "a", 2)])).toBe(
+      "A cotação precisa de 3 orçamentos de fornecedores diferentes. Faltam 2.",
+    );
+    expect(motivoCotacaoIncompleta([orc(1, "A", 1), orc(2, "B", null), orc(3, "C", 3)])).toBe(
+      "Cada orçamento vai com o documento do fornecedor (PDF ou imagem). 2 de 3 têm.",
+    );
+    expect(motivoCotacaoIncompleta([orc(1, "A", 1), orc(2, "B", 2), orc(3, "C", 3)])).toBeNull();
+  });
+
   it("reenvio na ordem nova volta para quem devolveu, ou recomeça", () => {
     const igual = { mantem: true, mudou: [], motivo: "igual" as const, valorAtual: 10, valorValidado: 10, aguardaLaboratorio: false };
     expect(textoReenvio(igual, { fluxoNovo: true, devolvidoNaEtapa: "aguardando_projeto" })).toContain("volta direto para o coordenador do projeto");
@@ -138,64 +189,6 @@ describe("ordem nova das aprovações (0188)", () => {
       "2026-11-06T10:00:00Z",
     );
     expect(datas).toEqual({ solicitadoEm: "2026-11-05T10:00:00Z", aprovadoEm: "2026-11-12T10:00:00Z" });
-  });
-});
-
-describe("orçamentos junto com o pedido (0188)", () => {
-  function formulario(linhas: Record<string, string | File>) {
-    const dados = new FormData();
-    for (const [k, v] of Object.entries(linhas)) dados.set(k, v);
-    return dados;
-  }
-
-  it("lê as linhas preenchidas e ignora as em branco", () => {
-    const pdf = new File([new Uint8Array(5)], "a.pdf", { type: "application/pdf" });
-    const { orcamentos, erro } = lerOrcamentosNovoPedido(
-      formulario({
-        orcamentos_indices: "0,1,2",
-        orcamento_0_fornecedor_nome: "Loja A",
-        orcamento_0_valor: "1.234,50",
-        orcamento_0_prazo: "10",
-        orcamento_0_arquivo: pdf,
-        orcamento_1_fornecedor_nome: "Loja B",
-        orcamento_1_valor: "99.9",
-        orcamento_2_arquivo: new File([], ""),
-      }),
-    );
-    expect(erro).toBeNull();
-    expect(orcamentos.map((o) => [o.fornecedor_nome, o.valor_total, o.prazo_entrega_dias, Boolean(o.arquivo)])).toEqual([
-      ["Loja A", 1234.5, 10, true],
-      ["Loja B", 99.9, null, false],
-    ]);
-  });
-
-  it("linha pela metade volta com o número da linha", () => {
-    expect(lerOrcamentosNovoPedido(formulario({ orcamentos_indices: "0,1", orcamento_1_valor: "10" })).erro).toBe(
-      "Orçamento 2: escolha o fornecedor ou escreva o nome dele.",
-    );
-    expect(lerOrcamentosNovoPedido(formulario({ orcamentos_indices: "0", orcamento_0_fornecedor_nome: "Loja" })).erro).toBe(
-      "Orçamento 1: informe o valor total (maior que zero).",
-    );
-  });
-
-  it("para enviar: 3 fornecedores diferentes, cada um com o documento", () => {
-    expect(faltaNosOrcamentosParaEnviar([{ nome: "A", comDocumento: true }, { nome: "a", comDocumento: true }])).toBe(
-      "O pedido vai com 3 orçamentos de fornecedores diferentes. Faltam 2.",
-    );
-    expect(
-      faltaNosOrcamentosParaEnviar([
-        { nome: "A", comDocumento: true },
-        { nome: "B", comDocumento: true },
-        { nome: "C", comDocumento: false },
-      ]),
-    ).toContain("2 de 3 têm");
-    expect(
-      faltaNosOrcamentosParaEnviar([
-        { nome: "A", comDocumento: true },
-        { nome: "B", comDocumento: true },
-        { nome: "C", comDocumento: true },
-      ]),
-    ).toBeNull();
   });
 });
 

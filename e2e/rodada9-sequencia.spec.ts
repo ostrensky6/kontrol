@@ -20,7 +20,9 @@ test("Novo pedido numera as partes na ordem de preencher", async ({ page }) => {
   await page.goto("/pedido");
   await page.getByRole("button", { name: "Novo pedido" }).first().click();
   const dialogo = page.getByRole("dialog", { name: "Novo pedido" });
-  for (const titulo of ["Identificação do pedido", "Justificativa", "Materiais, serviços e equipamentos", "Orçamentos", "Orçamento prévio e termo de referência"]) {
+  for (const titulo of ["Identificação do pedido", "Justificativa", "Materiais, serviços e equipamentos", "Orçamento prévio e termo de referência"]) {
     await expect(dialogo.getByRole("heading", { name: titulo, exact: true })).toBeVisible();
   }
+  // 0189 (relatório da Rafaela, 28/11/2026): os 3 orçamentos ficam para a cotação, depois do financeiro
+  await expect(dialogo.getByRole("heading", { name: "Orçamentos", exact: true })).toHaveCount(0);
 });

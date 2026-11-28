@@ -688,7 +688,8 @@ begin
           'Cotação enviada ao coordenador do projeto: ' || v_comentario);
 
   return jsonb_build_object('pedido_id', p_pedido_id, 'status_origem', 'aguardando_cotacao',
-                            'status_destino', 'aguardando_projeto', 'orcamentos', v_fornecedores);
+                            'status_destino', 'aguardando_projeto', 'orcamentos', v_fornecedores,
+                            'fornecedor', v_escolhido.fornecedor_nome);
 end $function$;
 
 comment on function public.enviar_cotacao_pedido(bigint, text) is

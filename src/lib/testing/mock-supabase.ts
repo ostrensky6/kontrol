@@ -1321,6 +1321,27 @@ function mockMinhasNotificacoes(): Row[] {
   });
 }
 
+/**
+ * 0189: o que falta na cotação (3 fornecedores diferentes, 3 com documento);
+ * sem escolha, marca o de menor valor (`marca` diz quando). null quando completa.
+ */
+function mockFaltaNaCotacao(pedidoId: unknown, marca: string | null): string | null {
+  const cotacoes = ((store.pedidos_internos_cotacoes ?? []) as Row[]).filter((row) => Number(row.pedido_interno_id) === Number(pedidoId));
+  const nomes = new Set(cotacoes.map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()).filter(Boolean));
+  const comDocumento = new Set(cotacoes.filter((row) => row.anexo_id).map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()));
+  if (nomes.size < 3) {
+    return `A cotação precisa de 3 orçamentos de fornecedores diferentes. Este pedido tem ${nomes.size}. Registre os que faltam, com o documento de cada um.`;
+  }
+  if (comDocumento.size < 3) {
+    return `Anexe o documento de cada orçamento (PDF, foto ou planilha do fornecedor). Há ${comDocumento.size} com documento; são precisos 3.`;
+  }
+  if (marca && !cotacoes.some((row) => row.escolhida)) {
+    const menor = [...cotacoes].sort((a, b) => Number(a.valor_total) - Number(b.valor_total) || Number(a.id) - Number(b.id))[0];
+    Object.assign(menor, { escolhida: true, escolhida_por: `menor valor, ${marca}`, escolhida_em: new Date().toISOString(), justificativa_escolha: null });
+  }
+  return null;
+}
+
 /** Mesma regra de public.aguardando_voce (0128, 0176 e 0185), com os dados do mock. */
 function mockAguardandoVoce(sessao: SessaoMock) {
   const saida: Row[] = [];
@@ -1330,6 +1351,11 @@ function mockAguardandoVoce(sessao: SessaoMock) {
       quantidade: rows.length,
       itens: rows.slice(0, 3).map((row) => ({ id: row.id, rotulo: rotulo(row) })),
     });
+  // 0189: a cotação é de quem pediu (no mock, o usuário é admin@example.com)
+  const paraCotar = (store.pedidos_internos ?? []).filter(
+    (row) => row.status === "aguardando_cotacao" && String(row.solicitante ?? "").trim().toLowerCase() === "admin@example.com",
+  );
+  if (paraCotar.length) linha("pedidos_cotacao", paraCotar, (row) => `#${row.id} · ${row.titulo ?? "sem título"}`);
   if (mockTemPermissao("pedido.aprovar", sessao)) {
     linha(
       "pedidos_validacao",
@@ -2658,24 +2684,16 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           const trava = ap.falta_laboratorio ?? ap.falta_coordenador;
           if (trava) return erro(String(trava));
         }
-        const cotacoes = ((store.pedidos_internos_cotacoes ?? []) as Row[]).filter((row) => Number(row.pedido_interno_id) === Number(pedido.id));
-        const nomes = new Set(cotacoes.map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()).filter(Boolean));
-        const comDocumento = new Set(cotacoes.filter((row) => row.anexo_id).map((row) => String(row.fornecedor_nome ?? "").trim().toLowerCase()));
-        if (nomes.size < 3) {
-          return erro(`Toda compra precisa de 3 orçamentos de fornecedores diferentes, enviados junto com o pedido. Este pedido tem ${nomes.size}. Registre os orçamentos (com o documento de cada um) e envie de novo.`);
-        }
-        if (comDocumento.size < 3) {
-          return erro(`Anexe o documento de cada orçamento (PDF, foto ou planilha do fornecedor). Há ${comDocumento.size} com documento; são precisos 3.`);
-        }
-        if (!cotacoes.some((row) => row.escolhida)) {
-          const menor = [...cotacoes].sort((a, b) => Number(a.valor_total) - Number(b.valor_total) || Number(a.id) - Number(b.id))[0];
-          Object.assign(menor, { escolhida: true, escolhida_por: "menor valor, no envio", escolhida_em: new Date().toISOString(), justificativa_escolha: null });
-        }
+        // 0189: os orçamentos não vão no pedido; só a volta ao coordenador do projeto pede a cotação completa
         const origem = String(pedido.status);
         const volta = origem === "ajuste_solicitante" && pedido.devolvido_na_etapa && pedido.devolvido_na_etapa !== "aguardando_area"
           ? String(pedido.devolvido_na_etapa)
           : null;
         const destino = volta ?? "aguardando_area";
+        if (destino === "aguardando_projeto") {
+          const falta = mockFaltaNaCotacao(pedido.id, "no reenvio");
+          if (falta) return erro(falta);
+        }
         if (!volta) Object.assign(pedido, { aprovacao_area_em: null, aprovacao_area_por: null, aprovacao_financeiro_em: null, aprovacao_financeiro_por: null });
         const agora = new Date().toISOString();
         Object.assign(pedido, { status: destino, devolvido_na_etapa: null, enviado_validacao_em: agora, atualizado_em: agora });
@@ -2735,12 +2753,16 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
           if (!pedida) return erro("Escolha a fonte de pagamento (Ineo, Funpar, ATGC, CNPq ou outra cadastrada).");
           if (!achada) return erro("Fonte de pagamento fora da lista. Cadastre-a em Cadastros > Fontes de pagamento.");
           fonte = String(achada.nome);
-          destino = "aguardando_projeto";
+          // 0189: depois do financeiro, quem pediu faz a cotação
+          destino = "aguardando_cotacao";
           Object.assign(pedido, {
             fonte_recurso: fonte, rubrica: String(dados.rubrica ?? "").trim() || pedido.rubrica || null,
             analisado_em: agora, aprovacao_financeiro_em: agora, aprovacao_financeiro_por: "admin@example.com",
           });
         } else {
+          // 0189: o coordenador do projeto aprova vendo a cotação completa
+          const falta = mockFaltaNaCotacao(pedido.id, null);
+          if (falta) return erro("A cotação está incompleta: são precisos 3 orçamentos de fornecedores diferentes, cada um com o documento. Devolva ao solicitante para completar.");
           destino = "aprovado_para_compra";
           // a compra formal nasce aprovada, com o fornecedor do orçamento escolhido
           const escolhida = ((store.pedidos_internos_cotacoes ?? []) as Row[]).find(
@@ -2762,6 +2784,31 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         Object.assign(pedido, { status: destino, atualizado_em: agora });
         registrar("aprovado", destino, [fonte ? `Fonte: ${fonte}.` : null, obs].filter(Boolean).join(" ") || null);
         return { data: { pedido_id: pedido.id, decisao: "aprovado", etapa, status_origem: origem, status_destino: destino, pedido_compra_id: pedido.pedido_compra_id ?? null }, error: null };
+      }
+      // 0189: quem pediu envia a cotação (3 orçamentos com documento) ao coordenador do projeto
+      if (fn === "enviar_cotacao_pedido") {
+        const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
+        if (!pedido) return { data: null, error: { message: "Pedido interno não encontrado.", code: "P0002" } };
+        if (Number(pedido.fluxo ?? 1) !== 2 || pedido.status !== "aguardando_cotacao") {
+          return { data: null, error: { message: "Este pedido não está na cotação. A tela foi atualizada.", code: "22023" } };
+        }
+        const falta = mockFaltaNaCotacao(pedido.id, "no envio da cotação");
+        if (falta) return { data: null, error: { message: falta, code: "22023" } };
+        const escolhida = ((store.pedidos_internos_cotacoes ?? []) as Row[]).find(
+          (row) => Number(row.pedido_interno_id) === Number(pedido.id) && row.escolhida,
+        );
+        const agora = new Date().toISOString();
+        Object.assign(pedido, { status: "aguardando_projeto", orcamentos_em: agora, atualizado_em: agora });
+        const comentario = `3 orçamentos; escolhido: ${escolhida?.fornecedor_nome ?? "—"}.`;
+        store.pedidos_internos_aprovacoes = [...(store.pedidos_internos_aprovacoes ?? []), {
+          id: nextId("pedidos_internos_aprovacoes"), pedido_interno_id: pedido.id, etapa: "Cotação do solicitante", decisao: "registrado",
+          responsavel: "admin@example.com", papel: "admin", comentario, status_origem: "aguardando_cotacao", status_destino: "aguardando_projeto", criado_em: agora,
+        }];
+        store.eventos_status = [...(store.eventos_status ?? []), {
+          id: nextId("eventos_status"), entidade: "pedido_interno", entidade_id: pedido.id, de_status: "aguardando_cotacao",
+          para_status: "aguardando_projeto", usuario: "admin@example.com", criado_em: agora, observacao: comentario,
+        }];
+        return { data: { pedido_id: pedido.id, status_origem: "aguardando_cotacao", status_destino: "aguardando_projeto", fornecedor: escolhida?.fornecedor_nome ?? null }, error: null };
       }
       if (fn === "decidir_coordenacao_laboratorio") {
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(args.p_pedido_id));
@@ -2788,6 +2835,7 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         const etapasFluxo2: Record<string, string> = {
           aguardando_area: "Aprovação do laboratório ou campo",
           aguardando_financeiro: "Aprovação financeira",
+          aguardando_cotacao: "Cotação do solicitante",
           aguardando_projeto: "Aprovação do coordenador do projeto",
         };
         const etapa = etapasFluxo2[String(pedido.status)] ?? (
@@ -2984,7 +3032,7 @@ export function createMockSupabaseClient(sessao: SessaoMock = {}) {
         const cotacao = cotacoes.find((row) => Number(row.id) === Number(args.p_cotacao_id));
         if (!cotacao) return { data: null, error: { message: "Orçamento não encontrado.", code: "P0002" } };
         const pedido = (store.pedidos_internos ?? []).find((row) => Number(row.id) === Number(cotacao.pedido_interno_id));
-        const naAprovacaoNova = Number(pedido?.fluxo ?? 1) === 2 && ["aguardando_area", "aguardando_financeiro", "aguardando_projeto"].includes(String(pedido?.status));
+        const naAprovacaoNova = Number(pedido?.fluxo ?? 1) === 2 && ["aguardando_cotacao", "ajuste_solicitante", "aguardando_projeto"].includes(String(pedido?.status));
         if (!pedido || (pedido.status !== "orcamentos_recebidos" && !naAprovacaoNova)) {
           return { data: null, error: { message: 'O orçamento é escolhido com o pedido em "Cotações recebidas".', code: "22023" } };
         }

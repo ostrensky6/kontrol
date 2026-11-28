@@ -124,3 +124,21 @@ export function motivoSemCotacoesRecebidas(resumo: ResumoOrcamentos): string | n
 export function motivoSemAprovacaoFinal(resumo: ResumoOrcamentos): string | null {
   return motivoSemCotacoesRecebidas(resumo) ?? (resumo.escolhido ? null : "Escolha um dos orçamentos antes de enviar para a aprovação final.");
 }
+
+/**
+ * 0189: o que falta na cotação da ordem nova (mesma regra do banco,
+ * enviar_cotacao_pedido e a aprovação do coordenador do projeto): 3
+ * orçamentos de fornecedores diferentes, 3 deles com o documento. O de menor
+ * valor fica escolhido no envio, quando nenhum foi escolhido.
+ */
+export function motivoCotacaoIncompleta(orcamentos: Orcamento[]): string | null {
+  const resumo = resumirOrcamentos(orcamentos);
+  if (resumo.faltam > 0) {
+    return `A cotação precisa de ${ORCAMENTOS_EXIGIDOS} orçamentos de fornecedores diferentes. Falta${resumo.faltam > 1 ? "m" : ""} ${resumo.faltam}.`;
+  }
+  const comDocumento = orcamentos.filter((o) => o.anexo_id != null).length;
+  if (comDocumento < ORCAMENTOS_EXIGIDOS) {
+    return `Cada orçamento vai com o documento do fornecedor (PDF ou imagem). ${comDocumento} de ${ORCAMENTOS_EXIGIDOS} têm.`;
+  }
+  return null;
+}

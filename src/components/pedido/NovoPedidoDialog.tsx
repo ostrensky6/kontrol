@@ -46,7 +46,6 @@ import {
 } from "@/lib/pedido/itens-novo-pedido";
 import { FormComMensagem } from "./FormComMensagem";
 import { NovoPedidoDocumentos } from "./NovoPedidoDocumentos";
-import { NovoPedidoOrcamentos } from "./NovoPedidoOrcamentos";
 import { NovoPedidoItensLista, type ItemDaLista } from "./NovoPedidoItensLista";
 import { PedidoItemCamposAssistidos, type PedidoItemDefaults } from "./PedidoItemCamposAssistidos";
 
@@ -316,8 +315,8 @@ function NovoPedidoFormulario({
             <div className="flex items-center gap-0.5">
               <label htmlFor="novo-pedido-projeto" className="block text-xs font-medium text-muted-foreground">Projeto</label>
               <HelpTip title="Quem aprova o pedido">
-                O coordenador do projeto dá a última aprovação, depois do laboratório ou campo e do financeiro. Sem coordenador
-                cadastrado, o envio trava. Sem projeto, a Supervisão aprova.
+                O coordenador do projeto dá a última aprovação, depois do laboratório ou campo, do financeiro e da sua cotação
+                (3 orçamentos). Sem coordenador cadastrado, o envio trava. Sem projeto, a Supervisão aprova.
               </HelpTip>
             </div>
             <select
@@ -466,9 +465,8 @@ function NovoPedidoFormulario({
           )}
         </section>
 
-        <NovoPedidoOrcamentos fornecedores={catalogo?.fornecedores ?? []} passo={4} />
-
-        <NovoPedidoDocumentos passo={5} />
+        {/* 0189: os 3 orçamentos ficam para a cotação, depois da aprovação financeira */}
+        <NovoPedidoDocumentos passo={4} />
 
         {/* rodapé preso embaixo: os botões de enviar ficam à vista no pedido comprido */}
         <DialogFooter className="sticky -bottom-5 z-10 -mx-5 border-t border-border bg-card px-5 py-3 sm:items-center">

@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
-import { preencherTresOrcamentos } from "../e2e/ajudas/novo-pedido";
+import { registrarTresOrcamentos } from "../e2e/ajudas/novo-pedido";
 
 /**
  * Item novo contra o Postgres de verdade: algo que o laboratório nunca comprou
@@ -80,7 +80,6 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await camposItem.locator('[name="orcamento_previo"]').fill("180");
   await novo.getByRole("button", { name: "Adicionar item", exact: true }).click();
   await expect(novo.getByTestId("novo-pedido-itens").getByTestId("item-novo")).toHaveText("Item novo");
-  await preencherTresOrcamentos(novo, ["360,00", "390,00", "420,00"], [`Loja A item novo ${sufixo}`, `Loja B item novo ${sufixo}`, `Loja C item novo ${sufixo}`]);
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
@@ -155,14 +154,16 @@ test("item nunca comprado: quem pede descreve, a compra cadastra o insumo pelo p
   await expect(page.getByRole("status").filter({ hasText: /^0 de \d+$/ })).toBeVisible();
   await expect(page.getByRole("row", { name: new RegExp(insumoNome) })).toHaveCount(0);
 
-  // ---- 4. com o item ligado, o financeiro aprova com a fonte, o coordenador do projeto dá a
-  //         última aprovação e a compra formal leva o insumo
+  // ---- 4. com o item ligado, o financeiro aprova com a fonte, quem pediu faz a cotação (0189),
+  //         o coordenador do projeto dá a última aprovação e a compra formal leva o insumo
   await page.goto(`/pedido/${pedidoId}`);
   await expect(page.getByText("Parte desta tela não carregou")).toHaveCount(0);
   await expect(page.getByText(`vinculado: ${insumoNome}`)).toBeVisible();
   await expect(page.getByText(/Há 1 item novo, ainda sem cadastro/)).toHaveCount(0);
   await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption("Ineo");
-  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_projeto");
+  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_cotacao");
+  await registrarTresOrcamentos(page, ["360.00", "390.00", "420.00"], [`Loja A item novo ${sufixo}`, `Loja B item novo ${sufixo}`, `Loja C item novo ${sufixo}`]);
+  await avancar(page, cliente, pedidoId, "Enviar cotação ao coordenador do projeto", "aguardando_projeto");
   await avancar(page, cliente, pedidoId, "Aprovar pedido", "aprovado_para_compra");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();
   const compraId = Number((formalizado as { pedido_compra_id: number | null } | null)?.pedido_compra_id);

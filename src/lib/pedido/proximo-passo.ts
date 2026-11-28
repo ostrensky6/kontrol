@@ -41,7 +41,13 @@ const PASSOS: Record<string, ProximoPasso> = {
   aguardando_financeiro: {
     acao: "Escolher a fonte de pagamento e aprovar",
     responsavel: "Financeiro (função Administrativo)",
-    depois: "o coordenador do projeto dá a última aprovação.",
+    depois: "quem pediu faz a cotação, com 3 orçamentos; o coordenador do projeto dá a última aprovação.",
+  },
+  // 0189: a cotação de quem pediu, entre o financeiro e o coordenador do projeto
+  aguardando_cotacao: {
+    acao: "Fazer a cotação: 3 orçamentos e enviar",
+    responsavel: "Quem pediu (solicitante)",
+    depois: "o coordenador do projeto vê os 3 orçamentos e dá a última aprovação.",
   },
   aguardando_projeto: {
     acao: "Aprovar pedido",
@@ -127,6 +133,8 @@ export type ContextoProximoPasso = {
   cicloAbreEm?: string | null;
   /** 0188: quem aprova pelo financeiro (nomes da função Administrativo) */
   financeiro?: string | null;
+  /** 0189: quem pediu, que faz a cotação */
+  solicitante?: string | null;
 };
 
 export function proximoPasso(
@@ -188,7 +196,7 @@ function proximoPassoFluxoNovo(status: string, contexto: ContextoProximoPasso): 
     return {
       acao: "Enviar para aprovação",
       responsavel: "Solicitante",
-      depois: "o laboratório ou campo aprova ou devolve; depois o financeiro e o coordenador do projeto.",
+      depois: "o laboratório ou campo aprova ou devolve; depois o financeiro, a sua cotação e o coordenador do projeto.",
     };
   }
   if (status === "ajuste_solicitante") return PASSOS.ajuste_solicitante;
@@ -206,6 +214,10 @@ function proximoPassoFluxoNovo(status: string, contexto: ContextoProximoPasso): 
   if (status === "aguardando_financeiro") {
     const nomes = contexto.financeiro?.trim();
     return { ...PASSOS.aguardando_financeiro, responsavel: nomes ? `${nomes} (financeiro)` : PASSOS.aguardando_financeiro.responsavel };
+  }
+  if (status === "aguardando_cotacao") {
+    const quem = contexto.solicitante?.trim();
+    return { ...PASSOS.aguardando_cotacao, responsavel: quem ? `${quem} (quem pediu)` : PASSOS.aguardando_cotacao.responsavel };
   }
   if (status === "aguardando_projeto") {
     const nome = contexto.coordenador?.trim();

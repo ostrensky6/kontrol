@@ -29,7 +29,7 @@ describe("montarPendencias", () => {
         acao: "aprovar ou devolver ao solicitante",
         frase: "2 pedidos esperam a sua aprovação",
         quantidade: 2,
-        href: "/pedido?etapa=aprovacao",
+        href: "/pedido?ver=aprovacoes",
         itens: [{ id: 7, rotulo: "#7 · Reagentes", href: "/pedido/7" }],
       },
       {
@@ -69,6 +69,7 @@ describe("montarPendencias", () => {
   it("separa o que é de Pedidos e o que é de Suprimentos; as listas abrem na etapa certa", () => {
     const pendencias = montarPendencias([
       { chave: "pedidos_validacao", quantidade: 1, itens: [] },
+      { chave: "pedidos_cotacao", quantidade: 1, itens: [] },
       { chave: "pedidos_laboratorio", quantidade: 1, itens: [] },
       { chave: "pedidos_administrativo", quantidade: 1, itens: [] },
       { chave: "compras_receber", quantidade: 2, itens: [] },
@@ -76,12 +77,14 @@ describe("montarPendencias", () => {
       { chave: "planos_rascunho", quantidade: 1, itens: [] },
     ]);
     expect(pendenciasDe(pendencias, PENDENCIAS_DE_PEDIDOS).map((p) => [p.chave, p.href])).toEqual([
-      ["pedidos_validacao", "/pedido?etapa=aprovacao"],
+      ["pedidos_validacao", "/pedido?ver=aprovacoes"],
+      ["pedidos_cotacao", "/pedido?etapa=cotacao"],
       ["pedidos_laboratorio", "/pedido?etapa=aprovacao"],
       ["pedidos_administrativo", "/pedido?etapa=administrativo"],
     ]);
     expect(pendenciasDe(pendencias, PENDENCIAS_DE_COMPRAS).map((p) => p.chave)).toEqual([
       "pedidos_validacao",
+      "pedidos_cotacao",
       "pedidos_laboratorio",
       "pedidos_administrativo",
       "compras_receber",
@@ -142,7 +145,7 @@ describe("linha Sua vez (D4)", () => {
     const [varios] = montarPendencias([{ chave: "pedidos_validacao", quantidade: 3, itens: [{ id: 7, rotulo: "#7" }] }]);
     expect(destinoDaPendencia(um)).toBe("/pedido/7");
     expect(um.frase).toBe("1 pedido espera a sua aprovação");
-    expect(destinoDaPendencia(varios)).toBe("/pedido?etapa=aprovacao");
+    expect(destinoDaPendencia(varios)).toBe("/pedido?ver=aprovacoes");
     expect(totalPendencias([um, varios])).toBe(4);
   });
 });

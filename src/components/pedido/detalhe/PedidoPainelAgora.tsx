@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  motivoCotacaoIncompleta,
   motivoSemAprovacaoFinal,
   motivoSemCotacoesRecebidas,
   type Orcamento,
@@ -59,6 +60,8 @@ type Props = {
   /** 0188: ordem nova das aprovações */
   fluxoNovo?: boolean;
   podeDecidirVez?: boolean;
+  /** 0189: quem pediu (ou o substituto) faz a cotação depois do financeiro */
+  podeCotar?: boolean;
   motivoSemDecisaoVez?: string | null;
   fontes?: { nome: string; descricao?: string | null }[];
 };
@@ -94,9 +97,19 @@ export function PedidoPainelAgora({
   aguardandoChegada,
   fluxoNovo = false,
   podeDecidirVez = false,
+  podeCotar = false,
   motivoSemDecisaoVez = null,
   fontes = [],
 }: Props) {
+  // 0189: na ordem nova o quadro de orçamentos é o da cotação: aparece a partir
+  // dela (ou quando já há orçamentos, como no ajuste pedido pelo coordenador)
+  const mostraOrcamentos =
+    comOrcamentos &&
+    (!fluxoNovo || ["aguardando_cotacao", "aguardando_projeto"].includes(pedido.status) || (orcamentos?.length ?? 0) > 0);
+  const motivoCotacao =
+    fluxoNovo && ["aguardando_cotacao", "aguardando_projeto"].includes(pedido.status) && orcamentos
+      ? motivoCotacaoIncompleta(orcamentos)
+      : null;
   return (
     <div
       data-testid="painel-agora"
@@ -169,6 +182,8 @@ export function PedidoPainelAgora({
             motivoProprioPedido={motivoProprioPedido}
             controlado={controlados.length > 0}
             podeDecidirVez={podeDecidirVez}
+            podeCotar={podeCotar}
+            motivoCotacao={motivoCotacao}
             motivoSemDecisaoVez={motivoSemDecisaoVez}
             fontes={fontes}
             // D9 (0174): produto controlado só pela Funpar
@@ -205,7 +220,7 @@ export function PedidoPainelAgora({
             Conferir e enviar, no fim da lista de itens
           </a>
         )}
-        {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && !podeDecidirVez && (
+        {!encerrado && !editavel && !podeGerir && !podeDecidirLaboratorio && !podeDecidirVez && !podeCotar && (
           <p className="text-sm text-muted-foreground">
             Você acompanha este pedido. Quem age nesta etapa precisa da permissão “Aprovar pedidos”.
           </p>
@@ -231,15 +246,16 @@ export function PedidoPainelAgora({
           )}
         </p>
       )}
-      {comOrcamentos && (
+      {mostraOrcamentos && (
         <PedidoOrcamentos
           pedidoId={pedidoId}
           status={pedido.status}
           orcamentos={orcamentos}
-          // 0188: na ordem nova quem pede registra os orçamentos (o banco confere)
-          podeGerir={fluxoNovo ? editavel : podeGerir}
+          // 0189: na ordem nova quem pede registra os orçamentos na cotação e no ajuste (o banco confere)
+          podeGerir={fluxoNovo ? podeCotar || editavel : podeGerir}
           fluxoNovo={fluxoNovo}
-          podeEscolherNaAprovacao={fluxoNovo && podeGerir}
+          // o coordenador do projeto pode trocar o escolhido, com justificativa
+          podeEscolherNaAprovacao={fluxoNovo && podeGerir && podeDecidirVez}
           fornecedores={((fornecedores ?? []) as unknown as FornecedorRaw[])
             .filter((f): f is { id: number; nome: string } => typeof f.id === "number" && Boolean(f.nome))
             .map((f) => ({ id: f.id, nome: f.nome }))}

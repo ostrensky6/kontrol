@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { ADMIN, clienteDoUsuario, entrarComo } from "./apoio";
-import { preencherTresOrcamentos } from "../e2e/ajudas/novo-pedido";
+import { registrarTresOrcamentos } from "../e2e/ajudas/novo-pedido";
 
 /**
  * Roteiro inteiro de Suprimentos contra o Postgres de verdade (auditoria de
@@ -106,17 +106,12 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   });
   await cotacaoDoPedido.getByLabel("Link ou referência externa (opcional)").fill("https://exemplo.invalid/cotacao-previa-roteiro");
   await cotacaoDoPedido.getByLabel("Observação").fill("Valor estimado: R$ 400,00");
-  // 0188: os 3 orçamentos vão junto com o pedido, cada um com o documento do fornecedor
+  // 0189: os 3 orçamentos não vão no pedido; entram na cotação, depois do financeiro
   const cotacoes = [
-    { fornecedor: `Fornecedor A ${sufixo}`, valor: "400,00" },
-    { fornecedor: `Fornecedor B ${sufixo}`, valor: "450,00" },
-    { fornecedor: `Fornecedor C ${sufixo}`, valor: "500,00" },
+    { fornecedor: `Fornecedor A ${sufixo}`, valor: "400.00" },
+    { fornecedor: `Fornecedor B ${sufixo}`, valor: "450.00" },
+    { fornecedor: `Fornecedor C ${sufixo}`, valor: "500.00" },
   ];
-  await preencherTresOrcamentos(
-    novo,
-    [cotacoes[0].valor, cotacoes[1].valor, cotacoes[2].valor],
-    [cotacoes[0].fornecedor, cotacoes[1].fornecedor, cotacoes[2].fornecedor],
-  );
   await novo.getByRole("button", { name: "Enviar para aprovação", exact: true }).click();
   await expect(page).toHaveURL(/\/pedido\/\d+$/);
   const pedidoId = Number(page.url().split("/").pop());
@@ -147,22 +142,12 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
     }),
   ]);
   expect(String((cotacaoPrevia?.[0] as { storage_path?: string } | undefined)?.storage_path)).toMatch(new RegExp(`^${pedidoId}/`));
-  // os 3 orçamentos foram gravados com o documento de cada um; no envio, o de menor valor ficou escolhido
-  const { data: orcamentosGravados } = await cliente
+  // nenhum orçamento de fornecedor ainda: eles vêm na cotação (0189)
+  const { count: semOrcamentos } = await cliente
     .from("pedidos_internos_cotacoes")
-    .select("fornecedor_nome, valor_total, escolhida, anexo_id")
-    .eq("pedido_interno_id", pedidoId)
-    .order("valor_total");
-  expect(
-    (orcamentosGravados ?? []).map((linha) => {
-      const o = linha as { fornecedor_nome: string; valor_total: number; escolhida: boolean; anexo_id: number | null };
-      return [o.fornecedor_nome, Number(o.valor_total), o.escolhida, o.anexo_id != null];
-    }),
-  ).toEqual([
-    [cotacoes[0].fornecedor, 400, true, true],
-    [cotacoes[1].fornecedor, 450, false, true],
-    [cotacoes[2].fornecedor, 500, false, true],
-  ]);
+    .select("id", { count: "exact", head: true })
+    .eq("pedido_interno_id", pedidoId);
+  expect(semOrcamentos).toBe(0);
 
   // ---- 2. a urgência é de quem tem a permissão "Definir urgência do pedido" (0183). Ela fura o ciclo do
   // dia 10 (0172/0176): com isso o roteiro não depende do dia em que roda
@@ -180,15 +165,39 @@ test("pedido vira compra, a compra chega e a chegada vira lote no estoque", asyn
   await page.reload();
   await expect(page.getByText("Urgente: Roteiro automático: precisa seguir no mesmo dia.")).toBeVisible();
 
-  // ---- 3. 0188: laboratório ou campo, financeiro (com a fonte da lista) e, por último, o coordenador
-  //         do projeto. A última aprovação cria a compra formal e a aprova junto (0170)
-  await expect(page.getByTestId("orcamentos-pedido")).toContainText(`escolhido: ${cotacoes[0].fornecedor}`);
+  // ---- 3. 0188/0189: laboratório ou campo, financeiro (com a fonte da lista), a cotação de quem pediu
+  //         e, por último, o coordenador do projeto. A última aprovação cria a compra formal e a aprova junto (0170)
   await avancar(page, cliente, pedidoId, "Aprovar pelo laboratório ou campo", "aguardando_financeiro");
   await page.getByRole("combobox", { name: "Fonte de pagamento" }).selectOption("Funpar");
   await page.getByLabel("Rubrica (opcional)").fill("Material de consumo");
-  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_projeto");
+  await avancar(page, cliente, pedidoId, "Aprovar com esta fonte", "aguardando_cotacao");
   const { data: comFonte } = await cliente.from("pedidos_internos").select("fonte_recurso, rubrica").eq("id", pedidoId).single();
   expect(comFonte).toEqual({ fonte_recurso: "Funpar", rubrica: "Material de consumo" });
+  // a cotação: os 3 orçamentos, cada um com o documento do fornecedor
+  await registrarTresOrcamentos(
+    page,
+    [cotacoes[0].valor, cotacoes[1].valor, cotacoes[2].valor],
+    [cotacoes[0].fornecedor, cotacoes[1].fornecedor, cotacoes[2].fornecedor],
+  );
+  await avancar(page, cliente, pedidoId, "Enviar cotação ao coordenador do projeto", "aguardando_projeto");
+  // os 3 orçamentos foram gravados com o documento de cada um; no envio da cotação, o de menor valor ficou escolhido
+  const { data: orcamentosGravados } = await cliente
+    .from("pedidos_internos_cotacoes")
+    .select("fornecedor_nome, valor_total, escolhida, anexo_id")
+    .eq("pedido_interno_id", pedidoId)
+    .order("valor_total");
+  expect(
+    (orcamentosGravados ?? []).map((linha) => {
+      const o = linha as { fornecedor_nome: string; valor_total: number; escolhida: boolean; anexo_id: number | null };
+      return [o.fornecedor_nome, Number(o.valor_total), o.escolhida, o.anexo_id != null];
+    }),
+  ).toEqual([
+    [cotacoes[0].fornecedor, 400, true, true],
+    [cotacoes[1].fornecedor, 450, false, true],
+    [cotacoes[2].fornecedor, 500, false, true],
+  ]);
+
+  await expect(page.getByTestId("orcamentos-pedido")).toContainText(`escolhido: ${cotacoes[0].fornecedor}`);
   await avancar(page, cliente, pedidoId, "Aprovar pedido", "aprovado_para_compra");
   const { data: formalizado } = await cliente.from("pedidos_internos").select("pedido_compra_id").eq("id", pedidoId).single();
   const compraId = Number((formalizado as { pedido_compra_id: number | null } | null)?.pedido_compra_id);

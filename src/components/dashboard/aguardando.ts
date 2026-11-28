@@ -10,6 +10,7 @@
  */
 export type PendenciaChave =
   | "pedidos_validacao"
+  | "pedidos_cotacao"
   | "pedidos_laboratorio"
   | "pedidos_administrativo"
   | "pedidos_compras"
@@ -44,7 +45,17 @@ const CATALOGO: Record<
     titulo: "Pedidos para você aprovar",
     acao: "aprovar ou devolver ao solicitante",
     frase: ["pedido espera a sua aprovação", "pedidos esperam a sua aprovação"],
-    lista: "/pedido?etapa=aprovacao",
+    // 0189: a aprovação do coordenador do projeto fica na etapa Cotação; o
+    // quadro de aprovações mostra as três vezes, em qualquer etapa
+    lista: "/pedido?ver=aprovacoes",
+    item: (id) => `/pedido/${id}`,
+  },
+  // 0189: depois do financeiro, quem pediu faz a cotação
+  pedidos_cotacao: {
+    titulo: "Pedidos para você cotar",
+    acao: "registrar 3 orçamentos de fornecedores diferentes, com o documento, e enviar ao coordenador do projeto",
+    frase: ["pedido espera a sua cotação", "pedidos esperam a sua cotação"],
+    lista: "/pedido?etapa=cotacao",
     item: (id) => `/pedido/${id}`,
   },
   pedidos_laboratorio: {
@@ -169,6 +180,7 @@ export function montarPendenciaDoApp(
  */
 export const PENDENCIAS_DE_PEDIDOS: readonly PendenciaChave[] = [
   "pedidos_validacao",
+  "pedidos_cotacao",
   "pedidos_laboratorio",
   "pedidos_administrativo",
   "pedidos_compras",
